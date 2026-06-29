@@ -34,9 +34,7 @@ export default function HomePage() {
           </span>
           <div>
             <h1 className="text-lg font-semibold text-slate-900">SccIT</h1>
-            <p className="text-sm text-slate-500">
-              School IT Asset &amp; Service Management
-            </p>
+            <p className="text-sm text-slate-500">School IT Asset &amp; Service Management</p>
           </div>
         </div>
 
@@ -48,9 +46,7 @@ export default function HomePage() {
 
           {isLoading && <p className="text-sm text-slate-500">Checking…</p>}
           {isError && (
-            <p className="text-sm text-rose-600">
-              Could not reach the API. Is the stack running?
-            </p>
+            <p className="text-sm text-rose-600">Could not reach the API. Is the stack running?</p>
           )}
           {data && (
             <div>
@@ -58,9 +54,7 @@ export default function HomePage() {
               {Object.entries(data.checks).map(([k, v]) => (
                 <StatusRow key={k} label={k} value={v} />
               ))}
-              <p className="pt-3 text-xs text-slate-400">
-                Laravel {data.laravel}
-              </p>
+              <p className="pt-3 text-xs text-slate-400">Laravel {data.laravel}</p>
             </div>
           )}
         </div>

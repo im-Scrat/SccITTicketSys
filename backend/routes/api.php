@@ -19,14 +19,14 @@ Route::get('/health', function () {
     try {
         DB::connection()->getPdo();
         $checks['database'] = 'ok';
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $checks['database'] = 'error: '.$e->getMessage();
     }
 
     try {
         Redis::connection()->ping();
         $checks['redis'] = 'ok';
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $checks['redis'] = 'error: '.$e->getMessage();
     }
 

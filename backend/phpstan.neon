@@ -1,0 +1,12 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    # Solid baseline for a fresh project; raise over time toward max.
+    level: 6
+
+    # Larastan needs to boot the app to understand Eloquent/containers.
+    # (Uses the default bootstrap; nothing extra required here yet.)
