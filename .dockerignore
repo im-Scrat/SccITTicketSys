@@ -1,0 +1,16 @@
+# Root build-context ignore. Per-service Dockerfiles set their own
+# contexts; this keeps the default context lean and secrets out.
+**/.git
+**/.github
+**/node_modules
+**/vendor
+**/dist
+**/.vite
+**/.env
+**/.env.*
+!**/.env.example
+**/storage/logs/*
+**/*.log
+docs/
+scripts/
+*.md

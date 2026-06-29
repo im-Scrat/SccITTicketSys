@@ -1,0 +1,27 @@
+# ─── Environment (compose root) ───────────────────────────────
+/.env
+.env.local
+*.local
+
+# ─── Dependencies ─────────────────────────────────────────────
+node_modules/
+vendor/
+
+# ─── Build artifacts ──────────────────────────────────────────
+/frontend/dist/
+/frontend/.vite/
+/backend/public/build/
+/backend/public/hot
+
+# ─── OS / IDE ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# ─── Logs ─────────────────────────────────────────────────────
+*.log
+
+# Note: backend/ and frontend/ get their own .gitignore from
+# the Laravel and Vite scaffolds; this file covers the repo root
+# and anything created before those scaffolds exist.
