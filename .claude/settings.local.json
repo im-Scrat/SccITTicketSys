@@ -4,7 +4,8 @@
       "PowerShell(git add -A)",
       "PowerShell(docker exec sccit_app php artisan vendor:publish --tag=sanctum-migrations 2>&1)",
       "PowerShell(docker exec sccit_app php artisan migrate --force 2>&1)",
-      "PowerShell(docker exec sccit_postgres psql -U postgres -d school_it_service_management -c \"\\\\dt personal_access_tokens\" 2>&1)"
+      "PowerShell(docker exec sccit_postgres psql -U postgres -d school_it_service_management -c \"\\\\dt personal_access_tokens\" 2>&1)",
+      "PowerShell(docker exec sccit_app php -r \"require 'vendor/autoload.php'; echo \\(new App\\\\Domains\\\\Tickets\\\\Services\\\\AutoloadProbe\\(\\)\\)->ok\\(\\);\" 2>&1)"
     ]
   }
 }
