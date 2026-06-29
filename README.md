@@ -12,7 +12,7 @@ tickets, computer inventory, assets, preventive maintenance, repair history, and
 
 | Layer            | Technology                                              |
 | ---------------- | ------------------------------------------------------- |
-| Backend          | Laravel 12 · PHP 8.4                                    |
+| Backend          | Laravel 13 · PHP 8.4                                    |
 | Frontend         | React 19 · Vite · TypeScript · Tailwind CSS v4         |
 | Database         | PostgreSQL 17 (with `pgvector` for future RAG)          |
 | Cache / Queue    | Redis (cache, sessions, queues)                         |
