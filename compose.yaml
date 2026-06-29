@@ -106,6 +106,7 @@ services:
     restart: unless-stopped
     depends_on:
       - app
+      - node
     ports:
       - "127.0.0.1:${APP_HOST_PORT:-8080}:80"
     volumes:
@@ -165,6 +166,26 @@ services:
     networks:
       - sccit_network
 
+  # ---------- Node (Vite dev server, HMR) --------------------
+  node:
+    build:
+      context: .
+      dockerfile: docker/node/Dockerfile
+      target: development
+    image: sccit/node:dev
+    container_name: sccit_node
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      # Named volume keeps container's Linux node_modules separate from
+      # the Windows host's (native binaries differ).
+      - sccit_node_modules:/app/node_modules
+    expose:
+      - "5173"
+    networks:
+      - sccit_network
+
 networks:
   sccit_network:
     name: sccit_network
@@ -177,3 +198,5 @@ volumes:
     name: sccit_redisdata
   sccit_mailpitdata:
     name: sccit_mailpitdata
+  sccit_node_modules:
+    name: sccit_node_modules
