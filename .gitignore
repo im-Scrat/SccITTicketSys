@@ -22,6 +22,9 @@ Thumbs.db
 # ─── Logs ─────────────────────────────────────────────────────
 *.log
 
+# ─── Database backups ─────────────────────────────────────────
+/backups/
+
 # Note: backend/ and frontend/ get their own .gitignore from
 # the Laravel and Vite scaffolds; this file covers the repo root
 # and anything created before those scaffolds exist.
