@@ -17,7 +17,11 @@
       "Bash(echo \"---exit:$?---\")",
       "Bash(ls -la backups/)",
       "Bash(sh scripts/restore.sh)",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "PowerShell(docker compose down -v 2>&1)",
+      "PowerShell(docker compose up -d --build 2>&1)",
+      "PowerShell(docker compose exec -T app php vendor/bin/pest 2>&1)",
+      "PowerShell(docker compose exec -T node npm run test 2>&1)"
     ]
   }
 }
