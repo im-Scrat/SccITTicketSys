@@ -36,7 +36,7 @@ tickets, computer inventory, assets, preventive maintenance, repair history, and
 
 ```
 .
-├── backend/          # Laravel 12 application
+├── backend/          # Laravel 13 application
 ├── frontend/         # React 19 + Vite + TS application
 ├── docker/           # Dockerfiles & service configs
 │   ├── php/          #   PHP-FPM image (app/queue/scheduler)

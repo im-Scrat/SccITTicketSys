@@ -100,7 +100,7 @@ TECH STACK
 
 Backend
 
-- Laravel 12
+- Laravel 13
 - PHP 8.4+
 
 Frontend
@@ -438,7 +438,7 @@ If Docker has issues, diagnose them.
 
 If configuration is incorrect, repair it.
 
-If a package is outdated, choose the latest stable version compatible with Laravel 12.
+If a package is outdated, choose the latest stable version compatible with Laravel 13.
 
 Never assume.
 
