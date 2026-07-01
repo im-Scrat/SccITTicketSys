@@ -1,0 +1,1353 @@
+///////////////////////////////////////////////////////////////
+// CORE DATABASE
+///////////////////////////////////////////////////////////////
+
+Table roles {
+  id bigint [pk, increment]
+  name varchar [unique]
+  description text
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table users {
+  id bigint [pk, increment]
+  role_id bigint [not null]
+
+  employee_number varchar [unique]
+
+  first_name varchar
+  middle_name varchar
+  last_name varchar
+
+  email varchar [unique]
+  password varchar
+
+  contact_number varchar
+
+  profile_picture varchar
+
+  status varchar
+  last_login timestamp
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table buildings {
+  id bigint [pk, increment]
+
+  building_name varchar
+  building_code varchar [unique]
+
+  description text
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table laboratories {
+  id bigint [pk, increment]
+
+  building_id bigint [not null]
+
+  laboratory_name varchar
+
+  laboratory_code varchar [unique]
+
+  floor int
+
+  room_number varchar
+
+  description text
+
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table laboratory_layouts {
+
+  id bigint [pk, increment]
+
+  laboratory_id bigint
+
+  width int
+
+  height int
+
+  background_image varchar
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table pc_units {
+
+  id bigint [pk, increment]
+
+  laboratory_id bigint
+
+  unit_code varchar [unique]
+
+  asset_tag varchar [unique]
+
+  hostname varchar [unique]
+
+  qr_identifier varchar [unique]
+
+  pc_name varchar
+
+  brand varchar
+
+  model varchar
+
+  serial_number varchar
+
+  purchase_date date
+
+  warranty_expiration date
+
+  status varchar
+
+  current_condition varchar
+
+  notes text
+
+  pos_x decimal
+
+  pos_y decimal
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table pc_specifications {
+
+  id bigint [pk, increment]
+
+  pc_unit_id bigint
+
+  cpu varchar
+
+  motherboard varchar
+
+  ram varchar
+
+  gpu varchar
+
+  storage_primary varchar
+
+  storage_secondary varchar
+
+  power_supply varchar
+
+  monitor varchar
+
+  keyboard varchar
+
+  mouse varchar
+
+  operating_system varchar
+
+  bios_version varchar
+
+  network_adapter varchar
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table qr_codes {
+
+  id bigint [pk, increment]
+
+  pc_unit_id bigint
+
+  qr_code varchar [unique]
+
+  qr_location varchar
+
+  generated_at timestamp
+
+  last_scanned_at timestamp
+
+  status varchar
+}
+
+///////////////////////////////////////////////////////////////
+// RELATIONSHIPS
+///////////////////////////////////////////////////////////////
+
+Ref: users.role_id > roles.id
+
+Ref: laboratories.building_id > buildings.id
+
+Ref: laboratory_layouts.laboratory_id > laboratories.id
+
+Ref: pc_units.laboratory_id > laboratories.id
+
+Ref: pc_specifications.pc_unit_id > pc_units.id
+
+Ref: qr_codes.pc_unit_id > pc_units.id
+
+///////////////////////////////////////////////////////////////
+// TICKETING SYSTEM
+///////////////////////////////////////////////////////////////
+
+Table ticket_categories {
+
+  id bigint [pk, increment]
+
+  category_name varchar
+
+  description text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table ticket_priorities {
+
+  id bigint [pk, increment]
+
+  priority_name varchar
+
+  priority_level int
+
+  color varchar
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table ticket_statuses {
+
+  id bigint [pk, increment]
+
+  status_name varchar
+
+  color varchar
+
+  description text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table tickets {
+
+  id bigint [pk, increment]
+
+  ticket_number varchar [unique]
+
+  teacher_id bigint
+
+  laboratory_id bigint
+
+  pc_unit_id bigint
+
+  category_id bigint
+
+  priority_id bigint
+
+  current_status_id bigint
+
+  title varchar
+
+  description text
+
+  ai_summary text
+
+  ai_confidence decimal
+
+  duplicate_ticket_id bigint
+
+  estimated_resolution_minutes int
+
+  teacher_confirmed_fix boolean
+
+  technician_required boolean
+
+  upvote_count int
+
+  comment_count int
+
+  attachment_count int
+
+  is_duplicate boolean
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table ticket_updates {
+
+  id bigint [pk, increment]
+
+  ticket_id bigint
+
+  updated_by bigint
+
+  update_type varchar
+
+  description text
+
+  created_at timestamp
+}
+
+Table ticket_status_history {
+
+  id bigint [pk, increment]
+
+  ticket_id bigint
+
+  old_status_id bigint
+
+  new_status_id bigint
+
+  changed_by bigint
+
+  remarks text
+
+  created_at timestamp
+}
+
+Table ticket_votes {
+
+  id bigint [pk, increment]
+
+  ticket_id bigint
+
+  user_id bigint
+
+  created_at timestamp
+}
+
+Table ticket_comments {
+
+  id bigint [pk, increment]
+
+  ticket_id bigint
+
+  user_id bigint
+
+  parent_comment_id bigint
+
+  comment text
+
+  is_edited boolean
+
+  edited_at timestamp
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table attachments {
+
+  id bigint [pk, increment]
+
+  ticket_id bigint
+
+  uploaded_by bigint
+
+  filename varchar
+
+  original_filename varchar
+
+  file_type varchar
+
+  file_size bigint
+
+  storage_path varchar
+
+  created_at timestamp
+}
+
+///////////////////////////////////////////////////////////////
+// RELATIONSHIPS
+///////////////////////////////////////////////////////////////
+
+Ref: tickets.teacher_id > users.id
+
+Ref: tickets.laboratory_id > laboratories.id
+
+Ref: tickets.pc_unit_id > pc_units.id
+
+Ref: tickets.category_id > ticket_categories.id
+
+Ref: tickets.priority_id > ticket_priorities.id
+
+Ref: tickets.current_status_id > ticket_statuses.id
+
+Ref: tickets.duplicate_ticket_id > tickets.id
+
+Ref: ticket_updates.ticket_id > tickets.id
+
+Ref: ticket_updates.updated_by > users.id
+
+Ref: ticket_status_history.ticket_id > tickets.id
+
+Ref: ticket_status_history.old_status_id > ticket_statuses.id
+
+Ref: ticket_status_history.new_status_id > ticket_statuses.id
+
+Ref: ticket_status_history.changed_by > users.id
+
+Ref: ticket_votes.ticket_id > tickets.id
+
+Ref: ticket_votes.user_id > users.id
+
+Ref: ticket_comments.ticket_id > tickets.id
+
+Ref: ticket_comments.user_id > users.id
+
+Ref: ticket_comments.parent_comment_id > ticket_comments.id
+
+Ref: attachments.ticket_id > tickets.id
+
+Ref: attachments.uploaded_by > users.id
+
+///////////////////////////////////////////////////////////////
+// TECHNICIAN & MAINTENANCE MODULE
+///////////////////////////////////////////////////////////////
+
+Table technician_assignments {
+
+  id bigint [pk, increment]
+
+  ticket_id bigint
+
+  technician_id bigint
+
+  assigned_by bigint
+
+  assignment_status varchar
+
+  assigned_at timestamp
+
+  accepted_at timestamp
+
+  started_at timestamp
+
+  completed_at timestamp
+
+  remarks text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table maintenance_types {
+
+  id bigint [pk, increment]
+
+  maintenance_type varchar
+
+  description text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table maintenance_records {
+
+  id bigint [pk, increment]
+
+  ticket_id bigint
+
+  pc_unit_id bigint
+
+  technician_id bigint
+
+  maintenance_type_id bigint
+
+  maintenance_title varchar
+
+  diagnosis text
+
+  root_cause text
+
+  resolution text
+
+  preventive_recommendation text
+
+  downtime_minutes int
+
+  labor_hours decimal
+
+  maintenance_status varchar
+
+  maintenance_date timestamp
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table maintenance_checklists {
+
+  id bigint [pk, increment]
+
+  maintenance_record_id bigint
+
+  checklist_item varchar
+
+  is_completed boolean
+
+  remarks text
+
+  completed_at timestamp
+}
+
+Table repair_images {
+
+  id bigint [pk, increment]
+
+  maintenance_record_id bigint
+
+  uploaded_by bigint
+
+  image_type varchar
+
+  image_path varchar
+
+  caption text
+
+  uploaded_at timestamp
+}
+
+Table qr_scan_logs {
+
+  id bigint [pk, increment]
+
+  maintenance_record_id bigint
+
+  technician_id bigint
+
+  pc_unit_id bigint
+
+  qr_code varchar
+
+  scan_result varchar
+
+  scanned_at timestamp
+
+  latitude decimal
+
+  longitude decimal
+}
+
+Table hardware_components {
+
+  id bigint [pk, increment]
+
+  component_name varchar
+
+  component_type varchar
+
+  manufacturer varchar
+
+  model varchar
+
+  description text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table hardware_replacements {
+
+  id bigint [pk, increment]
+
+  maintenance_record_id bigint
+
+  pc_unit_id bigint
+
+  old_component_id bigint
+
+  new_component_id bigint
+
+  quantity int
+
+  replacement_reason text
+
+  warranty_months int
+
+  replaced_at timestamp
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table maintenance_notes {
+
+  id bigint [pk, increment]
+
+  maintenance_record_id bigint
+
+  technician_id bigint
+
+  note text
+
+  created_at timestamp
+}
+
+///////////////////////////////////////////////////////////////
+// RELATIONSHIPS
+///////////////////////////////////////////////////////////////
+
+Ref: technician_assignments.ticket_id > tickets.id
+
+Ref: technician_assignments.technician_id > users.id
+
+Ref: technician_assignments.assigned_by > users.id
+
+Ref: maintenance_records.ticket_id > tickets.id
+
+Ref: maintenance_records.pc_unit_id > pc_units.id
+
+Ref: maintenance_records.technician_id > users.id
+
+Ref: maintenance_records.maintenance_type_id > maintenance_types.id
+
+Ref: maintenance_checklists.maintenance_record_id > maintenance_records.id
+
+Ref: repair_images.maintenance_record_id > maintenance_records.id
+
+Ref: repair_images.uploaded_by > users.id
+
+Ref: qr_scan_logs.maintenance_record_id > maintenance_records.id
+
+Ref: qr_scan_logs.technician_id > users.id
+
+Ref: qr_scan_logs.pc_unit_id > pc_units.id
+
+Ref: hardware_replacements.maintenance_record_id > maintenance_records.id
+
+Ref: hardware_replacements.pc_unit_id > pc_units.id
+
+Ref: hardware_replacements.old_component_id > hardware_components.id
+
+Ref: hardware_replacements.new_component_id > hardware_components.id
+
+Ref: maintenance_notes.maintenance_record_id > maintenance_records.id
+
+Ref: maintenance_notes.technician_id > users.id
+
+///////////////////////////////////////////////////////////////
+// INVENTORY & ASSET LIFECYCLE
+///////////////////////////////////////////////////////////////
+
+Table suppliers {
+
+  id bigint [pk, increment]
+
+  supplier_name varchar
+
+  contact_person varchar
+
+  contact_number varchar
+
+  email varchar
+
+  address text
+
+  notes text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table manufacturers {
+
+  id bigint [pk, increment]
+
+  manufacturer_name varchar
+
+  website varchar
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table hardware_models {
+
+  id bigint [pk, increment]
+
+  manufacturer_id bigint
+
+  component_type varchar
+
+  model_name varchar
+
+  specifications text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table inventory_items {
+
+  id bigint [pk, increment]
+
+  supplier_id bigint
+
+  hardware_model_id bigint
+
+  item_code varchar [unique]
+
+  serial_number varchar
+
+  barcode varchar
+
+  purchase_price decimal
+
+  purchase_date date
+
+  warranty_expiration date
+
+  inventory_status varchar
+
+  current_location varchar
+
+  remarks text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table stock_transactions {
+
+  id bigint [pk, increment]
+
+  inventory_item_id bigint
+
+  transaction_type varchar
+
+  quantity int
+
+  performed_by bigint
+
+  reference_number varchar
+
+  remarks text
+
+  created_at timestamp
+}
+
+Table pc_component_installations {
+
+  id bigint [pk, increment]
+
+  pc_unit_id bigint
+
+  inventory_item_id bigint
+
+  installed_by bigint
+
+  installation_date timestamp
+
+  removal_date timestamp
+
+  installation_status varchar
+
+  remarks text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table procurement_requests {
+
+  id bigint [pk, increment]
+
+  requested_by bigint
+
+  request_number varchar [unique]
+
+  request_status varchar
+
+  purpose text
+
+  total_estimated_cost decimal
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table procurement_request_items {
+
+  id bigint [pk, increment]
+
+  procurement_request_id bigint
+
+  hardware_model_id bigint
+
+  quantity int
+
+  estimated_price decimal
+
+  remarks text
+}
+
+Table asset_transfers {
+
+  id bigint [pk, increment]
+
+  inventory_item_id bigint
+
+  from_location varchar
+
+  to_location varchar
+
+  transferred_by bigint
+
+  transfer_date timestamp
+
+  remarks text
+}
+
+Table disposal_records {
+
+  id bigint [pk, increment]
+
+  inventory_item_id bigint
+
+  disposal_reason text
+
+  disposal_date timestamp
+
+  approved_by bigint
+
+  remarks text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+///////////////////////////////////////////////////////////////
+// RELATIONSHIPS
+///////////////////////////////////////////////////////////////
+
+Ref: hardware_models.manufacturer_id > manufacturers.id
+
+Ref: inventory_items.supplier_id > suppliers.id
+
+Ref: inventory_items.hardware_model_id > hardware_models.id
+
+Ref: stock_transactions.inventory_item_id > inventory_items.id
+
+Ref: stock_transactions.performed_by > users.id
+
+Ref: pc_component_installations.pc_unit_id > pc_units.id
+
+Ref: pc_component_installations.inventory_item_id > inventory_items.id
+
+Ref: pc_component_installations.installed_by > users.id
+
+Ref: procurement_requests.requested_by > users.id
+
+Ref: procurement_request_items.procurement_request_id > procurement_requests.id
+
+Ref: procurement_request_items.hardware_model_id > hardware_models.id
+
+Ref: asset_transfers.inventory_item_id > inventory_items.id
+
+Ref: asset_transfers.transferred_by > users.id
+
+Ref: disposal_records.inventory_item_id > inventory_items.id
+
+Ref: disposal_records.approved_by > users.id
+
+///////////////////////////////////////////////////////////////
+// OUR AI
+///////////////////////////////////////////////////////////////
+
+Table ai_models {
+
+  id bigint [pk, increment]
+
+  model_name varchar
+
+  provider varchar
+
+  version varchar
+
+  is_active boolean
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table ai_analysis_logs {
+
+  id bigint [pk, increment]
+
+  ticket_id bigint
+
+  model_id bigint
+
+  analyzed_at timestamp
+
+  confidence_score decimal
+
+  problem_category varchar
+
+  severity varchar
+
+  estimated_resolution_minutes int
+
+  technician_required boolean
+
+  summary text
+
+  created_at timestamp
+}
+
+Table ai_recommendations {
+
+  id bigint [pk, increment]
+
+  analysis_id bigint
+
+  recommendation_order int
+
+  recommendation text
+
+  teacher_completed boolean
+
+  completed_at timestamp
+
+  created_at timestamp
+}
+
+Table ai_conversation_logs {
+
+  id bigint [pk, increment]
+
+  ticket_id bigint
+
+  user_id bigint
+
+  model_id bigint
+
+  sender varchar
+
+  message text
+
+  created_at timestamp
+}
+
+Table ai_learning_events {
+
+  id bigint [pk, increment]
+
+  maintenance_record_id bigint
+
+  ticket_id bigint
+
+  pc_unit_id bigint
+
+  event_type varchar
+
+  event_summary text
+
+  created_at timestamp
+}
+
+Table ai_failure_patterns {
+
+  id bigint [pk, increment]
+
+  pc_unit_id bigint
+
+  pattern_name varchar
+
+  detected_problem varchar
+
+  occurrence_count int
+
+  average_days_between_failures int
+
+  confidence decimal
+
+  last_detected timestamp
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table ai_knowledge_articles {
+
+  id bigint [pk, increment]
+
+  title varchar
+
+  category varchar
+
+  problem_signature text
+
+  root_cause text
+
+  verified_solution text
+
+  verification_count int
+
+  created_from_ticket bigint
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table ai_predictions {
+
+  id bigint [pk, increment]
+
+  pc_unit_id bigint
+
+  predicted_issue varchar
+
+  probability decimal
+
+  predicted_within_days int
+
+  explanation text
+
+  generated_at timestamp
+}
+
+Table ai_feedback {
+
+  id bigint [pk, increment]
+
+  recommendation_id bigint
+
+  user_id bigint
+
+  was_helpful boolean
+
+  feedback text
+
+  created_at timestamp
+}
+
+Table ai_embedding_sources {
+
+  id bigint [pk, increment]
+
+  source_type varchar
+
+  source_id bigint
+
+  embedding_status varchar
+
+  indexed_at timestamp
+}
+
+///////////////////////////////////////////////////////////////
+// RELATIONSHIPS
+///////////////////////////////////////////////////////////////
+
+Ref: ai_analysis_logs.ticket_id > tickets.id
+
+Ref: ai_analysis_logs.model_id > ai_models.id
+
+Ref: ai_recommendations.analysis_id > ai_analysis_logs.id
+
+Ref: ai_conversation_logs.ticket_id > tickets.id
+
+Ref: ai_conversation_logs.user_id > users.id
+
+Ref: ai_conversation_logs.model_id > ai_models.id
+
+Ref: ai_learning_events.maintenance_record_id > maintenance_records.id
+
+Ref: ai_learning_events.ticket_id > tickets.id
+
+Ref: ai_learning_events.pc_unit_id > pc_units.id
+
+Ref: ai_failure_patterns.pc_unit_id > pc_units.id
+
+Ref: ai_knowledge_articles.created_from_ticket > tickets.id
+
+Ref: ai_predictions.pc_unit_id > pc_units.id
+
+Ref: ai_feedback.recommendation_id > ai_recommendations.id
+
+Ref: ai_feedback.user_id > users.id
+
+///////////////////////////////////////////////////////////////
+// ADMINISTRATION & SYSTEM MANAGEMENT
+///////////////////////////////////////////////////////////////
+
+Table permissions {
+
+  id bigint [pk, increment]
+
+  permission_name varchar [unique]
+
+  module varchar
+
+  description text
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table role_permissions {
+
+  role_id bigint
+
+  permission_id bigint
+
+  indexes {
+    (role_id, permission_id) [pk]
+  }
+}
+
+Table user_permissions {
+
+  user_id bigint
+
+  permission_id bigint
+
+  indexes {
+    (user_id, permission_id) [pk]
+  }
+}
+
+Table notifications {
+
+  id bigint [pk, increment]
+
+  user_id bigint
+
+  title varchar
+
+  message text
+
+  notification_type varchar
+
+  is_read boolean
+
+  read_at timestamp
+
+  created_at timestamp
+}
+
+Table announcements {
+
+  id bigint [pk, increment]
+
+  created_by bigint
+
+  title varchar
+
+  content text
+
+  start_date timestamp
+
+  end_date timestamp
+
+  is_active boolean
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table activity_logs {
+
+  id bigint [pk, increment]
+
+  user_id bigint
+
+  action varchar
+
+  module varchar
+
+  description text
+
+  ip_address varchar
+
+  user_agent text
+
+  created_at timestamp
+}
+
+Table audit_logs {
+
+  id bigint [pk, increment]
+
+  user_id bigint
+
+  table_name varchar
+
+  record_id bigint
+
+  operation varchar
+
+  old_values text
+
+  new_values text
+
+  created_at timestamp
+}
+
+Table login_history {
+
+  id bigint [pk, increment]
+
+  user_id bigint
+
+  login_at timestamp
+
+  logout_at timestamp
+
+  ip_address varchar
+
+  browser varchar
+
+  operating_system varchar
+
+  login_status varchar
+}
+
+Table system_settings {
+
+  id bigint [pk, increment]
+
+  setting_key varchar [unique]
+
+  setting_value text
+
+  description text
+
+  updated_by bigint
+
+  updated_at timestamp
+}
+
+Table dashboard_widgets {
+
+  id bigint [pk, increment]
+
+  widget_name varchar
+
+  widget_type varchar
+
+  configuration text
+
+  is_enabled boolean
+
+  created_at timestamp
+
+  updated_at timestamp
+}
+
+Table maintenance_windows {
+
+  id bigint [pk, increment]
+
+  title varchar
+
+  description text
+
+  start_time timestamp
+
+  end_time timestamp
+
+  created_by bigint
+
+  created_at timestamp
+}
+
+Table backup_history {
+
+  id bigint [pk, increment]
+
+  backup_type varchar
+
+  file_name varchar
+
+  storage_location varchar
+
+  backup_size bigint
+
+  created_by bigint
+
+  created_at timestamp
+}
+
+Table ai_system_settings {
+
+  id bigint [pk, increment]
+
+  active_model bigint
+
+  confidence_threshold decimal
+
+  enable_predictions boolean
+
+  enable_learning boolean
+
+  auto_generate_articles boolean
+
+  updated_by bigint
+
+  updated_at timestamp
+}
+
+///////////////////////////////////////////////////////////////
+// RELATIONSHIPS
+///////////////////////////////////////////////////////////////
+
+Ref: role_permissions.role_id > roles.id
+Ref: role_permissions.permission_id > permissions.id
+
+Ref: user_permissions.user_id > users.id
+Ref: user_permissions.permission_id > permissions.id
+
+Ref: notifications.user_id > users.id
+
+Ref: announcements.created_by > users.id
+
+Ref: activity_logs.user_id > users.id
+
+Ref: audit_logs.user_id > users.id
+
+Ref: login_history.user_id > users.id
+
+Ref: system_settings.updated_by > users.id
+
+Ref: maintenance_windows.created_by > users.id
+
+Ref: backup_history.created_by > users.id
+
+Ref: ai_system_settings.active_model > ai_models.id
+Ref: ai_system_settings.updated_by > users.id
+

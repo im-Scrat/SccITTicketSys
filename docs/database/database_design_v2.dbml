@@ -1,0 +1,1707 @@
+///////////////////////////////////////////////////////////////
+// AI-Powered School IT Asset & Service Management System
+// DATABASE DESIGN v2  —  PostgreSQL 17 · Laravel 13
+//
+// Authoritative source of truth for the database architecture.
+// Supersedes database_design.dbml (v1). Reviewed & approved decisions
+// from docs/database/database_design_review.md are applied here.
+//
+// ─────────────────────────────────────────────────────────────
+// CONVENTIONS (apply to EVERY table unless noted)
+// ─────────────────────────────────────────────────────────────
+// • Surrogate PK: `id bigint [pk, increment]` (GENERATED ALWAYS AS IDENTITY).
+// • External identifier: `uuid uuid [unique, not null, default gen_random_uuid()]`
+//   on user-facing entities — used in URLs/APIs to avoid ID enumeration (IDOR).
+// • Timestamps are ALWAYS `timestamptz` (UTC). `created_at`/`updated_at` on
+//   mutable entities; immutable logs keep only `created_at`.
+// • Soft deletes: `deleted_at timestamptz` on master/business entities only
+//   (never on logs, history, or pivots).
+// • Blame columns: `created_by`/`updated_by` (FK → users, nullable, ON DELETE
+//   SET NULL) on key mutable entities.
+// • Money → numeric(12,2). Scores/confidence/probability → numeric(5,4) ∈ [0,1].
+//   Coordinates → numeric(10,2). Geo → numeric(9,6). IPs → inet. Email → citext.
+// • Structured/loose data → jsonb (GIN-indexed where queried).
+// • ENUMS in this file are DOCUMENTATION of closed domains. They are realized
+//   in PostgreSQL as `varchar + CHECK (col IN (...))` and as string-backed PHP
+//   enums in Laravel — NOT as native PG ENUM types (avoids ALTER TYPE pain).
+//   User-configurable, color-coded domains (ticket category/priority/status,
+//   maintenance type, tags) stay as LOOKUP TABLES, not enums.
+// • Every FK column is indexed (Postgres does not auto-index the child side).
+// • Every FK has explicit ON DELETE + ON UPDATE. ON UPDATE NO ACTION everywhere
+//   (surrogate keys are immutable). ON DELETE policy per relationship:
+//     - RESTRICT  : reference/lookup parents (don't delete in-use config).
+//     - CASCADE   : true children/compositions (meaningless without parent).
+//     - SET NULL  : optional context + actor/audit FKs (preserve history).
+// • CHECK constraints, partial indexes, generated tsvector columns, vector
+//   (HNSW) indexes, BRIN indexes, and triggers cannot be fully expressed in
+//   DBML; they are specified in each table's Note block and the report.
+///////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////
+// ENUM DOMAINS  (implemented as varchar + CHECK + PHP enum casts)
+///////////////////////////////////////////////////////////////
+
+Enum user_status { active; inactive; suspended; pending }
+Enum room_type { laboratory; office; storage; server_room; faculty_room; library; other }
+Enum pc_status { available; assigned; online; offline; under_maintenance; retired }
+Enum pc_condition { working; faulty; for_repair; decommissioned }
+Enum qr_status { active; inactive; revoked }
+Enum scan_result { success; invalid; expired; mismatch }
+
+Enum ticket_source { web; mobile; email; phone; walk_in; ai }
+Enum ticket_update_type { comment; status_change; priority_change; assignment; ai_analysis; system }
+
+Enum assignment_status { pending; accepted; in_progress; on_hold; completed; declined; reassigned; cancelled }
+Enum maintenance_status { scheduled; in_progress; on_hold; completed; cancelled }
+Enum repair_image_type { before; during; after }
+
+Enum component_type { cpu; motherboard; ram; gpu; storage; power_supply; monitor; keyboard; mouse; network_adapter; cooler; chassis; peripheral; other }
+Enum asset_status { in_stock; deployed; in_repair; reserved; in_transit; retired; disposed }
+Enum installation_status { installed; removed; faulty }
+Enum stock_transaction_type { stock_in; stock_out; adjustment; transfer }
+Enum procurement_status { draft; submitted; approved; rejected; fulfilled; cancelled }
+Enum disposal_method { recycled; sold; donated; destroyed; returned; lost }
+
+Enum ai_severity { low; medium; high; critical }
+Enum ai_sender { user; assistant; system }
+Enum ai_event_type { ticket_resolved; maintenance_completed; pattern_detected; article_created; feedback_received }
+Enum embedding_status { pending; processing; indexed; failed; stale }
+Enum embeddable_source_type { ticket; ticket_comment; maintenance_record; knowledge_article }
+Enum knowledge_status { draft; published; archived }
+Enum prediction_status { pending; confirmed; dismissed; expired }
+Enum ai_modality { text; embedding; multimodal }
+
+Enum notification_type { info; success; warning; error; ticket_update; assignment; announcement; maintenance; system }
+Enum notification_channel { in_app; email }
+Enum announcement_audience { all; teachers; technicians; admins }
+Enum permission_grant_type { grant; deny }
+Enum login_status { success; failed; locked_out }
+Enum audit_event { created; updated; deleted; restored }
+Enum backup_type { full; incremental; differential }
+Enum backup_status { pending; in_progress; completed; failed }
+Enum widget_type { counter; line_chart; bar_chart; pie_chart; table; list; map; timeline; gauge }
+
+
+///////////////////////////////////////////////////////////////
+// 1) IDENTITY & ACCESS CONTROL
+///////////////////////////////////////////////////////////////
+
+Table roles {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  slug varchar [not null, unique]
+  description text
+  is_system boolean [not null, default: false]
+  created_at timestamptz
+  updated_at timestamptz
+  Note: 'is_system roles (teacher/technician/administrator) cannot be deleted (app-enforced).'
+}
+
+Table permissions {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  slug varchar [not null, unique]
+  module varchar [not null]
+  description text
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { module }
+}
+
+Table role_permissions {
+  role_id bigint [not null]
+  permission_id bigint [not null]
+  created_at timestamptz
+  indexes {
+    (role_id, permission_id) [pk]
+    permission_id
+  }
+}
+
+Table user_permissions {
+  user_id bigint [not null]
+  permission_id bigint [not null]
+  grant_type permission_grant_type [not null, default: 'grant']
+  granted_by bigint
+  created_at timestamptz
+  indexes {
+    (user_id, permission_id) [pk]
+    permission_id
+    granted_by
+  }
+  Note: 'Per-user override of role permissions. grant_type allows explicit deny.'
+}
+
+Table users {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  role_id bigint [not null]
+
+  employee_number varchar [unique]
+  first_name varchar [not null]
+  middle_name varchar
+  last_name varchar [not null]
+
+  email citext [not null, unique]
+  email_verified_at timestamptz
+  password varchar [not null]
+  remember_token varchar
+
+  contact_number varchar
+  profile_picture varchar
+
+  status user_status [not null, default: 'active']
+  last_login_at timestamptz
+  last_login_ip inet
+
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+
+  indexes {
+    role_id
+    status
+    created_by
+    updated_by
+  }
+  Note: '''
+  citext email gives case-insensitive uniqueness.
+  Soft-deleted (deleted_at) — users referenced by tickets/history are never hard-deleted.
+  MFA columns (two_factor_secret, ...) deferred to a later auth phase.
+  '''
+}
+
+// Framework / auth tables (provided by Laravel defaults — included for completeness).
+Table sessions {
+  id varchar [pk]
+  user_id bigint
+  ip_address inet
+  user_agent text
+  payload text [not null]
+  last_activity int [not null]
+  indexes { user_id; last_activity }
+}
+
+Table password_reset_tokens {
+  email varchar [pk]
+  token varchar [not null]
+  created_at timestamptz
+}
+
+Table personal_access_tokens {
+  id bigint [pk, increment]
+  tokenable_type varchar [not null]
+  tokenable_id bigint [not null]
+  name varchar [not null]
+  token varchar [not null, unique]
+  abilities text
+  last_used_at timestamptz
+  expires_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { (tokenable_type, tokenable_id) }
+  Note: 'Laravel Sanctum. Queue/cache tables (jobs, job_batches, failed_jobs, cache, cache_locks) are framework-managed and omitted from the domain design.'
+}
+
+
+///////////////////////////////////////////////////////////////
+// 2) LOCATIONS & INTERACTIVE FLOOR PLAN
+//    buildings → floors → rooms → room_layouts → floor_plan_positions
+///////////////////////////////////////////////////////////////
+
+Table buildings {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  name varchar [not null]
+  code varchar [not null, unique]
+  description text
+  address text
+  is_active boolean [not null, default: true]
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+  indexes { created_by; updated_by }
+}
+
+Table floors {
+  id bigint [pk, increment]
+  building_id bigint [not null]
+  floor_number int [not null]
+  name varchar [not null]
+  description text
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+  indexes {
+    building_id
+    (building_id, floor_number) [unique]
+    created_by
+    updated_by
+  }
+}
+
+Table rooms {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  floor_id bigint [not null]
+  room_type room_type [not null, default: 'laboratory']
+  name varchar [not null]
+  code varchar [not null, unique]
+  room_number varchar
+  capacity int
+  description text
+  is_active boolean [not null, default: true]
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+  indexes {
+    floor_id
+    room_type
+    created_by
+    updated_by
+  }
+  Note: 'Generalizes the former `laboratories`. room_type supports the floor plan (labs, offices, storage, server rooms, …). CHECK (capacity IS NULL OR capacity >= 0).'
+}
+
+Table room_layouts {
+  id bigint [pk, increment]
+  room_id bigint [not null]
+  version int [not null, default: 1]
+  width int [not null]
+  height int [not null]
+  grid_size int [not null, default: 20]
+  background_image varchar
+  is_active boolean [not null, default: true]
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    room_id
+    (room_id, version) [unique]
+    created_by
+    updated_by
+  }
+  Note: '''
+  grid_size drives snap-to-grid. width/height are the canvas size in px.
+  Partial unique index: at most ONE active layout per room
+    → CREATE UNIQUE INDEX ... ON room_layouts (room_id) WHERE is_active.
+  CHECK (width > 0 AND height > 0 AND grid_size > 0).
+  '''
+}
+
+Table floor_plan_positions {
+  id bigint [pk, increment]
+  room_layout_id bigint [not null]
+  pc_unit_id bigint [not null]
+  pos_x numeric(10,2) [not null]
+  pos_y numeric(10,2) [not null]
+  rotation numeric(5,2) [not null, default: 0]
+  z_index int [not null, default: 0]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    room_layout_id
+    pc_unit_id
+    (room_layout_id, pc_unit_id) [unique]
+  }
+  Note: 'Layout-scoped PC positions (replaces pc_units.pos_x/pos_y). Enables versioned layouts and PCs moving between rooms. CHECK (pos_x >= 0 AND pos_y >= 0). Real-time drag updates write here.'
+}
+
+
+///////////////////////////////////////////////////////////////
+// 3) COMPUTERS (PC UNITS), SPECS & QR VERIFICATION
+///////////////////////////////////////////////////////////////
+
+Table pc_units {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  room_id bigint
+
+  unit_code varchar [not null, unique]
+  asset_tag varchar [unique]
+  hostname varchar [unique]
+  qr_identifier varchar [unique]
+
+  pc_name varchar [not null]
+  brand varchar
+  model varchar
+  serial_number varchar
+
+  ip_address inet
+  mac_address varchar
+
+  purchase_date date
+  warranty_expiration date
+
+  status pc_status [not null, default: 'available']
+  current_condition pc_condition [not null, default: 'working']
+  notes text
+
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+
+  indexes {
+    room_id
+    status
+    current_condition
+    created_by
+    updated_by
+  }
+  Note: '''
+  A PC is a composed Configuration Item; its internal parts live in
+  pc_component_installations → assets. Position moved to floor_plan_positions.
+  status values align to floor-plan icon colors (available/assigned/online/
+  offline/under_maintenance/retired). mac_address kept for the future network
+  topology module. CHECK (warranty_expiration IS NULL OR purchase_date IS NULL
+  OR warranty_expiration >= purchase_date).
+  '''
+}
+
+Table pc_specifications {
+  id bigint [pk, increment]
+  pc_unit_id bigint [not null, unique]
+  cpu varchar
+  motherboard varchar
+  ram varchar
+  gpu varchar
+  storage_primary varchar
+  storage_secondary varchar
+  power_supply varchar
+  monitor varchar
+  keyboard varchar
+  mouse varchar
+  operating_system varchar
+  bios_version varchar
+  network_adapter varchar
+  created_at timestamptz
+  updated_at timestamptz
+  Note: 'Denormalized 1:1 read-snapshot of current specs (fast info-panel render). pc_component_installations is the AUTHORITATIVE structured component history.'
+}
+
+Table qr_codes {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  pc_unit_id bigint
+  asset_id bigint
+  code varchar [not null, unique]
+  payload text
+  location_label varchar
+  status qr_status [not null, default: 'active']
+  generated_at timestamptz
+  last_scanned_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { pc_unit_id; asset_id }
+  Note: 'A QR may identify a pc_unit OR a standalone asset. CHECK (num_nonnulls(pc_unit_id, asset_id) = 1). `code` is the canonical scannable value (pc_units.qr_identifier is a denormalized convenience copy).'
+}
+
+Table qr_scan_logs {
+  id bigint [pk, increment]
+  qr_code_id bigint
+  pc_unit_id bigint
+  asset_id bigint
+  maintenance_record_id bigint
+  scanned_by bigint
+  scan_result scan_result [not null]
+  ip_address inet
+  latitude numeric(9,6)
+  longitude numeric(9,6)
+  scanned_at timestamptz [not null]
+  created_at timestamptz
+  indexes {
+    qr_code_id
+    pc_unit_id
+    asset_id
+    maintenance_record_id
+    scanned_by
+    scanned_at
+  }
+  Note: 'Append-only. BRIN index on scanned_at. CHECK (latitude BETWEEN -90 AND 90), CHECK (longitude BETWEEN -180 AND 180).'
+}
+
+
+///////////////////////////////////////////////////////////////
+// 4) TICKETING / ITSM
+///////////////////////////////////////////////////////////////
+
+Table ticket_categories {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  slug varchar [not null, unique]
+  description text
+  default_priority_id bigint
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { default_priority_id }
+}
+
+Table ticket_priorities {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  slug varchar [not null, unique]
+  level int [not null, unique]
+  color varchar [not null]
+  response_time_minutes int
+  resolution_time_minutes int
+  is_active boolean [not null, default: true]
+  created_at timestamptz
+  updated_at timestamptz
+  Note: 'SLA defaults (response/resolution minutes) live here; tickets derive response_due_at/resolution_due_at from them. CHECK (level > 0). CHECK color ~ ''^#[0-9A-Fa-f]{6}$''.'
+}
+
+Table ticket_statuses {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  slug varchar [not null, unique]
+  color varchar [not null]
+  description text
+  is_default boolean [not null, default: false]
+  is_open boolean [not null, default: true]
+  is_terminal boolean [not null, default: false]
+  sort_order int [not null, default: 0]
+  created_at timestamptz
+  updated_at timestamptz
+  Note: 'is_open / is_terminal power open-vs-closed reporting (MTTR, backlog). Exactly one is_default (partial unique WHERE is_default). CHECK color hex.'
+}
+
+Table tags {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  slug varchar [not null, unique]
+  color varchar
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table tickets {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  ticket_number varchar [not null, unique]
+
+  reporter_id bigint [not null]
+  assigned_technician_id bigint
+  room_id bigint
+  pc_unit_id bigint
+  category_id bigint [not null]
+  priority_id bigint [not null]
+  current_status_id bigint [not null]
+  duplicate_of_id bigint
+
+  title varchar [not null]
+  description text [not null]
+  source ticket_source [not null, default: 'web']
+
+  ai_summary text
+  ai_confidence numeric(5,4)
+  estimated_resolution_minutes int
+  technician_required boolean [not null, default: false]
+
+  upvote_count int [not null, default: 0]
+  comment_count int [not null, default: 0]
+  attachment_count int [not null, default: 0]
+
+  first_response_at timestamptz
+  resolved_at timestamptz
+  closed_at timestamptz
+  reopened_at timestamptz
+  response_due_at timestamptz
+  resolution_due_at timestamptz
+
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+
+  indexes {
+    reporter_id
+    assigned_technician_id
+    room_id
+    pc_unit_id
+    category_id
+    priority_id
+    current_status_id
+    duplicate_of_id
+    (current_status_id, created_at)
+    (reporter_id, created_at)
+    (pc_unit_id, created_at)
+    (assigned_technician_id, current_status_id)
+  }
+  Note: '''
+  `is_duplicate` dropped (derivable from duplicate_of_id IS NOT NULL).
+  ai_summary/ai_confidence are a denormalized snapshot of the latest
+  ai_analysis_logs row. Counter caches maintained by triggers/observers.
+  Full-text search: generated tsvector(title, description) + GIN index.
+  CHECK (duplicate_of_id <> id). CHECK (ai_confidence BETWEEN 0 AND 1).
+  '''
+}
+
+Table ticket_tags {
+  ticket_id bigint [not null]
+  tag_id bigint [not null]
+  indexes {
+    (ticket_id, tag_id) [pk]
+    tag_id
+  }
+}
+
+Table ticket_updates {
+  id bigint [pk, increment]
+  ticket_id bigint [not null]
+  user_id bigint
+  update_type ticket_update_type [not null]
+  body text
+  metadata jsonb
+  created_at timestamptz
+  indexes {
+    ticket_id
+    user_id
+    (ticket_id, created_at)
+  }
+  Note: 'Append-only activity feed for a ticket.'
+}
+
+Table ticket_status_history {
+  id bigint [pk, increment]
+  ticket_id bigint [not null]
+  from_status_id bigint
+  to_status_id bigint [not null]
+  changed_by bigint
+  remarks text
+  created_at timestamptz
+  indexes {
+    ticket_id
+    from_status_id
+    to_status_id
+    changed_by
+    (ticket_id, created_at)
+  }
+}
+
+Table ticket_votes {
+  id bigint [pk, increment]
+  ticket_id bigint [not null]
+  user_id bigint [not null]
+  created_at timestamptz
+  indexes {
+    ticket_id
+    user_id
+    (ticket_id, user_id) [unique]
+  }
+  Note: 'Composite unique prevents double-upvoting.'
+}
+
+Table ticket_comments {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  ticket_id bigint [not null]
+  user_id bigint [not null]
+  parent_comment_id bigint
+  body text [not null]
+  is_internal boolean [not null, default: false]
+  is_edited boolean [not null, default: false]
+  edited_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+  indexes {
+    ticket_id
+    user_id
+    parent_comment_id
+  }
+  Note: 'is_internal = technician/admin-only note. CHECK (parent_comment_id <> id).'
+}
+
+Table attachments {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  ticket_id bigint [not null]
+  uploaded_by bigint
+  disk varchar [not null, default: 'local']
+  storage_path varchar [not null]
+  original_filename varchar [not null]
+  mime_type varchar
+  file_size bigint
+  checksum varchar
+  created_at timestamptz
+  indexes {
+    ticket_id
+    uploaded_by
+  }
+  Note: 'CHECK (file_size IS NULL OR file_size >= 0). checksum (sha256) for integrity/dedup. Files stored outside web root.'
+}
+
+
+///////////////////////////////////////////////////////////////
+// 5) TECHNICIAN WORKFLOW & MAINTENANCE
+///////////////////////////////////////////////////////////////
+
+Table technician_assignments {
+  id bigint [pk, increment]
+  ticket_id bigint [not null]
+  technician_id bigint [not null]
+  assigned_by bigint
+  status assignment_status [not null, default: 'pending']
+  assigned_at timestamptz
+  accepted_at timestamptz
+  started_at timestamptz
+  completed_at timestamptz
+  declined_at timestamptz
+  decline_reason text
+  remarks text
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    ticket_id
+    technician_id
+    assigned_by
+    status
+    (technician_id, status)
+  }
+  Note: 'Partial unique: at most one ACTIVE assignment per ticket → UNIQUE INDEX ON (ticket_id) WHERE status IN (''pending'',''accepted'',''in_progress'',''on_hold'').'
+}
+
+Table maintenance_types {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  slug varchar [not null, unique]
+  description text
+  is_preventive boolean [not null, default: false]
+  default_checklist_template_id bigint
+  is_active boolean [not null, default: true]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { default_checklist_template_id }
+}
+
+Table maintenance_records {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  ticket_id bigint
+  pc_unit_id bigint
+  asset_id bigint
+  technician_id bigint [not null]
+  maintenance_type_id bigint [not null]
+
+  title varchar [not null]
+  diagnosis text
+  root_cause text
+  resolution text
+  preventive_recommendation text
+
+  downtime_minutes int
+  labor_hours numeric(6,2)
+  cost numeric(12,2)
+
+  status maintenance_status [not null, default: 'scheduled']
+  scheduled_for timestamptz
+  started_at timestamptz
+  completed_at timestamptz
+  maintenance_date timestamptz
+
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+
+  indexes {
+    ticket_id
+    pc_unit_id
+    asset_id
+    technician_id
+    maintenance_type_id
+    status
+    (pc_unit_id, maintenance_date)
+  }
+  Note: '''
+  ticket_id nullable → supports scheduled preventive maintenance with no ticket.
+  Targets a pc_unit OR a standalone asset:
+    CHECK (num_nonnulls(pc_unit_id, asset_id) >= 1).
+  CHECK (downtime_minutes >= 0), CHECK (labor_hours >= 0), CHECK (cost >= 0).
+  '''
+}
+
+Table checklist_templates {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  maintenance_type_id bigint
+  description text
+  is_active boolean [not null, default: true]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { maintenance_type_id }
+}
+
+Table checklist_template_items {
+  id bigint [pk, increment]
+  checklist_template_id bigint [not null]
+  label varchar [not null]
+  sort_order int [not null, default: 0]
+  is_required boolean [not null, default: false]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { checklist_template_id }
+}
+
+Table maintenance_checklists {
+  id bigint [pk, increment]
+  maintenance_record_id bigint [not null]
+  checklist_template_item_id bigint
+  item_label varchar [not null]
+  is_completed boolean [not null, default: false]
+  remarks text
+  completed_by bigint
+  completed_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    maintenance_record_id
+    checklist_template_item_id
+    completed_by
+  }
+}
+
+Table repair_images {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  maintenance_record_id bigint [not null]
+  uploaded_by bigint
+  image_type repair_image_type [not null]
+  disk varchar [not null, default: 'local']
+  storage_path varchar [not null]
+  caption text
+  created_at timestamptz
+  indexes {
+    maintenance_record_id
+    uploaded_by
+  }
+}
+
+Table maintenance_notes {
+  id bigint [pk, increment]
+  maintenance_record_id bigint [not null]
+  technician_id bigint
+  body text [not null]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    maintenance_record_id
+    technician_id
+  }
+}
+
+Table hardware_replacements {
+  id bigint [pk, increment]
+  maintenance_record_id bigint [not null]
+  pc_unit_id bigint
+  old_component_id bigint
+  new_component_id bigint
+  new_asset_id bigint
+  quantity int [not null, default: 1]
+  replacement_reason text
+  warranty_months int
+  replaced_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    maintenance_record_id
+    pc_unit_id
+    old_component_id
+    new_component_id
+    new_asset_id
+  }
+  Note: 'old/new_component reference the catalog (hardware_components). new_asset_id links the physical serialized part actually fitted (closes the maintenance↔inventory gap). CHECK (quantity > 0), CHECK (warranty_months IS NULL OR warranty_months >= 0).'
+}
+
+
+///////////////////////////////////////////////////////////////
+// 6) INVENTORY & ASSET LIFECYCLE
+//    Catalog: manufacturers → hardware_components → hardware_models
+//    Stock:   assets (serialized)  |  consumables (quantity)
+///////////////////////////////////////////////////////////////
+
+Table suppliers {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  code varchar [unique]
+  contact_person varchar
+  contact_number varchar
+  email citext
+  address text
+  website varchar
+  notes text
+  is_active boolean [not null, default: true]
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+}
+
+Table manufacturers {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  code varchar [unique]
+  website varchar
+  support_email citext
+  support_phone varchar
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+}
+
+Table hardware_components {
+  id bigint [pk, increment]
+  component_type component_type [not null]
+  manufacturer_id bigint
+  name varchar [not null]
+  description text
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+  indexes {
+    manufacturer_id
+    component_type
+    (manufacturer_id, name) [unique]
+  }
+  Note: 'Generic component (type-level), e.g. "Kingston DDR4 RAM". `manufacturer` varchar from v1 normalized to manufacturer_id FK.'
+}
+
+Table hardware_models {
+  id bigint [pk, increment]
+  hardware_component_id bigint [not null]
+  model_name varchar [not null]
+  model_number varchar
+  specifications jsonb
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+  indexes {
+    hardware_component_id
+    (hardware_component_id, model_name) [unique]
+  }
+  Note: 'Specific SKU under a generic component, e.g. "Fury Beast 8GB 3200MHz". specifications as queryable jsonb.'
+}
+
+Table assets {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  asset_tag varchar [not null, unique]
+  hardware_model_id bigint [not null]
+  supplier_id bigint
+  current_room_id bigint
+
+  serial_number varchar [unique]
+  barcode varchar
+  status asset_status [not null, default: 'in_stock']
+  condition pc_condition [not null, default: 'working']
+
+  purchase_price numeric(12,2)
+  purchase_date date
+  warranty_expiration date
+
+  notes text
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+
+  indexes {
+    hardware_model_id
+    supplier_id
+    current_room_id
+    status
+    created_by
+    updated_by
+  }
+  Note: 'Serialized inventory: 1 row = 1 physical unit, full lifecycle. CHECK (purchase_price >= 0), CHECK (warranty_expiration IS NULL OR purchase_date IS NULL OR warranty_expiration >= purchase_date).'
+}
+
+Table consumables {
+  id bigint [pk, increment]
+  hardware_model_id bigint
+  supplier_id bigint
+  current_room_id bigint
+  name varchar [not null]
+  item_code varchar [not null, unique]
+  unit_of_measure varchar [not null, default: 'unit']
+  quantity_on_hand int [not null, default: 0]
+  reorder_level int [not null, default: 0]
+  unit_cost numeric(12,2)
+  notes text
+  is_active boolean [not null, default: true]
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+
+  indexes {
+    hardware_model_id
+    supplier_id
+    current_room_id
+  }
+  Note: 'Quantity-tracked stock (thermal paste, cables, …). quantity_on_hand maintained by stock_transactions. CHECK (quantity_on_hand >= 0), CHECK (reorder_level >= 0), CHECK (unit_cost >= 0).'
+}
+
+Table stock_transactions {
+  id bigint [pk, increment]
+  consumable_id bigint [not null]
+  transaction_type stock_transaction_type [not null]
+  quantity int [not null]
+  balance_after int
+  performed_by bigint
+  reference_number varchar
+  remarks text
+  created_at timestamptz
+  indexes {
+    consumable_id
+    performed_by
+    transaction_type
+    (consumable_id, created_at)
+  }
+  Note: 'Append-only ledger for consumables. CHECK (quantity <> 0). balance_after is the running total snapshot for fast reporting.'
+}
+
+Table asset_status_history {
+  id bigint [pk, increment]
+  asset_id bigint [not null]
+  from_status asset_status
+  to_status asset_status [not null]
+  changed_by bigint
+  reason text
+  created_at timestamptz
+  indexes {
+    asset_id
+    changed_by
+    (asset_id, created_at)
+  }
+  Note: 'Explicit asset lifecycle timeline for reporting (parallels ticket_status_history).'
+}
+
+Table pc_component_installations {
+  id bigint [pk, increment]
+  pc_unit_id bigint [not null]
+  asset_id bigint [not null]
+  installed_by bigint
+  installation_status installation_status [not null, default: 'installed']
+  installation_date timestamptz
+  removal_date timestamptz
+  remarks text
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    pc_unit_id
+    asset_id
+    installed_by
+  }
+  Note: 'Authoritative structured component history of a PC. Partial unique: an asset is installed in at most one PC at a time → UNIQUE INDEX ON (asset_id) WHERE removal_date IS NULL.'
+}
+
+Table procurement_requests {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  request_number varchar [not null, unique]
+  requested_by bigint [not null]
+  status procurement_status [not null, default: 'draft']
+  purpose text
+  total_estimated_cost numeric(12,2)
+  needed_by date
+  approved_by bigint
+  approved_at timestamptz
+  rejection_reason text
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+  indexes {
+    requested_by
+    approved_by
+    status
+  }
+  Note: 'Added approval workflow (approved_by/approved_at/rejection_reason). CHECK (total_estimated_cost >= 0).'
+}
+
+Table procurement_request_items {
+  id bigint [pk, increment]
+  procurement_request_id bigint [not null]
+  hardware_model_id bigint
+  description varchar
+  quantity int [not null]
+  estimated_unit_price numeric(12,2)
+  remarks text
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    procurement_request_id
+    hardware_model_id
+  }
+  Note: 'hardware_model_id nullable to allow free-text line items. CHECK (quantity > 0), CHECK (estimated_unit_price >= 0).'
+}
+
+Table asset_transfers {
+  id bigint [pk, increment]
+  asset_id bigint [not null]
+  from_room_id bigint
+  to_room_id bigint
+  transferred_by bigint
+  reason text
+  remarks text
+  transferred_at timestamptz [not null]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    asset_id
+    from_room_id
+    to_room_id
+    transferred_by
+  }
+  Note: 'Location now normalized to rooms (was free-text). Application keeps assets.current_room_id in sync.'
+}
+
+Table disposal_records {
+  id bigint [pk, increment]
+  asset_id bigint [not null]
+  disposal_method disposal_method [not null]
+  disposal_reason text
+  disposal_date timestamptz [not null]
+  approved_by bigint
+  document_reference varchar
+  salvage_value numeric(12,2)
+  remarks text
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    asset_id
+    approved_by
+  }
+  Note: 'CHECK (salvage_value IS NULL OR salvage_value >= 0).'
+}
+
+
+///////////////////////////////////////////////////////////////
+// 7) AI / RAG  (Gemini + Retrieval-Augmented Generation, pgvector)
+///////////////////////////////////////////////////////////////
+
+Table ai_models {
+  id bigint [pk, increment]
+  name varchar [not null, unique]
+  provider varchar [not null]
+  model_identifier varchar [not null]
+  version varchar
+  modality ai_modality [not null, default: 'text']
+  embedding_dimensions int
+  config jsonb
+  is_active boolean [not null, default: true]
+  is_default boolean [not null, default: false]
+  created_at timestamptz
+  updated_at timestamptz
+  Note: 'Registry of provider models. embedding_dimensions set for modality=embedding (e.g. Gemini text-embedding-004 = 768).'
+}
+
+Table ai_analysis_logs {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  ticket_id bigint [not null]
+  ai_model_id bigint
+  analyzed_at timestamptz
+  confidence_score numeric(5,4)
+  problem_category varchar
+  severity ai_severity
+  estimated_resolution_minutes int
+  technician_required boolean
+  summary text
+  raw_response jsonb
+  prompt_tokens int
+  completion_tokens int
+  latency_ms int
+  created_at timestamptz
+  indexes {
+    ticket_id
+    ai_model_id
+    (ticket_id, created_at)
+  }
+  Note: 'History of AI analyses (tickets.ai_summary/ai_confidence cache the latest). CHECK (confidence_score BETWEEN 0 AND 1).'
+}
+
+Table ai_recommendations {
+  id bigint [pk, increment]
+  ai_analysis_log_id bigint [not null]
+  step_order int [not null, default: 1]
+  recommendation text [not null]
+  is_completed boolean [not null, default: false]
+  completed_by bigint
+  completed_at timestamptz
+  created_at timestamptz
+  indexes {
+    ai_analysis_log_id
+    completed_by
+  }
+  Note: 'teacher_completed → role-neutral is_completed + completed_by.'
+}
+
+Table ai_conversation_logs {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  conversation_id uuid [not null]
+  ticket_id bigint
+  user_id bigint
+  ai_model_id bigint
+  sender ai_sender [not null]
+  message text [not null]
+  prompt_tokens int
+  completion_tokens int
+  latency_ms int
+  metadata jsonb
+  created_at timestamptz
+  indexes {
+    conversation_id
+    ticket_id
+    user_id
+    ai_model_id
+    (conversation_id, created_at)
+  }
+  Note: 'conversation_id groups a chat thread. Token/latency columns for cost & observability.'
+}
+
+Table ai_learning_events {
+  id bigint [pk, increment]
+  maintenance_record_id bigint
+  ticket_id bigint
+  pc_unit_id bigint
+  event_type ai_event_type [not null]
+  event_summary text
+  payload jsonb
+  created_at timestamptz
+  indexes {
+    maintenance_record_id
+    ticket_id
+    pc_unit_id
+    event_type
+  }
+}
+
+Table ai_failure_patterns {
+  id bigint [pk, increment]
+  pc_unit_id bigint
+  hardware_component_id bigint
+  pattern_name varchar [not null]
+  detected_problem varchar
+  occurrence_count int [not null, default: 0]
+  average_days_between_failures int
+  confidence numeric(5,4)
+  last_detected timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    pc_unit_id
+    hardware_component_id
+    (pc_unit_id, last_detected)
+  }
+  Note: 'CHECK (confidence BETWEEN 0 AND 1), CHECK (occurrence_count >= 0).'
+}
+
+Table ai_knowledge_articles {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  title varchar [not null]
+  slug varchar [not null, unique]
+  category varchar
+  problem_signature text
+  root_cause text
+  verified_solution text
+  verification_count int [not null, default: 0]
+  status knowledge_status [not null, default: 'draft']
+  created_from_ticket_id bigint
+  created_by bigint
+  published_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+  indexes {
+    created_from_ticket_id
+    created_by
+    status
+    category
+  }
+  Note: 'RAG knowledge base. Full-text: generated tsvector(title, problem_signature, verified_solution) + GIN. Embeddings stored in ai_embeddings (polymorphic).'
+}
+
+Table ai_predictions {
+  id bigint [pk, increment]
+  pc_unit_id bigint [not null]
+  ai_model_id bigint
+  predicted_issue varchar [not null]
+  probability numeric(5,4)
+  predicted_within_days int
+  explanation text
+  status prediction_status [not null, default: 'pending']
+  generated_at timestamptz
+  created_at timestamptz
+  indexes {
+    pc_unit_id
+    ai_model_id
+    status
+    (pc_unit_id, generated_at)
+  }
+  Note: 'CHECK (probability BETWEEN 0 AND 1).'
+}
+
+Table ai_feedback {
+  id bigint [pk, increment]
+  ai_recommendation_id bigint
+  ai_analysis_log_id bigint
+  user_id bigint [not null]
+  was_helpful boolean
+  rating int
+  feedback text
+  created_at timestamptz
+  indexes {
+    ai_recommendation_id
+    ai_analysis_log_id
+    user_id
+    (ai_recommendation_id, user_id) [unique]
+  }
+  Note: 'CHECK (rating IS NULL OR rating BETWEEN 1 AND 5). One feedback per user per recommendation.'
+}
+
+Table ai_embeddings {
+  id bigint [pk, increment]
+  embeddable_type embeddable_source_type [not null]
+  embeddable_id bigint [not null]
+  ai_model_id bigint [not null]
+  chunk_index int [not null, default: 0]
+  content text [not null]
+  content_hash varchar [not null]
+  embedding vector(768) [not null]
+  token_count int
+  metadata jsonb
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    (embeddable_type, embeddable_id)
+    ai_model_id
+    (embeddable_type, embeddable_id, chunk_index, ai_model_id) [unique]
+  }
+  Note: '''
+  pgvector store for RAG. embedding dimension (768) matches the embedding model
+  and MUST equal ai_models.embedding_dimensions; keep ≤ 2000 for index support.
+  Vector index: HNSW with vector_cosine_ops
+    → CREATE INDEX ON ai_embeddings USING hnsw (embedding vector_cosine_ops).
+  Polymorphic (embeddable_*) — no FK; integrity maintained in app + via
+  ai_embedding_sources. content_hash detects staleness.
+  '''
+}
+
+Table ai_embedding_sources {
+  id bigint [pk, increment]
+  source_type embeddable_source_type [not null]
+  source_id bigint [not null]
+  ai_model_id bigint [not null]
+  embedding_status embedding_status [not null, default: 'pending']
+  chunk_count int [not null, default: 0]
+  content_hash varchar
+  indexed_at timestamptz
+  last_error text
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    ai_model_id
+    embedding_status
+    (source_type, source_id, ai_model_id) [unique]
+  }
+  Note: 'Tracks what needs (re)indexing and its status (pending/indexed/stale/…). The vectors themselves live in ai_embeddings.'
+}
+
+Table ai_system_settings {
+  id bigint [pk, increment]
+  active_model_id bigint
+  embedding_model_id bigint
+  confidence_threshold numeric(5,4)
+  enable_predictions boolean [not null, default: false]
+  enable_learning boolean [not null, default: false]
+  auto_generate_articles boolean [not null, default: false]
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { active_model_id; embedding_model_id; updated_by }
+  Note: 'Singleton (single row, app-enforced). CHECK (confidence_threshold BETWEEN 0 AND 1).'
+}
+
+
+///////////////////////////////////////////////////////////////
+// 8) ADMINISTRATION, NOTIFICATIONS, AUDIT & SYSTEM
+///////////////////////////////////////////////////////////////
+
+Table notifications {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  user_id bigint [not null]
+  type notification_type [not null]
+  title varchar [not null]
+  message text
+  data jsonb
+  action_url varchar
+  read_at timestamptz
+  created_at timestamptz
+  indexes {
+    user_id
+    (user_id, read_at)
+    (user_id, created_at)
+  }
+  Note: 'Custom in-app notification center (chosen over Laravel''s generic polymorphic table for a richer UI). Partial index ON (user_id) WHERE read_at IS NULL for unread badges.'
+}
+
+Table notification_preferences {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  channel notification_channel [not null]
+  notification_type notification_type [not null]
+  is_enabled boolean [not null, default: true]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    user_id
+    (user_id, channel, notification_type) [unique]
+  }
+}
+
+Table announcements {
+  id bigint [pk, increment]
+  uuid uuid [not null, unique, default: `gen_random_uuid()`]
+  created_by bigint
+  title varchar [not null]
+  content text [not null]
+  audience announcement_audience [not null, default: 'all']
+  starts_at timestamptz
+  ends_at timestamptz
+  is_active boolean [not null, default: true]
+  is_pinned boolean [not null, default: false]
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz
+  indexes {
+    created_by
+    is_active
+  }
+  Note: 'CHECK (ends_at IS NULL OR starts_at IS NULL OR ends_at > starts_at).'
+}
+
+Table activity_logs {
+  id bigint [pk, increment]
+  user_id bigint
+  action varchar [not null]
+  module varchar
+  description text
+  subject_type varchar
+  subject_id bigint
+  properties jsonb
+  ip_address inet
+  user_agent text
+  created_at timestamptz
+  indexes {
+    user_id
+    (subject_type, subject_id)
+    created_at
+  }
+  Note: 'Application-level action log (who did what). Append-only; BRIN on created_at. subject_* is an optional polymorphic pointer (no FK).'
+}
+
+Table audit_logs {
+  id bigint [pk, increment]
+  user_id bigint
+  auditable_type varchar [not null]
+  auditable_id bigint [not null]
+  event audit_event [not null]
+  old_values jsonb
+  new_values jsonb
+  ip_address inet
+  created_at timestamptz
+  indexes {
+    user_id
+    (auditable_type, auditable_id)
+    created_at
+  }
+  Note: 'Row-level change diffs (old/new as jsonb). Append-only & tamper-resistant: revoke UPDATE/DELETE (or BEFORE UPDATE/DELETE trigger). BRIN on created_at. Polymorphic auditable_* (no FK).'
+}
+
+Table login_history {
+  id bigint [pk, increment]
+  user_id bigint
+  login_at timestamptz
+  logout_at timestamptz
+  ip_address inet
+  user_agent text
+  browser varchar
+  platform varchar
+  login_status login_status [not null]
+  created_at timestamptz
+  indexes {
+    user_id
+    (user_id, login_at)
+  }
+}
+
+Table system_settings {
+  id bigint [pk, increment]
+  group varchar [not null, default: 'general']
+  key varchar [not null, unique]
+  label varchar
+  value jsonb
+  type varchar [not null, default: 'string']
+  description text
+  is_public boolean [not null, default: false]
+  is_protected boolean [not null, default: false]
+  created_by bigint
+  updated_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    group
+    is_public
+    created_by
+    updated_by
+  }
+  Note: '''
+  THE single centralized global application-configuration table (admin-managed).
+  jsonb `value` + `type` (string|integer|boolean|float|json|array) lets config
+  evolve without schema changes. `group` taxonomy (open-ended, suggested):
+    school | academic | maintenance | ai | email | qr | floor_plan | branding |
+    theme | dashboard | notifications | system | general.
+  `is_public` = safe to expose to the frontend (e.g. school_name, logo, theme);
+  non-public settings (e.g. email credentials) stay server-side.
+  `is_protected` = seeded system-critical keys that must not be deleted (app-enforced).
+  AUTHORIZATION: create/update/delete restricted to Administrators via the seeded
+  `system.settings.manage` permission + SystemSettingPolicy (Teachers/Technicians
+  may read public settings only). Strongly-typed AI runtime config with model FKs
+  lives in ai_system_settings; this table holds general/global key/value config.
+  '''
+}
+
+Table dashboard_widgets {
+  id bigint [pk, increment]
+  user_id bigint
+  name varchar [not null]
+  widget_type widget_type [not null]
+  configuration jsonb
+  position int [not null, default: 0]
+  is_enabled boolean [not null, default: true]
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { user_id }
+  Note: 'user_id NULL = global/default widget; set = per-user dashboard.'
+}
+
+Table maintenance_windows {
+  id bigint [pk, increment]
+  title varchar [not null]
+  description text
+  starts_at timestamptz [not null]
+  ends_at timestamptz [not null]
+  is_active boolean [not null, default: true]
+  created_by bigint
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { created_by }
+  Note: 'Scheduled system maintenance windows. CHECK (ends_at > starts_at).'
+}
+
+Table backup_history {
+  id bigint [pk, increment]
+  backup_type backup_type [not null]
+  status backup_status [not null, default: 'pending']
+  filename varchar
+  storage_location varchar
+  disk varchar
+  file_size bigint
+  started_at timestamptz
+  completed_at timestamptz
+  created_by bigint
+  created_at timestamptz
+  indexes { created_by }
+}
+
+
+///////////////////////////////////////////////////////////////
+// RELATIONSHIPS  (explicit ON DELETE / ON UPDATE)
+//   restrict = protect in-use config | cascade = composition
+//   set null = optional context / actor (preserve history)
+///////////////////////////////////////////////////////////////
+
+// ── Identity & Access ──────────────────────────────────────
+Ref: users.role_id > roles.id [delete: restrict, update: no action]
+Ref: users.created_by > users.id [delete: set null, update: no action]
+Ref: users.updated_by > users.id [delete: set null, update: no action]
+Ref: role_permissions.role_id > roles.id [delete: cascade, update: no action]
+Ref: role_permissions.permission_id > permissions.id [delete: cascade, update: no action]
+Ref: user_permissions.user_id > users.id [delete: cascade, update: no action]
+Ref: user_permissions.permission_id > permissions.id [delete: cascade, update: no action]
+Ref: user_permissions.granted_by > users.id [delete: set null, update: no action]
+Ref: sessions.user_id > users.id [delete: cascade, update: no action]
+
+// ── Locations & Floor Plan ─────────────────────────────────
+Ref: floors.building_id > buildings.id [delete: cascade, update: no action]
+Ref: floors.created_by > users.id [delete: set null, update: no action]
+Ref: floors.updated_by > users.id [delete: set null, update: no action]
+Ref: buildings.created_by > users.id [delete: set null, update: no action]
+Ref: buildings.updated_by > users.id [delete: set null, update: no action]
+Ref: rooms.floor_id > floors.id [delete: cascade, update: no action]
+Ref: rooms.created_by > users.id [delete: set null, update: no action]
+Ref: rooms.updated_by > users.id [delete: set null, update: no action]
+Ref: room_layouts.room_id > rooms.id [delete: cascade, update: no action]
+Ref: room_layouts.created_by > users.id [delete: set null, update: no action]
+Ref: room_layouts.updated_by > users.id [delete: set null, update: no action]
+Ref: floor_plan_positions.room_layout_id > room_layouts.id [delete: cascade, update: no action]
+Ref: floor_plan_positions.pc_unit_id > pc_units.id [delete: cascade, update: no action]
+
+// ── PC Units, Specs, QR ────────────────────────────────────
+Ref: pc_units.room_id > rooms.id [delete: set null, update: no action]
+Ref: pc_units.created_by > users.id [delete: set null, update: no action]
+Ref: pc_units.updated_by > users.id [delete: set null, update: no action]
+Ref: pc_specifications.pc_unit_id > pc_units.id [delete: cascade, update: no action]
+Ref: qr_codes.pc_unit_id > pc_units.id [delete: cascade, update: no action]
+Ref: qr_codes.asset_id > assets.id [delete: cascade, update: no action]
+Ref: qr_scan_logs.qr_code_id > qr_codes.id [delete: set null, update: no action]
+Ref: qr_scan_logs.pc_unit_id > pc_units.id [delete: set null, update: no action]
+Ref: qr_scan_logs.asset_id > assets.id [delete: set null, update: no action]
+Ref: qr_scan_logs.maintenance_record_id > maintenance_records.id [delete: set null, update: no action]
+Ref: qr_scan_logs.scanned_by > users.id [delete: set null, update: no action]
+
+// ── Ticketing ──────────────────────────────────────────────
+Ref: ticket_categories.default_priority_id > ticket_priorities.id [delete: set null, update: no action]
+Ref: tickets.reporter_id > users.id [delete: restrict, update: no action]
+Ref: tickets.assigned_technician_id > users.id [delete: set null, update: no action]
+Ref: tickets.room_id > rooms.id [delete: set null, update: no action]
+Ref: tickets.pc_unit_id > pc_units.id [delete: set null, update: no action]
+Ref: tickets.category_id > ticket_categories.id [delete: restrict, update: no action]
+Ref: tickets.priority_id > ticket_priorities.id [delete: restrict, update: no action]
+Ref: tickets.current_status_id > ticket_statuses.id [delete: restrict, update: no action]
+Ref: tickets.duplicate_of_id > tickets.id [delete: set null, update: no action]
+Ref: tickets.created_by > users.id [delete: set null, update: no action]
+Ref: tickets.updated_by > users.id [delete: set null, update: no action]
+Ref: ticket_tags.ticket_id > tickets.id [delete: cascade, update: no action]
+Ref: ticket_tags.tag_id > tags.id [delete: cascade, update: no action]
+Ref: ticket_updates.ticket_id > tickets.id [delete: cascade, update: no action]
+Ref: ticket_updates.user_id > users.id [delete: set null, update: no action]
+Ref: ticket_status_history.ticket_id > tickets.id [delete: cascade, update: no action]
+Ref: ticket_status_history.from_status_id > ticket_statuses.id [delete: restrict, update: no action]
+Ref: ticket_status_history.to_status_id > ticket_statuses.id [delete: restrict, update: no action]
+Ref: ticket_status_history.changed_by > users.id [delete: set null, update: no action]
+Ref: ticket_votes.ticket_id > tickets.id [delete: cascade, update: no action]
+Ref: ticket_votes.user_id > users.id [delete: cascade, update: no action]
+Ref: ticket_comments.ticket_id > tickets.id [delete: cascade, update: no action]
+Ref: ticket_comments.user_id > users.id [delete: restrict, update: no action]
+Ref: ticket_comments.parent_comment_id > ticket_comments.id [delete: set null, update: no action]
+Ref: attachments.ticket_id > tickets.id [delete: cascade, update: no action]
+Ref: attachments.uploaded_by > users.id [delete: set null, update: no action]
+
+// ── Technician & Maintenance ───────────────────────────────
+Ref: technician_assignments.ticket_id > tickets.id [delete: cascade, update: no action]
+Ref: technician_assignments.technician_id > users.id [delete: restrict, update: no action]
+Ref: technician_assignments.assigned_by > users.id [delete: set null, update: no action]
+Ref: maintenance_types.default_checklist_template_id > checklist_templates.id [delete: set null, update: no action]
+Ref: maintenance_records.ticket_id > tickets.id [delete: set null, update: no action]
+Ref: maintenance_records.pc_unit_id > pc_units.id [delete: set null, update: no action]
+Ref: maintenance_records.asset_id > assets.id [delete: set null, update: no action]
+Ref: maintenance_records.technician_id > users.id [delete: restrict, update: no action]
+Ref: maintenance_records.maintenance_type_id > maintenance_types.id [delete: restrict, update: no action]
+Ref: maintenance_records.created_by > users.id [delete: set null, update: no action]
+Ref: maintenance_records.updated_by > users.id [delete: set null, update: no action]
+Ref: checklist_templates.maintenance_type_id > maintenance_types.id [delete: set null, update: no action]
+Ref: checklist_template_items.checklist_template_id > checklist_templates.id [delete: cascade, update: no action]
+Ref: maintenance_checklists.maintenance_record_id > maintenance_records.id [delete: cascade, update: no action]
+Ref: maintenance_checklists.checklist_template_item_id > checklist_template_items.id [delete: set null, update: no action]
+Ref: maintenance_checklists.completed_by > users.id [delete: set null, update: no action]
+Ref: repair_images.maintenance_record_id > maintenance_records.id [delete: cascade, update: no action]
+Ref: repair_images.uploaded_by > users.id [delete: set null, update: no action]
+Ref: maintenance_notes.maintenance_record_id > maintenance_records.id [delete: cascade, update: no action]
+Ref: maintenance_notes.technician_id > users.id [delete: set null, update: no action]
+Ref: hardware_replacements.maintenance_record_id > maintenance_records.id [delete: cascade, update: no action]
+Ref: hardware_replacements.pc_unit_id > pc_units.id [delete: set null, update: no action]
+Ref: hardware_replacements.old_component_id > hardware_components.id [delete: restrict, update: no action]
+Ref: hardware_replacements.new_component_id > hardware_components.id [delete: restrict, update: no action]
+Ref: hardware_replacements.new_asset_id > assets.id [delete: set null, update: no action]
+
+// ── Inventory & Asset Lifecycle ────────────────────────────
+Ref: hardware_components.manufacturer_id > manufacturers.id [delete: set null, update: no action]
+Ref: hardware_models.hardware_component_id > hardware_components.id [delete: restrict, update: no action]
+Ref: assets.hardware_model_id > hardware_models.id [delete: restrict, update: no action]
+Ref: assets.supplier_id > suppliers.id [delete: set null, update: no action]
+Ref: assets.current_room_id > rooms.id [delete: set null, update: no action]
+Ref: assets.created_by > users.id [delete: set null, update: no action]
+Ref: assets.updated_by > users.id [delete: set null, update: no action]
+Ref: consumables.hardware_model_id > hardware_models.id [delete: set null, update: no action]
+Ref: consumables.supplier_id > suppliers.id [delete: set null, update: no action]
+Ref: consumables.current_room_id > rooms.id [delete: set null, update: no action]
+Ref: consumables.created_by > users.id [delete: set null, update: no action]
+Ref: consumables.updated_by > users.id [delete: set null, update: no action]
+Ref: stock_transactions.consumable_id > consumables.id [delete: cascade, update: no action]
+Ref: stock_transactions.performed_by > users.id [delete: set null, update: no action]
+Ref: asset_status_history.asset_id > assets.id [delete: cascade, update: no action]
+Ref: asset_status_history.changed_by > users.id [delete: set null, update: no action]
+Ref: pc_component_installations.pc_unit_id > pc_units.id [delete: cascade, update: no action]
+Ref: pc_component_installations.asset_id > assets.id [delete: restrict, update: no action]
+Ref: pc_component_installations.installed_by > users.id [delete: set null, update: no action]
+Ref: procurement_requests.requested_by > users.id [delete: restrict, update: no action]
+Ref: procurement_requests.approved_by > users.id [delete: set null, update: no action]
+Ref: procurement_request_items.procurement_request_id > procurement_requests.id [delete: cascade, update: no action]
+Ref: procurement_request_items.hardware_model_id > hardware_models.id [delete: set null, update: no action]
+Ref: asset_transfers.asset_id > assets.id [delete: cascade, update: no action]
+Ref: asset_transfers.from_room_id > rooms.id [delete: set null, update: no action]
+Ref: asset_transfers.to_room_id > rooms.id [delete: set null, update: no action]
+Ref: asset_transfers.transferred_by > users.id [delete: set null, update: no action]
+Ref: disposal_records.asset_id > assets.id [delete: cascade, update: no action]
+Ref: disposal_records.approved_by > users.id [delete: set null, update: no action]
+
+// ── AI / RAG ───────────────────────────────────────────────
+Ref: ai_analysis_logs.ticket_id > tickets.id [delete: cascade, update: no action]
+Ref: ai_analysis_logs.ai_model_id > ai_models.id [delete: set null, update: no action]
+Ref: ai_recommendations.ai_analysis_log_id > ai_analysis_logs.id [delete: cascade, update: no action]
+Ref: ai_recommendations.completed_by > users.id [delete: set null, update: no action]
+Ref: ai_conversation_logs.ticket_id > tickets.id [delete: cascade, update: no action]
+Ref: ai_conversation_logs.user_id > users.id [delete: set null, update: no action]
+Ref: ai_conversation_logs.ai_model_id > ai_models.id [delete: set null, update: no action]
+Ref: ai_learning_events.maintenance_record_id > maintenance_records.id [delete: set null, update: no action]
+Ref: ai_learning_events.ticket_id > tickets.id [delete: set null, update: no action]
+Ref: ai_learning_events.pc_unit_id > pc_units.id [delete: set null, update: no action]
+Ref: ai_failure_patterns.pc_unit_id > pc_units.id [delete: cascade, update: no action]
+Ref: ai_failure_patterns.hardware_component_id > hardware_components.id [delete: set null, update: no action]
+Ref: ai_knowledge_articles.created_from_ticket_id > tickets.id [delete: set null, update: no action]
+Ref: ai_knowledge_articles.created_by > users.id [delete: set null, update: no action]
+Ref: ai_predictions.pc_unit_id > pc_units.id [delete: cascade, update: no action]
+Ref: ai_predictions.ai_model_id > ai_models.id [delete: set null, update: no action]
+Ref: ai_feedback.ai_recommendation_id > ai_recommendations.id [delete: cascade, update: no action]
+Ref: ai_feedback.ai_analysis_log_id > ai_analysis_logs.id [delete: cascade, update: no action]
+Ref: ai_feedback.user_id > users.id [delete: cascade, update: no action]
+Ref: ai_embeddings.ai_model_id > ai_models.id [delete: restrict, update: no action]
+Ref: ai_embedding_sources.ai_model_id > ai_models.id [delete: restrict, update: no action]
+Ref: ai_system_settings.active_model_id > ai_models.id [delete: set null, update: no action]
+Ref: ai_system_settings.embedding_model_id > ai_models.id [delete: set null, update: no action]
+Ref: ai_system_settings.updated_by > users.id [delete: set null, update: no action]
+
+// ── Administration & System ────────────────────────────────
+Ref: notifications.user_id > users.id [delete: cascade, update: no action]
+Ref: notification_preferences.user_id > users.id [delete: cascade, update: no action]
+Ref: announcements.created_by > users.id [delete: set null, update: no action]
+Ref: activity_logs.user_id > users.id [delete: set null, update: no action]
+Ref: audit_logs.user_id > users.id [delete: set null, update: no action]
+Ref: login_history.user_id > users.id [delete: set null, update: no action]
+Ref: system_settings.created_by > users.id [delete: set null, update: no action]
+Ref: system_settings.updated_by > users.id [delete: set null, update: no action]
+Ref: dashboard_widgets.user_id > users.id [delete: cascade, update: no action]
+Ref: maintenance_windows.created_by > users.id [delete: set null, update: no action]
+Ref: backup_history.created_by > users.id [delete: set null, update: no action]
