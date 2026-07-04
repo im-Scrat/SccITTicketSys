@@ -25,6 +25,19 @@ Thumbs.db
 # ─── Database backups ─────────────────────────────────────────
 /backups/
 
+# ─── Claude Code (local, machine-specific — never commit) ─────
+# Shared config lives in .claude/settings.json; this file is a local
+# per-machine permission cache.
+.claude/settings.local.json
+
+# ─── Obsidian vault (local docs workspace + plugin binaries) ──
+# No authored notes are tracked here; canonical docs live in /docs/.
+/vault/
+
+# ─── Graphify (generated knowledge graph) ─────────────────────
+# Machine-regenerable via `graphify update .`; keep .graphifyignore tracked.
+/graphify-out/
+
 # Note: backend/ and frontend/ get their own .gitignore from
 # the Laravel and Vite scaffolds; this file covers the repo root
 # and anything created before those scaffolds exist.

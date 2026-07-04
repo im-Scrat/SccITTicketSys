@@ -1,0 +1,8 @@
+# Graphify ignore rules (merged with .gitignore, last-match-wins)
+# Keep the code knowledge graph focused and avoid cross-system duplication.
+
+# Obsidian vault is the dedicated human-docs system — don't duplicate it into the graph
+vault/
+
+# Graphify's own generated output
+graphify-out/
