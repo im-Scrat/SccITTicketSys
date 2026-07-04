@@ -27,6 +27,9 @@ class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
         ]);
 
+        // Local-only developer admin (self-guarded to APP_ENV=local).
+        $this->call(DevAdminSeeder::class);
+
         if (! app()->environment('production')) {
             $this->call(DemoSeeder::class);
         }

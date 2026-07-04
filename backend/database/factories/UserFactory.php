@@ -46,4 +46,26 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => ['status' => UserStatus::Suspended->value]);
     }
+
+    public function pending(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => UserStatus::Pending->value,
+            'email_verified_at' => null,
+        ]);
+    }
+
+    public function rejected(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => UserStatus::Rejected->value,
+            'rejection_reason' => fake()->sentence(),
+            'rejected_at' => now(),
+        ]);
+    }
+
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => ['status' => UserStatus::Inactive->value]);
+    }
 }

@@ -2,13 +2,13 @@
 title: Software Requirements Specification (SRS)
 system: AI-Powered IT Asset & Service Management System (SccIT)
 doc_id: SCCIT-SRS
-version: 1.0
-status: Approved — v1.0 Baseline (2026-07-03)
-date: 2026-07-03
+version: 1.1
+status: Approved — v1.1 (2026-07-04)
+date: 2026-07-04
 author: Engineering (Beemo)
 classification: Internal — Confidential
 standard: Aligned with ISO/IEC/IEEE 29148:2018 (Requirements Engineering)
-supersedes: —
+supersedes: v1.0 (2026-07-03)
 ---
 
 # Software Requirements Specification
@@ -24,8 +24,8 @@ supersedes: —
 | Field | Value |
 |---|---|
 | Document ID | SCCIT-SRS |
-| Version | 1.0 (Approved) |
-| Date | 2026-07-03 |
+| Version | 1.1 (Approved) |
+| Date | 2026-07-04 |
 | Standard | ISO/IEC/IEEE 29148:2018 (adapted) |
 | Prepared by | Engineering |
 | Approved by | Client / Product Owner — approved 2026-07-03 |
@@ -37,6 +37,8 @@ supersedes: —
 |---|---|---|---|
 | 1.0 | 2026-07-03 | Engineering | Initial SRS derived from approved product brief, design system, and production database layer. Includes internal-review reconciliation and flagged open decisions. |
 | 1.0 | 2026-07-03 | Client / Product Owner | Reviewed and approved; baselined as the v1.0 project specification (Git tag `v1.0-project-specification`). |
+| 1.1 | 2026-07-04 | Engineering | **OI-02 resolved by the Client:** self-registration reframed as a mandatory **registration-request workflow** for Teachers and Technicians with Administrator approval. FR-AUTH-013 promoted F→M/P2 and rewritten; new FR-AUTH-014/015/016 (approve/reject/status-enforcement + decision emails). Added `Rejected` account status and `rejection_reason`/`rejected_at`/`rejected_by` (FR-AUTH-004, FR-USER-007, §29 DR). ASM-02 updated; §33 OI-02 marked resolved. |
+| 1.1 | 2026-07-04 | Client / Product Owner | Approved the registration-request business rule and the v1.1 changes ahead of Phase 2.2 implementation. |
 
 ### Conventions used in this document
 
@@ -355,7 +357,7 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | FR-AUTH-001 | Authenticate users by email (case-insensitive) and password using Laravel Sanctum SPA cookie-based sessions over HTTPS. | M | P2 | T |
 | FR-AUTH-002 | Store passwords only as salted bcrypt/argon2 hashes; never store or log plaintext passwords. | M | P2 | I |
 | FR-AUTH-003 | Enforce a configurable password policy: minimum 10 characters with at least three of {lowercase, uppercase, digit, symbol}; reject the 1,000 most common passwords. | M | P2 | T |
-| FR-AUTH-004 | Reject authentication for users whose `status` is not `active` (i.e. `inactive`, `suspended`, `pending`) with a non-disclosing error message. | M | P2 | T |
+| FR-AUTH-004 | Reject authentication for users whose `status` is not `active` (i.e. `pending`, `rejected`, `suspended`, `inactive`). Credential errors return a **non-disclosing** message; when credentials are valid but the account is not active, the response **may** disclose the account-status reason to the legitimate account holder (e.g. “awaiting administrator approval”) so applicants can learn their registration outcome. | M | P2 | T |
 | FR-AUTH-005 | Record every authentication attempt in `login_history` with outcome (`success`/`failed`/`locked_out`), timestamp, IP (`inet`), user agent, browser, and platform. | M | P2 | T |
 | FR-AUTH-006 | Lock an account for a configurable window (default: 15 minutes) after a configurable number of consecutive failed attempts (default: 5), record the lockout, and notify the user by email. | M | P2 | T |
 | FR-AUTH-007 | Update `last_login_at` and `last_login_ip` on successful authentication. | M | P2 | T |
@@ -364,9 +366,12 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | FR-AUTH-010 | Protect all state-changing requests with CSRF tokens and enforce same-site cookie policy. | M | P2 | I |
 | FR-AUTH-011 | Allow an authenticated user to change their own password after re-entering their current password, invalidating other active sessions on change. | M | P2 | T |
 | FR-AUTH-012 | Support multi-factor authentication (TOTP) as a configurable, per-user or role-enforced second factor. | F | — | T |
-| FR-AUTH-013 | Support self-service account registration by requesters, subject to Administrator-configurable approval (`pending` status). | F | — | T |
+| FR-AUTH-013 | Provide a public **registration-request** workflow: a prospective **Teacher or Technician** (never an Administrator) may submit a registration request. Submitting a request **shall not** create an active account; it creates a user record in `pending` status that **cannot authenticate**. The applicant is shown an “awaiting administrator approval” acknowledgement and may learn the outcome by attempting to sign in (see FR-AUTH-004). | M | P2 | T |
+| FR-AUTH-014 | Allow Administrators (permission `users.update`) to view pending registration requests, review applicant details, and **approve** or **reject** each request. Approval sets the account to `active` and enables sign-in; rejection sets it to `rejected` and records `rejection_reason`, `rejected_by`, and `rejected_at`. Every decision is recorded in the activity/audit trail. | M | P2 | T |
+| FR-AUTH-015 | On an approval decision, email the applicant that their account has been activated; on a rejection decision, email the applicant that the registration was not approved, including the rejection reason when one was provided. | M | P2 | T |
+| FR-AUTH-016 | Enforce account status centrally (a single account-status middleware) on every authenticated request so that `pending`, `rejected`, `suspended`, and `inactive` accounts are consistently denied access with an appropriate explanation, without duplicating the check across controllers. | M | P2 | T |
 
-> **Note (open decision).** FR-AUTH-013 and FR-AUTH-012 are deliberately **Future**; account provisioning in P2 is Administrator-driven (see [FR-USER-002](#102-user--role-management-fr-user) and [§33 OI-02](#33-open-issues--decisions-requiring-client-approval)).
+> **Note.** FR-AUTH-013–016 realize the Client decision on **[§33 OI-02](#33-open-issues--decisions-requiring-client-approval)** (resolved in v1.1): registration is **request-and-approve**, restricted to Teachers and Technicians. Administrator accounts are provisioned only by existing Administrators (or the documented local dev seeder) and are never self-registerable ([BR-01a](#25-business-rules)). MFA (FR-AUTH-012) remains **Future**.
 
 ### 10.2 User & Role Management (FR-USER)
 
@@ -378,7 +383,7 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | FR-USER-004 | Support per-user permission overrides that **grant** or **deny** individual permissions, overriding the role default. | M | P2 | T |
 | FR-USER-005 | Enforce authorization on every API endpoint using the effective permission set (role permissions adjusted by user overrides). | M | P2 | T |
 | FR-USER-006 | Never hard-delete a user referenced by tickets, comments, or history; soft-delete instead and preserve all attributions. | M | P2 | T |
-| FR-USER-007 | Allow Administrators to set a user’s status (`active`/`inactive`/`suspended`/`pending`) and reflect it immediately in access control. | M | P2 | T |
+| FR-USER-007 | Allow Administrators to set a user’s status (`active`/`inactive`/`suspended`/`pending`/`rejected`) and reflect it immediately in access control. | M | P2 | T |
 | FR-USER-008 | Allow a user to view and edit their own profile (name, contact number, profile picture, locale/theme preference) but not their own role or permissions. | M | P2 | T |
 | FR-USER-009 | Record `created_by`/`updated_by` on user records and emit audit entries for account changes. | M | P2 | T |
 | FR-USER-010 | Allow Administrators to view all permissions and adjust the permission set assigned to each non-system aspect of a role at runtime. | M | P2 | T |
@@ -826,6 +831,7 @@ SccIT integrates Google **Gemini** for (a) **ticket triage/analysis**, (b) a **c
 | ID | Business Rule |
 |---|---|
 | BR-01 | The three system roles (Administrator, Technician, Teacher) are seeded, `is_system`, and cannot be deleted. |
+| BR-01a | Only **Teacher** and **Technician** accounts may be created via the public registration-request workflow; **Administrator** accounts are never self-registerable and are provisioned only by an existing Administrator (or the documented local dev seeder). A registration request is created `pending` and cannot authenticate until an Administrator approves it. *(OI-02, resolved v1.1.)* |
 | BR-02 | A user holds exactly one role; effective permissions = role permissions adjusted by per-user grant/deny overrides. *(Multi-role is a flagged future decision — [§33 OI-01](#33-open-issues--decisions-requiring-client-approval).)* |
 | BR-03 | Every ticket has a role-neutral reporter who is a registered, non-deleted user; there is no anonymous ticket submission in P2. |
 | BR-04 | Each ticket always has exactly one current status; exactly one status is the system default (`Open`). |
@@ -897,6 +903,8 @@ Format: **UC-n — Name** · *Actor(s)* · Pre → Main flow → Post; key alter
 **UC-08 — Configure system & branding.** *Administrator.* Flow: edit settings → validate by type → save. Post: applied at runtime; audited; protected keys preserved. *(FR-CFG-001..008)*
 
 **UC-09 — Manage users & permissions.** *Administrator.* Flow: create/edit user → set role → adjust overrides. Post: access reflects changes; audited. *(FR-USER-001..010)*
+
+**UC-09a — Register & get approved.** *Prospective Teacher/Technician + Administrator.* Flow: applicant submits a registration request (role Teacher or Technician) → account created `pending`, cannot sign in → applicant sees “awaiting approval” → Administrator reviews the request and approves or rejects (with optional reason) → applicant is emailed the decision; on approval the account becomes `active` and can sign in, on rejection it becomes `rejected`. Post: decision recorded in the audit trail; rejected requests retained with reason. *(FR-AUTH-013..016; BR-01a)*
 
 **UC-10 — Use AI assistant.** *Reporter/Technician.* Flow: ask question → assistant retrieves KB context → answers with citations → user rates answer. Post: conversation + feedback logged. *(FR-AI-004..008)*
 
@@ -974,6 +982,7 @@ The physical data model is authoritatively specified in `docs/database/database_
 | DR-012 | Ensure uniqueness constraints prevent double-votes, duplicate active assignments, duplicate active layouts, duplicate embeddings, and one-feedback-per-user-per-recommendation. | T |
 | DR-013 | Store money as `numeric(12,2)`, IPs as `inet`, email as `citext`, and semi-structured data as `jsonb`. | I |
 | DR-014 | Support configurable retention/archival of high-volume logs and PII, with lawful-erasure hard purge. | T |
+| DR-015 | Model the account lifecycle on `users.status` ∈ {`pending`, `active`, `rejected`, `suspended`, `inactive`} enforced by a CHECK constraint mirrored by the `UserStatus` PHP enum; retain rejected registration requests with `rejection_reason`, `rejected_by` (actor), and `rejected_at` for audit. *(OI-02, resolved v1.1.)* | T |
 
 ### 29.3 Reference/seed data (baseline)
 The system ships with seeded roles, the permission matrix ([§8.4](#84-seeded-permission-matrix-baseline)), ticket categories (Hardware, Software, Network, Peripheral, Account & Access, Other), priorities and SLAs ([BR-05](#25-business-rules)), statuses (Open→Cancelled with open/terminal flags), maintenance types (Preventive, Corrective, Hardware Upgrade, Inspection, Cleaning), AI models (Gemini 1.5 Flash; text-embedding-004/768), AI defaults (threshold 0.70; advanced features off), and system settings across all groups. A non-production demo seeder provides sample data; it must never run in production.
@@ -1082,7 +1091,7 @@ General acceptance patterns plus representative Given/When/Then criteria. Each F
 | ID | Assumption |
 |---|---|
 | ASM-01 | The deploying organization provisions HTTPS/TLS, a production SMTP service, and (for P3) a Gemini API key with sufficient quota. |
-| ASM-02 | User accounts are provisioned by Administrators in P2 (no public self-registration until OI-02 is decided). |
+| ASM-02 | Administrator accounts are provisioned only by existing Administrators (or the local dev seeder); Teacher/Technician accounts are created either by Administrators or via the public **registration-request** workflow (OI-02, resolved v1.1) and require Administrator approval before they can sign in. |
 | ASM-03 | Reporters and technicians have network-connected devices with a modern browser; technicians’ devices have a camera for QR scanning. |
 | ASM-04 | The organization accepts external AI processing of the data categories disclosed under [§17.5](#175-ai-data-governance--safety-requirements), or disables AI. |
 | ASM-05 | Nominal capacity ([§14](#14-scalability-requirements)) reflects a single institution; larger deployments require re-validation. |
@@ -1098,14 +1107,14 @@ These are decisions that would **change the approved business model or major sys
 | ID | Decision | Baseline (this SRS) | Alternative & trade-off | Recommendation |
 |---|---|---|---|---|
 | **OI-01** | Roles per user | Exactly one role + per-user overrides (BR-02, FR-USER-003). | Multi-role via a `role_user` pivot. **Pro:** models people who are both (e.g. a teacher who is also a technician) without over-granting. **Con:** conceptual change; requires schema addition and effective-permission recomputation; more complex UI. | Keep single-role for P2; revisit if real dual-role staff exist. |
-| **OI-02** | Requester self-registration | Admin-provisioned accounts only (ASM-02); `pending` status reserved. | Public self-registration with admin approval (FR-AUTH-013). **Pro:** less admin load at large sites. **Con:** spam/abuse surface; identity assurance; approval workflow. | Defer to Future unless onboarding volume demands it. |
+| **OI-02** | Requester self-registration | **RESOLVED (v1.1, 2026-07-04).** The Client adopted the alternative: a **registration-request workflow** with Administrator approval, restricted to **Teachers and Technicians** (Administrators are never self-registerable). Requests are created `pending` and cannot sign in until approved; rejected requests are retained with a reason for audit. Realized by [FR-AUTH-013–016](#101-authentication--session-management-fr-auth). Spam/abuse is mitigated by rate limiting ([NFR-SEC-009](#12-security-requirements)) and mandatory human approval. | — (decided) | Implemented in Phase 2.2. |
 | **OI-03** | MFA | No MFA in P2 (FR-AUTH-012/NFR-SEC-016 Future); schema note defers MFA columns. | Add TOTP MFA (schema columns + enrollment flow). **Pro:** materially stronger auth for privileged accounts. **Con:** added columns, flows, and support burden. | Add MFA for Administrators in an early post-P2 increment; approve now if security posture requires it. |
 | **OI-04** | QR expiry semantics | `expired` defined by QR/target status, no date field (FR-QR-006). | Add `qr_codes.expires_at` for time-based expiry. **Pro:** supports rotating/temporary codes. **Con:** schema change; scan logic change. | Keep status-based unless time-limited QR is required. |
 | **OI-05** | SLA model | Per-priority SLA on `ticket_priorities` (BR-05). | Dedicated `sla_policies` (per category/audience/asset-class). **Pro:** granular SLAs. **Con:** new tables + assignment logic. | Keep per-priority for P2; add `sla_policies` if differentiated SLAs are needed. |
 | **OI-06** | Ticket auto-escalation | Breach is flagged + notified; no automatic action (FR-TKT-017; FR-TKT-018 Future). | Auto-reassign/raise priority on breach. **Pro:** enforces response. **Con:** changes workflow behavior; risk of churn. | Ship notify-only; add configurable escalation later. |
 | **OI-07** | Indicative NFR targets | Performance/availability/SLA/capacity numbers are indicative defaults ([§13](#13-performance-requirements)–[§15](#15-availability--reliability-requirements)). | Client-specified targets. **Impact:** changes test thresholds and sizing. | Confirm exact numbers at approval; no design impact beyond thresholds. |
 
-> **None of the above is applied in a way that alters the schema or behavior in this document.** Resolving them updates SRS v1.1 and feeds the SDD.
+> **OI-02 has been resolved in v1.1** (registration-request workflow; see above) and is reflected in the functional requirements, business rules, and data requirements of this document. The remaining open items (OI-01, OI-03–OI-07) are not applied in a way that alters the schema or behavior in this document; resolving any of them updates a future SRS revision and feeds the SDD.
 
 ---
 

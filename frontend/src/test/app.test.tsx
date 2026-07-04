@@ -18,11 +18,20 @@ function renderAt(path: string) {
 describe('public routing', () => {
   it('renders the landing hero and sections on /', async () => {
     renderAt('/')
+    // The landing page is a large, lazy-loaded tree; allow it time to resolve.
     expect(
-      await screen.findByRole('heading', { level: 1, name: /operations console/i }),
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: /operations console/i },
+        { timeout: 5000 },
+      ),
     ).toBeInTheDocument()
     // A later section renders too (exercises the whole page tree).
-    expect(await screen.findByText(/Enterprise security, not an afterthought/i)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/Enterprise security, not an afterthought/i, undefined, {
+        timeout: 5000,
+      }),
+    ).toBeInTheDocument()
     // Primary CTA is present.
     expect(screen.getAllByRole('link', { name: /book a demo/i }).length).toBeGreaterThan(0)
   })

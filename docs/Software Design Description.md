@@ -2,14 +2,14 @@
 title: Software Design Description (SDD)
 system: AI-Powered IT Asset & Service Management System (SccIT)
 doc_id: SCCIT-SDD
-version: 1.0
-status: Approved — v1.0 Baseline (2026-07-03)
-date: 2026-07-03
+version: 1.1
+status: Approved — v1.1 (2026-07-04)
+date: 2026-07-04
 author: Engineering (Beemo)
 classification: Internal — Confidential
 standard: Aligned with IEEE 1016-2009 (SDD) and ISO/IEC/IEEE 42010:2011 (Architecture Description)
-governs: How the approved SRS (SCCIT-SRS v1.0) is realized
-depends_on: SCCIT-SRS v1.0 (Software Requirements Specification)
+governs: How the approved SRS (SCCIT-SRS v1.1) is realized
+depends_on: SCCIT-SRS v1.1 (Software Requirements Specification)
 ---
 
 # Software Design Description
@@ -25,12 +25,12 @@ depends_on: SCCIT-SRS v1.0 (Software Requirements Specification)
 | Field | Value |
 |---|---|
 | Document ID | SCCIT-SDD |
-| Version | 1.0 (Approved) |
-| Date | 2026-07-03 |
+| Version | 1.1 (Approved) |
+| Date | 2026-07-04 |
 | Standards | IEEE 1016-2009; ISO/IEC/IEEE 42010:2011 |
 | Prepared by | Engineering |
-| Approved by | Client / Product Owner — approved 2026-07-03 |
-| Primary input | SCCIT-SRS v1.0 (**approved**) |
+| Approved by | Client / Product Owner — approved 2026-07-04 |
+| Primary input | SCCIT-SRS v1.1 (**approved**) |
 | Related artifacts | `PRODUCT.md`, `DESIGN.md`, `docs/database/database_design_v2.dbml`, `docs/database/database_architecture_report.md`, `docs/PROJECT_STRUCTURE.md`, `docs/ENVIRONMENT.md`, implemented repo (`backend/`, `frontend/`, `docker/`, `compose.yaml`) |
 
 ### Revision History
@@ -39,6 +39,8 @@ depends_on: SCCIT-SRS v1.0 (Software Requirements Specification)
 |---|---|---|---|
 | 1.0 | 2026-07-03 | Engineering | Initial SDD derived from the approved SRS and the implemented database/scaffold. Includes architecture-review reconciliation (Appendix A) and a design-decision register (§40). |
 | 1.0 | 2026-07-03 | Client / Product Owner | Reviewed and approved; baselined as part of the v1.0 project specification (Git tag `v1.0-project-specification`). |
+| 1.1 | 2026-07-04 | Engineering | Realizes SRS v1.1 (OI-02 resolved): §10 gains the **registration-request + Administrator-approval** design; §11–12 gain the Identity-domain review flow; new design decisions **DD-17** (registration-request workflow), **DD-18** (dedicated `rejected` status + review columns), **DD-19** (single account-status middleware), **DD-20** (RateLimiter-based lockout & throttling); Appendix A records the OI-02 resolution; §35 adds the registration-approval sequence. |
+| 1.1 | 2026-07-04 | Client / Product Owner | Reviewed and approved ahead of Phase 2.2 implementation. |
 
 ### Conventions
 
@@ -356,7 +358,7 @@ All host ports bound to `127.0.0.1` (not LAN-exposed); healthchecks on postgres/
 
 ## 10. Authentication Design
 
-Realizes [FR-AUTH-001..011](#) and [NFR-SEC-003/009](#).
+Realizes [FR-AUTH-001..016](#) and [NFR-SEC-003/009](#).
 
 ### 10.1 Mechanism — Sanctum SPA cookie auth
 - Enabled by `statefulApi()` in `bootstrap/app.php`; the SPA and API share the Nginx origin, so the session cookie is **first-party** and CSRF-protected — no bearer tokens in JS, no CORS ([DD-04](#40-design-decision-register)).
@@ -367,12 +369,19 @@ Realizes [FR-AUTH-001..011](#) and [NFR-SEC-003/009](#).
 ### 10.2 Credential & session policy
 - Passwords hashed with bcrypt/argon2 ([FR-AUTH-002](#)); password policy enforced in a `Password` rule ([FR-AUTH-003](#)).
 - **Lockout:** a login throttle + failed-attempt counter locks the account after N (default 5) failures for a window (default 15 min), writing `login_history` (`success/failed/locked_out`) and emailing the user ([FR-AUTH-005/006](#)).
-- **Idle expiry** (default 8 h) and explicit logout; password change re-auth invalidates other sessions ([FR-AUTH-009/011](#)).
-- **Reset** via single-use, time-limited `password_reset_tokens` ([FR-AUTH-008](#)).
-- **Status gate:** only `active` users authenticate; `inactive/suspended/pending` are refused with a non-disclosing message ([FR-AUTH-004](#)).
+- **Idle expiry** (default 8 h) and explicit logout; login **regenerates** the session (fixation defense) and logout **invalidates** the session and **regenerates the CSRF token**; password change re-auth invalidates other sessions ([FR-AUTH-009/010/011](#)).
+- **Reset** via single-use, time-limited `password_reset_tokens` ([FR-AUTH-008](#)); a custom notification builds the SPA reset URL (`/reset-password?token=…&email=…`).
+- **Status gate:** only `active` users authenticate. Credentials are verified **first**; invalid credentials return a non-disclosing error, while valid credentials on a non-active account return a **status-specific** response (`pending`/`rejected`/`suspended`/`inactive`) so a legitimate applicant learns their registration outcome ([FR-AUTH-004](#); [DD-19](#40-design-decision-register)).
+- **Lockout & throttling** use Laravel's Redis-backed `RateLimiter` keyed by email+IP — no schema change ([DD-20](#40-design-decision-register); [FR-AUTH-006](#), [NFR-SEC-009](#)).
 - **MFA (TOTP)** is a reserved extension ([FR-AUTH-012](#), [EXT-05](#38-future-extension-points)) — not in P2.
 
-*(Login sequence: [§35.1](#351-authentication-sanctum-spa-login).)*
+### 10.3 Registration-request & approval ([FR-AUTH-013..016](#), [BR-01a](#); [DD-17](#40-design-decision-register)/[DD-18](#40-design-decision-register))
+- **Public request:** `POST /api/register` accepts a Teacher or Technician application (role restricted; Administrator never self-registerable). A `RegisterApplicant` action creates the `users` row with `status = pending`; the applicant **cannot authenticate** until approved. The applicant receives an acknowledgement (and may re-check by attempting sign-in, which returns the `pending` status).
+- **Administrator review:** `App\Domains\Identity` exposes an approval queue (`GET /api/admin/registrations`, permission `users.update`). `ApproveRegistration` sets `status = active` (recording actor/time in `activity_logs`); `RejectRegistration` sets `status = rejected` and persists `rejection_reason`, `rejected_by`, `rejected_at`.
+- **Notifications:** approval and rejection both email the applicant ([FR-AUTH-015](#)); rejection includes the reason when present. Auth emails are sent synchronously for reliable local delivery (Mailpit) and can be queued later.
+- **Account-status enforcement** is centralized in a single `EnsureAccountIsActive` middleware ([FR-AUTH-016](#); [DD-19](#40-design-decision-register)) — the one source of truth for `pending/rejected/suspended/inactive` on authenticated requests; controllers never re-check status.
+
+*(Login sequence: [§35.1](#351-authentication-sanctum-spa-login); registration-approval sequence: [§35.6](#356-registration-request--approval).)*
 
 ---
 
@@ -438,7 +447,7 @@ Six domain **seams exist** in the repo; the design adds two P2 domains for ident
 
 | Domain | Status | Responsibility (SRS modules) | Key requirements |
 |---|---|---|---|
-| **Identity** | *new (P2)* | Auth, users, roles, permissions, sessions/login history. | FR-AUTH-*, FR-USER-* |
+| **Identity** | *new (P2)* | Auth, **registration-request + approval**, users, roles, permissions, sessions/login history, account-status enforcement. | FR-AUTH-*, FR-USER-* |
 | **Locations** | *new (P2)* | Buildings, floors, rooms CRUD (foundation for FloorPlan). | FR-LOC-* |
 | **Tickets** | seam | Tickets, comments, votes, attachments, tags, status/SLA, **technician assignment**, ticket AI snapshot. | FR-TKT-*, FR-ASN-* |
 | **Assets** | seam | PC units, specs, **QR**, catalog, serialized assets, consumables, stock, procurement, transfers, disposal. | FR-PC-*, FR-QR-*, FR-AST-* |
@@ -484,7 +493,9 @@ Representative domain services and the requirements they realize:
 
 | Service | Responsibility | Realizes |
 |---|---|---|
-| `AuthService` | Login/logout, lockout, reset, session lifecycle. | FR-AUTH-* |
+| `AuthService` | Login/logout, lockout, reset, session lifecycle (regenerate/invalidate). | FR-AUTH-001..011 |
+| `RegisterApplicant` / `ApproveRegistration` / `RejectRegistration` (actions) | Registration-request creation and Administrator approve/reject with reason + emails. | FR-AUTH-013..016, BR-01a |
+| `AuditLogger` | Reusable writer for `login_history` (auth attempts) and `activity_logs` (account/password lifecycle events); consumed by future modules. | FR-AUTH-005, FR-AUD-*, NFR-SEC-017 |
 | `PermissionResolver` | Effective-permission computation + cache. | FR-USER-004/005 |
 | `TicketService` / actions | Create, transition, assign, comment, vote, duplicate. | FR-TKT-* |
 | `SlaService` | Derive `*_due_at` from priority; detect breach; emit events. | FR-TKT-004/017, BR-05 |
@@ -659,7 +670,7 @@ Realizes [SRS §19](#) (**P4**). Data/seams exist; no logic yet.
 - **Real-time:** Laravel **Reverb** broadcasts position/status changes to viewers; **polling fallback** if WebSockets are unavailable ([FR-FP-007](#), [DD-16](#40-design-decision-register)).
 - **Versioning:** position history preserved across layout versions; a PC may move rooms without data loss ([FR-FP-008](#)).
 
-*(Real-time update sequence: [§35.6](#356-real-time-floor-plan-update-p4).)*
+*(Real-time update sequence: [§35.7](#357-real-time-floor-plan-update-p4).)*
 
 ---
 
@@ -918,7 +929,35 @@ sequenceDiagram
   end
 ```
 
-### 35.6 Real-time floor-plan update (P4)
+### 35.6 Registration request & approval
+```mermaid
+sequenceDiagram
+  participant G as Applicant SPA
+  participant L as Laravel API
+  participant DB as PostgreSQL
+  participant A as Administrator SPA
+  participant M as Mailpit/SMTP
+  G->>L: POST /api/register (Teacher|Technician)
+  L->>L: validate (role restricted, password policy)
+  L->>DB: create user status=pending
+  L->>M: RegistrationSubmitted (ack)
+  L-->>G: 201 pending (Awaiting approval)
+  Note over G,L: pending account cannot authenticate (login returns code=pending)
+  A->>L: GET /api/admin/registrations (can:users.update)
+  L-->>A: pending queue
+  alt approve
+    A->>L: POST /api/admin/registrations/{uuid}/approve
+    L->>DB: status=active + activity_log(approver)
+    L->>M: RegistrationApproved
+  else reject
+    A->>L: POST /api/admin/registrations/{uuid}/reject {reason}
+    L->>DB: status=rejected, rejection_reason/rejected_by/rejected_at
+    L->>M: RegistrationRejected (reason)
+  end
+  L-->>A: 200 decision recorded
+```
+
+### 35.7 Real-time floor-plan update (P4)
 ```mermaid
 sequenceDiagram
   participant A as Admin SPA
@@ -1099,6 +1138,10 @@ Reserved so features add **without major refactoring** ([SRS §34](#)). Each is 
 | DD-14 | Design via `DESIGN.md` OKLCH role tokens through Tailwind 4. | Dual-theme AA; one-token re-brand. | FR-CFG-005, NFR-ACC, BO-08 |
 | DD-15 | API Resources; uuid-only; consistent envelope + pagination. | No id leakage; predictable client contract. | EIF-API, NFR-SEC-001 |
 | DD-16 | Reverb for real-time (P4) with polling fallback. | Live floor plan/notifications; degrade gracefully. | FR-FP-007, FR-NOT-007 |
+| DD-17 | Registration is **request-and-approve** (public request → `pending` → Administrator approve/reject), Teacher/Technician only. | Resolves OI-02; lets applicants self-serve onboarding while a human gate controls access and Administrators are never self-registerable. | FR-AUTH-013..016, BR-01a |
+| DD-18 | Dedicated `rejected` `UserStatus` plus `rejection_reason`/`rejected_by`/`rejected_at` (approval actor/time in `activity_logs`). | Cleanest long-term lifecycle model; retains rejected requests for audit without overloading `inactive`. Additive migration alters the `users_status_check` CHECK (the PHP-enum-mirrored CHECK design was chosen to allow this). | FR-AUTH-014, DR-004/015 |
+| DD-19 | Single `EnsureAccountIsActive` middleware is the one source of truth for account-status enforcement; login verifies credentials before disclosing non-active status. | No duplicated status checks in controllers; balances FR-AUTH-004's non-disclosure with the applicant's need to learn their outcome. | FR-AUTH-004/016 |
+| DD-20 | Account lockout + endpoint throttling via Laravel's Redis-backed `RateLimiter` (email+IP), not schema columns. | Matches the stateless-in-Redis design; no schema change; standard framework pattern; `login_history` still records `locked_out`. | FR-AUTH-006, NFR-SEC-009 |
 
 ---
 
@@ -1110,7 +1153,7 @@ Per the required post-generation process: a complete architecture review verifyi
 Reviewed this SDD against: the **approved SRS v1.0** (all FR/NFR/DR/BR/EIF/OI IDs); the **implemented database** (`database_design_v2.dbml`, `create_advanced_db_objects` migration — triggers/FTS/HNSW/BRIN/partial indexes read directly; 66 models; 34 enums; 9 seeders); and the **current repository** (`composer.json`, `package.json`, `compose.yaml`, `docker/php/Dockerfile`, `docker/nginx/default.conf`, `bootstrap/app.php`, `routes/api.php`, `frontend/src/services/*`, `vite.config.ts`, `Ticket.php`, `HasUuidRouteKey`, `HasValues`). Where the SRS listed codebase-memory-mcp/Graphify/Claude-Mem as sources, the authoritative primary artifacts (the files themselves) were read directly.
 
 ### A.2 SRS consistency — confirmed
-Every SRS module and requirement group has a corresponding design element with an explicit trace ([§39](#39-design--requirement-traceability)). Phasing (P2/P3/P4/Future) is preserved. No design element contradicts an approved requirement; the seven [SRS §33 open items](#) are honored as-is (not pre-decided) and reflected as extension points where relevant (EXT-04/05, RES-04).
+Every SRS module and requirement group has a corresponding design element with an explicit trace ([§39](#39-design--requirement-traceability)). Phasing (P2/P3/P4/Future) is preserved. No design element contradicts an approved requirement. **[RES-07] OI-02 resolved (SRS v1.1):** the Client adopted the registration-request + Administrator-approval workflow (Teacher/Technician only); this SDD realizes it in [§10.3](#10-authentication-design), [DD-17..20](#40-design-decision-register), and the Identity domain ([§14.1](#141-domain-map)). The remaining §33 open items (OI-01, OI-03..07) are still honored as-is and reflected as extension points where relevant (EXT-04/05, RES-04).
 
 ### A.3 Database consistency — confirmed against implementation
 Design claims were checked against the **actual** migration, not just the DBML:

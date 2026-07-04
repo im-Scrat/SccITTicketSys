@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\Role;
+use App\Models\User;
+use Database\Seeders\PermissionSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,6 +21,16 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
+
+// Unit tests boot the framework (config available) but do not touch the database.
+pest()->extend(TestCase::class)->in('Unit');
+
+// Treat API requests in the auth suite as coming from the SPA origin so Sanctum
+// marks them stateful and starts the session (mirrors real first-party cookie
+// auth). CSRF is skipped automatically while running tests.
+pest()->beforeEach(function () {
+    $this->withHeader('Origin', (string) config('app.url'));
+})->in('Feature/Auth');
 
 /*
 |--------------------------------------------------------------------------
@@ -44,7 +58,26 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Seed the RBAC baseline (system roles + permission matrix) required by the
+ * authentication/authorization tests.
+ */
+function seedRbac(): void
 {
-    // ..
+    test()->seed([
+        RoleSeeder::class,
+        PermissionSeeder::class,
+    ]);
+}
+
+/**
+ * Create a user for a given role slug (RBAC must be seeded first).
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function userWithRole(string $roleSlug, array $attributes = []): User
+{
+    $role = Role::query()->where('slug', $roleSlug)->firstOrFail();
+
+    return User::factory()->create([...['role_id' => $role->id], ...$attributes]);
 }

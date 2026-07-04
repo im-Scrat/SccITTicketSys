@@ -51,6 +51,10 @@ class DemoSeeder extends Seeder
         $teachers = User::factory(6)->create(['role_id' => $teacherRole->id]);
         $technicians = User::factory(3)->create(['role_id' => $techRole->id]);
 
+        // Pending registration requests so the approval queue has data locally.
+        User::factory(3)->pending()->create(['role_id' => $teacherRole->id]);
+        User::factory(2)->pending()->create(['role_id' => $techRole->id]);
+
         // Location hierarchy + PCs (floor plan ready).
         $building = Building::factory()->create(['name' => 'Main Building', 'code' => 'MAIN']);
 
