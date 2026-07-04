@@ -4,7 +4,37 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta
+      name="description"
+      content="SccIT is the operations console for IT asset & service management — unified ticketing, asset lifecycle, preventive maintenance, QR tracking, interactive floor plans, grounded AI, and analytics in one calm, dense platform."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)" />
+    <title>SccIT — IT Asset &amp; Service Management Platform</title>
+    <!--
+      Anti-FOUC: resolve and apply the theme before first paint so the page
+      never flashes the wrong mode. Mirrors src/lib/theme.ts; the store is the
+      source of truth after hydration.
+    -->
+    <script>
+      ;(function () {
+        try {
+          var t = localStorage.getItem('sccit-theme')
+          if (t !== 'light' && t !== 'dark' && t !== 'system') t = 'system'
+          var dark =
+            t === 'dark' ||
+            (t === 'system' &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          var mode = dark ? 'dark' : 'light'
+          document.documentElement.setAttribute('data-theme', mode)
+          document.documentElement.style.colorScheme = mode
+        } catch (e) {
+          /* localStorage unavailable — fall through to light default */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

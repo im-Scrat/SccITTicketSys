@@ -1,15 +1,296 @@
 @import 'tailwindcss';
 
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color-scheme: light dark;
+/*
+ * SccIT design system — Tailwind v4 theme.
+ *
+ * The OKLCH *role tokens* from DESIGN.md are the single source of truth. They
+ * live as plain custom properties on :root / [data-theme="dark"] so they flip
+ * at runtime; `@theme inline` maps them into Tailwind utilities (bg-surface,
+ * text-ink, border-border, text-primary, …). Author components against these
+ * semantic utilities only — never raw OKLCH — so light/dark parity and the
+ * one-token re-brand come for free.
+ */
+
+/* dark: applies under the [data-theme="dark"] attribute we toggle on <html>,
+   not the OS preference — the theme store owns that decision. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  /* neutrals */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-control-border: var(--control-border);
+  --color-ink: var(--ink);
+  --color-ink-strong: var(--ink-strong);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  /* brand — the only tokens a vertical re-skins */
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-on-primary: var(--on-primary);
+  --color-focus: var(--focus);
+
+  /* status — universal, never re-skinned */
+  --color-success: var(--success);
+  --color-success-strong: var(--success-strong);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-strong: var(--warning-strong);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-strong: var(--danger-strong);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
+
+  /* type */
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* radii (DESIGN.md) — full reserved for dots/avatars/knobs only */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* elevation — shadow means "floating overlay" only (Flat-Plane Rule) */
+  --shadow-overlay-sm: 0 4px 12px oklch(0.2 0.02 258 / 0.1), 0 1px 3px oklch(0.2 0.02 258 / 0.08);
+  --shadow-overlay-md: 0 16px 40px oklch(0.2 0.02 258 / 0.16), 0 4px 8px oklch(0.2 0.02 258 / 0.1);
+
+  /* motion — no bounce, no elastic (exponential ease-out) */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* content rhythm */
+  --container-content: 76rem;
 }
 
-html,
-body,
-#root {
-  min-height: 100%;
-  margin: 0;
+:root {
+  color-scheme: light;
+
+  /* neutrals */
+  --bg: oklch(0.978 0.005 258);
+  --surface: oklch(1 0 0);
+  --surface-sunken: oklch(0.955 0.006 258);
+  --border: oklch(0.912 0.007 258);
+  --control-border: oklch(0.64 0.012 258);
+  --ink: oklch(0.255 0.02 258);
+  --ink-strong: oklch(0.205 0.022 258);
+  --muted: oklch(0.5 0.016 258);
+  --faint: oklch(0.62 0.012 258);
+
+  /* brand */
+  --primary: oklch(0.545 0.17 258);
+  --primary-hover: oklch(0.48 0.165 258);
+  --primary-active: oklch(0.43 0.15 258);
+  --primary-strong: oklch(0.43 0.15 258);
+  --primary-subtle: oklch(0.955 0.03 258);
+  --on-primary: oklch(1 0 0);
+  --focus: oklch(0.545 0.17 258);
+
+  /* status */
+  --success: oklch(0.56 0.13 150);
+  --success-strong: oklch(0.43 0.12 150);
+  --success-subtle: oklch(0.955 0.035 150);
+  --warning: oklch(0.7 0.15 75);
+  --warning-strong: oklch(0.47 0.11 75);
+  --warning-subtle: oklch(0.955 0.045 85);
+  --danger: oklch(0.55 0.2 28);
+  --danger-strong: oklch(0.455 0.175 28);
+  --danger-subtle: oklch(0.96 0.04 25);
+  --danger-fill: oklch(0.55 0.2 28);
+  --danger-on: oklch(1 0 0);
+  --info: oklch(0.45 0.12 235);
+  --info-subtle: oklch(0.955 0.03 235);
+
+  /* subtle brand-tinted grid, used only inside product visuals */
+  --grid-line: oklch(0.912 0.007 258 / 0.7);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: oklch(0.165 0.007 258);
+  --surface: oklch(0.205 0.008 258);
+  --surface-sunken: oklch(0.245 0.009 258);
+  --border: oklch(0.3 0.01 258);
+  --control-border: oklch(0.55 0.012 258);
+  --ink: oklch(0.955 0.006 258);
+  --ink-strong: oklch(0.985 0.004 258);
+  --muted: oklch(0.72 0.012 258);
+  --faint: oklch(0.56 0.01 258);
+
+  --primary: oklch(0.545 0.17 258);
+  --primary-hover: oklch(0.5 0.17 258);
+  --primary-active: oklch(0.455 0.155 258);
+  --primary-strong: oklch(0.76 0.13 258);
+  --primary-subtle: oklch(0.3 0.06 258);
+  --on-primary: oklch(1 0 0);
+  --focus: oklch(0.76 0.13 258);
+
+  --success: oklch(0.72 0.13 150);
+  --success-strong: oklch(0.72 0.13 150);
+  --success-subtle: oklch(0.28 0.045 150);
+  --warning: oklch(0.78 0.13 80);
+  --warning-strong: oklch(0.78 0.13 80);
+  --warning-subtle: oklch(0.3 0.05 80);
+  --danger: oklch(0.68 0.17 28);
+  --danger-strong: oklch(0.68 0.17 28);
+  --danger-subtle: oklch(0.3 0.07 28);
+  --danger-fill: oklch(0.545 0.19 28);
+  --danger-on: oklch(1 0 0);
+  --info: oklch(0.74 0.11 235);
+  --info-subtle: oklch(0.29 0.045 235);
+
+  --grid-line: oklch(0.3 0.01 258 / 0.6);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* sticky-header offset for in-page anchors */
+    scroll-padding-top: 5.5rem;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100%;
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    font-feature-settings: 'cv05' 1;
+  }
+
+  #root {
+    min-height: 100vh;
+    isolation: isolate;
+  }
+
+  /* One focus treatment, everywhere (DESIGN.md): 2px --focus ring at 2px offset. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background-color: var(--primary-subtle);
+    color: var(--primary-strong);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--ink-strong);
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Tabular figures for anything numeric/columnar (Tabular-Truth Rule). */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .slashed-zero {
+    font-variant-numeric: slashed-zero;
+  }
+
+  /* Thin, theme-aware scrollbars — quiet, not decorative. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--control-border) transparent;
+  }
+}
+
+@layer utilities {
+  /* Reveal-on-scroll primitive. Content is visible by default; the Reveal
+     component only opts an element into the hidden→shown transition via JS,
+     so no-JS / headless renders keep everything visible. */
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(12px);
+    transition:
+      opacity 0.6s var(--ease-out-quint),
+      transform 0.6s var(--ease-out-quint);
+    will-change: opacity, transform;
+  }
+
+  [data-reveal='shown'] {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Overlay entrances (mobile drawer, sign-in card). Exit is instant on unmount;
+     reduced-motion neutralizes these via the global rule below. */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.15s var(--ease-standard) both;
+  }
+
+  .animate-sheet-in {
+    animation: sheet-in 0.18s var(--ease-standard) both;
+  }
+}
+
+/* Reduced motion is not optional: neutralize transitions, animations, and
+   smooth scroll for users who ask for it. Revealed content stays visible. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
