@@ -33,7 +33,7 @@ describe('public routing', () => {
       }),
     ).toBeInTheDocument()
     // Primary CTA is present.
-    expect(screen.getAllByRole('link', { name: /book a demo/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: /explore the platform/i }).length).toBeGreaterThan(0)
   })
 
   it('renders the sign-in entry on /sign-in', async () => {

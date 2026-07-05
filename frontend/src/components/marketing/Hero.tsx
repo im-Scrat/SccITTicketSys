@@ -41,15 +41,15 @@ export function Hero() {
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <ButtonLink
-                  href="#demo"
+                  href="#platform"
                   variant="primary"
                   size="lg"
                   rightIcon={<ArrowRight size={18} aria-hidden="true" />}
                 >
-                  Book a demo
-                </ButtonLink>
-                <ButtonLink href="#platform" variant="secondary" size="lg">
                   Explore the platform
+                </ButtonLink>
+                <ButtonLink to="/sign-in" variant="secondary" size="lg">
+                  Sign in
                 </ButtonLink>
               </div>
 

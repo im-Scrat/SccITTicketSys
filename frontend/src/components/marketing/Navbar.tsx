@@ -56,11 +56,8 @@ export function Navbar() {
 
           <div className="flex items-center gap-1.5">
             <ThemeToggle />
-            <ButtonLink to="/sign-in" variant="ghost" size="sm" className="hidden lg:inline-flex">
+            <ButtonLink to="/sign-in" variant="primary" size="sm" className="hidden sm:inline-flex">
               Sign in
-            </ButtonLink>
-            <ButtonLink href="#demo" variant="primary" size="sm" className="hidden sm:inline-flex">
-              Book a demo
             </ButtonLink>
             <button
               type="button"

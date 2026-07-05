@@ -8,6 +8,8 @@ import {
   register,
   resetPassword,
   type ResetPasswordPayload,
+  updateProfile,
+  type UpdateProfilePayload,
 } from '../api/authApi'
 import type { AuthUser, LoginPayload, RegisterPayload } from '../types'
 import { AUTH_USER_KEY } from './useAuth'
@@ -56,5 +58,16 @@ export function useResetPassword() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: (payload: ChangePasswordPayload) => changePassword(payload),
+  })
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: UpdateProfilePayload) => updateProfile(payload),
+    onSuccess: (user: AuthUser) => {
+      queryClient.setQueryData(AUTH_USER_KEY, user)
+    },
   })
 }

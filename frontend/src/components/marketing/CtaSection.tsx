@@ -7,7 +7,7 @@ import { CONTACT_EMAIL } from './navigation'
 
 export function CtaSection() {
   return (
-    <section id="demo" className="scroll-mt-20 py-20 lg:py-28">
+    <section id="get-started" className="scroll-mt-20 py-20 lg:py-28">
       <Container>
         <Reveal>
           <div className="overflow-hidden rounded-lg border border-border bg-surface-sunken px-6 py-14 text-center sm:px-12">
@@ -22,14 +22,11 @@ export function CtaSection() {
 
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <ButtonLink
-                href={`mailto:${CONTACT_EMAIL}?subject=SccIT%20demo%20request`}
+                to="/sign-in"
                 variant="primary"
                 size="lg"
                 rightIcon={<ArrowRight size={18} aria-hidden="true" />}
               >
-                Book a demo
-              </ButtonLink>
-              <ButtonLink to="/sign-in" variant="secondary" size="lg">
                 Sign in
               </ButtonLink>
             </div>

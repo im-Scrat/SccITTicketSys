@@ -63,6 +63,13 @@ export const resetPasswordSchema = z
   })
 export type ResetPasswordForm = z.infer<typeof resetPasswordSchema>
 
+export const changeNameSchema = z.object({
+  first_name: z.string().min(1, 'First name is required.').max(100),
+  middle_name: z.string().max(100).optional().or(z.literal('')),
+  last_name: z.string().min(1, 'Last name is required.').max(100),
+})
+export type ChangeNameForm = z.infer<typeof changeNameSchema>
+
 export const changePasswordSchema = z
   .object({
     current_password: z.string().min(1, 'Enter your current password.'),

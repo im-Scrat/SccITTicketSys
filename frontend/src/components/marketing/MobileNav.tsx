@@ -104,11 +104,8 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
         </nav>
 
         <div className="mt-2 flex flex-col gap-2.5 border-t border-border pt-4">
-          <ButtonLink to="/sign-in" variant="secondary" size="lg" onClick={onClose}>
+          <ButtonLink to="/sign-in" variant="primary" size="lg" onClick={onClose}>
             Sign in
-          </ButtonLink>
-          <ButtonLink href="#demo" variant="primary" size="lg" onClick={onClose}>
-            Book a demo
           </ButtonLink>
         </div>
 

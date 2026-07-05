@@ -54,3 +54,15 @@ export async function changePassword(payload: ChangePasswordPayload): Promise<{ 
   const { data } = await api.put<{ message: string }>('/password', payload)
   return data
 }
+
+export interface UpdateProfilePayload {
+  first_name: string
+  middle_name?: string
+  last_name: string
+}
+
+/** Self-service profile (name) update; returns the refreshed principal. */
+export async function updateProfile(payload: UpdateProfilePayload): Promise<AuthUser> {
+  const { data } = await api.put<{ data: AuthUser }>('/profile', payload)
+  return data.data
+}

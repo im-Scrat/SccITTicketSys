@@ -14,6 +14,7 @@ use App\Domains\Identity\Http\Controllers\Admin\UserRoleController;
 use App\Domains\Identity\Http\Controllers\AuthController;
 use App\Domains\Identity\Http\Controllers\PasswordController;
 use App\Domains\Identity\Http\Controllers\PasswordResetController;
+use App\Domains\Identity\Http\Controllers\ProfileController;
 use App\Domains\Identity\Http\Controllers\RegistrationController;
 use App\Http\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +53,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Reachable even under a forced password reset so the user can comply.
         Route::get('/user', [AuthController::class, 'me']);
         Route::put('/password', [PasswordController::class, 'update']);
+
+        // Self-service profile (name) edit (FR-USER-008).
+        Route::put('/profile', [ProfileController::class, 'update']);
 
         // Feature routes additionally require a current password (FR-USER force reset).
         Route::middleware('password.current')->prefix('admin')->group(function () {

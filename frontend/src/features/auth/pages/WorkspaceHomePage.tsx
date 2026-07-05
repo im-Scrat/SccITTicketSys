@@ -3,15 +3,31 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { Alert } from '@/components/ui/Alert'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
+import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Surface } from '@/components/ui/Surface'
 import { useAuth } from '../hooks/useAuth'
-import { useChangePassword } from '../hooks/useAuthMutations'
+import { useChangePassword, useUpdateProfile } from '../hooks/useAuthMutations'
 import { applyServerErrors, getErrorMessage } from '../lib/serverErrors'
-import { type ChangePasswordForm, changePasswordSchema } from '../schemas'
+import {
+  type ChangeNameForm,
+  changeNameSchema,
+  type ChangePasswordForm,
+  changePasswordSchema,
+} from '../schemas'
+
+function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 export default function WorkspaceHomePage() {
   useDocumentMeta({ title: 'Workspace' })
@@ -29,39 +45,94 @@ export default function WorkspaceHomePage() {
         </p>
       </div>
 
+      <Surface className="p-5">
+        <h2 className="text-sm font-semibold text-ink-strong">Your account</h2>
+        <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
+          <dt className="text-muted">Name</dt>
+          <dd className="text-ink">{user?.name}</dd>
+          <dt className="text-muted">Email</dt>
+          <dd className="text-ink">{user?.email}</dd>
+          <dt className="text-muted">Role</dt>
+          <dd className="text-ink capitalize">{user?.role.name}</dd>
+          <dt className="text-muted">Account status</dt>
+          <dd className="text-ink capitalize">{user?.status}</dd>
+          <dt className="text-muted">Last login</dt>
+          <dd className="text-ink">{formatDateTime(user?.last_login_at)}</dd>
+        </dl>
+      </Surface>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Surface className="p-5">
-          <h2 className="text-sm font-semibold text-ink-strong">Your account</h2>
-          <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
-            <dt className="text-muted">Name</dt>
-            <dd className="text-ink">{user?.name}</dd>
-            <dt className="text-muted">Email</dt>
-            <dd className="text-ink">{user?.email}</dd>
-            <dt className="text-muted">Role</dt>
-            <dd className="text-ink capitalize">{user?.role.name}</dd>
-            <dt className="text-muted">Status</dt>
-            <dd className="text-ink capitalize">{user?.status}</dd>
-          </dl>
-        </Surface>
-
-        <Surface className="p-5">
-          <h2 className="text-sm font-semibold text-ink-strong">Your permissions</h2>
-          <p className="mt-1 text-xs text-muted">
-            Effective access ({user?.permissions.length ?? 0}). Enforced by the server on every
-            request.
-          </p>
-          <div className="mt-3 flex max-h-48 flex-wrap gap-1.5 overflow-y-auto">
-            {user?.permissions.map((permission) => (
-              <Badge key={permission} tone="neutral">
-                <span className="font-mono text-xs">{permission}</span>
-              </Badge>
-            ))}
-          </div>
-        </Surface>
+        <ChangeNameCard />
+        <ChangePasswordCard />
       </div>
-
-      <ChangePasswordCard />
     </div>
+  )
+}
+
+function ChangeNameCard() {
+  const { user } = useAuth()
+  const [success, setSuccess] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const updateProfile = useUpdateProfile()
+
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<ChangeNameForm>({
+    resolver: zodResolver(changeNameSchema),
+    values: {
+      first_name: user?.first_name ?? '',
+      middle_name: user?.middle_name ?? '',
+      last_name: user?.last_name ?? '',
+    },
+  })
+
+  const onSubmit = handleSubmit(async (formValues) => {
+    setFormError(null)
+    setSuccess(false)
+    try {
+      await updateProfile.mutateAsync({
+        ...formValues,
+        middle_name: formValues.middle_name || undefined,
+      })
+      setSuccess(true)
+    } catch (error) {
+      if (!applyServerErrors(error, setError)) {
+        setFormError(getErrorMessage(error))
+      }
+    }
+  })
+
+  return (
+    <Surface className="p-5">
+      <h2 className="text-sm font-semibold text-ink-strong">Change name</h2>
+      <p className="mt-1 text-xs text-muted">Update the name shown across the console.</p>
+
+      <form onSubmit={onSubmit} noValidate className="mt-4 flex flex-col gap-4">
+        {success && <Alert tone="success">Your name has been updated.</Alert>}
+        {formError && <Alert tone="error">{formError}</Alert>}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="First name" error={errors.first_name?.message} required>
+            <Input autoComplete="given-name" {...register('first_name')} />
+          </Field>
+          <Field label="Last name" error={errors.last_name?.message} required>
+            <Input autoComplete="family-name" {...register('last_name')} />
+          </Field>
+        </div>
+        <Field label="Middle name" error={errors.middle_name?.message}>
+          <Input autoComplete="additional-name" {...register('middle_name')} />
+        </Field>
+
+        <div>
+          <Button type="submit" variant="primary" loading={isSubmitting}>
+            Save name
+          </Button>
+        </div>
+      </form>
+    </Surface>
   )
 }
 
@@ -96,7 +167,7 @@ function ChangePasswordCard() {
   })
 
   return (
-    <Surface className="max-w-xl p-5">
+    <Surface className="p-5">
       <h2 className="text-sm font-semibold text-ink-strong">Change password</h2>
       <p className="mt-1 text-xs text-muted">
         Changing your password signs out your other active sessions.
