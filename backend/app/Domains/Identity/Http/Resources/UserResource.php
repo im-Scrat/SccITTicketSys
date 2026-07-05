@@ -37,6 +37,7 @@ class UserResource extends JsonResource
                 'name' => $this->role?->name,
             ],
             'permissions' => $this->effectivePermissions(),
+            'force_password_reset' => (bool) $this->force_password_reset,
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
         ];

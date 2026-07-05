@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountIsActive;
+use App\Http\Middleware\EnsurePasswordIsCurrent;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,8 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
 
         // Account-status enforcement — the single source of truth (SDD DD-19).
+        // `password.current` gates feature routes behind the force-password-reset
+        // flag (SRS FR-USER admin action); `/user`, `/password`, `/logout` stay open.
         $middleware->alias([
             'active' => EnsureAccountIsActive::class,
+            'password.current' => EnsurePasswordIsCurrent::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -9,7 +9,20 @@ use Database\Factories\LoginHistoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int|null $user_id
+ * @property Carbon|null $login_at
+ * @property Carbon|null $logout_at
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property string|null $browser
+ * @property string|null $platform
+ * @property LoginStatus $login_status
+ * @property User|null $user
+ */
 class LoginHistory extends Model
 {
     /** @use HasFactory<LoginHistoryFactory> */

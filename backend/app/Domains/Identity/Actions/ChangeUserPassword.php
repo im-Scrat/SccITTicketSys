@@ -22,7 +22,11 @@ class ChangeUserPassword
 
     public function handle(User $user, string $newPassword, Request $request): void
     {
-        $user->forceFill(['password' => $newPassword])->save(); // 'hashed' cast hashes
+        $user->forceFill([
+            'password' => $newPassword, // 'hashed' cast hashes
+            'password_changed_at' => now(),
+            'force_password_reset' => false, // requirement satisfied
+        ])->save();
 
         $this->audit->activity(
             ActivityAction::PasswordChanged,

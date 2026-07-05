@@ -24,7 +24,9 @@ const PendingApprovalPage = lazy(() => import('@/features/auth/pages/PendingAppr
 const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'))
 const WorkspaceHomePage = lazy(() => import('@/features/auth/pages/WorkspaceHomePage'))
-const RegistrationsQueuePage = lazy(() => import('@/features/auth/pages/RegistrationsQueuePage'))
+const RegistrationsPage = lazy(() => import('@/features/users/pages/RegistrationsPage'))
+const UsersDashboardPage = lazy(() => import('@/features/users/pages/UsersDashboardPage'))
+const UserDetailPage = lazy(() => import('@/features/users/pages/UserDetailPage'))
 
 function App() {
   return (
@@ -56,10 +58,26 @@ function App() {
               <Route path="/app" element={<AppLayout />}>
                 <Route index element={<WorkspaceHomePage />} />
                 <Route
+                  path="users"
+                  element={
+                    <RequirePermission permission="users.view">
+                      <UsersDashboardPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="users/:id"
+                  element={
+                    <RequirePermission permission="users.view">
+                      <UserDetailPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
                   path="registrations"
                   element={
                     <RequirePermission permission="users.update">
-                      <RegistrationsQueuePage />
+                      <RegistrationsPage />
                     </RequirePermission>
                   }
                 />

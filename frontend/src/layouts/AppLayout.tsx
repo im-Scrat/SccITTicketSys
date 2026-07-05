@@ -1,4 +1,11 @@
-import { ChevronDown, LayoutDashboard, LogOut, type LucideIcon, UserCheck } from 'lucide-react'
+import {
+  ChevronDown,
+  LayoutDashboard,
+  LogOut,
+  type LucideIcon,
+  UserCheck,
+  Users,
+} from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/cn'
 import { Logo } from '@/components/ui/Logo'
@@ -17,6 +24,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/app', label: 'Home', icon: LayoutDashboard, end: true },
+  { to: '/app/users', label: 'Users', icon: Users, permission: 'users.view' },
   { to: '/app/registrations', label: 'Registrations', icon: UserCheck, permission: 'users.update' },
 ]
 

@@ -51,6 +51,8 @@ class PasswordResetController extends Controller
                 $user->forceFill([
                     'password' => $password, // 'hashed' cast hashes on set
                     'remember_token' => Str::random(60),
+                    'password_changed_at' => now(),
+                    'force_password_reset' => false, // requirement satisfied
                 ])->save();
 
                 event(new PasswordReset($user));

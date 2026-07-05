@@ -68,4 +68,16 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => ['status' => UserStatus::Inactive->value]);
     }
+
+    /** Flags the account so a password change is required at next sign-in. */
+    public function mustResetPassword(): static
+    {
+        return $this->state(fn (array $attributes) => ['force_password_reset' => true]);
+    }
+
+    /** Marks the account as administrator-provisioned (registration_source). */
+    public function adminCreated(): static
+    {
+        return $this->state(fn (array $attributes) => ['registration_source' => 'admin']);
+    }
 }

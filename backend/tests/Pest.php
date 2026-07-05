@@ -30,7 +30,7 @@ pest()->extend(TestCase::class)->in('Unit');
 // auth). CSRF is skipped automatically while running tests.
 pest()->beforeEach(function () {
     $this->withHeader('Origin', (string) config('app.url'));
-})->in('Feature/Auth');
+})->in('Feature/Auth', 'Feature/Users');
 
 /*
 |--------------------------------------------------------------------------

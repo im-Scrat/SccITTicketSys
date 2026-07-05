@@ -39,6 +39,7 @@ supersedes: v1.0 (2026-07-03)
 | 1.0 | 2026-07-03 | Client / Product Owner | Reviewed and approved; baselined as the v1.0 project specification (Git tag `v1.0-project-specification`). |
 | 1.1 | 2026-07-04 | Engineering | **OI-02 resolved by the Client:** self-registration reframed as a mandatory **registration-request workflow** for Teachers and Technicians with Administrator approval. FR-AUTH-013 promoted F→M/P2 and rewritten; new FR-AUTH-014/015/016 (approve/reject/status-enforcement + decision emails). Added `Rejected` account status and `rejection_reason`/`rejected_at`/`rejected_by` (FR-AUTH-004, FR-USER-007, §29 DR). ASM-02 updated; §33 OI-02 marked resolved. |
 | 1.1 | 2026-07-04 | Client / Product Owner | Approved the registration-request business rule and the v1.1 changes ahead of Phase 2.2 implementation. |
+| 1.2 | 2026-07-05 | Engineering | **Phase 2.3 — User Management.** Elaborated FR-USER with the administrative dashboard, server-side directory (search/filter/sort/pagination), bulk operations, CSV/XLSX export, administrator account actions (reset/force-reset/unlock/resend), the chronological audit timeline, protected-account & self-lockout invariants, and edit-before-approval (FR-USER-012–019). Added three additive, backward-compatible `users` columns — `force_password_reset`, `password_changed_at`, `registration_source` (§29 DR-016). Recorded the field-reconciliation decisions (username→email/employee_number; organization→deployment branding; department/laboratory/building deferred to future Employee/Organization Management). No existing requirement, table, or column was changed or removed. |
 
 ### Conventions used in this document
 
@@ -388,6 +389,14 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | FR-USER-009 | Record `created_by`/`updated_by` on user records and emit audit entries for account changes. | M | P2 | T |
 | FR-USER-010 | Allow Administrators to view all permissions and adjust the permission set assigned to each non-system aspect of a role at runtime. | M | P2 | T |
 | FR-USER-011 | Allow a user to hold more than one role simultaneously. | F | — | T |
+| FR-USER-012 | Present an administrative **dashboard** at the top of the Users module: totals by status (total/active/pending/suspended/rejected/inactive/archived) and by role (Administrators/Technicians/Teachers), recent registrations, recent sign-in activity, and recent administrative actions. | M | P2 | T |
+| FR-USER-013 | Provide a **server-side** user directory: pagination, search (full name, email, employee number), filtering (status, role, archived visibility), and sorting on a fixed allow-list of columns (name/email/status/role/created/last-login). | M | P2 | T |
+| FR-USER-014 | Support **bulk** administration over a selected set: activate, suspend, reactivate, deactivate, reject, assign role, send notification email, and export. Each bulk mutation validates the per-record policy for every target, is fully audited, and runs transactionally (all-or-nothing). | M | P2 | T |
+| FR-USER-015 | Support **export** of the directory to CSV and true Excel (`.xlsx`), honouring the current search/filter/sort and an allow-listed column subset; exports respect RBAC and never include credential material. | M | P2 | T |
+| FR-USER-016 | Provide administrator **account actions**: send password reset, require password reset at next sign-in (force reset), unlock a locked account, and re-send approval / rejection / password-reset emails. Each action is audited. | M | P2 | T |
+| FR-USER-017 | Provide a complete, chronological **audit timeline** per user (registration, approval, rejection, sign-in/out, failed sign-in, suspension, reactivation, password changes/resets, role changes, permission changes, administrative actions). | M | P2 | T |
+| FR-USER-018 | Enforce **account-safety invariants**: an administrator may not suspend/deactivate/archive their own account, change their own role, or remove their own required permissions; and the system must always retain at least one active Administrator (no demote/suspend/archive of the last active admin). | M | P2 | T |
+| FR-USER-019 | Allow an Administrator to **edit a pending registration** (profile fields and the self-registerable role) before approving or rejecting it. | M | P2 | T |
 
 ### 10.3 Location Management (FR-LOC)
 
@@ -983,6 +992,7 @@ The physical data model is authoritatively specified in `docs/database/database_
 | DR-013 | Store money as `numeric(12,2)`, IPs as `inet`, email as `citext`, and semi-structured data as `jsonb`. | I |
 | DR-014 | Support configurable retention/archival of high-volume logs and PII, with lawful-erasure hard purge. | T |
 | DR-015 | Model the account lifecycle on `users.status` ∈ {`pending`, `active`, `rejected`, `suspended`, `inactive`} enforced by a CHECK constraint mirrored by the `UserStatus` PHP enum; retain rejected registration requests with `rejection_reason`, `rejected_by` (actor), and `rejected_at` for audit. *(OI-02, resolved v1.1.)* | T |
+| DR-016 | Carry three additive, backward-compatible operational columns on `users`: `force_password_reset` (boolean, default false), `password_changed_at` (timestamptz, nullable), and `registration_source` (varchar, nullable — `self`/`admin`/`seed`). Account lockout and last-activity are **derived** (Redis RateLimiter + `login_history`; `activity_logs`), not stored. Trigram (`pg_trgm`) GIN indexes on name/employee-number accelerate directory search. *(Phase 2.3, v1.2.)* | T |
 
 ### 29.3 Reference/seed data (baseline)
 The system ships with seeded roles, the permission matrix ([§8.4](#84-seeded-permission-matrix-baseline)), ticket categories (Hardware, Software, Network, Peripheral, Account & Access, Other), priorities and SLAs ([BR-05](#25-business-rules)), statuses (Open→Cancelled with open/terminal flags), maintenance types (Preventive, Corrective, Hardware Upgrade, Inspection, Cleaning), AI models (Gemini 1.5 Flash; text-embedding-004/768), AI defaults (threshold 0.70; advanced features off), and system settings across all groups. A non-production demo seeder provides sample data; it must never run in production.

@@ -55,6 +55,13 @@ class DemoSeeder extends Seeder
         User::factory(3)->pending()->create(['role_id' => $teacherRole->id]);
         User::factory(2)->pending()->create(['role_id' => $techRole->id]);
 
+        // Non-active accounts so the User Management dashboard/directory/export
+        // exercise every status locally (Phase 2.3).
+        User::factory(2)->suspended()->create(['role_id' => $teacherRole->id]);
+        User::factory(2)->inactive()->create(['role_id' => $techRole->id]);
+        User::factory(2)->rejected()->create(['role_id' => $teacherRole->id]);
+        User::factory(1)->mustResetPassword()->create(['role_id' => $techRole->id]);
+
         // Location hierarchy + PCs (floor plan ready).
         $building = Building::factory()->create(['name' => 'Main Building', 'code' => 'MAIN']);
 

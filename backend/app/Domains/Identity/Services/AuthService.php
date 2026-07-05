@@ -12,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -110,6 +109,6 @@ class AuthService
 
     private function throttleKey(string $email, Request $request): string
     {
-        return 'login:'.Str::transliterate(Str::lower($email)).'|'.$request->ip();
+        return LoginThrottle::key($email, $request->ip());
     }
 }

@@ -17,6 +17,7 @@ export interface AuthUser {
   status: AccountStatus
   role: AuthRole
   permissions: string[]
+  force_password_reset: boolean
   last_login_at: string | null
   email_verified_at: string | null
 }

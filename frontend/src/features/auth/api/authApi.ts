@@ -1,5 +1,5 @@
 import { api, initCsrf } from '@/services/api'
-import type { AuthUser, LoginPayload, RegisterPayload, RegistrationSummary } from '../types'
+import type { AuthUser, LoginPayload, RegisterPayload } from '../types'
 
 /** Fetch the authenticated principal, or null when not signed in (401). */
 export async function fetchCurrentUser(): Promise<AuthUser> {
@@ -53,29 +53,4 @@ export interface ChangePasswordPayload {
 export async function changePassword(payload: ChangePasswordPayload): Promise<{ message: string }> {
   const { data } = await api.put<{ message: string }>('/password', payload)
   return data
-}
-
-// --- Administrator registration review ---
-
-export async function listRegistrations(): Promise<RegistrationSummary[]> {
-  const { data } = await api.get<{ data: RegistrationSummary[] }>('/admin/registrations')
-  return data.data
-}
-
-export async function approveRegistration(id: string): Promise<RegistrationSummary> {
-  const { data } = await api.post<{ data: RegistrationSummary }>(
-    `/admin/registrations/${id}/approve`,
-  )
-  return data.data
-}
-
-export async function rejectRegistration(
-  id: string,
-  reason?: string,
-): Promise<RegistrationSummary> {
-  const { data } = await api.post<{ data: RegistrationSummary }>(
-    `/admin/registrations/${id}/reject`,
-    { reason },
-  )
-  return data.data
 }

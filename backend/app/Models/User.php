@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -37,6 +38,14 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $last_login_at
  * @property string|null $last_login_ip
  * @property Carbon|null $email_verified_at
+ * @property bool $force_password_reset
+ * @property Carbon|null $password_changed_at
+ * @property string|null $registration_source
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
  * @property Role|null $role
  */
 class User extends Authenticatable
@@ -59,6 +68,8 @@ class User extends Authenticatable
             'status' => UserStatus::class,
             'last_login_at' => 'datetime',
             'rejected_at' => 'datetime',
+            'force_password_reset' => 'boolean',
+            'password_changed_at' => 'datetime',
         ];
     }
 
@@ -75,6 +86,12 @@ class User extends Authenticatable
     public function isPending(): bool
     {
         return $this->status === UserStatus::Pending;
+    }
+
+    /** Whether the user holds the (system) Administrator role. */
+    public function isAdministrator(): bool
+    {
+        return $this->role?->slug === 'administrator';
     }
 
     /**
@@ -105,6 +122,18 @@ class User extends Authenticatable
         return $this->belongsTo(User::class, 'rejected_by');
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
     /** @return BelongsToMany<Permission, $this> */
     public function directPermissions(): BelongsToMany
     {
@@ -117,6 +146,17 @@ class User extends Authenticatable
     public function loginHistories(): HasMany
     {
         return $this->hasMany(LoginHistory::class);
+    }
+
+    /**
+     * Activity-log entries where this user is the subject (things done *to* the
+     * account), powering the per-user audit timeline (SRS FR-AUD-*).
+     *
+     * @return MorphMany<ActivityLog, $this>
+     */
+    public function activityAbout(): MorphMany
+    {
+        return $this->morphMany(ActivityLog::class, 'subject');
     }
 
     /** @return HasMany<Ticket, $this> */

@@ -47,6 +47,37 @@ class PermissionResolver
     }
 
     /**
+     * The user's per-user overrides, split into grant/deny name lists. Read
+     * straight from the pivot (no model hydration), so it is safe to call from
+     * resources without triggering the untyped Eloquent pivot.
+     *
+     * @return array{grants: list<string>, denies: list<string>}
+     */
+    public function overrides(User $user): array
+    {
+        $rows = DB::table('user_permissions')
+            ->join('permissions', 'permissions.id', '=', 'user_permissions.permission_id')
+            ->where('user_permissions.user_id', $user->getKey())
+            ->get(['permissions.name', 'user_permissions.grant_type']);
+
+        $grants = [];
+        $denies = [];
+
+        foreach ($rows as $row) {
+            if ($row->grant_type === PermissionGrantType::Deny->value) {
+                $denies[] = (string) $row->name;
+            } else {
+                $grants[] = (string) $row->name;
+            }
+        }
+
+        sort($grants);
+        sort($denies);
+
+        return ['grants' => $grants, 'denies' => $denies];
+    }
+
+    /**
      * @return list<string>
      */
     private function compute(User $user): array
