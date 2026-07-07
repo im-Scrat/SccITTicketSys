@@ -63,13 +63,29 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
     CMD ["fpm-healthcheck"]
 CMD ["php-fpm"]
 
-# ---------- Production: bake source + deps (seam for later) ---
+# ---------- Production: bake source + deps + framework caches -
 FROM base AS production
+
+# Production PHP/OPcache overrides (baked-code tuning). Loaded after the base
+# zz-sccit.ini, so it wins; applied in THIS stage only, so the dev image keeps
+# its revalidating OPcache for live code edits (HMR/daily development unchanged).
+COPY docker/php/php.prod.ini /usr/local/etc/php/conf.d/zzz-sccit-prod.ini
+
+# Entrypoint builds config/route/event caches from the injected env at boot.
+COPY docker/php/prod-entrypoint.sh /usr/local/bin/prod-entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/prod-entrypoint \
+    && chmod +x /usr/local/bin/prod-entrypoint
+
+# Bake the application source and install production-only dependencies with an
+# optimized (classmap) autoloader. (Not --classmap-authoritative: the plain
+# optimized map keeps a PSR-4 fallback, avoiding surprises with any class
+# resolved outside the map.)
 COPY --chown=appuser:appuser backend /var/www/html
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress \
-    && php artisan storage:link || true
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
 USER appuser
 EXPOSE 9000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
     CMD ["fpm-healthcheck"]
+ENTRYPOINT ["/usr/local/bin/prod-entrypoint"]
 CMD ["php-fpm"]

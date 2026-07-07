@@ -1,0 +1,202 @@
+# =============================================================
+#  SccIT — PRODUCTION-like stack (standalone).
+#
+#  Purpose: run the app the way production would — baked immutable images,
+#  static SPA served by Nginx with gzip + immutable cache headers, and
+#  Laravel with config/route/event caches + production OPcache.
+#
+#  ISOLATION — IMPORTANT:
+#    The repo's root .env sets COMPOSE_PROJECT_NAME=sccit, which (by Compose's
+#    precedence) OVERRIDES a `name:` written here. So you MUST pass an explicit
+#    project name with `-p sccit_prod` on EVERY command, or this stack would be
+#    managed under the dev project and clobber dev containers. As a second line
+#    of defence, the data services are named `postgres_prod` / `redis_prod` so
+#    they can never collide with dev's `postgres` / `redis` service names.
+#
+#    The `make prod-*` targets bake in `-p sccit_prod` for you — prefer them.
+#
+#  Bring it up WITHOUT touching dev (dev keeps running on :8080):
+#      docker compose -p sccit_prod -f compose.prod.yaml up -d --build
+#      docker compose -p sccit_prod -f compose.prod.yaml exec app_prod php artisan migrate --force
+#      docker compose -p sccit_prod -f compose.prod.yaml exec app_prod php artisan db:seed --force
+#      # open http://localhost:8081
+#
+#  Tear down (dev is unaffected):
+#      docker compose -p sccit_prod -f compose.prod.yaml down       # keep data
+#      docker compose -p sccit_prod -f compose.prod.yaml down -v     # wipe data too
+# =============================================================
+name: sccit_prod
+
+services:
+  # ---------- PostgreSQL 17 (+ pgvector) ----------------------
+  postgres_prod:
+    image: pgvector/pgvector:pg17
+    container_name: sccit_prod_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-school_it_service_management}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scc26}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - sccit_prod_pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - sccit_prod_network
+
+  # ---------- Redis (cache, sessions, queues) -----------------
+  redis_prod:
+    image: redis:7-alpine
+    container_name: sccit_prod_redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-scc26redis}
+    command: ["sh", "-c", "redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes"]
+    volumes:
+      - sccit_prod_redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sccit_prod_network
+
+  # ---------- Mailpit (local mail catcher for prod-stack tests) -
+  # Isolated instance (NOT dev's sccit_mailpit, which is on another network).
+  # SMTP stays internal to the prod network; only the web UI is published, on
+  # 8026 so it never collides with dev's Mailpit UI on 8025.
+  mailpit_prod:
+    image: axllent/mailpit:latest
+    container_name: sccit_prod_mailpit
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - "127.0.0.1:${PROD_MAILPIT_UI_PORT:-8026}:8025"
+    volumes:
+      - sccit_prod_mailpitdata:/data
+    networks:
+      - sccit_prod_network
+
+  # ---------- PHP-FPM application (baked, production target) --
+  app_prod:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: production
+    image: sccit/app:prod
+    container_name: sccit_prod_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    env_file:
+      - ./backend/.env.production
+    volumes:
+      # Persist user uploads; shared (read-only) with Nginx so /storage serves.
+      - sccit_prod_storage:/var/www/html/storage/app/public
+    depends_on:
+      postgres_prod:
+        condition: service_healthy
+      redis_prod:
+        condition: service_healthy
+      mailpit_prod:
+        condition: service_started
+    networks:
+      - sccit_prod_network
+
+  # ---------- Nginx (static SPA + API reverse proxy) ----------
+  nginx_prod:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile.prod
+    image: sccit/web:prod
+    container_name: sccit_prod_nginx
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PROD_HTTP_PORT:-8081}:80"
+    volumes:
+      - sccit_prod_storage:/var/www/html/storage/app/public:ro
+    depends_on:
+      - app_prod
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/up >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - sccit_prod_network
+
+  # ---------- Queue worker (reuses the prod app image) --------
+  queue_prod:
+    image: sccit/app:prod
+    container_name: sccit_prod_queue
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=5", "--max-time=3600", "--sleep=3"]
+    env_file:
+      - ./backend/.env.production
+    healthcheck:
+      disable: true
+    volumes:
+      - sccit_prod_storage:/var/www/html/storage/app/public
+    depends_on:
+      app_prod:
+        condition: service_started
+      postgres_prod:
+        condition: service_healthy
+      redis_prod:
+        condition: service_healthy
+      mailpit_prod:
+        condition: service_started
+    networks:
+      - sccit_prod_network
+
+  # ---------- Scheduler (reuses the prod app image) -----------
+  scheduler_prod:
+    image: sccit/app:prod
+    container_name: sccit_prod_scheduler
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "schedule:work"]
+    env_file:
+      - ./backend/.env.production
+    healthcheck:
+      disable: true
+    volumes:
+      - sccit_prod_storage:/var/www/html/storage/app/public
+    depends_on:
+      app_prod:
+        condition: service_started
+      postgres_prod:
+        condition: service_healthy
+      redis_prod:
+        condition: service_healthy
+      mailpit_prod:
+        condition: service_started
+    networks:
+      - sccit_prod_network
+
+networks:
+  sccit_prod_network:
+    name: sccit_prod_network
+    driver: bridge
+
+volumes:
+  sccit_prod_pgdata:
+    name: sccit_prod_pgdata
+  sccit_prod_redisdata:
+    name: sccit_prod_redisdata
+  sccit_prod_storage:
+    name: sccit_prod_storage
+  sccit_prod_mailpitdata:
+    name: sccit_prod_mailpitdata

@@ -11,6 +11,10 @@
 !**/.env.example
 **/storage/logs/*
 **/*.log
+# Laravel's public/storage is an absolute symlink into the container FS; it
+# can't be copied into the build context and is recreated by `storage:link`
+# in the production entrypoint at boot.
+**/public/storage
 docs/
 scripts/
 *.md

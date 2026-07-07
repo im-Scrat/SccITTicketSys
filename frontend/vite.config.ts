@@ -11,6 +11,29 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    // Long-term caching: split the always-loaded, rarely-changing core
+    // libraries into a single stable `vendor` chunk. App code changes on
+    // every deploy; this chunk does not, so browsers keep it cached across
+    // releases. Deliberately narrow — lucide-react (per-icon chunks) and zod
+    // (its own chunk) are left to Vite's default splitting, preserving the
+    // existing route-level code-splitting from App.tsx.
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (
+            /[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom|@tanstack[\\/]react-query|@tanstack[\\/]query-core|zustand|axios)[\\/]/.test(
+              id,
+            )
+          ) {
+            return 'vendor'
+          }
+          return undefined
+        },
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,

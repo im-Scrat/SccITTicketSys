@@ -4,7 +4,13 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/sh
 
-.PHONY: help up down restart build rebuild logs ps shell migrate fresh test lint format backup restore psql redis
+.PHONY: help up down restart build rebuild logs ps shell migrate fresh test lint format backup restore psql redis \
+        prod-build prod-up prod-setup prod-down prod-logs prod-ps prod-shell
+
+# Production-like stack (compose.prod.yaml). The explicit `-p sccit_prod` is
+# REQUIRED: the root .env's COMPOSE_PROJECT_NAME=sccit would otherwise place
+# this stack in the dev project and clobber dev containers.
+PROD := docker compose -p sccit_prod -f compose.prod.yaml
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n",$$1,$$2}'
@@ -51,6 +57,28 @@ lint: ## Lint backend (Pint+Larastan) + frontend (ESLint)
 format: ## Auto-format backend (Pint) + frontend (Prettier)
 	docker compose exec -T app php vendor/bin/pint
 	docker compose exec -T node npm run format
+
+prod-build: ## [prod] Build the production images
+	$(PROD) build
+
+prod-up: ## [prod] Start the production stack (:8081)
+	$(PROD) up -d && $(PROD) ps
+
+prod-setup: ## [prod] Migrate + seed the production database
+	$(PROD) exec app_prod php artisan migrate --force
+	$(PROD) exec app_prod php artisan db:seed --force
+
+prod-down: ## [prod] Stop the production stack (keeps data volumes)
+	$(PROD) down
+
+prod-logs: ## [prod] Tail production logs
+	$(PROD) logs -f
+
+prod-ps: ## [prod] List production services
+	$(PROD) ps
+
+prod-shell: ## [prod] Shell into the production app container
+	$(PROD) exec app_prod sh
 
 backup: ## Back up the database to backups/
 	sh scripts/backup.sh
