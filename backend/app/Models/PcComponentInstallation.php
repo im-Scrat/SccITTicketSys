@@ -9,7 +9,23 @@ use Database\Factories\PcComponentInstallationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * The authoritative record of which serialized asset is fitted inside which PC
+ * (SRS FR-PC-004), as opposed to the editable spec snapshot.
+ *
+ * @property int $id
+ * @property int $pc_unit_id
+ * @property int $asset_id
+ * @property int|null $installed_by
+ * @property InstallationStatus $installation_status
+ * @property Carbon|null $installation_date
+ * @property Carbon|null $removal_date
+ * @property string|null $remarks
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 class PcComponentInstallation extends Model
 {
     /** @use HasFactory<PcComponentInstallationFactory> */

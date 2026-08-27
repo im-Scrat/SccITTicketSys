@@ -13,6 +13,13 @@ vendor/
 /backend/public/build/
 /backend/public/hot
 
+# ─── Python (docs build pipeline) ─────────────────────────────
+__pycache__/
+*.py[cod]
+
+# ─── Scratch (design/QA screenshots, throwaway scripts) ───────
+/frontend/tmp-ally/
+
 # ─── OS / IDE ─────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

@@ -156,14 +156,12 @@ export function SolutionsSection() {
                   <current.icon size={22} aria-hidden="true" />
                 </span>
                 <h3 className="mt-4 text-xl font-semibold text-ink-strong">{current.headline}</h3>
-                <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted">
-                  {current.blurb}
-                </p>
+                <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">{current.blurb}</p>
               </div>
 
               <ul className="flex flex-col justify-center gap-3.5">
                 {current.points.map((point) => (
-                  <li key={point} className="flex items-start gap-3 text-[15px] text-ink">
+                  <li key={point} className="flex items-start gap-3 text-sm text-ink">
                     <span
                       className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-success-subtle text-success-strong"
                       aria-hidden="true"

@@ -55,10 +55,7 @@ export function Hero() {
 
               <ul className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2">
                 {trustPoints.map(({ icon: Icon, label }) => (
-                  <li
-                    key={label}
-                    className="inline-flex items-center gap-1.5 text-[13px] text-muted"
-                  >
+                  <li key={label} className="inline-flex items-center gap-1.5 text-xs text-muted">
                     <Icon size={15} className="text-faint" aria-hidden="true" />
                     {label}
                   </li>

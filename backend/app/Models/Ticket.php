@@ -13,7 +13,51 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property string $ticket_number
+ * @property int $reporter_id
+ * @property int|null $assigned_technician_id
+ * @property int|null $room_id
+ * @property int|null $pc_unit_id
+ * @property int $category_id
+ * @property int $priority_id
+ * @property int $current_status_id
+ * @property int|null $duplicate_of_id
+ * @property string $title
+ * @property string $description
+ * @property TicketSource $source
+ * @property string|null $ai_summary
+ * @property string|null $ai_confidence
+ * @property int|null $estimated_resolution_minutes
+ * @property bool $technician_required
+ * @property int $upvote_count
+ * @property int $comment_count
+ * @property int $attachment_count
+ * @property Carbon|null $first_response_at
+ * @property Carbon|null $resolved_at
+ * @property Carbon|null $closed_at
+ * @property Carbon|null $reopened_at
+ * @property Carbon|null $response_due_at
+ * @property Carbon|null $resolution_due_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ *
+ * Transient, request-scoped attributes. Not columns — they are attached to the
+ * models of one page before serialization so the work happens once per request
+ * instead of once per row:
+ * @property bool|null $has_voted set by the controllers from a single
+ *                                `whereIn` over the page (FR-TKT-009)
+ * @property array<string, mixed>|null $sla_posture
+ *                                                  set from SlaCalculator so a 20-row
+ *                                                  page is measured against one `now()`
+ */
 class Ticket extends Model
 {
     /** @use HasFactory<TicketFactory> */
@@ -34,6 +78,49 @@ class Ticket extends Model
             'response_due_at' => 'datetime',
             'resolution_due_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Where this ticket actually is.
+     *
+     * A ticket can name a room directly, or inherit one from the PC unit it was
+     * reported against — a machine already knows where it lives, so a reporter
+     * who picks a PC does not have to name the room as well. The PC's room wins
+     * when both are present, because the equipment is the more specific answer.
+     *
+     * Resolved here rather than in each of the three ticket projections, which
+     * would otherwise each carry a copy of the same rule.
+     */
+    public function locationRoom(): ?Room
+    {
+        $pcUnit = $this->getRelationValue('pcUnit');
+
+        if ($pcUnit instanceof PcUnit) {
+            $room = $pcUnit->getRelationValue('room');
+
+            if ($room instanceof Room) {
+                return $room;
+            }
+        }
+
+        $own = $this->getRelationValue('room');
+
+        return $own instanceof Room ? $own : null;
+    }
+
+    /**
+     * The status row, or null if it could not be resolved.
+     *
+     * `current_status_id` is NOT NULL, so the relation is typed non-null — but a
+     * lookup row can be missing from a partially-seeded database, and every
+     * projection reads several fields off it. This keeps that one check in one
+     * place instead of a nullsafe chain per field.
+     */
+    public function statusRow(): ?TicketStatus
+    {
+        $status = $this->getRelationValue('status');
+
+        return $status instanceof TicketStatus ? $status : null;
     }
 
     /** @return BelongsTo<User, $this> */

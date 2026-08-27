@@ -14,10 +14,16 @@ interface DrawerProps {
   size?: 'sm' | 'md' | 'lg'
 }
 
+/*
+ * Widened a step in Phase 2.5 alongside the type scale: at 20px body and 60px
+ * controls, a 32rem form panel forces every label onto its own line and every
+ * value to wrap. The panel has to grow with the text it holds, or the extra
+ * legibility is spent back on cramped layout.
+ */
 const sizes = {
-  sm: 'sm:max-w-sm',
-  md: 'sm:max-w-md',
-  lg: 'sm:max-w-lg',
+  sm: 'sm:max-w-md',
+  md: 'sm:max-w-xl',
+  lg: 'sm:max-w-3xl',
 }
 
 /**

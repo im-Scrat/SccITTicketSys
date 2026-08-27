@@ -2,21 +2,22 @@
 title: Software Design Description (SDD)
 system: AI-Powered IT Asset & Service Management System (SccIT)
 doc_id: SCCIT-SDD
-version: 1.1
-status: Approved — v1.1 (2026-07-04)
-date: 2026-07-04
+version: 1.0
+status: Waiting for Client Approval
+date: 2026-07-17
 author: Engineering (Beemo)
 classification: Internal — Confidential
 standard: Aligned with IEEE 1016-2009 (SDD) and ISO/IEC/IEEE 42010:2011 (Architecture Description)
-governs: How the approved SRS (SCCIT-SRS v1.1) is realized
-depends_on: SCCIT-SRS v1.1 (Software Requirements Specification)
+governs: How the SRS (SCCIT-SRS v1.0) is realized
+depends_on: SCCIT-SRS v1.0 (Software Requirements Specification)
+owner: Client / Product Owner (project owner · system owner · primary decision-maker)
 ---
 
 # Software Design Description
 
 **AI-Powered IT Asset & Service Management System — codename “SccIT”**
 
-> **Design authority.** This SDD describes *how* the approved requirements are realized. The **Software Requirements Specification** (SCCIT-SRS v1.0, approved) governs *what* must be built and remains the primary source of truth; this document does not restate requirements — it **references requirement IDs** (`FR-*`, `NFR-*`, `DR-*`, `BR-*`) and shows how the architecture satisfies them. The physical data model in `docs/database/database_design_v2.dbml` (implemented and verified) governs the schema this design builds on. Where design and SRS could diverge, the SRS wins and this document is corrected.
+> **Design authority.** This SDD describes *how* the specified requirements are realized. The **Software Requirements Specification** (SCCIT-SRS v1.0) governs *what* must be built and remains the primary source of truth; this document does not restate requirements — it **references requirement IDs** (`FR-*`, `NFR-*`, `DR-*`, `BR-*`) and shows how the architecture satisfies them. The physical data model in `docs/database/database_design_v2.dbml` (implemented and verified) governs the schema this design builds on. Where design and SRS could diverge, the SRS wins and this document is corrected.
 
 ---
 
@@ -25,24 +26,21 @@ depends_on: SCCIT-SRS v1.1 (Software Requirements Specification)
 | Field | Value |
 |---|---|
 | Document ID | SCCIT-SDD |
-| Version | 1.1 (Approved) |
-| Date | 2026-07-04 |
+| Version | 1.0 |
+| Date | 2026-07-17 |
+| Status | **Waiting for Client Approval** |
 | Standards | IEEE 1016-2009; ISO/IEC/IEEE 42010:2011 |
 | Prepared by | Engineering |
-| Approved by | Client / Product Owner — approved 2026-07-04 |
-| Primary input | SCCIT-SRS v1.1 (**approved**) |
+| Owner / decision authority | Client / Product Owner — project owner, system owner, and primary decision-maker |
+| Primary input | SCCIT-SRS v1.0 |
 | Related artifacts | `PRODUCT.md`, `DESIGN.md`, `docs/database/database_design_v2.dbml`, `docs/database/database_architecture_report.md`, `docs/PROJECT_STRUCTURE.md`, `docs/ENVIRONMENT.md`, implemented repo (`backend/`, `frontend/`, `docker/`, `compose.yaml`) |
 
 ### Revision History
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
-| 1.0 | 2026-07-03 | Engineering | Initial SDD derived from the approved SRS and the implemented database/scaffold. Includes architecture-review reconciliation (Appendix A) and a design-decision register (§40). |
-| 1.0 | 2026-07-03 | Client / Product Owner | Reviewed and approved; baselined as part of the v1.0 project specification (Git tag `v1.0-project-specification`). |
-| 1.1 | 2026-07-04 | Engineering | Realizes SRS v1.1 (OI-02 resolved): §10 gains the **registration-request + Administrator-approval** design; §11–12 gain the Identity-domain review flow; new design decisions **DD-17** (registration-request workflow), **DD-18** (dedicated `rejected` status + review columns), **DD-19** (single account-status middleware), **DD-20** (RateLimiter-based lockout & throttling); Appendix A records the OI-02 resolution; §35 adds the registration-approval sequence. |
-| 1.1 | 2026-07-04 | Client / Product Owner | Reviewed and approved ahead of Phase 2.2 implementation. |
-| 1.2 | 2026-07-05 | Engineering | Realizes SRS v1.2 (Phase 2.3 — User Management). §11–12 gain the User Management design on the existing Identity domain: `UserDirectoryQuery` (server-side search/filter/sort with a sort allow-list), `UserMetrics` (dashboard aggregates), `UserExporter` + maatwebsite/excel (CSV/XLSX), `AccountLockService` + `LoginThrottle` (derive/clear lockout from RateLimiter + `login_history`), `UserGuard` (account-safety invariants), and single-purpose lifecycle Actions. New design decisions **DD-21** (directory query service + sort allow-list), **DD-22** (derived lockout/last-activity + admin unlock), **DD-23** (account-safety invariants in policy + actions), **DD-24** (`EnsurePasswordIsCurrent` force-reset gate), **DD-25** (export via maatwebsite/excel), **DD-26** (field reconciliation — no username/department/location on `users`). All schema changes are additive (SRS DR-016). |
-| 1.2 | 2026-07-05 | Client / Product Owner | Reviewed and approved ahead of the Phase 2.3 baseline (Git tag `v2.3-user-management`). |
+| 1.0 | 2026-07-17 | Engineering | **Version 1.0 baseline.** Consolidated design description of how **SCCIT-SRS v1.0** is realized: architectural style and design goals, technology stack, deployment topology, Laravel/React/PostgreSQL/Docker architecture, authentication (registration-request + Administrator-approval), authorization and RBAC, module and component architecture across the domains (Identity, Locations, Tickets, Assets, Maintenance, KnowledgeBase, Analytics, Administration, FloorPlan), service and API design, data flow, error handling, logging, audit strategy, AI/RAG/QR/floor-plan/notification/dashboard/reporting/security architecture, the design-decision register (**DD-01…26**), resolved review findings (**RES-01/02**), design–requirement traceability, and Appendix A. Status: **Waiting for Client Approval**. |
+| 1.0 | 2026-08-26 | Engineering | **Phase 2.5 — Asset Management** design recorded against the Version 1.0 baseline (label unchanged). Assets promoted to *partly implemented* in the domain map with its component, service and API sections; §24 (QR) extended with the concrete `QrService`; §27 extended with the asset widgets. Added decisions **DD-32…DD-39**: additive CHECK widening with label/value separation, the `assets.dispose` gate on terminal transitions, separate audited endpoints for lifecycle/transfer/assignment, the single-target `asset_attachments` table, the application-side unified history merge, the QR library and revoke-not-mutate rule, the Administrator-only module with its workflow-authorized lookup, and the no-zoom accessibility token pass. |
 
 ### Conventions
 
@@ -112,7 +110,7 @@ The architecture is built around four load-bearing ideas:
 
 The frontend is a feature-sliced SPA using **React Query** for server state, **Zustand** for UI state, **React Hook Form + Zod** for forms, and the **`DESIGN.md` OKLCH token system** wired through Tailwind 4 — delivering the calm, dense “Control Room” experience at WCAG 2.2 AA in both themes ([NFR-USB](#), [NFR-ACC](#)).
 
-This document specifies each of these layers, traces them to the approved requirements, and records the architectural decisions and the review that reconciled the design with the SRS and the implemented database (Appendix A).
+This document specifies each of these layers, traces them to the specified requirements, and records the architectural decisions and the review that reconciled the design with the SRS and the implemented database (Appendix A).
 
 ---
 
@@ -450,12 +448,12 @@ Six domain **seams exist** in the repo; the design adds two P2 domains for ident
 | Domain | Status | Responsibility (SRS modules) | Key requirements |
 |---|---|---|---|
 | **Identity** | *new (P2)* | Auth, **registration-request + approval**, users, roles, permissions, sessions/login history, account-status enforcement. | FR-AUTH-*, FR-USER-* |
-| **Locations** | *new (P2)* | Buildings, floors, rooms CRUD (foundation for FloorPlan). | FR-LOC-* |
+| **Locations** | **implemented (P2)** | **Administrator-only** module: buildings, floors, rooms CRUD; estate explorer + directories; availability; cascade archive/restore with the in-use guard and occupant reassignment (foundation for FloorPlan). Plus the **narrow location lookup** other workflows use for a location field — the one part reachable by a non-administrator. | FR-LOC-* |
 | **Tickets** | seam | Tickets, comments, votes, attachments, tags, status/SLA, **technician assignment**, ticket AI snapshot. | FR-TKT-*, FR-ASN-* |
-| **Assets** | seam | PC units, specs, **QR**, catalog, serialized assets, consumables, stock, procurement, transfers, disposal. | FR-PC-*, FR-QR-*, FR-AST-* |
+| **Assets** | **partly implemented (P2)** | **Administrator-only** module (implemented: serialized assets, PC units and their specification snapshot, the hardware catalog, lifecycle with audited transitions, transfers, custodianship, attachments, the unified asset history, **QR** generation/regeneration/revocation/print, the module dashboard and the enterprise directory). Plus the **narrow equipment lookup** other workflows use to name a machine — the one part reachable by a non-administrator. Consumables, stock ledger, procurement and disposal remain planned; QR **scan verification** is a later phase. | FR-PC-*, FR-QR-*, FR-AST-* |
 | **Maintenance** | seam | Corrective + preventive maintenance, checklists, images, notes, hardware replacements. | FR-MNT-* |
 | **KnowledgeBase** | seam | AI triage/chat, RAG knowledge base, embeddings, feedback, predictions (opt-in). | FR-AI-* |
-| **Analytics** | seam | Dashboards, KPIs, reports, exports. | FR-DSH-*, FR-RPT-* |
+| **Analytics** | **partly implemented (P2)** | **Role dashboards** (implemented: cross-domain aggregation + permission-gated widget assembly); KPIs, reports and exports remain planned. | FR-DSH-*, FR-RPT-* |
 | **Administration** | *new (P2)* | System settings/branding, notifications & preferences, announcements, audit/activity, maintenance windows, backup. | FR-CFG-*, FR-NOT-*, FR-AUD-* |
 | **FloorPlan** | seam (P4) | Interactive layout/positions, real-time, info panels. | FR-FP-* |
 
@@ -499,6 +497,13 @@ Representative domain services and the requirements they realize:
 | `RegisterApplicant` / `ApproveRegistration` / `RejectRegistration` (actions) | Registration-request creation and Administrator approve/reject with reason + emails. | FR-AUTH-013..016, BR-01a |
 | `AuditLogger` | Reusable writer for `login_history` (auth attempts) and `activity_logs` (account/password lifecycle events); consumed by future modules. | FR-AUTH-005, FR-AUD-*, NFR-SEC-017 |
 | `PermissionResolver` | Effective-permission computation + cache. | FR-USER-004/005 |
+| `LocationDirectoryQuery` | Server-side building/room directories: search, filter, scope, allow-listed sort, pagination. | FR-LOC-006 |
+| `LocationMetrics` | Estate aggregates (totals per level, room-type mix, occupancy) + the bounded explorer tree. | FR-LOC-007 |
+| `LocationOptions` | The selectable-location source behind the narrow lookup; excludes inactive/archived at every level. | FR-LOC-005/008/011 |
+| `LocationGuard` | The in-use invariant: live PC units, assets, stock and open tickets that block an archive, with a per-room breakdown. | FR-LOC-004/009 |
+| `LocationArchiver` | Cascade soft delete/restore via a single shared `deleted_at` receipt ([DD-27](#40-design-decision-register)). | FR-LOC-004 |
+| `DashboardService` | Role-aware, permission-gated dashboard composition; 30 s per-user cache. | FR-DSH-001/005/008 |
+| `TicketMetrics` / `AssetMetrics` | Service-desk, inventory and maintenance rollups the dashboards read. | FR-DSH-003/004 |
 | `TicketService` / actions | Create, transition, assign, comment, vote, duplicate. | FR-TKT-* |
 | `SlaService` | Derive `*_due_at` from priority; detect breach; emit events. | FR-TKT-004/017, BR-05 |
 | `AssignmentService` | Assignment lifecycle, one-active enforcement (DB-backed). | FR-ASN-* |
@@ -538,6 +543,56 @@ POST   /api/tickets/{uuid}/comments    POST /api/tickets/{uuid}/votes
 POST   /api/tickets/{uuid}/assignments PATCH /api/assignments/{uuid}
 GET    /api/pc-units/{uuid}            POST /api/qr/{code}/scan
 GET    /api/assets  /consumables  /procurement-requests
+
+# Narrow location lookup (implemented) — the only location data a non-admin can
+# reach; authorized by the consuming workflow's permission, labels only.
+GET    /api/lookups/rooms              GET  /api/lookups/buildings
+GET    /api/lookups/floors
+
+# Locations module (implemented) — ADMIN ONLY: every route below requires a
+# `locations.*` ability plus the per-record policy.
+GET    /api/admin/locations/dashboard  GET  /api/admin/locations/tree
+GET    /api/admin/buildings            POST /api/admin/buildings
+GET    /api/admin/buildings/{uuid}     PUT  /api/admin/buildings/{uuid}
+POST   /api/admin/buildings/{uuid}/activate|deactivate|restore
+GET    /api/admin/buildings/{uuid}/floors  POST /api/admin/buildings/{uuid}/floors
+GET    /api/admin/floors/{uuid}        PUT  /api/admin/floors/{uuid}
+GET    /api/admin/rooms                POST /api/admin/rooms
+GET    /api/admin/rooms/{uuid}         PUT  /api/admin/rooms/{uuid}
+POST   /api/admin/rooms/{uuid}/activate|deactivate|restore
+POST   /api/admin/rooms/{uuid}/reassign
+DELETE /api/admin/{buildings|floors|rooms}/{uuid}        # archive (soft delete)
+GET    /api/admin/{buildings|floors|rooms}/{uuid}/audit
+
+# Narrow equipment lookup (implemented) — the only asset data a non-admin can
+# reach; authorized by the consuming workflow's permission, labels only (DD-38).
+GET    /api/lookups/assets             GET  /api/lookups/pc-units
+
+# Asset Management (implemented) — ADMIN ONLY: every route below requires an
+# `assets.*` ability plus the per-record policy. Literal paths precede {uuid}.
+GET    /api/admin/assets/dashboard     GET  /api/admin/assets/catalog
+GET    /api/admin/assets               POST /api/admin/assets
+GET    /api/admin/assets/{uuid}        PUT  /api/admin/assets/{uuid}
+PUT    /api/admin/assets/{uuid}/status            # can:assets.update, raised to
+                                                  # assets.dispose for a terminal
+                                                  # target (DD-33)
+POST   /api/admin/assets/{uuid}/transfer          # can:assets.transfer
+POST   /api/admin/assets/{uuid}/assign
+GET    /api/admin/pc-units             POST /api/admin/pc-units
+GET    /api/admin/pc-units/{uuid}      PUT  /api/admin/pc-units/{uuid}
+PUT    /api/admin/pc-units/{uuid}/specification
+GET    /api/admin/{assets|pc-units}/{uuid}/history # unified timeline
+GET    /api/admin/{assets|pc-units}/{uuid}/audit   # activity_logs trail
+GET    /api/admin/{assets|pc-units}/{uuid}/attachments
+POST   /api/admin/{assets|pc-units}/{uuid}/attachments
+GET    /api/admin/asset-attachments/{uuid}         # streamed from a private disk
+DELETE /api/admin/asset-attachments/{uuid}
+GET    /api/admin/{assets|pc-units}/{uuid}/qr      POST .../qr
+POST   /api/admin/{assets|pc-units}/{uuid}/qr/regenerate|revoke
+GET    /api/admin/{assets|pc-units}/{uuid}/qr/print
+DELETE /api/admin/{assets|pc-units}/{uuid}         # archive (soft delete)
+POST   /api/admin/{assets|pc-units}/{uuid}/restore
+
 POST   /api/ai/tickets/{uuid}/analyze  POST /api/ai/assistant/messages
 GET    /api/dashboard/widgets          GET  /api/reports/{key}/export
 GET    /api/settings (public subset)   PATCH /api/settings (admin)
@@ -649,7 +704,9 @@ Realizes [FR-AI-005/006/007](#), [DR-010](#).
 Realizes [SRS §18](#).
 
 - **Model:** `qr_codes` binds **exactly one** target (`num_nonnulls(pc_unit_id, asset_id)=1`, DB-enforced) with a unique canonical `code`; `pc_units.qr_identifier` is a synced convenience copy ([FR-QR-001/002](#), [BR-09](#)).
-- **Generation:** `QrService` renders a printable image at configured size/error-correction (`qr.default_size` 256, `qr.error_correction` M) ([FR-QR-003](#)).
+- **Generation (implemented):** `App\Domains\Assets\Services\QrService` renders a printable **SVG** via `bacon/bacon-qr-code` at the configured size/error-correction (`qr.default_size` 256, `qr.error_correction` M, both read from `system_settings`) ([FR-QR-003](#); [DD-37](#40-design-decision-register)). Vector output prints crisply at any physical label size and needs no image extension; the response carries it inline as a data URI, so the print view is a single request. `generate()` is idempotent — an existing active code is returned rather than duplicated, so a double click cannot leave two live labels on one machine.
+- **Regeneration & revocation (implemented):** `regenerate()` **revokes the prior row and inserts a new one**; it never mutates. That is what keeps `qr_scan_logs` attached to the code that was actually scanned. `pc_units.qr_identifier` is written only by this service, so the denormalized copy cannot drift ([FR-QR-002/007](#)).
+- **Printing (implemented):** the print view is a standalone document (label, identifier, location, code) opened in its own window, so app chrome and the dark theme never reach a sticker. A print is **audited** — a label leaving the building on adhesive is a traceable event ([FR-AUD-003](#)).
 - **Scan/verify:** `POST /api/qr/{code}/scan` resolves the target and returns its live info panel; every scan is logged to `qr_scan_logs` (result, scanner, IP, optional geo with bounds CHECK). Result classification is deterministic ([FR-QR-006](#)):
   - `success` — active code, resolvable live target.
   - `invalid` — unknown code.
@@ -693,10 +750,20 @@ Realizes [SRS §22](#).
 
 Realizes [SRS §20](#).
 
-- **Widget model:** `dashboard_widgets` (per-user layout; `user_id NULL` = global default) with typed widgets (counter/line/bar/pie/table/list/map/timeline/gauge) and `jsonb` configuration ([FR-DSH-002](#)).
+- **Widget model:** `dashboard_widgets` (per-user layout; `user_id NULL` = global default) with typed widgets (counter/line/bar/pie/table/list/map/timeline/gauge) and `jsonb` configuration ([FR-DSH-002](#)) — **reserved, not yet used** (see below).
 - **Role-aware default dashboards:** Admin (backlog, tickets by status/priority/category, SLA compliance/breaches, MTTR/FRT, technician workload, assets by status, low-stock, upcoming PM), Technician (assigned/active, nearing-breach, scheduled maintenance), Teacher (my tickets, quick actions) ([FR-DSH-003/004](#)).
 - **Fast KPIs:** widgets read from counter caches / cached aggregates (Redis, short TTL) or pre-aggregated queries, meeting ≤ 1 s ([FR-DSH-005](#), [NFR-PERF-008](#)).
 - **Accessible charts:** a `ChartKit` renders with labels/legends, non-color encoding, and a data-table fallback ([FR-DSH-007](#)); palettes follow the project data-viz guidance, consistent light/dark.
+
+**As implemented (Phase 2.4).** `DashboardService` composes one payload per caller: the **role selects the layout**, and each widget is assembled only if the caller holds the permission its data belongs to ([DD-29](#40-design-decision-register)) — so the single `GET /api/dashboard/widgets` endpoint serves all three roles and no privileged figure is ever filtered client-side. It reads `TicketMetrics` and `AssetMetrics` (this domain) plus `UserMetrics` (Identity) and `LocationMetrics` (Locations), which is exactly the cross-domain aggregation role §14.1 assigns to Analytics; every figure is a `count(*) filter (…)` rollup or a bounded `limit`ed list, and the whole payload is cached 30 s per user. Widgets are typed `kpi` · `distribution` · `list` · `actions` · `announcements`; distributions are labelled proportional rows whose markup **is** the data table, in one hue, with no charting dependency ([DD-30](#40-design-decision-register)). Per-user widget selection and ordering ([FR-DSH-002](#)/[006](#)) are deferred, which is why `dashboard_widgets` is still untouched.
+
+**Extended in Phase 2.5.** The same service gained the equipment figures, with the permission gate doing the separating:
+
+- **Administrator** (`assets.view`) receives the cross-estate view — an `assets` KPI (total, in service, maintenance, out of service), distributions by status, building and room, plus warranty-expiring and recently-added lists.
+- **Technician** receives `my-assets`, `my-assigned-assets` and `my-assets-under-maintenance`, gated on **`maintenance.view`** rather than `assets.view` — technicians hold no `assets.*` permission at all ([DD-38](#40-design-decision-register)) — and every figure is scoped to that technician's own custodianship. This is the dashboard expression of "technicians interact with equipment only through assigned work": their queue, never the register.
+- **Teacher** receives nothing about assets, because the payload is permission-gated and no asset widget is ever assembled for them.
+
+All additions reuse the existing `kpi`/`distribution`/`list` shapes, so **no new client renderer was needed**. The module's own landing dashboard is a separate, Administrator-only endpoint (`GET /api/admin/assets/dashboard`) answering "what is the state of the register" rather than "what should this person see on sign-in"; it composes the *same* `AssetMetrics` aggregates, so the two surfaces can never disagree ([FR-AST-014](#)).
 
 ---
 
@@ -801,24 +868,32 @@ backend/app/
     ├── Actions/                #   KnowledgeBase, Analytics, Administration, FloorPlan
     ├── DTOs/  Enums/  Events/  Jobs/  Listeners/  Notifications/  Policies/  Services/
     └── Http/{Controllers,Requests,Resources}
-backend/database/{migrations,factories,seeders}   # 15 migrations, 66 factories, 9 seeders
+backend/database/{migrations,factories,seeders}   # 17 migrations, 66 factories, 10 seeders
 backend/routes/{api,web,console}.php · config/ · tests/ (Pest)
 ```
+
+*Populated so far:* **Identity** (Phase 2.2–2.3), **Locations** and **Analytics** (Phase 2.4 — the latter with `Services/{DashboardService,TicketMetrics,AssetMetrics}` and one controller). The Locations domain follows the same internal shape as Identity: `Actions/` (10 — create/update per level plus the polymorphic `SetLocationActive`, `ArchiveLocation`, `RestoreLocation`, `ReassignRoomOccupants`), `Services/` (4), `Policies/` (3), `Exceptions/` (self-rendering `LocationInUseException`), `Http/{Controllers/Admin,Requests,Resources}`. The remaining domain folders are still seams.
 
 ### 34.2 Frontend
 ```
 frontend/src/
 ├── main.tsx  App.tsx  index.css        # entry, root, tokens
 ├── components/  layouts/  hooks/  contexts/  utils/  assets/  pages/
+│   └── AuditTimeline.tsx               # shared: one timeline for every module
 ├── stores/       # Zustand (useUiStore)
 ├── services/     # api.ts (axios), queryClient.ts, health.ts
-├── types/        # shared API types
-└── features/<feature>/                 # tickets, assets, maintenance, knowledge-base,
-    ├── components/ hooks/ api/ schema/  #   analytics, floor-plan
-    └── types
+├── lib/          # cn.ts, theme.ts, datetime.ts (shared date formatting)
+├── types/        # shared API types (incl. activity.ts — the audit-entry shape)
+└── features/<feature>/                 # auth, users, dashboard, locations (implemented);
+    ├── components/ hooks/ api/ schema/  #   tickets, assets, maintenance,
+    └── types                            #   knowledge-base, analytics, floor-plan (seams)
 ```
 
 *(Confirms `docs/PROJECT_STRUCTURE.md` and the implemented tree.)*
+
+**Cross-slice sharing (Phase 2.4).** When a second module needed the same audit timeline and the same date formatting, both were promoted out of the Users slice rather than duplicated: `components/AuditTimeline.tsx`, `lib/datetime.ts` and `types/activity.ts` are now shared, with one-line re-exports left in `features/users/` so that slice's imports are unchanged.
+
+The location field follows the same principle for a stronger reason. `features/locations/` is the **Administrator-only** module, so the picker Tickets, Assets and Maintenance will consume lives *outside* it — `components/LocationSelect.tsx` on `services/lookups.ts` + `hooks/useLocationLookup.ts` — and a consuming feature therefore cannot reach the admin slice through it ([DD-31](#40-design-decision-register)). The Locations module's own drawers use the same shared hooks, so there is exactly one lookup implementation.
 
 ---
 
@@ -1149,19 +1224,32 @@ Reserved so features add **without major refactoring** ([SRS §34](#)). Each is 
 | DD-23 | Account-safety invariants live in `UserGuard`, enforced by both `UserPolicy` (403) and the lifecycle Actions (defense-in-depth): no self suspend/deactivate/archive/role-change/permission-removal, and never demote/suspend/archive the last active Administrator. | Prevents privilege escalation and self-lockout; a single source of truth for the "last admin" query used by policy and actions alike. | FR-USER-018, NFR-SEC |
 | DD-24 | A new additive `EnsurePasswordIsCurrent` middleware gates feature routes behind the `force_password_reset` flag (with `/user`, `/password`, `/logout` exempt); the flag clears automatically on any password change. | Server-side enforcement of "force reset" without touching the 2.2 login flow; the SPA routes the user to reset. | FR-USER-016 |
 | DD-25 | Export uses `maatwebsite/excel` (PhpSpreadsheet) for true `.xlsx` plus native streamed CSV, driven by an allow-listed column set. | Meets the CSV **and** Excel requirement with one export definition; no sensitive column is exportable. | FR-USER-015 |
-| DD-26 | **Field reconciliation:** `username`→search over email + employee_number (email remains the login identity); `organization`→deployment branding (single-tenant); `department`/`laboratory`/`building` **deferred** to future Employee/Organization Management; only `force_password_reset`/`password_changed_at`/`registration_source` added. | Honours the approved single-tenant, email-login, one-role-per-user baseline; keeps the module extensible without pre-empting future org modeling. | FR-USER-002, DR-016, CON-08 |
+| DD-26 | **Field reconciliation:** `username`→search over email + employee_number (email remains the login identity); `organization`→deployment branding (single-tenant); `department`/`laboratory`/`building` **deferred** to future Employee/Organization Management; only `force_password_reset`/`password_changed_at`/`registration_source` added. | Honours the specified single-tenant, email-login, one-role-per-user baseline; keeps the module extensible without pre-empting future org modeling. | FR-USER-002, DR-016, CON-08 |
+| DD-27 | **The cascade stamp is the receipt.** Archiving a building/floor writes **one** `deleted_at` timestamp across the whole subtree; restore reverses exactly the rows carrying that stamp. Because `deleted_at` is second-precision, `LocationArchiver` advances the stamp until no descendant already holds it. | The `ON DELETE CASCADE` foreign keys never fire for a soft delete (it is an `UPDATE`), so children must be stamped explicitly or they stay "live" under an invisible parent. Using the existing column as the receipt keeps the baselined schema untouched, and the uniqueness step makes restore unambiguous — a room archived separately last week is not resurrected by restoring its building. | FR-LOC-004, DR-018 |
+| DD-28 | New **`locations` permission module** (`view`/`create`/`update`/`delete`), seeded to **Administrators only** — including `view`. A coarser alternative (reusing `system.settings.manage`) was rejected because it could not express per-action location authorization and would couple the estate to unrelated settings. *(Superseded an earlier draft that seeded `locations.view` to all three roles; the Client scoped the module to Administrators, and FR-LOC-011 + DD-31 replace that read path.)* | Managing the estate is site administration, not day-to-day work: a Technician or Teacher never needs the directory, tree, metrics or detail pages, so the least-privilege position is to grant them nothing. Per-user overrides (FR-USER-004) still let an Administrator deputize a specific account without widening a role. | FR-LOC-011, §8.4 matrix |
+| DD-31 | **The location field is a separate, narrow lookup, not a slice of the module.** `/api/lookups/{rooms,buildings,floors}` is authorized by a `selectLocation` ability that the *consuming workflow's* permission grants (`tickets.create`, `maintenance.view`, `assets.transfer`, …) — never by `locations.*` — returns labels only, and is served from a shared frontend component (`components/LocationSelect.tsx` + `services/lookups.ts`) that is deliberately outside `features/locations/`. | A form still has to let someone name a place even though the module is closed to them. Deriving the lookup's authorization from the workflow keeps one rule ("you may name a location if you may do the thing that needs one") and makes the lookup unable to become a back door: it exposes no operational data, and no consuming feature can reach the admin slice through it. Putting it under `/lookups` rather than `/locations` makes the boundary legible in the route list itself. | FR-LOC-005/011 |
+| DD-29 | **Permission split for the archive refusal:** the Policy answers permission only (403); the in-use invariant lives in the Action and answers **422 + blocker report**. The same guard is exposed read-only on the detail endpoints (`meta.in_use`) so the UI can warn before the attempt. | "You may not archive locations" and "this room still holds equipment" are different answers and must not collapse into one status code; the 422 carries the payload the UI needs to offer reassignment. Defense in depth is preserved — the Action is the single write path and always consults the guard. | FR-LOC-004/009 |
+| DD-30 | **Dashboards: role picks the layout, permissions pick the content**, assembled server-side behind one endpoint; distributions render as labelled proportional rows whose markup *is* the data table, in a single hue, with **no charting dependency**. | One endpoint cannot leak what it never assembles, and the client never has to filter privileged figures. On the visual side: comparing magnitude is the job, and statuses/priorities have no inherent order, so shading rows by size would double-encode length as colour; a table-as-chart means the accessible reading and the visual reading are the same object (FR-DSH-007) and adds no bundle weight to the aging hardware the product targets. | FR-DSH-001/005/007/008, DR-019 |
+| DD-32 | **Domain vocabularies widen additively.** The `AssetStatus` and `ComponentType` CHECK domains were extended in place (`new`, `out_of_service`; `system_unit`, `printer`, `ups`, `network_device`, `scanner`, `projector`) with every pre-existing value left legal, and the client-facing names supplied by an overridden `label()` on the PHP enum rather than by renaming stored values. | This is DD-18's technique, which is why the PHP-enum-mirrored CHECK design was chosen in the first place: the enum stays the single source of truth, a fresh `migrate` yields the widened constraint, older databases are reconciled, and **no data migration runs**. Separating the stored value from its label lets the product speak the Client's operational language (Available, Assigned, In Service, Maintenance) without breaking the baselined schema, the seeders or the existing metrics. | FR-AST-002/005, DR-004 |
+| DD-33 | **Terminal transitions need `assets.dispose`, not `assets.update`.** Moving an asset to `retired` or `disposed` is gated on a separate permission, resolved from the request payload in the FormRequest rather than by the route middleware. | Writing equipment off is a materially different act from day-to-day status upkeep, and an Administrator should be able to delegate the latter without the former. The check has to see the *target* status, which a route gate cannot — so the route gate is the floor (`assets.update`) and the request raises it. `disposed` is additionally absorbing in the transition map: an asset that has left the organization has no outgoing moves. | FR-AST-005/007, NFR-SEC-002 |
+| DD-34 | **Lifecycle, transfer and assignment are separate endpoints from the plain update**, and `status`/`room` are refused by the update payload entirely. | Each of the three writes a history row alongside the change — `asset_status_history`, `asset_transfers`, and a distinct audit action — in one transaction. Accepting them on `PUT /assets/{uuid}` would let an ordinary edit move an asset without leaving a trace, which is exactly the guarantee FR-AST-005/006 exist to make. Refusing them outright is stronger than ignoring them: the API cannot silently do less than the caller asked. | FR-AST-005/006 |
+| DD-35 | **`asset_attachments` is a new table binding exactly one target** (`num_nonnulls(asset_id, pc_unit_id) = 1`), on a private disk, with server-generated storage names and a server-derived `kind`. | The baselined `attachments` table carries a NOT NULL `ticket_id` and a counter-cache trigger writing back to `tickets`; `repair_images` is scoped to a maintenance record. Asset evidence is a third thing with its own lifetime — it outlives any one ticket. The single-target CHECK mirrors `qr_codes`. Generating the stored filename closes the path-traversal and double-extension vectors, and deriving `kind` from the detected MIME stops a renamed executable presenting itself as an image. | FR-AST-002, NFR-SEC-007/008 |
+| DD-36 | **The unified asset history is merged in the application, not in SQL**, from seven append-only or soft-deleted sources, each capped per source, read `withTrashed` so archived parents still explain themselves. | The sources have incompatible shapes and no common ancestor table; a `UNION` would need seven casts to a lowest common denominator and still could not carry the per-source detail the UI renders. The set is bounded by one asset's own lifetime — tens to hundreds of rows — so the merge is O(small) at a fixed seven queries. Reading soft-deleted parents is deliberate: archiving a PC must not erase the fact that a component once lived inside it. | FR-AST-005, FR-PC-006 |
+| DD-37 | **QR rendering uses `bacon/bacon-qr-code` writing SVG**, returned inline as a data URI, with size and error-correction read from the existing `system_settings` rows. Regeneration **revokes and inserts** rather than mutating. | Vector output prints crisply at any physical label size and needs no image extension at render time; a few KB of inline text means the print view is one request with nothing further to fetch. Revoking rather than mutating is what keeps `qr_scan_logs` attached to the code that was actually scanned — "what was scanned in March" keeps an answer (FR-QR-007). | FR-QR-001/002/003/007 |
+| DD-38 | **Asset Management is Administrator-only, with a workflow-authorized narrow lookup** at `/api/lookups/{assets,pc-units}` — the DD-28/DD-31 pair restated for equipment. `assets.*` is withdrawn from the Technician role by the seeder's existing `$withdrawn` mechanism. | Maintaining the equipment register is site administration, exactly as the estate is: a Technician needs the machine they were assigned, not the register. Deriving the lookup's authorization from the consuming workflow (`tickets.*`, `maintenance.*`) keeps one rule across the product — "you may name a thing if you may do the thing that needs one" — and makes the lookup unable to become a back door, since its resource cannot express status, price, supplier or custodian. Per-user overrides still let an Administrator deputize one account without widening a role. | FR-AST-013, §8.4 matrix |
+| DD-39 | **The authenticated application is typeset for no-zoom reading**: 20px medium body at 1.75 line-height, a 7:1 (AAA) contrast floor for every text role, 60px controls, icons always paired with a text label, and a full-bleed single-column shell with no sidebar. Delivered through the shared design tokens and UI primitives, so Phases 2.2–2.4 inherit it without being rewritten. | The Client's users should never have to reach for browser zoom. Putting the change in the tokens rather than in each screen is what makes it a one-time cost instead of a per-module tax — and it is why the brand and status hues moved (a mid-tone accent cannot reach 7:1 against either ground, so `--primary` is a deep navy on light, a pale tint with dark label text on dark). Data tables keep their table semantics above `md` and restate as labelled blocks below it, because a table squeezed to a phone at 20px is less readable, not more. | NFR-USB, NFR-ACC, FR-CFG-005 |
 
 ---
 
 ## Appendix A — Architecture Review & Consistency Verification
 
-Per the required post-generation process: a complete architecture review verifying consistency with the SRS and the implemented database, and resolving objective issues without changing approved requirements.
+Per the required post-generation process: a complete architecture review verifying consistency with the SRS and the implemented database, and resolving objective issues without changing specified requirements.
 
 ### A.1 Method & sources
-Reviewed this SDD against: the **approved SRS v1.0** (all FR/NFR/DR/BR/EIF/OI IDs); the **implemented database** (`database_design_v2.dbml`, `create_advanced_db_objects` migration — triggers/FTS/HNSW/BRIN/partial indexes read directly; 66 models; 34 enums; 9 seeders); and the **current repository** (`composer.json`, `package.json`, `compose.yaml`, `docker/php/Dockerfile`, `docker/nginx/default.conf`, `bootstrap/app.php`, `routes/api.php`, `frontend/src/services/*`, `vite.config.ts`, `Ticket.php`, `HasUuidRouteKey`, `HasValues`). Where the SRS listed codebase-memory-mcp/Graphify/Claude-Mem as sources, the authoritative primary artifacts (the files themselves) were read directly.
+Reviewed this SDD against: the **SRS v1.0** (all FR/NFR/DR/BR/EIF/OI IDs); the **implemented database** (`database_design_v2.dbml`, `create_advanced_db_objects` migration — triggers/FTS/HNSW/BRIN/partial indexes read directly; 66 models; 34 enums; 9 seeders); and the **current repository** (`composer.json`, `package.json`, `compose.yaml`, `docker/php/Dockerfile`, `docker/nginx/default.conf`, `bootstrap/app.php`, `routes/api.php`, `frontend/src/services/*`, `vite.config.ts`, `Ticket.php`, `HasUuidRouteKey`, `HasValues`). Where the SRS listed codebase-memory-mcp/Graphify/Claude-Mem as sources, the authoritative primary artifacts (the files themselves) were read directly.
 
 ### A.2 SRS consistency — confirmed
-Every SRS module and requirement group has a corresponding design element with an explicit trace ([§39](#39-design--requirement-traceability)). Phasing (P2/P3/P4/Future) is preserved. No design element contradicts an approved requirement. **[RES-07] OI-02 resolved (SRS v1.1):** the Client adopted the registration-request + Administrator-approval workflow (Teacher/Technician only); this SDD realizes it in [§10.3](#10-authentication-design), [DD-17..20](#40-design-decision-register), and the Identity domain ([§14.1](#141-domain-map)). The remaining §33 open items (OI-01, OI-03..07) are still honored as-is and reflected as extension points where relevant (EXT-04/05, RES-04).
+Every SRS module and requirement group has a corresponding design element with an explicit trace ([§39](#39-design--requirement-traceability)). Phasing (P2/P3/P4/Future) is preserved. No design element contradicts a specified requirement. **[RES-07] OI-02 resolved (SRS v1.0):** the Client adopted the registration-request + Administrator-approval workflow (Teacher/Technician only); this SDD realizes it in [§10.3](#10-authentication-design), [DD-17..20](#40-design-decision-register), and the Identity domain ([§14.1](#141-domain-map)). The remaining §33 open items (OI-01, OI-03..07) are still honored as-is and reflected as extension points where relevant (EXT-04/05, RES-04).
 
 ### A.3 Database consistency — confirmed against implementation
 Design claims were checked against the **actual** migration, not just the DBML:
@@ -1188,4 +1276,4 @@ None blocking. The design is internally consistent, consistent with the SRS, and
 
 ---
 
-*End of Software Design Description v1.0 — approved v1.0 project-specification baseline.*
+*End of Software Design Description v1.0 — Version 1.0 baseline — Waiting for Client Approval.*

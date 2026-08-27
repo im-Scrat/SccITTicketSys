@@ -1,19 +1,22 @@
 import { History } from 'lucide-react'
 import { EmptyState, Skeleton } from '@/components/ui'
-import { formatDateTime } from '../lib/format'
-import type { ActivityEntry } from '../types'
+import { formatDateTime } from '@/lib/datetime'
+import type { ActivityEntry } from '@/types/activity'
 
 interface AuditTimelineProps {
   entries: ActivityEntry[] | undefined
   isLoading: boolean
+  /** Override the empty-state copy for the record type being shown. */
+  emptyDescription?: string
 }
 
 /**
- * Chronological (newest-first) audit trail for a user: registration, approval,
- * login events, status/role/permission changes and administrative actions. Each
- * row shows the action label, actor, and timestamp.
+ * Chronological (newest-first) audit trail for one record: who did what, when,
+ * and from where. Shared across modules — accounts, locations, and every later
+ * domain read the same `activity_logs` shape, so the timeline looks and behaves
+ * identically wherever it appears.
  */
-export function AuditTimeline({ entries, isLoading }: AuditTimelineProps) {
+export function AuditTimeline({ entries, isLoading, emptyDescription }: AuditTimelineProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-3">
@@ -29,7 +32,10 @@ export function AuditTimeline({ entries, isLoading }: AuditTimelineProps) {
       <EmptyState
         icon={<History size={22} />}
         title="No activity yet"
-        description="Registration, sign-ins, and administrative actions for this account will appear here."
+        description={
+          emptyDescription ??
+          'Administrative actions for this record will appear here as they happen.'
+        }
       />
     )
   }

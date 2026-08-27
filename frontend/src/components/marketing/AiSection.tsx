@@ -45,7 +45,7 @@ export function AiSection() {
                   <span className="inline-flex size-9 items-center justify-center rounded-md bg-surface-sunken text-primary-strong">
                     <Icon size={18} aria-hidden="true" />
                   </span>
-                  <h3 className="mt-3 text-[15px] font-semibold text-ink-strong">{title}</h3>
+                  <h3 className="mt-3 text-sm font-semibold text-ink-strong">{title}</h3>
                   <p className="mt-1.5 text-sm leading-relaxed text-muted">{body}</p>
                 </li>
               ))}

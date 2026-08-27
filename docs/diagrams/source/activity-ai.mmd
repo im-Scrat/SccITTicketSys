@@ -1,0 +1,51 @@
+---
+title: "SccIT — System-Wide AI Behavior (Activity Diagram)"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Segoe UI, Helvetica, Arial, sans-serif"
+    fontSize: "15px"
+    lineColor: "#5c677d"
+  flowchart:
+    htmlLabels: true
+    nodeSpacing: 34
+    rankSpacing: 30
+---
+flowchart TD
+    s([Start]) --> trig{"Trigger"}
+
+    trig -- "User opens AI assistant" --> ask["Ask question / KB search"]
+    ask --> rag["Retrieve KB context (RAG)"]
+    rag --> answer["Answer with citations"]
+    answer --> logc[("Log conversation + feedback")]
+    logc --> e([End])
+
+    trig -- "Ticket submitted / on demand" --> avail{"AI enabled &<br/>provider reachable?"}
+    avail -- "No" --> degrade["Show 'AI unavailable';<br/>workflows continue; retry w/ backoff"]
+    degrade --> e
+    avail -- "Yes" --> prompt["Build minimized, PII-redacted prompt"]
+    prompt --> analyze["Analyze: category · severity ·<br/>technician_required · summary + steps"]
+    analyze --> prio["Recommend priority<br/>(severity + priority location + asset)"]
+    prio --> conf{"Confidence ≥ 0.70?"}
+    conf -- "No" --> advisory["Advisory only —<br/>require human action"]
+    conf -- "Yes" --> attach["Attach recommendation to ticket"]
+    advisory --> present["Present troubleshooting steps"]
+    attach --> present
+    present --> solved{"Resolved by self-service?"}
+    solved -- "Yes" --> resolve["Requester confirms → closed"]
+    solved -- "No" --> escalate["Escalate to human triage<br/>(no auto-assign / auto-close)"]
+    resolve --> logai[("Log analysis, recs & learning")]
+    escalate --> logai
+    logai --> e
+
+    classDef se fill:#E4E9F0,stroke:#334155,stroke-width:1.4px,color:#1e293b;
+    classDef act fill:#EAF0FB,stroke:#2E4A86,stroke-width:1.3px,color:#16233c;
+    classDef ai fill:#F1EAFB,stroke:#7048E8,stroke-width:1.3px,color:#3f2a99;
+    classDef data fill:#E6F7EE,stroke:#0CA678,stroke-width:1.3px,color:#0b503c;
+    classDef notif fill:#FDECF3,stroke:#C2255C,stroke-width:1.3px,color:#7a1740;
+    classDef dec fill:#FFF6E6,stroke:#E8901C,stroke-width:1.3px,color:#7a4a06;
+    class s,e se;
+    class ask,answer,degrade,present,resolve,escalate,advisory,attach act;
+    class rag,analyze,prio,prompt ai;
+    class logc,logai data;
+    class trig,avail,conf,solved dec;

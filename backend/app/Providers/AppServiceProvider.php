@@ -2,8 +2,24 @@
 
 namespace App\Providers;
 
+use App\Domains\Assets\Policies\AssetPolicy;
+use App\Domains\Assets\Policies\PcUnitPolicy;
 use App\Domains\Identity\Policies\UserPolicy;
 use App\Domains\Identity\Services\PermissionResolver;
+use App\Domains\Locations\Policies\BuildingPolicy;
+use App\Domains\Locations\Policies\FloorPolicy;
+use App\Domains\Locations\Policies\RoomPolicy;
+use App\Domains\Tickets\Policies\TicketAssignmentPolicy;
+use App\Domains\Tickets\Policies\TicketCommentPolicy;
+use App\Domains\Tickets\Policies\TicketPolicy;
+use App\Models\Asset;
+use App\Models\Building;
+use App\Models\Floor;
+use App\Models\PcUnit;
+use App\Models\Room;
+use App\Models\TechnicianAssignment;
+use App\Models\Ticket;
+use App\Models\TicketComment;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -44,6 +60,29 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::policy(User::class, UserPolicy::class);
+
+        // Locations (Phase 2.4): per-record rules on top of the `locations.*`
+        // route gate — chiefly the in-use archive guard (FR-LOC-004).
+        Gate::policy(Building::class, BuildingPolicy::class);
+        Gate::policy(Floor::class, FloorPolicy::class);
+        Gate::policy(Room::class, RoomPolicy::class);
+
+        // Assets (Phase 2.5): per-record rules on top of the `assets.*` route
+        // gate. Two things live here that a route gate cannot express — the
+        // `assets.dispose` requirement on terminal status transitions (DD-33),
+        // and the narrow `selectAsset`/`selectPcUnit` lookup abilities that a
+        // non-admin workflow's own permission grants (DD-38).
+        Gate::policy(Asset::class, AssetPolicy::class);
+        Gate::policy(PcUnit::class, PcUnitPolicy::class);
+
+        // Tickets (Phase 2.6): unlike Locations and Assets, this module is not
+        // closed by withholding a permission — all three roles legitimately hold
+        // `tickets.view`. Instead every read ability delegates to
+        // `TicketVisibility`, the same service the list queries use, so a ticket
+        // absent from a user's list is also unreachable by uuid (DD-40).
+        Gate::policy(Ticket::class, TicketPolicy::class);
+        Gate::policy(TicketComment::class, TicketCommentPolicy::class);
+        Gate::policy(TechnicianAssignment::class, TicketAssignmentPolicy::class);
     }
 
     /**
@@ -59,6 +98,24 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('password', fn (Request $request): Limit => Limit::perHour(
             (int) config('security.rate_limits.password_per_hour', 6),
         )->by($request->ip() ?? 'unknown'));
+
+        /*
+         * Phase 2.6. Keyed by **user**, not IP: these are authenticated actions,
+         * and a whole school behind one NAT address would otherwise share a
+         * single budget. The ceilings are set to stop runaway automation, not to
+         * ration ordinary work — a teacher reporting ten faults in an hour is
+         * having a bad day, not abusing the system.
+         *
+         * Votes need no limiter: they are unique-constrained and idempotent, so
+         * repeating one changes nothing.
+         */
+        RateLimiter::for('tickets', fn (Request $request): Limit => Limit::perHour(
+            (int) config('security.rate_limits.tickets_per_hour', 20),
+        )->by((string) ($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        RateLimiter::for('ticket-comments', fn (Request $request): Limit => Limit::perHour(
+            (int) config('security.rate_limits.ticket_comments_per_hour', 60),
+        )->by((string) ($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
     }
 
     /**

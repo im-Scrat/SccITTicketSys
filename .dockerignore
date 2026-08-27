@@ -6,6 +6,7 @@
 **/vendor
 **/dist
 **/.vite
+**/tmp-ally
 **/.env
 **/.env.*
 !**/.env.example

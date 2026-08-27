@@ -1,0 +1,14 @@
+sequenceDiagram
+  participant B as SPA
+  participant L as RagService
+  participant G as Gemini (embed+chat)
+  participant DB as pgvector
+  B->>L: POST /api/ai/assistant/messages {q}
+  L->>G: embed(q)
+  G-->>L: query vector
+  L->>DB: HNSW cosine top-k over indexed published sources
+  DB-->>L: context chunks (+source refs)
+  L->>G: chat(system + context + q)
+  G-->>L: grounded answer
+  L->>DB: ai_conversation_logs (tokens, latency)
+  L-->>B: answer + citations

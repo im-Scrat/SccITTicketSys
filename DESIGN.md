@@ -53,7 +53,7 @@ typography:
     letterSpacing: "normal"
   body:
     fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "0.875rem"
+    fontSize: "0.9375rem"
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "normal"
@@ -65,7 +65,7 @@ typography:
     letterSpacing: "normal"
   label:
     fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "0.75rem"
+    fontSize: "0.8125rem"
     fontWeight: 500
     lineHeight: 1.4
     letterSpacing: "0.005em"
@@ -271,16 +271,16 @@ These custom properties are the source of truth; the frontmatter above mirrors t
 **UI / Body Font:** Inter (variable) — with `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif` fallback.
 **Code / ID Font:** JetBrains Mono — with `ui-monospace, "SFMono-Regular", Menlo, monospace` fallback.
 
-**Character:** One neutral, highly legible humanist-grotesque carries the entire UI — headings, labels, body, and dense table data — because a data tool does not need a display face competing for attention; it needs one face that stays crisp at 12px on an aging monitor. The monospace companion is not decoration: asset serial numbers, QR payloads, ticket IDs, IP addresses, and log lines belong in mono so they stay unambiguous and column-aligned. Inter and JetBrains Mono pair on a true contrast axis (proportional vs. monospaced), never two-similar-sans. Both fonts are self-hosted for performance and for networks (schools, government) that block third-party CDNs.
+**Character:** One neutral, highly legible humanist-grotesque carries the entire UI — headings, labels, body, and dense table data — because a data tool does not need a display face competing for attention; it needs one face that stays crisp at 13px on an aging monitor. The monospace companion is not decoration: asset serial numbers, QR payloads, ticket IDs, IP addresses, and log lines belong in mono so they stay unambiguous and column-aligned. Inter and JetBrains Mono pair on a true contrast axis (proportional vs. monospaced), never two-similar-sans. Both fonts are self-hosted for performance and for networks (schools, government) that block third-party CDNs.
 
 ### Hierarchy
-Fixed rem scale (product UIs are viewed at consistent DPI; fluid clamp headings would only wobble in a sidebar). Ratio ≈ 1.2.
+Fixed rem scale (product UIs are viewed at consistent DPI; fluid clamp headings would only wobble in a sidebar). Ratio ≈ 1.2. All sizes are `rem`, so browser zoom and user font-size settings scale the whole system (200% zoom reflows without loss of function). **The document base (`body`) is 16px/lh 1.6** — the comfortable primary-content default; components opt into density with Body/Label below. Sizes are tuned for readability including mild low-vision comfort while holding enterprise density (the smallest UI text is 13px, never 12px).
 - **Display** (600, 1.875rem/30px, lh 1.15, tabular): large dashboard KPI numerals and empty-state figures. Rare.
 - **Headline** (600, 1.5rem/24px, lh 1.25): page titles. One per screen.
 - **Title** (600, 1.125rem/18px, lh 1.3): section and card headers.
-- **Body** (400, 0.875rem/14px, lh 1.5): the default — UI text, table cells, form values. The workhorse.
-- **Body Large** (400, 1rem/16px, lh 1.6): reading-heavy surfaces only (knowledge-base articles, AI troubleshooting answers). Cap prose at 65–75ch.
-- **Label** (500, 0.75rem/12px, lh 1.4): form labels, table column headers, metadata, timestamps. Sentence case by default.
+- **Body** (400, 0.9375rem/15px, lh 1.5): the dense workhorse — UI text, table cells, form values, secondary metadata.
+- **Body Large / Base** (400, 1rem/16px, lh 1.6): the document default and reading-heavy surfaces (knowledge-base articles, AI troubleshooting answers, form field values, prose). Cap prose at 65–75ch.
+- **Label** (500, 0.8125rem/13px, lh 1.4): form labels, table column headers, metadata, timestamps, badges/pills. Sentence case by default.
 - **Code** (400, 0.8125rem/13px, JetBrains Mono, slashed zero): IDs, serials, QR payloads, code, log lines.
 
 ### Named Rules

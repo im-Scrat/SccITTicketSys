@@ -49,7 +49,7 @@ interface ThProps extends ThHTMLAttributes<HTMLTableCellElement> {
 export function Th({ children, className, ...props }: ThProps) {
   return (
     <th
-      className={cn('px-3 py-2.5 text-xs font-semibold text-muted', className)}
+      className={cn('px-4 py-4 text-sm font-semibold text-muted', className)}
       scope="col"
       {...props}
     >
@@ -68,7 +68,7 @@ export function Td({
   onClick?: (event: MouseEvent<HTMLTableCellElement>) => void
 }) {
   return (
-    <td className={cn('px-3 py-2.5 align-middle text-ink', className)} onClick={onClick}>
+    <td className={cn('px-4 py-4 align-middle text-ink', className)} onClick={onClick}>
       {children}
     </td>
   )

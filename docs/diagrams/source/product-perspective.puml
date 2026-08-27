@@ -1,0 +1,87 @@
+@startuml SccIT-Product-Perspective
+'==================================================================
+' SccIT — Product Perspective / System Context Block Diagram
+' Flat, layered architecture (no phase annotations, no deep nesting):
+'   Users -> Browser -> Nginx -> React SPA -> Laravel Backend
+'         -> PostgreSQL / Redis -> External Services
+' Backend modules are shown as connected components in one layer.
+' Render:  java -jar plantuml.jar -tsvg product-perspective.puml
+'          java -jar plantuml.jar -tpng -scale 3 product-perspective.puml
+'==================================================================
+top to bottom direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 13
+skinparam ArrowColor #5C677D
+skinparam rectangleBorderThickness 1.3
+skinparam packageStyle rectangle
+skinparam databaseBackgroundColor #F3F0FF
+skinparam databaseBorderColor #7048E8
+
+skinparam rectangle {
+  BackgroundColor<<user>>  #E7F5FF
+  BorderColor<<user>>      #1971C2
+  BackgroundColor<<client>> #F1F3F5
+  BorderColor<<client>>    #495057
+  BackgroundColor<<front>> #E6FCF5
+  BorderColor<<front>>     #0CA678
+  BackgroundColor<<edge>>  #FFF3BF
+  BorderColor<<edge>>      #F08C00
+  BackgroundColor<<svc>>   #EDF2FF
+  BorderColor<<svc>>       #3B5BDB
+  BackgroundColor<<ext>>   #FFF0F6
+  BorderColor<<ext>>       #C2255C
+  BackgroundColor<<infra>> #F8F9FA
+  BorderColor<<infra>>     #868E96
+}
+
+' ---------------- Layer 1: External users ----------------
+rectangle "External Users" as USERS {
+  rectangle "Administrator"       as ADM <<user>>
+  rectangle "Technician"          as TEC <<user>>
+  rectangle "Teacher / Requester" as TEA <<user>>
+}
+
+' ---------------- Layer 2-4: client -> edge -> SPA ----------------
+rectangle "Web Browser\n<size:11><i>desktop · tablet · mobile · QR camera</i></size>" as BROWSER <<client>>
+rectangle "Nginx — Single-Origin Edge\n<size:11><i>reverse proxy · TLS · static assets + /api routing</i></size>" as NGINX <<edge>>
+rectangle "React 19 SPA\n<size:11><i>Vite · TanStack Query · Tailwind</i></size>" as SPA <<front>>
+
+' ---------------- Layer 5: Laravel backend (modules as connected components) ----------------
+rectangle "Laravel 13 Backend — REST API on PHP-FPM" as BACKEND {
+  rectangle "Auth & RBAC"    as RBAC <<svc>>
+  rectangle "Audit"          as AUD  <<svc>>
+  rectangle "Notification"   as NOTS <<svc>>
+  rectangle "AI Services"    as AISVC <<svc>>
+  rectangle "Domain Modules\n<size:11><i>Tickets · Assets · Maintenance · Analytics</i></size>" as DOM <<svc>>
+}
+
+' ---------------- Layer 6: data stores ----------------
+database "PostgreSQL 17\n<size:11><i>+ pgvector · system of record</i></size>" as PG
+database "Redis\n<size:11><i>cache · session · queue</i></size>" as REDIS
+
+' ---------------- Layer 7: external services ----------------
+rectangle "External Services" as EXT {
+  rectangle "Email\n<size:11><i>Mailpit (dev) / SMTP (prod)</i></size>" as MAIL <<ext>>
+  rectangle "AI Provider\n<size:11><i>Google Gemini</i></size>"          as GEMINI <<ext>>
+  rectangle "QR Code Services\n<size:11><i>generate · verify</i></size>" as QRSVC <<ext>>
+}
+
+rectangle "Infrastructure — Docker · Nginx · PHP-FPM · Redis-backed queue workers" as INFRA <<infra>>
+
+' ---------------- Communication flow ----------------
+ADM --> BROWSER
+TEC --> BROWSER
+TEA --> BROWSER
+BROWSER --> NGINX   : HTTPS · single origin
+NGINX --> SPA       : static assets
+SPA --> BACKEND     : REST / JSON · cookies
+BACKEND --> PG      : SQL queries
+BACKEND --> REDIS   : cache & queue
+NOTS --> MAIL       : e-mail (SMTP)
+AISVC --> GEMINI    : HTTPS · chat + embeddings
+DOM --> QRSVC       : image · scan verify
+INFRA ..> BACKEND   : builds & hosts
+
+@enduml

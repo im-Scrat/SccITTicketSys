@@ -2,13 +2,13 @@
 title: Software Requirements Specification (SRS)
 system: AI-Powered IT Asset & Service Management System (SccIT)
 doc_id: SCCIT-SRS
-version: 1.1
-status: Approved — v1.1 (2026-07-04)
-date: 2026-07-04
+version: 1.0
+status: Waiting for Client Approval
+date: 2026-07-17
 author: Engineering (Beemo)
 classification: Internal — Confidential
 standard: Aligned with ISO/IEC/IEEE 29148:2018 (Requirements Engineering)
-supersedes: v1.0 (2026-07-03)
+owner: Client / Product Owner (project owner · system owner · primary decision-maker)
 ---
 
 # Software Requirements Specification
@@ -24,22 +24,20 @@ supersedes: v1.0 (2026-07-03)
 | Field | Value |
 |---|---|
 | Document ID | SCCIT-SRS |
-| Version | 1.1 (Approved) |
-| Date | 2026-07-04 |
+| Version | 1.0 |
+| Date | 2026-07-17 |
+| Status | **Waiting for Client Approval** |
 | Standard | ISO/IEC/IEEE 29148:2018 (adapted) |
 | Prepared by | Engineering |
-| Approved by | Client / Product Owner — approved 2026-07-03 |
-| Related documents | `PRODUCT.md`, `DESIGN.md`, `docs/database/database_architecture_report.md`, `docs/database/database_design_review.md`, `docs/database/database_design_v2.dbml`, `docs/ENVIRONMENT.md`, `docs/PROJECT_STRUCTURE.md` |
+| Owner / decision authority | Client / Product Owner — project owner, system owner, and primary decision-maker |
+| Related documents | `PRODUCT.md`, `DESIGN.md`, `docs/database/database_architecture_report.md`, `docs/database/database_design_review.md`, `docs/database/database_design_v2.dbml`, `docs/ENVIRONMENT.md`, `docs/PROJECT_STRUCTURE.md`, `docs/diagrams/` (UML sources + rendered figures) |
 
 ### Revision History
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
-| 1.0 | 2026-07-03 | Engineering | Initial SRS derived from approved product brief, design system, and production database layer. Includes internal-review reconciliation and flagged open decisions. |
-| 1.0 | 2026-07-03 | Client / Product Owner | Reviewed and approved; baselined as the v1.0 project specification (Git tag `v1.0-project-specification`). |
-| 1.1 | 2026-07-04 | Engineering | **OI-02 resolved by the Client:** self-registration reframed as a mandatory **registration-request workflow** for Teachers and Technicians with Administrator approval. FR-AUTH-013 promoted F→M/P2 and rewritten; new FR-AUTH-014/015/016 (approve/reject/status-enforcement + decision emails). Added `Rejected` account status and `rejection_reason`/`rejected_at`/`rejected_by` (FR-AUTH-004, FR-USER-007, §29 DR). ASM-02 updated; §33 OI-02 marked resolved. |
-| 1.1 | 2026-07-04 | Client / Product Owner | Approved the registration-request business rule and the v1.1 changes ahead of Phase 2.2 implementation. |
-| 1.2 | 2026-07-05 | Engineering | **Phase 2.3 — User Management.** Elaborated FR-USER with the administrative dashboard, server-side directory (search/filter/sort/pagination), bulk operations, CSV/XLSX export, administrator account actions (reset/force-reset/unlock/resend), the chronological audit timeline, protected-account & self-lockout invariants, and edit-before-approval (FR-USER-012–019). Added three additive, backward-compatible `users` columns — `force_password_reset`, `password_changed_at`, `registration_source` (§29 DR-016). Recorded the field-reconciliation decisions (username→email/employee_number; organization→deployment branding; department/laboratory/building deferred to future Employee/Organization Management). No existing requirement, table, or column was changed or removed. |
+| 1.0 | 2026-07-17 | Engineering | **Version 1.0 baseline.** Consolidated requirements specification: scope, business objectives, stakeholders, user roles and the seeded permission matrix, system context, the complete functional requirement set (FR-AUTH/USER/LOC/PC/TKT/ASN/MNT/AST/AUD plus AI, QR, floor-plan, dashboard, reporting, notification and settings requirements), non-functional/security/performance/scalability/availability/accessibility requirements, external interfaces, business rules, operational scenarios, the System Use Case Diagram (**Figure 2**) with detailed use-case specifications (**UCS-01…10**) and workflow activity diagrams (**Figures 3–6**), system-wide AI behaviour, data requirements, traceability, acceptance criteria, risks/constraints/assumptions, open decisions, glossary, and Appendices A–B. Product Perspective Block Diagram at **Figure 1**. Status: **Waiting for Client Approval**. |
+| 1.0 | 2026-08-26 | Engineering | **Phase 2.5 — Asset Management** realized against the Version 1.0 baseline (label unchanged). Extended FR-AST-002/005/012 with per-unit asset name, custodianship, attachments, the audited transition map and the unified asset history; added **FR-AST-013** (Administrator-only module with a workflow-authorized narrow equipment lookup), **FR-AST-014** (navigable Asset Management dashboard) and **FR-AST-015** (enterprise search). Recorded the asset lifecycle vocabulary and the widened category domain. Updated the §8.4 seeded permission matrix: `assets.*` is now Administrator-only, withdrawing the Technician `view`/`update`/`transfer` grants. Added acceptance criteria AC-AST-005/005b/006/012/013/014/015, AC-PC-003 and AC-QR-001. |
 
 ### Conventions used in this document
 
@@ -94,6 +92,20 @@ supersedes: v1.0 (2026-07-03)
 34. [Future Expansion](#34-future-expansion)
 35. [Glossary](#35-glossary)
 36. [Appendix A — Internal Review & Verification Log](#appendix-a--internal-review--verification-log)
+37. [Appendix B — Diagram Sources (Mermaid & PlantUML)](#appendix-b--diagram-sources-mermaid--plantuml)
+
+### List of Figures
+
+| Figure | Title | Section |
+|---|---|---|
+| **Figure 1** | Product Perspective Block Diagram | [§6.1](#61-product-perspective) |
+| **Figure 2** | System Use Case Diagram | [§27](#27-use-cases) |
+| **Figure 3** | Teacher / Requester Workflow — Activity Diagram | [§27.3](#273-operational-workflow-activity-diagrams) |
+| **Figure 4** | Technician Workflow — Activity Diagram | [§27.3](#273-operational-workflow-activity-diagrams) |
+| **Figure 5** | Administrator Workflow — Activity Diagram | [§27.3](#273-operational-workflow-activity-diagrams) |
+| **Figure 6** | System-Wide AI Behavior — Activity Diagram | [§27.3](#273-operational-workflow-activity-diagrams) |
+
+> Figures are rendered from version-controlled UML sources in `docs/diagrams/`, with high-resolution `.svg`/`.png` committed: the Product Perspective from Mermaid + PlantUML, and the (stickman) Use Case Diagram from PlantUML + a self-contained layout generator. Sources are catalogued and reproduced in [Appendix B](#appendix-b--diagram-sources-mermaid--plantuml) so the diagrams remain living documentation maintained alongside the implementation.
 
 ---
 
@@ -105,7 +117,7 @@ The platform serves three role classes on a shared surface: **Administrators** (
 
 The **data layer is already implemented and verified** to a production bar: a PostgreSQL 17 relational schema (66 Eloquent models and 34 enum domains) with timezone-correct timestamps, referential integrity with deliberate delete policies, soft deletes on business entities, full-text and vector indexes, tamper-resistant audit logging, and an RBAC model. The **business logic (application) layer has not yet been built** — this SRS defines the requirements for that build and everything that follows.
 
-This document has been reconciled against every available source of truth and an internal review (Appendix A). It records **flagged decisions that would alter the approved business model** (e.g. multi-role users, self-service registration, MFA) as **open issues in [§33](#33-open-issues--decisions-requiring-client-approval)** rather than silently adopting them; the client’s decisions on those items will be folded into version 1.1 before the SDD is authored.
+This document has been reconciled against every available source of truth and an internal review (Appendix A). It records **flagged decisions that would alter the specified business model** (e.g. multi-role users, self-service registration, MFA) as **open issues in [§33](#33-open-issues--decisions-requiring-client-approval)** rather than silently adopting them; the client’s decisions on those items will be folded into version 1.1 before the SDD is authored.
 
 ---
 
@@ -230,6 +242,10 @@ Functional requirements follow: *“The system shall <capability> [for <role>] [
 ### 6.1 Product perspective
 SccIT is a **new, self-contained web platform** — not a replacement module inside an existing suite. It is a **modular monolith**: a single deployable application organized internally into domains (Tickets, Assets, Maintenance, KnowledgeBase, Analytics, FloorPlan) so future modules drop in without restructuring. It exposes a REST API consumed by a single-page web client.
 
+![SccIT Product Perspective (System Context) Block Diagram](diagrams/product-perspective.png)
+
+**Figure 1. Product Perspective Block Diagram.** A high-level, layered context view of the product and the parties it interacts with, read top to bottom: **External Users → Web Browser → Nginx → React SPA → Laravel Backend → PostgreSQL/Redis → External Services.** **External users** (Administrators, Technicians, Teachers/Requesters) reach the platform through a **web browser** over a single HTTPS origin. **Nginx** is the single-origin edge: it serves the **React 19 single-page application** (Vite build, TanStack Query, design-token styling) and routes `/api`·`/sanctum` traffic to the **Laravel 13 REST API** (a modular monolith running on PHP-FPM). The backend is shown as a set of connected components — **Auth & RBAC, Audit, Notification, AI Services, and the Domain Modules** (Tickets · Assets · Maintenance · Analytics). The backend persists to its **data stores**: **PostgreSQL 17** (+ pgvector) as the system of record and **Redis** for cache, session, and queue. The platform integrates a small set of **external services** — an **email transport** (Mailpit in development, SMTP in production), the **Google Gemini AI provider**, and **QR-code generation/verification**. The whole stack is packaged and run by the **infrastructure layer** (Docker, Nginx, PHP-FPM, Redis-backed queue workers). Node colours denote *architectural tier*, not delivery phase. This is a *product-perspective* view, not a deployment diagram: it deliberately omits replica counts, ports, and container topology (see the SDD Deployment Architecture for those). High-resolution vector source: [`diagrams/product-perspective.svg`](diagrams/product-perspective.svg); UML sources in [Appendix B](#appendix-b--diagram-sources-mermaid--plantuml).
+
 ### 6.2 Product functions (high level)
 1. Report, triage, assign, and resolve IT service tickets with SLA tracking.
 2. Maintain a complete, auditable inventory of computers, assets, and consumables.
@@ -289,7 +305,8 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | Module | Actions | Administrator | Technician | Teacher |
 |---|---|:--:|:--:|:--:|
 | tickets | view, create, update, delete, assign, comment, vote, export | all | view, update, assign, comment, export | view, create, comment, vote |
-| assets | view, create, update, delete, transfer, dispose | all | view, update, transfer | — |
+| locations | view, create, update, delete | all | — | — |
+| assets | view, create, update, delete, transfer, dispose | all | — | — |
 | maintenance | view, create, update, delete, complete | all | all | — |
 | inventory | view, create, update, delete, adjust | all | view, adjust | — |
 | ai | view, configure, feedback | all | view, feedback | view, feedback |
@@ -301,12 +318,24 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | system | settings.manage, backup.manage, audit.view, announcements.manage | all | — | — |
 
 > This matrix is the **baseline** (seeded). [FR-USER-010](#102-user--role-management-fr-user) permits Administrators to adjust role permissions and per-user overrides at runtime; the baseline is the tested default.
+>
+> **Note on the `locations` module.** It is **Administrator-only** — every action, including `view`. Managing the estate is site administration, not day-to-day work, so Technicians and Teachers reach no part of the module: no directory, tree, dashboard, detail page or edit control, and no read endpoint behind them.
+>
+> Naming a place inside another workflow is a separate, much narrower need (a Teacher saying where a fault is; a Technician recording where work happened). It is served by the **narrow location lookup** ([FR-LOC-011](#103-location-management-fr-loc)), which is authorized by the permission of the *consuming* workflow — `tickets.create`, `maintenance.view` and the like — and never by a `locations.*` permission. An Administrator may still grant `locations.*` to an individual account through per-user overrides ([FR-USER-004](#102-user--role-management-fr-user)) when a deputy genuinely needs it.
+>
+> **Note on the `assets` module.** The same rule applies, for the same reason: maintaining the equipment register is site administration. `assets.*` is **Administrator-only** — including `view` — so Technicians and Teachers reach no part of the Asset Management module: no dashboard, directory, detail page, history, QR management or edit control, and no read endpoint behind them ([FR-AST-013](#108-inventory--asset-lifecycle-fr-ast)).
+>
+> A Technician interacts with equipment **only through their assigned work**: the ticket they were given, the maintenance record they are completing. A Teacher interacts with it only when reporting a fault. Both are served by the **narrow equipment lookup** (FR-AST-013), authorized by `tickets.*` / `maintenance.*` and never by an `assets.*` permission.
+>
+> *(Withdrawn from the earlier baseline: Technicians previously held `view`, `update` and `transfer`. Those grants are revoked by the permission seeder so existing deployments converge on this matrix.)*
 
 ---
 
 ## 9. System Context
 
 ### 9.1 Context (text diagram)
+
+> The rendered, colour-coded system-context view is **[Figure 1](#61-product-perspective)** in [§6.1](#61-product-perspective); the ASCII sketch below is retained as a quick in-line reference and shows the same request path.
 
 ```
                          ┌───────────────────────────────────────────┐
@@ -372,7 +401,7 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | FR-AUTH-015 | On an approval decision, email the applicant that their account has been activated; on a rejection decision, email the applicant that the registration was not approved, including the rejection reason when one was provided. | M | P2 | T |
 | FR-AUTH-016 | Enforce account status centrally (a single account-status middleware) on every authenticated request so that `pending`, `rejected`, `suspended`, and `inactive` accounts are consistently denied access with an appropriate explanation, without duplicating the check across controllers. | M | P2 | T |
 
-> **Note.** FR-AUTH-013–016 realize the Client decision on **[§33 OI-02](#33-open-issues--decisions-requiring-client-approval)** (resolved in v1.1): registration is **request-and-approve**, restricted to Teachers and Technicians. Administrator accounts are provisioned only by existing Administrators (or the documented local dev seeder) and are never self-registerable ([BR-01a](#25-business-rules)). MFA (FR-AUTH-012) remains **Future**.
+> **Note.** FR-AUTH-013–016 realize the Client decision on **[§33 OI-02](#33-open-issues--decisions-requiring-client-approval)** (resolved): registration is **request-and-approve**, restricted to Teachers and Technicians. Administrator accounts are provisioned only by existing Administrators (or the documented local dev seeder) and are never self-registerable ([BR-01a](#25-business-rules)). MFA (FR-AUTH-012) remains **Future**.
 
 ### 10.2 User & Role Management (FR-USER)
 
@@ -407,6 +436,12 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | FR-LOC-003 | Allow Administrators to manage **rooms** within a floor with a `room_type` (laboratory/office/storage/server_room/faculty_room/library/other), unique code, optional room number, capacity (≥ 0), and active flag. | M | P2 | T |
 | FR-LOC-004 | Cascade-soft-delete semantics: deleting a building/floor makes its child floors/rooms unavailable while preserving history; the system shall block deletion where it would orphan in-use PC units/assets/tickets, or reassign them first. | M | P2 | T |
 | FR-LOC-005 | Present rooms, floors, and buildings as selectable location context throughout ticketing, assets, and maintenance. | M | P2 | D |
+| FR-LOC-006 | Present a Location Management surface combining an **estate explorer** (buildings → floors, with per-level counts) and a **server-side directory** for buildings and rooms: pagination, search (building name/code/address; room name/code/number), filtering (room type, availability, archived visibility, and scope to a selected building or floor), and sorting on a fixed allow-list of columns. Selecting a node in the explorer scopes the directory. | M | P2 | T |
+| FR-LOC-007 | Present estate metrics: buildings/floors/rooms totals with active, inactive and archived splits; seated capacity; the room-type mix; and occupancy — PC units placed versus unplaced, rooms holding no PC units, and buildings with no rooms. Metrics shall be computed as database aggregates. | M | P2 | T |
+| FR-LOC-008 | Allow Administrators to take a building or room **out of service** (`is_active = false`) reversibly and without archiving: the record and its history are untouched, but neither it nor — for a building — anything beneath it is offered as location context. Floors carry no separate availability flag; a floor's availability derives from its building. | M | P2 | T |
+| FR-LOC-009 | Where an archive is refused under [FR-LOC-004](#103-location-management-fr-loc), return a machine-readable **blocker report** (counts of live PC units, serialized assets, consumable stock lines and open tickets, plus the specific rooms responsible) and offer **occupant reassignment**: moving a room's live PC units, assets and consumable stock to another room in one transaction. Ticket location is history and is never rewritten — open tickets must be resolved or closed first. | M | P2 | T |
+| FR-LOC-010 | Provide a complete, chronological **audit timeline** per building, floor and room (creation, edits with old→new values, floor moves, activation/deactivation, archive/restore including the cascade counts, and occupant reassignments). | M | P2 | T |
+| FR-LOC-011 | Restrict the **entire Location Management module** — navigation, pages, estate explorer, metrics, directories, building/floor/room detail views, audit timelines and every create/update/activate/deactivate/archive/restore action — to Administrators (`locations.*`), enforced on the server for every request and not merely hidden in the client. Where another workflow needs a location field, expose only a **narrow lookup** confined to that form: it returns the labels of selectable locations (building · floor · room) and nothing else — no counts, capacity, custodianship, timestamps, archived rows or edit affordances — and is authorized by the permission of the workflow that needs it (e.g. `tickets.create`, `maintenance.view`, `assets.transfer`), never by a `locations.*` permission. | M | P2 | T |
 
 ### 10.4 PC Unit & Specification Management (FR-PC)
 
@@ -471,17 +506,37 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | ID | Requirement (the system *shall* …) | Class | Rel | Ver |
 |---|---|:--:|:--:|:--:|
 | FR-AST-001 | Maintain a hardware catalog: manufacturers → hardware components (typed, generic) → hardware models (specific SKU, with JSON specifications). | M | P2 | T |
-| FR-AST-002 | Manage **serialized assets** (1 row = 1 physical unit) with unique asset tag, optional unique serial number, hardware model, supplier, current room, status (in_stock/deployed/in_repair/reserved/in_transit/retired/disposed), condition, purchase price/date (≥0), and warranty. | M | P2 | T |
+| FR-AST-002 | Manage **serialized assets** (1 row = 1 physical unit) with unique asset tag, optional per-unit asset name, optional unique serial number, barcode, hardware model, supplier, current room, assigned custodian, status, condition, purchase price/date (≥0), warranty, notes, and attached images/documents. | M | P2 | T |
 | FR-AST-003 | Manage **quantity-tracked consumables** with unique item code, unit of measure, `quantity_on_hand` (≥0), `reorder_level` (≥0), and unit cost. | M | P2 | T |
 | FR-AST-004 | Record all consumable stock movements in an append-only `stock_transactions` ledger (stock_in/out/adjustment/transfer, non-zero quantity) and keep `quantity_on_hand` consistent with a running `balance_after`. | M | P2 | T |
-| FR-AST-005 | Record every asset status change in `asset_status_history` with actor and reason. | M | P2 | T |
+| FR-AST-005 | Record every asset status change in `asset_status_history` with actor and reason, written in the same transaction as the change itself so no transition can occur unaudited. Enforce a defined transition map — an illegal move is refused, naming the states that *are* reachable — and treat `disposed` as absorbing. Present a **unified asset history** merging creation, status changes, transfers, component installations and removals, maintenance, tickets and QR events into one chronological stream; no historical record is ever updated or deleted. | M | P2 | T |
 | FR-AST-006 | Support asset transfers between rooms (`asset_transfers`), keeping `assets.current_room_id` in sync. | M | P2 | T |
 | FR-AST-007 | Support asset disposal (`disposal_records`) with method (recycled/sold/donated/destroyed/returned/lost), date, optional approver, document reference, and salvage value (≥0); set the asset status to `disposed`. | M | P2 | T |
 | FR-AST-008 | Provide procurement requests with a unique request number, line items (catalog model or free-text, quantity >0, estimated unit price ≥0), and an approval workflow (draft → submitted → approved/rejected → fulfilled/cancelled) with approver, timestamp, and rejection reason. | M | P2 | T |
 | FR-AST-009 | Restrict procurement approval to Administrators (or a permitted role). | M | P2 | T |
 | FR-AST-010 | Raise a low-stock alert/notification when a consumable’s `quantity_on_hand` reaches or falls below its `reorder_level`. | M | P2 | T |
 | FR-AST-011 | Provide filterable, searchable, paginated lists and detail views for assets, consumables, and catalog entities, with export ([FR-RPT-004](#21-reporting-requirements)). | M | P2 | T |
-| FR-AST-012 | Prevent hard-deletion of catalog/reference entities that are in use (RESTRICT); soft-delete assets/consumables to preserve history. | M | P2 | T |
+| FR-AST-012 | Prevent hard-deletion of catalog/reference entities that are in use (RESTRICT); soft-delete assets/consumables to preserve history. Refuse to archive an asset that is still installed inside a PC, or a PC unit that still holds installed components, returning a machine-readable blocker report; archiving and restoring shall lose no history. | M | P2 | T |
+| FR-AST-013 | Restrict the **entire Asset Management module** — navigation, dashboard, catalog, directories, asset and PC detail pages, specifications, history, audit timelines, attachments, QR management and every create/update/status/transfer/assign/archive/restore action — to Administrators (`assets.*`), enforced on the server for every request and not merely hidden in the client. Where another workflow needs to name a piece of equipment, expose only a **narrow lookup** confined to that form: it returns the labels of live equipment (name, identifier, location) and nothing else — no status, condition, purchase price, supplier, custodian, warranty, timestamps, archived rows or edit affordances — and is authorized by the permission of the workflow that needs it (e.g. `tickets.create`, `maintenance.view`), never by an `assets.*` permission. | M | P2 | T |
+| FR-AST-014 | Present an **Asset Management dashboard** as the module's landing surface: totals with per-status counts (total, available, assigned, in service, under maintenance, out of service), warranty expiring inside a configurable window, recently added and recently updated assets, and distributions by status, building, room and category. Every figure shall be navigable — selecting it opens the directory filtered to that figure — and all metrics shall be computed as database aggregates. | M | P2 | T |
+| FR-AST-015 | Provide an **enterprise search** across the asset directory matching a single term against asset name, asset tag, serial number, barcode, PC name, hostname, unit code, manufacturer, catalog model and model number, component name, supplier, building, floor, room, assigned technician, QR code, and the identifiers of components installed in a PC — with server-side pagination, sorting on a fixed allow-list of columns, and filtering by status, condition, category, manufacturer, supplier, location, custodian, warranty window and archived visibility. | M | P2 | T |
+
+> **Asset lifecycle vocabulary.** The `assets.status` domain is
+> `new` · `in_stock` · `reserved` · `deployed` · `in_repair` · `out_of_service` ·
+> `in_transit` · `retired` · `disposed`, presented to operators as **New**,
+> **Available**, **Assigned**, **In Service**, **Maintenance**, **Out of
+> Service**, **In Transit**, **Retired** and **Disposed** respectively. The
+> stored values are the stable contract; the labels are the operational language.
+>
+> **Archived is not a status.** Archiving is a soft delete, orthogonal to the
+> lifecycle: an archived asset retains the status it held when it was archived,
+> which is what makes a restore meaningful ([FR-AST-012](#108-inventory--asset-lifecycle-fr-ast)).
+>
+> **Asset categories.** The `hardware_components.component_type` domain covers
+> whole equipment (`system_unit`, `printer`, `ups`, `network_device`, `scanner`,
+> `projector`), internal components (`cpu`, `motherboard`, `ram`, `gpu`,
+> `storage`, `power_supply`, `network_adapter`, `cooler`, `chassis`), attached
+> devices (`monitor`, `keyboard`, `mouse`, `peripheral`) and `other`.
 
 ### 10.9 Audit & Activity Logging (FR-AUD)
 
@@ -748,8 +803,11 @@ SccIT integrates Google **Gemini** for (a) **ticket triage/analysis**, (b) a **c
 | FR-DSH-005 | Compute KPI widgets from counter caches / efficient aggregates so the dashboard meets [NFR-PERF-008](#13-performance-requirements). | M | P2 | A |
 | FR-DSH-006 | Allow users to enable/disable and reorder their widgets; persist the arrangement. | M | P2 | T |
 | FR-DSH-007 | Render every chart accessibly (labels, legends, non-color encoding) and with a data-table fallback. | M | P2 | T |
+| FR-DSH-008 | Assemble each dashboard **server-side from the caller's effective permissions**: the role selects the layout, and every widget is included only if the caller holds the permission that widget's data belongs to. A payload shall never contain figures the caller is not entitled to see, so no client-side filtering of privileged data is required. | M | P2 | T |
 
 *(Charts follow the project data-visualization guidance: accessible categorical/sequential palettes, consistent in light and dark.)*
+
+> **Delivered in Phase 2.4:** FR-DSH-001, 003, 004, 005, 007 and 008 — the three role dashboards (Administrator operations, Technician queue, Teacher requests), computed from database aggregates and served through a single permission-gated endpoint. Distributions are rendered as labelled proportional rows whose markup *is* the data table (no charting dependency, no colour-only encoding). **Deferred:** FR-DSH-002 and FR-DSH-006 — per-user widget selection, ordering and persistence; the `dashboard_widgets` table is reserved for them and is untouched.
 
 ---
 
@@ -840,7 +898,7 @@ SccIT integrates Google **Gemini** for (a) **ticket triage/analysis**, (b) a **c
 | ID | Business Rule |
 |---|---|
 | BR-01 | The three system roles (Administrator, Technician, Teacher) are seeded, `is_system`, and cannot be deleted. |
-| BR-01a | Only **Teacher** and **Technician** accounts may be created via the public registration-request workflow; **Administrator** accounts are never self-registerable and are provisioned only by an existing Administrator (or the documented local dev seeder). A registration request is created `pending` and cannot authenticate until an Administrator approves it. *(OI-02, resolved v1.1.)* |
+| BR-01a | Only **Teacher** and **Technician** accounts may be created via the public registration-request workflow; **Administrator** accounts are never self-registerable and are provisioned only by an existing Administrator (or the documented local dev seeder). A registration request is created `pending` and cannot authenticate until an Administrator approves it. *(OI-02, resolved.)* |
 | BR-02 | A user holds exactly one role; effective permissions = role permissions adjusted by per-user grant/deny overrides. *(Multi-role is a flagged future decision — [§33 OI-01](#33-open-issues--decisions-requiring-client-approval).)* |
 | BR-03 | Every ticket has a role-neutral reporter who is a registered, non-deleted user; there is no anonymous ticket submission in P2. |
 | BR-04 | Each ticket always has exactly one current status; exactly one status is the system default (`Open`). |
@@ -893,6 +951,14 @@ An administrator at a new (non-school) deployment sets the organization name, up
 
 ## 27. Use Cases
 
+![SccIT System Use Case Diagram](diagrams/use-case-diagram.png)
+
+**Figure 2. System Use Case Diagram.** A single UML use-case model of the whole platform inside one system boundary — *the AI-Powered School IT Asset & Service Management System* — drawn to standard UML notation: **stickman actors** outside the boundary, use-case **ovals** inside it, solid **associations**, and an `«extend»` relationship. **Human actors** on the left are the *Public Visitor* (unauthenticated) and the three signed-in roles — *Teacher/Requester*, *Technician*, and *Administrator*. No abstract actor or actor generalization is used: each concrete role is **connected directly** to every common use case it performs (log out, change password, manage profile, view dashboard, track/comment on tickets, use AI, manage notifications), which keeps the model immediately readable. **External/system actors** on the right are the *AI Provider*, the *Email Service*, the *Notification Service*, and the *QR Scanner*, each associated with the use cases it serves. The diagram represents the **complete specified functional scope** — authentication & registration, profile & password management, dashboards, the full ticket lifecycle (submit, assign, track, comment, resolve), asset · inventory · PC-unit · procurement management, QR-code management and scanning, corrective and preventive maintenance, AI troubleshooting · knowledge base · recommendations, locations and floor plan, notifications and announcements, reports · analytics · audit logs, user · role management, and system settings. Relationships shown are actor **generalization** (the three roles are a *User*) and a single `«extend»` — *Attach Files* optionally extends *Submit Ticket*.
+
+> This is a *requirements* model: it depicts the **complete required behaviour** of the specified system and carries **no implementation-status, delivery-phase, or roadmap annotations** (delivery sequencing is tracked in the SPMP, not this SRS). Every use case traces to functional requirements in [§10](#10-functional-requirements)–[§23](#23-system-settings-requirements); account provisioning uses the **registration-request + Administrator-approval** workflow ([FR-AUTH-013..016](#101-authentication--session-management-fr-auth)), so *Approve Registration* is an Administrator use case and there is no separate self-service email-verification use case (approval stamps verification). Administrators additionally hold all permissions ([§8.1](#81-administrator)). The condensed use-case narratives (**UC-01 … UC-14**) below elaborate the principal flows. High-resolution vector source: [`diagrams/use-case-diagram.svg`](diagrams/use-case-diagram.svg); UML source in [Appendix B](#appendix-b--diagram-sources-mermaid--plantuml).
+
+### 27.1 Use-case summaries
+
 Format: **UC-n — Name** · *Actor(s)* · Pre → Main flow → Post; key alternates. Traces to FRs.
 
 **UC-01 — Submit ticket.** *Reporter.* Pre: authenticated. Flow: open form → fill required fields → attach files → submit. Post: ticket created with number/uuid, default status, SLA due times, reporter set; activity + notification emitted. Alt: validation error returns field messages. *(FR-TKT-001..008)*
@@ -924,6 +990,144 @@ Format: **UC-n — Name** · *Actor(s)* · Pre → Main flow → Post; key alter
 **UC-13 — Publish announcement.** *Administrator.* Flow: compose → target audience → schedule window → publish. Post: shown to audience. *(FR-NOT-010/011)*
 
 **UC-14 — Recover access (forgot password).** *Any user.* Flow: request reset → receive token link → set new password. Post: sessions invalidated; login recorded. *(FR-AUTH-008/011)*
+
+### 27.2 Detailed Use Case Specifications
+
+These specifications elaborate the principal use cases end-to-end in the ISO/IEC/IEEE 29148 style — **Preconditions, Trigger, Main Flow, Alternate Flows, Exceptions, Postconditions** — including UI/page touchpoints, AI decision points, database effects, notifications, and role redirects. Every specification traces to the functional requirements ([§10](#10-functional-requirements)–[§23](#23-system-settings-requirements)) and the physical data model (`database_design_v2.dbml`); nothing here introduces behaviour beyond the defined scope. The authentication, registration-approval, profile, and password flows are **implemented (Phase 2.2–2.3)**; ticketing, assignment, maintenance, QR, assets, and AI flows are **specified and scaffolded** for their respective phases ([§3.4](#34-release-phasing-summary)).
+
+**UCS-01 — Log In & Role-Based Redirect.**
+- **Primary actor:** Teacher/Requester, Technician, or Administrator (a registered user). **Secondary actors:** Email Service, Notification Service.
+- **Preconditions:** the person has an `active` account; the SPA is loaded over the single HTTPS origin.
+- **Trigger:** the user submits the login form (email + password).
+- **Main flow:** (1) user submits email (case-insensitive) + password; (2) system verifies the salted hash and establishes a Sanctum SPA cookie session ([FR-AUTH-001/002](#101-authentication--session-management-fr-auth)); (3) the attempt is written to `login_history` with outcome, IP, user-agent, browser, platform (FR-AUTH-005); (4) `last_login_at`/`last_login_ip` updated (FR-AUTH-007); (5) the account-status middleware confirms `active` (FR-AUTH-016); (6) the user is redirected to the role dashboard — Teacher → Teacher Dashboard, Technician → assigned-work queue, Administrator → operations overview ([FR-DSH-001](#20-dashboard-requirements)).
+- **Alternate flows:** *A1 —* `force_password_reset` set → mandatory change-password step before any feature (FR-USER-016). *A2 —* status `pending`/`rejected`/`suspended`/`inactive` → sign-in denied; the legitimate holder may see the status reason, e.g. "awaiting administrator approval" (FR-AUTH-004).
+- **Exceptions:** *E1 —* invalid credentials → non-disclosing error, attempt logged `failed`. *E2 —* after the configurable threshold of consecutive failures (default 5) the account locks for a window (default 15 min), the lockout is recorded, and an email is sent (FR-AUTH-006).
+- **Postconditions:** an authenticated session exists; the user is on their role dashboard; the attempt is auditable.
+- **Traceability:** FR-AUTH-001..007/016, FR-DSH-001 · `users`, `login_history`, `sessions`.
+
+**UCS-02 — Submit a Ticket (with AI Analysis & Priority Recommendation).**
+- **Primary actor:** Teacher/Requester (Technicians/Administrators may raise on behalf). **Secondary actors:** AI Provider, Notification Service.
+- **Preconditions:** authenticated; ticket categories/priorities seeded.
+- **Trigger:** the requester opens "Report an issue" and submits the form.
+- **Main flow:** (1) from the dashboard feed the requester searches existing tickets to avoid duplicates ([FR-TKT-014](#105-ticketing--itsm-fr-tkt)), and may upvote/comment instead (FR-TKT-009/007); (2) fills title, description, category, optional room and PC unit, tags (FR-TKT-001); (3) optionally attaches files/images — **«extend» Attach Files** — with server-side MIME + size validation, stored outside the web root with a SHA-256 checksum (FR-TKT-008); (4) on submit the system creates the ticket with `ticket_number` + `uuid`, status `Open`, `reporter_id`, and derives `response_due_at`/`resolution_due_at` from the priority SLA (FR-TKT-002/004); (5) the system **enqueues an asynchronous AI analysis job** so the request never blocks ([FR-AI-021](#173-ai-functional-requirements)); (6) AI produces category, severity, estimated minutes, `technician_required`, summary, and ordered troubleshooting recommendations with a confidence score, logged to `ai_analysis_logs`/`ai_recommendations`, and updates the ticket's `ai_summary`/`ai_confidence` snapshot (FR-AI-001/002); (7) AI **recommends a priority** from severity + the ticket's location context (room type — laboratory/office — and administrator-configured priority locations) + asset criticality, as an **advisory** value (FR-AI-001, FR-CFG-006, FR-AI-010); (8) an activity entry and a notification are emitted (FR-TKT-012, FR-NOT-003).
+- **Alternate flows:** *A1 —* duplicate found → requester upvotes the canonical ticket; no new ticket. *A2 —* AI disabled/unreachable → the ticket proceeds normally, the AI panel shows an unavailable state, analysis retries later (FR-AI-020/022).
+- **Exceptions:** *E1 —* validation error → field messages. *E2 —* attachment rejected (type/size) → error; the ticket is still submittable without it.
+- **Postconditions:** a ticket exists in `Open`; an advisory AI analysis + priority recommendation are attached; the reporter can track it.
+- **Traceability:** FR-TKT-001/002/004/007/008/009/012/014, FR-AI-001/002/010/021, FR-NOT-003 · `tickets`, `attachments`, `ai_analysis_logs`, `ai_recommendations`, `ticket_updates`.
+
+**UCS-03 — AI-Assisted Troubleshooting & Escalation.**
+- **Primary actor:** Teacher/Requester (also Technician). **Secondary actor:** AI Provider.
+- **Preconditions:** a submitted ticket with AI analysis, or the assistant opened from any page.
+- **Trigger:** AI presents troubleshooting steps, or the user opens the floating assistant.
+- **Main flow:** (1) the **floating AI assistant — available to every authenticated user on every page** — presents grounded, ordered troubleshooting steps (FR-AI-003/004); (2) the requester works the steps and marks them complete (`ai_recommendations.is_completed`) (FR-AI-003); (3) the requester **confirms whether the issue is resolved**; (4) *if resolved* → the ticket is resolved/closed on the requester's confirmation; the conversation + feedback are logged (FR-AI-008); (5) *if unresolved* → the ticket is **escalated** into the triage/assignment queue with the AI recommendation (priority/category/summary) attached for human review — **AI never auto-assigns or auto-closes** (FR-AI-010/032).
+- **Alternate flows:** *A1 —* the user rates the answer (helpful flag, 1–5) (FR-AI-008).
+- **Exceptions:** *E1 —* provider error/timeout → retry with backoff; the assistant shows a non-blocking unavailable state (FR-AI-020/022).
+- **Postconditions:** the issue is resolved by self-service, or the ticket is queued for assignment with AI context; every AI turn is logged.
+- **Traceability:** FR-AI-003/004/007/008/010/020/022/032 · `ai_conversation_logs`, `ai_recommendations`, `ai_feedback`, `tickets`.
+
+**UCS-04 — Approve / Reject Registration.** *(Implemented — Phase 2.2/2.3.)*
+- **Primary actor:** Administrator. **Secondary actor:** Email Service.
+- **Preconditions:** a prospective Teacher/Technician submitted a registration request; the account is `pending` and cannot sign in ([FR-AUTH-013](#101-authentication--session-management-fr-auth)).
+- **Trigger:** the Administrator opens the registration-review queue.
+- **Main flow:** (1) the admin reviews the request and may **edit** profile fields / the self-registerable role before deciding (FR-USER-019); (2) the admin **approves** → account `active`, sign-in enabled, or **rejects** → account `rejected` with `rejection_reason`, `rejected_by`, `rejected_at` (FR-AUTH-014); (3) the system **emails the applicant the decision** (activation, or rejection with reason) (FR-AUTH-015); (4) the decision is recorded in the activity/audit trail (FR-AUD-003).
+- **Alternate flows:** *A1 —* resend the decision email (FR-USER-016).
+- **Exceptions:** *E1 —* self-safety and last-active-admin invariants block unsafe changes (FR-USER-018).
+- **Postconditions:** the applicant is `active` or `rejected`; the decision is auditable; the applicant is notified.
+- **Traceability:** FR-AUTH-013..016, FR-USER-016/018/019, FR-AUD-003 · `users`, `activity_logs`, `audit_logs`.
+
+**UCS-05 — Assign Ticket (Triage, AI Review, Override).**
+- **Primary actor:** Administrator (and permitted Technician). **Secondary actor:** Notification Service.
+- **Preconditions:** an `Open` ticket exists (frequently from an escalation).
+- **Trigger:** the admin opens a ticket in the triage feed.
+- **Main flow:** (1) the admin reviews the ticket and the **AI recommendation** (priority/category/summary) (FR-AI-001); (2) the admin **accepts or overrides** the AI-recommended priority/category — the human decision is authoritative (FR-AI-010/032); (3) the admin **assigns a technician**, creating exactly one active `technician_assignments` record, setting `assigned_technician_id`, and moving the ticket to `Assigned` (FR-ASN-001/002); (4) the system notifies the technician (FR-ASN-005, FR-NOT-003).
+- **Alternate flows:** *A1 —* reassign/cancel. *A2 —* the admin configures priority laboratories/offices to tune future AI priority recommendations (FR-CFG-006).
+- **Exceptions:** *E1 —* the one-active-assignment invariant prevents a second active assignment (FR-ASN-002).
+- **Postconditions:** exactly one active assignment; the technician is notified; the transition is recorded in `ticket_status_history`.
+- **Traceability:** FR-ASN-001/002/005, FR-AI-001/010/032, FR-TKT-005 · `tickets`, `technician_assignments`, `ticket_status_history`.
+
+**UCS-06 — Resolve Ticket / On-Site Maintenance (QR Verify · Evidence · Checklist).**
+- **Primary actor:** Technician. **Secondary actors:** QR Scanner, Notification Service.
+- **Preconditions:** an assignment exists for the technician; the target PC unit has an active QR code.
+- **Trigger:** the technician opens an assigned ticket and starts work.
+- **Main flow:** (1) the technician **accepts** the assignment, or declines with a reason (FR-ASN-004); (2) **starts work** → ticket `In Progress`, `first_response_at` stamped (FR-TKT-006); (3) reviews full ticket details and AI troubleshooting recommendations ([FR-PC-006](#104-pc-unit--specification-management-fr-pc), FR-AI-003); (4) on-site, **scans the QR code** on the PC unit; the system verifies and resolves the target, classifying the scan (success/invalid/mismatch/expired) and logging it to `qr_scan_logs` (FR-QR-005/006); (5) performs the repair, adding **internal notes** and status updates (FR-TKT-007); (6) **captures repair evidence** — before/during/after images, including a **technician selfie with the repaired unit** — uploaded as `repair_images` (FR-MNT-005); (7) **records maintenance performed** (diagnosis, root cause, resolution, downtime, labor, cost) and any **hardware replacement**, updating the PC installation history (FR-MNT-003/006); (8) the system updates **asset status history** and restores the PC's status/condition (FR-AST-005, FR-MNT-008); (9) completes the **required checklist** (enforced before completion) (FR-MNT-004); (10) **completes the work** → ticket `Resolved`, `resolved_at` stamped, reporter/admin notified (FR-ASN-005, FR-TKT-006, FR-NOT-003).
+- **Alternate flows:** *A1 —* QR mismatch/expired → reconcile the asset or reassign (FR-QR-006). *A2 —* put the assignment on hold.
+- **Exceptions:** *E1 —* a required checklist item is incomplete → completion is blocked (FR-MNT-004).
+- **Postconditions:** the ticket is resolved; the maintenance record, evidence, and asset history are complete; notifications are sent.
+- **Traceability:** FR-ASN-004/005, FR-TKT-005/006/007, FR-QR-005/006, FR-MNT-003/004/005/006/008, FR-AST-005 · `technician_assignments`, `maintenance_records`, `maintenance_checklists`, `repair_images`, `hardware_replacements`, `qr_scan_logs`, `asset_status_history`.
+
+**UCS-07 — Schedule & Perform Preventive Maintenance.**
+- **Primary actor:** Technician (schedule configured by Administrator). **Secondary actor:** Notification Service.
+- **Preconditions:** PC units/assets exist; the PM interval/reminder is configured (defaults 90/7 days).
+- **Trigger:** a PM-due reminder, or manual scheduling.
+- **Main flow:** (1) the system generates **PM-due reminders** from `maintenance.default_interval_days` + `reminder_days` (FR-MNT-007) and notifies technicians (FR-NOT-003); (2) a **preventive maintenance record** (no originating ticket, `scheduled_for` set) is created (FR-MNT-002); (3) the technician performs the maintenance following the **checklist template** for the type (FR-MNT-004); (4) completion updates histories, cost/downtime, and PC status (FR-MNT-003/008).
+- **Alternate flows:** *A1 —* reschedule/cancel.
+- **Postconditions:** the PM is recorded; the next PM cycle is derivable; histories are updated.
+- **Traceability:** FR-MNT-002/003/004/007/008, FR-NOT-003 · `maintenance_records`, `checklist_templates`, `maintenance_windows`.
+
+**UCS-08 — Search Knowledge Base (AI / RAG).**
+- **Primary actor:** Teacher/Requester, Technician. **Secondary actor:** AI Provider.
+- **Preconditions:** authenticated; published knowledge-base articles exist.
+- **Trigger:** the user searches the knowledge base or asks the assistant.
+- **Main flow:** (1) the user enters a query; the system retrieves top-k relevant context via **vector similarity** over `ai_embeddings` (RAG) (FR-AI-006/007); (2) the assistant returns an answer/articles grounded in the retrieved sources **with citations**; only *published* articles are visible to Teachers (FR-AI-005/007); (3) the conversation is logged and the user may give feedback (FR-AI-004/008).
+- **Alternate flows:** *A1 —* no relevant content → the assistant offers to open a ticket.
+- **Exceptions:** *E1 —* provider unavailable → non-blocking unavailable state (FR-AI-020).
+- **Postconditions:** the user is assisted; the conversation + feedback are logged.
+- **Traceability:** FR-AI-004/005/006/007/008 · `ai_knowledge_articles`, `ai_embeddings`, `ai_conversation_logs`, `ai_feedback`.
+
+**UCS-09 — Manage Profile & Password.** *(Implemented — Phase 2.2/2.3.)*
+- **Primary actor:** any authenticated user. **Secondary actor:** Email Service.
+- **Preconditions:** an authenticated session.
+- **Trigger:** the user opens their profile/security settings.
+- **Main flow:** (1) the user views/edits their profile (name, contact number, profile picture, locale/theme) — **not** their own role or permissions (FR-USER-008); (2) the user **changes password** after re-entering the current password; other active sessions are invalidated (FR-AUTH-011).
+- **Alternate flows:** *A1 —* forgot password (unauthenticated) → reset via a single-use, time-limited token emailed to the user (FR-AUTH-008).
+- **Exceptions:** *E1 —* a password that fails the policy is rejected (FR-AUTH-003).
+- **Postconditions:** the profile/password is updated; sessions are consistent; the change is audited.
+- **Traceability:** FR-USER-008, FR-AUTH-003/008/011, FR-AUD-003 · `users`, `password_reset_tokens`, `sessions`, `activity_logs`.
+
+**UCS-10 — Track Ticket & Receive Notifications.**
+- **Primary actor:** Teacher/Requester (Technician/Administrator analogously). **Secondary actors:** Notification Service, Email Service.
+- **Preconditions:** the user has related tickets.
+- **Trigger:** a ticket event (assignment, status change, comment, SLA breach), or the user opens the notification center.
+- **Main flow:** (1) the system emits notifications for ticket assigned/reassigned, status change, new comment, and SLA breach/nearing, delivered **in-app + email** per the user's channel preferences (FR-NOT-001/002/003); (2) the user opens the **notification center** (unread badge), reads/filters, and opens the referenced ticket (FR-NOT-001/004/005); (3) Teachers see only their own tickets and their comments/upvotes ([FR-TKT-013](#105-ticketing--itsm-fr-tkt)).
+- **Alternate flows:** *A1 —* a daily digest email aggregates unread items (FR-NOT-008).
+- **Exceptions:** *E1 —* email-transport failure → the in-app notification is still delivered.
+- **Postconditions:** the user is informed; read state is persisted.
+- **Traceability:** FR-NOT-001..006/008, FR-TKT-013/017 · `notifications`, `notification_preferences`, `tickets`.
+
+### 27.3 Operational Workflow Activity Diagrams
+
+The following UML **activity diagrams** model the end-to-end operational flow — from login to completion — for each principal role and for the system-wide AI, complementing the specifications in [§27.2](#272-detailed-use-case-specifications). They share one visual convention: rounded **start/end** nodes, rectangular **actions**, amber **decision** diamonds, green **database effects** (persisted writes), pink **notification effects**, and violet **AI steps**. Every step traces to the requirements cited beneath each figure. (High-resolution vector sources accompany each PNG in `docs/diagrams/`.)
+
+![SccIT Teacher / Requester workflow](diagrams/activity-teacher.png)
+
+**Figure 3. Teacher / Requester Workflow — Activity Diagram.** Log in → Teacher Dashboard (Reddit-style ticket feed of the requester's own tickets, with upvotes and comments) → search existing tickets first (upvote/comment on a duplicate) → fill and submit a ticket with optional attachments → the system creates the ticket (`Open`) and queues **asynchronous AI analysis**, which recommends a priority → the AI assistant shows troubleshooting steps → the teacher confirms **resolved** (ticket closed) or **unresolved** (escalated to the triage/assignment queue with the AI recommendation attached) → track progress and receive notifications. *(FR-TKT-001/007/008/009/012/014, FR-AI-001/003/010/021, FR-NOT-003; see [UCS-02](#272-detailed-use-case-specifications), UCS-03.)*
+
+![SccIT Technician workflow](diagrams/activity-technician.png)
+
+**Figure 4. Technician Workflow — Activity Diagram.** Log in → Technician Dashboard (only tickets assigned to the technician) → accept (or decline with a reason) → start work (`In Progress`) → review details + AI recommendations → **scan the PC's QR code** to verify the correct, active asset → perform the repair with internal notes → **capture and upload repair evidence** (before/during/after images including a technician selfie with the repaired unit) → record maintenance, any hardware replacement, and asset status history → complete the **required checklist** → close the work (`Resolved`) → notify the reporter and Administrator. *(FR-ASN-004/005, FR-TKT-005/006/007, FR-QR-005/006, FR-MNT-003/004/005/006/008, FR-AST-005; see UCS-06.)*
+
+![SccIT Administrator workflow](diagrams/activity-admin.png)
+
+**Figure 5. Administrator Workflow — Activity Diagram.** Log in → Administrator Dashboard (real-time overview of tickets, technicians, assets, inventory, maintenance, analytics, notifications, and system health; Reddit-style ticket feed) → branch into: **review & approve/reject registrations** (email decision); **review AI recommendations**, optionally **override**, and **assign a technician**; **configure priority laboratories/offices** (which feed the AI priority recommendation); **administration & oversight** (users, roles & permissions, assets, locations, floor plans, inventory, QR codes, preventive-maintenance schedules, procurement, announcements); and **reports/analytics/audit logs** and system settings. *(FR-AUTH-014/015, FR-USER-*, FR-ASN-001, FR-AI-001/010/032, FR-CFG-*, FR-DSH-*, FR-RPT-*, FR-AUD-004; see UCS-04, UCS-05.)*
+
+![SccIT system-wide AI behavior](diagrams/activity-ai.png)
+
+**Figure 6. System-Wide AI Behavior — Activity Diagram.** Two entry triggers: an authenticated user opening the **assistant** (RAG knowledge-base answer with citations, logged) and a **ticket submission / on-demand analysis**. For analysis the system checks AI availability (**graceful degradation** if disabled/unreachable), builds a **minimized, PII-redacted** prompt, analyzes the ticket, recommends a priority from severity + priority location + asset criticality, gates on the **confidence threshold (0.70)**, presents **advisory** troubleshooting, and either closes on self-service resolution or **escalates to human triage** — the AI never auto-assigns or auto-closes. All analyses and recommendations are logged. *(FR-AI-001..010/020..022/030..034; see [§27.4](#274-system-wide-ai-behavior).)*
+
+### 27.4 System-Wide AI Behavior
+
+The AI subsystem is **advisory, configurable, and grounded in the organization's own data (RAG)**. It never performs irreversible or state-changing operations autonomously; every AI output requires human confirmation ([FR-AI-032](#173-ai-functional-requirements)). The following behaviours apply system-wide and are each fully traceable to the AI requirements ([§17](#17-ai-requirements)):
+
+- **Conversational assistant on every page.** A persistent AI assistant (the floating bottom-left chatbot) is available to **every authenticated user** on every page, for troubleshooting and knowledge-base questions, grounded in retrieved knowledge with citations. *(FR-AI-004 · `ai_conversation_logs`.)*
+- **AI troubleshooting assistant.** For a reported problem the assistant presents grounded, ordered troubleshooting steps that the requester can mark complete. *(FR-AI-003 · `ai_recommendations`.)*
+- **AI ticket analysis.** On submission (or on demand) an **asynchronous** job produces category, severity, estimated resolution minutes, a `technician_required` flag, a summary, and a confidence score — cached on the ticket and retained in full history. *(FR-AI-001/002/021 · `ai_analysis_logs`.)*
+- **AI priority recommendation.** The AI recommends a ticket priority from the analyzed **severity**, the ticket's **location context** (room type — laboratory/office — and administrator-configured **priority locations**), and **asset criticality**. The recommendation is advisory; Administrators may override it and configure which locations are high-priority. *(FR-AI-001, FR-CFG-006, FR-AI-010 · `tickets`, `rooms`, `system_settings`.)*
+- **AI knowledge-base search (RAG).** Queries retrieve top-k relevant context via **vector similarity** over embeddings and answer with **cited sources**; only *published* articles are visible to Teachers. *(FR-AI-005/006/007 · `ai_knowledge_articles`, `ai_embeddings`.)*
+- **AI maintenance recommendations.** From resolved tickets and maintenance history the AI can suggest preventive actions and (opt-in) per-PC **predictive-maintenance** predictions; these ship **disabled by default**. *(FR-AI-011/013 · `ai_predictions`, `ai_failure_patterns`.)*
+- **AI escalation logic.** When self-service troubleshooting does not resolve an issue, the ticket is **escalated** into the human triage/assignment queue with the AI recommendation attached. The AI surfaces and recommends; it does **not** autonomously assign, close, or change permissions. *(FR-AI-010/032, FR-ASN-001.)*
+- **AI recommendation logging.** Every analysis, recommendation, conversation turn, and feedback item is **logged** under the same retention and access controls as other PII-bearing data, and AI-generated content is **labelled** as such. *(FR-AI-004/008/031/034 · `ai_analysis_logs`, `ai_recommendations`, `ai_conversation_logs`, `ai_feedback`.)*
+
+**Reliability & governance.** If AI is disabled or the provider is unreachable, all non-AI workflows remain fully functional and AI surfaces show a clear, **non-blocking unavailable** state; analysis and embedding run asynchronously and retry with backoff; prompts and embedded content are **minimized and PII-redacted**; and external AI processing is transparent to, and disable-able by, Administrators. *(FR-AI-020/021/022/030/033.)*
 
 ---
 
@@ -991,11 +1195,14 @@ The physical data model is authoritatively specified in `docs/database/database_
 | DR-012 | Ensure uniqueness constraints prevent double-votes, duplicate active assignments, duplicate active layouts, duplicate embeddings, and one-feedback-per-user-per-recommendation. | T |
 | DR-013 | Store money as `numeric(12,2)`, IPs as `inet`, email as `citext`, and semi-structured data as `jsonb`. | I |
 | DR-014 | Support configurable retention/archival of high-volume logs and PII, with lawful-erasure hard purge. | T |
-| DR-015 | Model the account lifecycle on `users.status` ∈ {`pending`, `active`, `rejected`, `suspended`, `inactive`} enforced by a CHECK constraint mirrored by the `UserStatus` PHP enum; retain rejected registration requests with `rejection_reason`, `rejected_by` (actor), and `rejected_at` for audit. *(OI-02, resolved v1.1.)* | T |
-| DR-016 | Carry three additive, backward-compatible operational columns on `users`: `force_password_reset` (boolean, default false), `password_changed_at` (timestamptz, nullable), and `registration_source` (varchar, nullable — `self`/`admin`/`seed`). Account lockout and last-activity are **derived** (Redis RateLimiter + `login_history`; `activity_logs`), not stored. Trigram (`pg_trgm`) GIN indexes on name/employee-number accelerate directory search. *(Phase 2.3, v1.2.)* | T |
+| DR-015 | Model the account lifecycle on `users.status` ∈ {`pending`, `active`, `rejected`, `suspended`, `inactive`} enforced by a CHECK constraint mirrored by the `UserStatus` PHP enum; retain rejected registration requests with `rejection_reason`, `rejected_by` (actor), and `rejected_at` for audit. *(OI-02, resolved.)* | T |
+| DR-016 | Carry three additive, backward-compatible operational columns on `users`: `force_password_reset` (boolean, default false), `password_changed_at` (timestamptz, nullable), and `registration_source` (varchar, nullable — `self`/`admin`/`seed`). Account lockout and last-activity are **derived** (Redis RateLimiter + `login_history`; `activity_logs`), not stored. Trigram (`pg_trgm`) GIN indexes on name/employee-number accelerate directory search. *(Phase 2.3.)* | T |
+| DR-017 | Carry one additive, backward-compatible column on `floors`: `uuid` (unique, `gen_random_uuid()` default, backfilled). `buildings` and `rooms` were created with a public `uuid`; `floors` was not, because it was originally an internal child table. Exposing floor management ([FR-LOC-002](#103-location-management-fr-loc)) requires a stable public identifier, since numeric primary keys never appear in URLs or payloads ([NFR-SEC-001](#12-security-requirements)). No existing column is renamed, retyped or removed. *(Phase 2.4.)* | T |
+| DR-018 | Record the **cascade receipt** for a location archive in the existing `deleted_at` columns: one timestamp is computed per cascade and written to the building, its floors and its rooms, so a restore reverses exactly those rows and a separately-archived child keeps its own, different stamp. Because `deleted_at` is second-precision, the cascade stamp is advanced until no descendant already carries it. No column is added for this. *(Phase 2.4; realizes [FR-LOC-004](#103-location-management-fr-loc).)* | T |
+| DR-019 | Derive all dashboard figures from the authoritative operational tables at read time (tickets and `ticket_statuses.is_open`/`is_terminal`, `technician_assignments`, `maintenance_records`, `assets`, `consumables`, `announcements`, `activity_logs`, plus the users and locations aggregates). Dashboards store nothing of their own and add no tables; the per-user payload is cached for 30 seconds to meet [NFR-PERF-008](#13-performance-requirements). *(Phase 2.4.)* | A |
 
 ### 29.3 Reference/seed data (baseline)
-The system ships with seeded roles, the permission matrix ([§8.4](#84-seeded-permission-matrix-baseline)), ticket categories (Hardware, Software, Network, Peripheral, Account & Access, Other), priorities and SLAs ([BR-05](#25-business-rules)), statuses (Open→Cancelled with open/terminal flags), maintenance types (Preventive, Corrective, Hardware Upgrade, Inspection, Cleaning), AI models (Gemini 1.5 Flash; text-embedding-004/768), AI defaults (threshold 0.70; advanced features off), and system settings across all groups. A non-production demo seeder provides sample data; it must never run in production.
+The system ships with seeded roles, the permission matrix ([§8.4](#84-seeded-permission-matrix-baseline)) — including the `locations` module — ticket categories (Hardware, Software, Network, Peripheral, Account & Access, Other), priorities and SLAs ([BR-05](#25-business-rules)), statuses (Open→Cancelled with open/terminal flags), maintenance types (Preventive, Corrective, Hardware Upgrade, Inspection, Cleaning), AI models (Gemini 1.5 Flash; text-embedding-004/768), AI defaults (threshold 0.70; advanced features off), and system settings across all groups. A non-production demo seeder provides sample data; it must never run in production.
 
 ---
 
@@ -1055,6 +1262,20 @@ General acceptance patterns plus representative Given/When/Then criteria. Each F
 - **AC-ASN-002 (FR-ASN-002):** *Given* a ticket with an active assignment, *when* a second active assignment is attempted, *then* it is rejected (DB partial-unique enforced).
 - **AC-MNT-006 (FR-MNT-006):** *Given* a maintenance record, *when* a technician records replacing a part with a specific serialized asset, *then* the hardware replacement is stored, the PC’s installation history updates, and the replaced asset is no longer marked installed in that PC.
 - **AC-AST-004 (FR-AST-003/004/010):** *Given* a consumable at quantity 3 with reorder level 3, *when* a stock_out of 1 is recorded, *then* `quantity_on_hand` = 2, `balance_after` = 2, and a low-stock notification is raised; a stock_out that would make quantity negative is rejected.
+- **AC-AST-005 (FR-AST-005):** *Given* an asset in **Available**, *when* an Administrator moves it to **In Service** with a reason, *then* an `asset_status_history` row records the from/to states, the actor and the reason, **and** an `activity_logs` entry is written in the same transaction; *and when* the same status is submitted again, *then* no duplicate history row is created. *Given* an asset in **Disposed**, *when* any transition is attempted, *then* the request is refused with 422 stating that it is a final state.
+- **AC-AST-005b (FR-AST-005/012):** *Given* an asset with status changes, transfers and a QR code, *when* its history is requested, *then* one chronological stream returns entries of every type, newest first; *and when* the asset is archived and its history requested again, *then* no entry has been lost.
+- **AC-AST-006 (FR-AST-006):** *Given* an asset in a room, *when* it is transferred, *then* `assets.current_room_id` and an `asset_transfers` row are written in one transaction; *and given* a **Disposed** asset, *then* the transfer is refused with 422.
+- **AC-AST-012 (FR-AST-012):** *Given* an asset installed inside a PC unit, *when* an Administrator archives it, *then* the request is refused with 422 and a blocker report naming the host machine, and nothing is archived; *and when* the component is removed, *then* the archive succeeds and a restore returns the asset with the status it held.
+- **AC-AST-013 (FR-AST-013):** *Given* a Technician or Teacher, *when* they sign in, *then* no Assets navigation item is present; *and when* they request any Asset Management page URL directly, *then* the Forbidden (403) surface is shown; *and when* they call any `/admin/assets` or `/admin/pc-units` endpoint directly, *then* the response is **403**; *and* the narrow equipment lookup remains **200** for them, returning labels only — never status, price, supplier or custodian.
+- **AC-AST-014 (FR-AST-014):** *Given* assets across several buildings and statuses, *when* the asset dashboard is opened, *then* each figure matches a database aggregate; *and when* a status tile or a building row is selected, *then* the directory opens filtered to exactly that set.
+- **AC-AST-015 (FR-AST-015):** *Given* an asset whose manufacturer, supplier, room, custodian and QR code are all set, *when* any one of those values is searched for, *then* that asset is returned and unrelated assets are not; *and* a search term containing `%` matches the literal character; *and* a `sort` value outside the allow-list is rejected with 422.
+- **AC-PC-003 (FR-PC-003):** *Given* a PC unit, *when* its specification is edited, *then* every field round-trips and the change is audited with a field-level old→new diff visible on the PC's timeline; *and* a blank value is stored as "not recorded" rather than an empty string.
+- **AC-QR-001 (FR-QR-001/002/007):** *Given* a PC unit with no label, *when* a QR code is generated, *then* exactly one target is bound, `pc_units.qr_identifier` matches the new code, and a printable SVG is returned; *and when* the code is regenerated, *then* the previous code becomes `revoked` — not deleted — and its scan history still resolves.
+- **AC-LOC-004 (FR-LOC-004/009):** *Given* a room holding a live PC unit, *when* an Administrator archives it, *then* the request is refused with a blocker report naming the room and its live occupants, and nothing is archived; *and when* those occupants are reassigned to another room, *then* the archive succeeds. *Given* a room whose only blocker is an open ticket, *then* no reassignment is offered and the refusal states the ticket must be resolved or closed first.
+- **AC-LOC-004b (FR-LOC-004):** *Given* a building archived with its floors and rooms, *when* it is restored, *then* exactly the rows archived with it return — a room archived separately beforehand stays archived.
+- **AC-LOC-005 (FR-LOC-005/008):** *Given* a building that is inactive or archived, *when* any role opens the location lookup, *then* neither it nor any of its floors or rooms is offered; *and* a Teacher receives only labels of selectable rooms, never counts, custodianship or archived rows.
+- **AC-LOC-011 (FR-LOC-011):** *Given* a Technician or Teacher, *when* they sign in, *then* no Locations navigation item is present; *and when* they request any Locations page URL directly, *then* the Forbidden (403) surface is shown; *and when* they call any `locations` API endpoint directly, *then* the response is **403**; *and* the narrow lookup remains **200** for them so a location field still works inside the form that needs it.
+- **AC-DSH-001 (FR-DSH-001/008):** *Given* the three seeded roles, *when* each signs in and loads the dashboard, *then* each receives its own layout; *and* a Technician's payload contains no user-management or audit figures; *and when* a permission behind a widget is revoked by a per-user override, *then* that widget is absent from the payload.
 - **AC-QR-006 (FR-QR-005/006):** *Given* a revoked QR code, *when* scanned, *then* the scan is logged with result `expired` and no live target panel is returned; an unknown code logs `invalid`.
 - **AC-AI-010 (FR-AI-010/032):** *Given* AI analysis below the confidence threshold, *when* presented, *then* it is labeled advisory and no automated state change occurs; *and* AI never closes/deletes a ticket or disposes an asset without explicit human action.
 - **AC-AI-020 (FR-AI-020):** *Given* the Gemini API is unreachable, *when* a user creates and works tickets, *then* all non-AI functions succeed and AI panels show an unavailable state; queued analyses retry on recovery.
@@ -1085,8 +1306,8 @@ General acceptance patterns plus representative Given/When/Then criteria. Each F
 
 | ID | Constraint |
 |---|---|
-| CON-01 | Technology stack is fixed and client-approved: Laravel 13/PHP 8.4, React 19/TS/Vite, PostgreSQL 17 + pgvector, Redis, Nginx, Dockerized, single-origin. |
-| CON-02 | The physical data model is the approved `database_design_v2.dbml`, already implemented; requirements must fit it (schema changes require change control). |
+| CON-01 | Technology stack is fixed and client-specified: Laravel 13/PHP 8.4, React 19/TS/Vite, PostgreSQL 17 + pgvector, Redis, Nginx, Dockerized, single-origin. |
+| CON-02 | The physical data model is the current `database_design_v2.dbml`, already implemented; requirements must fit it (schema changes require change control). |
 | CON-03 | UI must conform to `DESIGN.md` (“The Control Room”), including the ≤10% brand-signal, flat-by-tone, and dual-theme rules. |
 | CON-04 | WCAG 2.2 AA is the accessibility floor, verified — not optional. |
 | CON-05 | Embedding dimension is fixed at 768 (Gemini text-embedding-004); changing the embedding model requires re-embedding and index review, and must stay ≤ ~2000 dims for HNSW. |
@@ -1101,7 +1322,7 @@ General acceptance patterns plus representative Given/When/Then criteria. Each F
 | ID | Assumption |
 |---|---|
 | ASM-01 | The deploying organization provisions HTTPS/TLS, a production SMTP service, and (for P3) a Gemini API key with sufficient quota. |
-| ASM-02 | Administrator accounts are provisioned only by existing Administrators (or the local dev seeder); Teacher/Technician accounts are created either by Administrators or via the public **registration-request** workflow (OI-02, resolved v1.1) and require Administrator approval before they can sign in. |
+| ASM-02 | Administrator accounts are provisioned only by existing Administrators (or the local dev seeder); Teacher/Technician accounts are created either by Administrators or via the public **registration-request** workflow (OI-02, resolved) and require Administrator approval before they can sign in. |
 | ASM-03 | Reporters and technicians have network-connected devices with a modern browser; technicians’ devices have a camera for QR scanning. |
 | ASM-04 | The organization accepts external AI processing of the data categories disclosed under [§17.5](#175-ai-data-governance--safety-requirements), or disables AI. |
 | ASM-05 | Nominal capacity ([§14](#14-scalability-requirements)) reflects a single institution; larger deployments require re-validation. |
@@ -1112,19 +1333,19 @@ General acceptance patterns plus representative Given/When/Then criteria. Each F
 
 ## 33. Open Issues & Decisions Requiring Client Approval
 
-These are decisions that would **change the approved business model or major system behavior**. Per the working agreement, they are **not** silently applied; each is presented with its trade-off for the client to decide before the SDD. The current SRS documents the **baseline** choice; the alternative is noted.
+These are decisions that would **change the specified business model or major system behavior**. Per the working agreement, they are **not** silently applied; each is presented with its trade-off for the client to decide before the SDD. The current SRS documents the **baseline** choice; the alternative is noted.
 
 | ID | Decision | Baseline (this SRS) | Alternative & trade-off | Recommendation |
 |---|---|---|---|---|
 | **OI-01** | Roles per user | Exactly one role + per-user overrides (BR-02, FR-USER-003). | Multi-role via a `role_user` pivot. **Pro:** models people who are both (e.g. a teacher who is also a technician) without over-granting. **Con:** conceptual change; requires schema addition and effective-permission recomputation; more complex UI. | Keep single-role for P2; revisit if real dual-role staff exist. |
-| **OI-02** | Requester self-registration | **RESOLVED (v1.1, 2026-07-04).** The Client adopted the alternative: a **registration-request workflow** with Administrator approval, restricted to **Teachers and Technicians** (Administrators are never self-registerable). Requests are created `pending` and cannot sign in until approved; rejected requests are retained with a reason for audit. Realized by [FR-AUTH-013–016](#101-authentication--session-management-fr-auth). Spam/abuse is mitigated by rate limiting ([NFR-SEC-009](#12-security-requirements)) and mandatory human approval. | — (decided) | Implemented in Phase 2.2. |
+| **OI-02** | Requester self-registration | **RESOLVED (2026-07-04).** The Client adopted the alternative: a **registration-request workflow** with Administrator approval, restricted to **Teachers and Technicians** (Administrators are never self-registerable). Requests are created `pending` and cannot sign in until approved; rejected requests are retained with a reason for audit. Realized by [FR-AUTH-013–016](#101-authentication--session-management-fr-auth). Spam/abuse is mitigated by rate limiting ([NFR-SEC-009](#12-security-requirements)) and mandatory human approval. | — (decided) | Implemented in Phase 2.2. |
 | **OI-03** | MFA | No MFA in P2 (FR-AUTH-012/NFR-SEC-016 Future); schema note defers MFA columns. | Add TOTP MFA (schema columns + enrollment flow). **Pro:** materially stronger auth for privileged accounts. **Con:** added columns, flows, and support burden. | Add MFA for Administrators in an early post-P2 increment; approve now if security posture requires it. |
 | **OI-04** | QR expiry semantics | `expired` defined by QR/target status, no date field (FR-QR-006). | Add `qr_codes.expires_at` for time-based expiry. **Pro:** supports rotating/temporary codes. **Con:** schema change; scan logic change. | Keep status-based unless time-limited QR is required. |
 | **OI-05** | SLA model | Per-priority SLA on `ticket_priorities` (BR-05). | Dedicated `sla_policies` (per category/audience/asset-class). **Pro:** granular SLAs. **Con:** new tables + assignment logic. | Keep per-priority for P2; add `sla_policies` if differentiated SLAs are needed. |
 | **OI-06** | Ticket auto-escalation | Breach is flagged + notified; no automatic action (FR-TKT-017; FR-TKT-018 Future). | Auto-reassign/raise priority on breach. **Pro:** enforces response. **Con:** changes workflow behavior; risk of churn. | Ship notify-only; add configurable escalation later. |
 | **OI-07** | Indicative NFR targets | Performance/availability/SLA/capacity numbers are indicative defaults ([§13](#13-performance-requirements)–[§15](#15-availability--reliability-requirements)). | Client-specified targets. **Impact:** changes test thresholds and sizing. | Confirm exact numbers at approval; no design impact beyond thresholds. |
 
-> **OI-02 has been resolved in v1.1** (registration-request workflow; see above) and is reflected in the functional requirements, business rules, and data requirements of this document. The remaining open items (OI-01, OI-03–OI-07) are not applied in a way that alters the schema or behavior in this document; resolving any of them updates a future SRS revision and feeds the SDD.
+> **OI-02 has been resolved** (registration-request workflow; see above) and is reflected in the functional requirements, business rules, and data requirements of this document. The remaining open items (OI-01, OI-03–OI-07) are not applied in a way that alters the schema or behavior in this document; resolving any of them updates a future SRS revision and feeds the SDD.
 
 ---
 
@@ -1184,7 +1405,7 @@ This appendix records the review performed after drafting, per the requested pro
 ### A.1 Sources cross-checked
 `PRODUCT.md`; `DESIGN.md`; `docs/database/database_architecture_report.md`; `docs/database/database_design_review.md`; `docs/database/database_design_v2.dbml` (all domain, pivot, and framework tables with FKs/CHECKs/indexes); implemented backend (`app/Models` ×66, `app/Enums` ×34, migrations ×15, seeders ×9); domain seams (`app/Domains/*/README.md`); `docs/PROJECT_STRUCTURE.md`, `docs/ENVIRONMENT.md`; project memory; git history (phases 0–7 + DB layer). The application/business-logic layer is confirmed **not yet implemented** — this SRS is forward-looking, not a description of existing behavior.
 
-### A.2 Requirements coverage vs. approved model
+### A.2 Requirements coverage vs. specified model
 Every module in the data model and every capability in the product brief maps to at least one requirement; every requirement traces to a data entity and a business objective ([§30](#30-requirements-traceability-matrix)). Requested SRS sections are all present. Requirement IDs are unique across the document.
 
 ### A.3 Inconsistencies found and resolved
@@ -1202,8 +1423,415 @@ Added concrete, testable requirements that the sources implied but did not speci
 Cross-cutting concerns (security, accessibility, performance) are stated once in their dedicated sections and **referenced** (not restated) from functional requirements. Data-model facts live in the DBML and are stated as *requirements* (not re-listed) in [§29](#29-data-requirements). No requirement is duplicated under two IDs.
 
 ### A.6 Residual items for the client
-The seven decisions in [§33](#33-open-issues--decisions-requiring-client-approval) and the indicative-target confirmations (OI-07) are the only items blocking a final, buildable v1.1. No further contradictions were found.
+The seven decisions in [§33](#33-open-issues--decisions-requiring-client-approval) and the indicative-target confirmations (OI-07) are the only items blocking a final, buildable baseline. No further contradictions were found.
 
 ---
 
-*End of Software Requirements Specification v1.0 — approved v1.0 project-specification baseline.*
+## Appendix B — Diagram Sources (Mermaid & PlantUML)
+
+All six SRS figures are generated from version-controlled UML sources under `docs/diagrams/`, kept as **living documentation** and committed alongside high-resolution **SVG** (vector) and **PNG** renders. Each committed PNG carries embedded DPI metadata so that the generated Word document sizes every figure to the page without overflow or manual scaling.
+
+### B.0 Diagram manifest
+
+| Figure | Diagram | Source (`docs/diagrams/`) | Renders |
+|---|---|---|---|
+| **Figure 1** | Product Perspective (System Context) | `product-perspective.mmd` (Mermaid) · `product-perspective.puml` (PlantUML) | `product-perspective.svg` · `.png` |
+| **Figure 2** | System Use Case Diagram | `use-case-diagram.puml` (PlantUML) · `use-case-diagram.gen.py` (stickman layout generator) | `use-case-diagram.svg` · `.png` |
+| **Figure 3** | Teacher / Requester Workflow — Activity | `activity-teacher.mmd` (Mermaid) | `activity-teacher.svg` · `.png` |
+| **Figure 4** | Technician Workflow — Activity | `activity-technician.mmd` (Mermaid) | `activity-technician.svg` · `.png` |
+| **Figure 5** | Administrator Workflow — Activity | `activity-admin.mmd` (Mermaid) | `activity-admin.svg` · `.png` |
+| **Figure 6** | System-Wide AI Behavior — Activity | `activity-ai.mmd` (Mermaid) | `activity-ai.svg` · `.png` |
+
+> **Why the use-case diagram has no Mermaid source.** Standard UML use-case diagrams require **stickman actors**, which Mermaid cannot render. The **PlantUML** source (`use-case-diagram.puml`) is therefore the canonical UML source — render it in any PlantUML tool for native stickmen. The committed `use-case-diagram.svg` / `.png` are produced by `use-case-diagram.gen.py`, a small self-contained generator that draws the same model (stickman actors, use-case ovals, a single system boundary, direct actor–use-case associations, and the `«extend»` relationship) in a two-column layout sized to render full-width and legibly on a single page.
+
+**Colours.** Fills denote node *type* only (human actors, external/system actors, use cases) in the use-case diagram, and *architectural tier* in the Product Perspective — neither encodes implementation phase.
+
+**Rendering.**
+
+```bash
+# Mermaid figures (Product Perspective + the four activity diagrams) -> SVG + high-res PNG (Node >= 18)
+for f in product-perspective activity-teacher activity-technician activity-admin activity-ai; do
+  npx @mermaid-js/mermaid-cli -i "docs/diagrams/$f.mmd" -o "docs/diagrams/$f.svg"
+  npx @mermaid-js/mermaid-cli -i "docs/diagrams/$f.mmd" -o "docs/diagrams/$f.png" --scale 3 --backgroundColor white
+done
+
+# System Use Case Diagram — regenerate committed SVG/PNG (stickman layout)
+python docs/diagrams/use-case-diagram.gen.py     # writes use-case-diagram.svg (+ HTML for rasterizing)
+
+# Either UML source via PlantUML (native stickmen for the use-case diagram)
+java -jar plantuml.jar -tsvg docs/diagrams/*.puml
+java -jar plantuml.jar -tpng -scale 3 docs/diagrams/*.puml
+
+# Word (.docx) deliverables — figures are sized from each PNG's embedded DPI
+python -c "import pypandoc,os; [pypandoc.convert_file(f'{d}.md','docx',outputfile=f'../deliverables/word/{d}.docx',extra_args=['--resource-path=.','--toc','--toc-depth=3','--standalone','--reference-doc=reference.docx']) for d in ['Software Requirements Specification','Software Design Description','Software Project Management Plan']]"
+```
+
+### B.1 Figure 1 — Product Perspective (System Context) Block Diagram
+
+**Mermaid** (`docs/diagrams/product-perspective.mmd`):
+
+```mermaid
+---
+title: "SccIT — Product Perspective (System Context) Block Diagram"
+config:
+  layout: elk
+  theme: base
+  themeVariables:
+    fontFamily: "Segoe UI, Helvetica, Arial, sans-serif"
+    fontSize: "15px"
+    lineColor: "#5c677d"
+    clusterBkg: "#ffffff"
+    clusterBorder: "#adb5bd"
+  flowchart:
+    htmlLabels: true
+    nodeSpacing: 40
+    rankSpacing: 60
+    padding: 8
+  elk:
+    nodePlacementStrategy: BRANDES_KOEPF
+---
+flowchart TB
+%% =========================================================
+%% SccIT — Product Perspective / System Context Block Diagram
+%% Flat, layered architecture (no phase annotations):
+%% Users -> Browser -> Nginx -> React SPA -> Laravel Backend
+%%       -> PostgreSQL / Redis -> External Services
+%% Backend modules are shown as connected components in one layer.
+%% =========================================================
+
+    subgraph USERS["External Users"]
+        direction LR
+        ADM["Administrator"]
+        TEC["Technician"]
+        TEA["Teacher / Requester"]
+    end
+
+    BROWSER["Web Browser<br/><i>desktop · tablet · mobile · QR camera</i>"]
+    NGINX["Nginx — Single-Origin Edge<br/><i>reverse proxy · TLS · static assets + /api routing</i>"]
+    SPA["React 19 SPA<br/><i>Vite · TanStack Query · Tailwind (design tokens)</i>"]
+
+    subgraph BACKEND["Laravel 13 Backend — REST API on PHP-FPM"]
+        direction LR
+        RBAC["&nbsp;Auth &amp; RBAC&nbsp;"]
+        AUD["&nbsp;Audit&nbsp;"]
+        NOTS["&nbsp;Notification&nbsp;"]
+        AISVC["&nbsp;AI Services&nbsp;"]
+        DOM["Domain Modules<br/><i>Tickets · Assets · Maintenance · Analytics</i>"]
+    end
+
+    subgraph DATA["Data Stores"]
+        direction LR
+        PG[("PostgreSQL 17<br/><i>+ pgvector · system of record</i>")]
+        REDIS[("Redis<br/><i>cache · session · queue</i>")]
+    end
+
+    subgraph EXT["External Services"]
+        direction LR
+        MAIL["Email<br/><i>Mailpit (dev) / SMTP (prod)</i>"]
+        GEMINI["AI Provider<br/><i>Google Gemini</i>"]
+        QRSVC["QR Code Services<br/><i>generate · verify</i>"]
+    end
+
+    INFRA["Infrastructure — Docker · Nginx · PHP-FPM · Redis-backed queue workers"]
+
+    %% ---- Communication flow (layered, top to bottom) ----
+    ADM --> BROWSER
+    TEC --> BROWSER
+    TEA --> BROWSER
+    BROWSER -->|"HTTPS · single origin"| NGINX
+    NGINX -->|"static assets"| SPA
+    SPA -->|"REST / JSON · cookies"| BACKEND
+    BACKEND -->|"SQL queries"| PG
+    BACKEND -->|"cache &amp; queue"| REDIS
+    NOTS -->|"e-mail (SMTP)"| MAIL
+    AISVC -->|"HTTPS · chat + embeddings"| GEMINI
+    DOM -->|"image · scan verify"| QRSVC
+    INFRA -.->|"builds &amp; hosts"| BACKEND
+
+    %% ---- Styling (colour = architectural tier) ----
+    classDef users fill:#E7F5FF,stroke:#1971C2,stroke-width:1.4px,color:#0b3d66;
+    classDef client fill:#F1F3F5,stroke:#495057,stroke-width:1.4px,color:#212529;
+    classDef front fill:#E6FCF5,stroke:#0CA678,stroke-width:1.4px,color:#0b503c;
+    classDef edge fill:#FFF3BF,stroke:#F08C00,stroke-width:1.4px,color:#66430a;
+    classDef svc fill:#EDF2FF,stroke:#3B5BDB,stroke-width:1.4px,color:#22318f;
+    classDef data fill:#F3F0FF,stroke:#7048E8,stroke-width:1.4px,color:#3f2a99;
+    classDef ext fill:#FFF0F6,stroke:#C2255C,stroke-width:1.4px,color:#7a1740;
+    classDef infra fill:#F8F9FA,stroke:#868E96,stroke-width:1.3px,color:#343a40,stroke-dasharray:5 3;
+
+    class ADM,TEC,TEA users;
+    class BROWSER client;
+    class SPA front;
+    class NGINX edge;
+    class RBAC,AUD,NOTS,AISVC,DOM svc;
+    class PG,REDIS data;
+    class MAIL,GEMINI,QRSVC ext;
+    class INFRA infra;
+```
+
+**PlantUML** (`docs/diagrams/product-perspective.puml`):
+
+```plantuml
+@startuml SccIT-Product-Perspective
+'==================================================================
+' SccIT — Product Perspective / System Context Block Diagram
+' Flat, layered architecture (no phase annotations, no deep nesting):
+'   Users -> Browser -> Nginx -> React SPA -> Laravel Backend
+'         -> PostgreSQL / Redis -> External Services
+' Backend modules are shown as connected components in one layer.
+' Render:  java -jar plantuml.jar -tsvg product-perspective.puml
+'          java -jar plantuml.jar -tpng -scale 3 product-perspective.puml
+'==================================================================
+top to bottom direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 13
+skinparam ArrowColor #5C677D
+skinparam rectangleBorderThickness 1.3
+skinparam packageStyle rectangle
+skinparam databaseBackgroundColor #F3F0FF
+skinparam databaseBorderColor #7048E8
+
+skinparam rectangle {
+  BackgroundColor<<user>>  #E7F5FF
+  BorderColor<<user>>      #1971C2
+  BackgroundColor<<client>> #F1F3F5
+  BorderColor<<client>>    #495057
+  BackgroundColor<<front>> #E6FCF5
+  BorderColor<<front>>     #0CA678
+  BackgroundColor<<edge>>  #FFF3BF
+  BorderColor<<edge>>      #F08C00
+  BackgroundColor<<svc>>   #EDF2FF
+  BorderColor<<svc>>       #3B5BDB
+  BackgroundColor<<ext>>   #FFF0F6
+  BorderColor<<ext>>       #C2255C
+  BackgroundColor<<infra>> #F8F9FA
+  BorderColor<<infra>>     #868E96
+}
+
+' ---------------- Layer 1: External users ----------------
+rectangle "External Users" as USERS {
+  rectangle "Administrator"       as ADM <<user>>
+  rectangle "Technician"          as TEC <<user>>
+  rectangle "Teacher / Requester" as TEA <<user>>
+}
+
+' ---------------- Layer 2-4: client -> edge -> SPA ----------------
+rectangle "Web Browser\n<size:11><i>desktop · tablet · mobile · QR camera</i></size>" as BROWSER <<client>>
+rectangle "Nginx — Single-Origin Edge\n<size:11><i>reverse proxy · TLS · static assets + /api routing</i></size>" as NGINX <<edge>>
+rectangle "React 19 SPA\n<size:11><i>Vite · TanStack Query · Tailwind</i></size>" as SPA <<front>>
+
+' ---------------- Layer 5: Laravel backend (modules as connected components) ----------------
+rectangle "Laravel 13 Backend — REST API on PHP-FPM" as BACKEND {
+  rectangle "Auth & RBAC"    as RBAC <<svc>>
+  rectangle "Audit"          as AUD  <<svc>>
+  rectangle "Notification"   as NOTS <<svc>>
+  rectangle "AI Services"    as AISVC <<svc>>
+  rectangle "Domain Modules\n<size:11><i>Tickets · Assets · Maintenance · Analytics</i></size>" as DOM <<svc>>
+}
+
+' ---------------- Layer 6: data stores ----------------
+database "PostgreSQL 17\n<size:11><i>+ pgvector · system of record</i></size>" as PG
+database "Redis\n<size:11><i>cache · session · queue</i></size>" as REDIS
+
+' ---------------- Layer 7: external services ----------------
+rectangle "External Services" as EXT {
+  rectangle "Email\n<size:11><i>Mailpit (dev) / SMTP (prod)</i></size>" as MAIL <<ext>>
+  rectangle "AI Provider\n<size:11><i>Google Gemini</i></size>"          as GEMINI <<ext>>
+  rectangle "QR Code Services\n<size:11><i>generate · verify</i></size>" as QRSVC <<ext>>
+}
+
+rectangle "Infrastructure — Docker · Nginx · PHP-FPM · Redis-backed queue workers" as INFRA <<infra>>
+
+' ---------------- Communication flow ----------------
+ADM --> BROWSER
+TEC --> BROWSER
+TEA --> BROWSER
+BROWSER --> NGINX   : HTTPS · single origin
+NGINX --> SPA       : static assets
+SPA --> BACKEND     : REST / JSON · cookies
+BACKEND --> PG      : SQL queries
+BACKEND --> REDIS   : cache & queue
+NOTS --> MAIL       : e-mail (SMTP)
+AISVC --> GEMINI    : HTTPS · chat + embeddings
+DOM --> QRSVC       : image · scan verify
+INFRA ..> BACKEND   : builds & hosts
+
+@enduml
+```
+
+### B.2 Figure 2 — System Use Case Diagram
+
+**PlantUML** (`docs/diagrams/use-case-diagram.puml`) — canonical UML source (native stickman actors):
+
+```plantuml
+@startuml SccIT-System-Use-Case-Diagram
+'==================================================================
+' SccIT — System Use Case Diagram (standard UML, single boundary)
+' Human roles are stickman actors; external systems are actors too.
+' NO abstract actor / generalization: each concrete role connects
+' directly to the common use cases it performs (thesis-panel clarity).
+' All use cases at user-goal granularity in ONE system boundary.
+' Render (native stickmen):
+'   java -jar plantuml.jar -tsvg use-case-diagram.puml
+'   java -jar plantuml.jar -tpng -scale 3 use-case-diagram.puml
+' NOTE: the committed use-case-diagram.svg / .png are produced by
+' use-case-diagram.gen.py (a hand-tuned stickman layout) because
+' Mermaid cannot render UML stickman actors; both encode this model.
+'==================================================================
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 14
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #EAF0FB
+  BorderColor #2E4A86
+  FontColor #16233c
+}
+
+' ---------------- Human actors (stickmen) ----------------
+actor "Public Visitor"       as PV
+actor "Teacher / Requester"  as TE
+actor "Technician"           as TC
+actor "Administrator"        as AD
+
+' ---------------- External / system actors ----------------
+actor "AI Provider"          as AIP
+actor "Email Service"        as MAIL
+actor "Notification Service" as NS
+actor "QR Scanner"           as QRS
+
+rectangle "AI-Powered School IT Asset & Service Management System" {
+  usecase "Register Account"              as UC01
+  usecase "Log In"                        as UC02
+  usecase "Reset Password"                as UC03
+  usecase "Log Out"                       as UC04
+  usecase "Change Password"               as UC05
+  usecase "Manage Profile"                as UC06
+  usecase "View Dashboard"                as UC07
+  usecase "Submit Ticket"                 as UC08
+  usecase "Attach Files"                  as UC09
+  usecase "Track Ticket Status"           as UC10
+  usecase "Comment on Ticket"             as UC11
+  usecase "Assign Ticket"                 as UC12
+  usecase "Resolve Ticket"                as UC13
+  usecase "Use AI Troubleshooting"        as UC14
+  usecase "Search Knowledge Base"         as UC15
+  usecase "View AI Recommendations"       as UC16
+  usecase "Manage Assets"                 as UC17
+  usecase "Manage Inventory"              as UC18
+  usecase "Manage PC Units"               as UC19
+  usecase "Manage Procurement"            as UC20
+  usecase "Manage QR Codes"               as UC21
+  usecase "Scan QR Code"                  as UC22
+  usecase "Perform Maintenance"           as UC23
+  usecase "Schedule Preventive Maintenance" as UC24
+  usecase "Manage Locations"              as UC25
+  usecase "Manage Floor Plan"             as UC26
+  usecase "Manage Notifications"          as UC27
+  usecase "Manage Announcements"          as UC28
+  usecase "Manage Users"                  as UC29
+  usecase "Manage Roles & Permissions"    as UC30
+  usecase "Approve Registration"          as UC31
+  usecase "Generate Reports"              as UC32
+  usecase "View Analytics"                as UC33
+  usecase "View Audit Logs"               as UC34
+  usecase "Manage System Settings"        as UC35
+}
+
+' ---------------- Public Visitor (pre-authentication) ----------------
+PV -- UC01
+PV -- UC02
+PV -- UC03
+
+' ---------------- Common use cases — connected directly to each role ----
+TE -- UC04
+TE -- UC05
+TE -- UC06
+TE -- UC07
+TE -- UC10
+TE -- UC11
+TE -- UC14
+TE -- UC15
+TE -- UC16
+TE -- UC27
+TC -- UC04
+TC -- UC05
+TC -- UC06
+TC -- UC07
+TC -- UC10
+TC -- UC11
+TC -- UC14
+TC -- UC15
+TC -- UC16
+TC -- UC27
+AD -- UC04
+AD -- UC05
+AD -- UC06
+AD -- UC07
+AD -- UC10
+AD -- UC11
+AD -- UC14
+AD -- UC15
+AD -- UC16
+AD -- UC27
+
+' ---------------- Teacher / Requester (role-specific) ----------------
+TE -- UC08
+
+' ---------------- Technician (role-specific) ----------------
+TC -- UC13
+TC -- UC22
+TC -- UC23
+TC -- UC24
+TC -- UC12
+TC -- UC17
+TC -- UC18
+TC -- UC19
+TC -- UC21
+TC -- UC32
+
+' ---------------- Administrator (role-specific) ----------------
+AD -- UC12
+AD -- UC17
+AD -- UC18
+AD -- UC19
+AD -- UC21
+AD -- UC32
+AD -- UC20
+AD -- UC25
+AD -- UC26
+AD -- UC28
+AD -- UC29
+AD -- UC30
+AD -- UC31
+AD -- UC33
+AD -- UC34
+AD -- UC35
+
+' ---------------- External / system actors ----------------
+UC14 -- AIP
+UC15 -- AIP
+UC16 -- AIP
+UC03 -- MAIL
+UC27 -- MAIL
+UC29 -- MAIL
+UC31 -- MAIL
+UC12 -- NS
+UC23 -- NS
+UC24 -- NS
+UC27 -- NS
+UC28 -- NS
+UC22 -- QRS
+
+' ---------------- <<extend>> ----------------
+UC09 .> UC08 : <<extend>>
+@enduml
+```
+
+---
+
+*End of Software Requirements Specification — Version 1.0 baseline. Status: Waiting for Client Approval.*

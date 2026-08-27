@@ -21,7 +21,7 @@ export default function ForbiddenPage() {
       <h1 className="mt-3 text-2xl font-semibold tracking-[-0.02em] text-ink-strong">
         Access denied
       </h1>
-      <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted">
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
         You don’t have permission to view this page. If you think this is a mistake, contact your
         administrator.
       </p>

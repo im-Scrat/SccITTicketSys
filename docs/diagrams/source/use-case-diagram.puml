@@ -1,0 +1,165 @@
+@startuml SccIT-System-Use-Case-Diagram
+'==================================================================
+' SccIT — System Use Case Diagram (standard UML, single boundary)
+' Human roles are stickman actors; external systems are actors too.
+' NO abstract actor / generalization: each concrete role connects
+' directly to the common use cases it performs (thesis-panel clarity).
+' All use cases at user-goal granularity in ONE system boundary.
+' Render (native stickmen):
+'   java -jar plantuml.jar -tsvg use-case-diagram.puml
+'   java -jar plantuml.jar -tpng -scale 3 use-case-diagram.puml
+' NOTE: the committed use-case-diagram.svg / .png are produced by
+' use-case-diagram.gen.py (a hand-tuned stickman layout) because
+' Mermaid cannot render UML stickman actors; both encode this model.
+'==================================================================
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 14
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #EAF0FB
+  BorderColor #2E4A86
+  FontColor #16233c
+}
+
+' ---------------- Human actors (stickmen) ----------------
+actor "Public Visitor"       as PV
+actor "Teacher / Requester"  as TE
+actor "Technician"           as TC
+actor "Administrator"        as AD
+
+' ---------------- External / system actors ----------------
+actor "AI Provider"          as AIP
+actor "Email Service"        as MAIL
+actor "Notification Service" as NS
+actor "QR Scanner"           as QRS
+
+rectangle "AI-Powered School IT Asset & Service Management System" {
+  usecase "Register Account"              as UC01
+  usecase "Log In"                        as UC02
+  usecase "Reset Password"                as UC03
+  usecase "Log Out"                       as UC04
+  usecase "Change Password"               as UC05
+  usecase "Manage Profile"                as UC06
+  usecase "View Dashboard"                as UC07
+  usecase "Submit Ticket"                 as UC08
+  usecase "Attach Files"                  as UC09
+  usecase "Track Ticket Status"           as UC10
+  usecase "Comment on Ticket"             as UC11
+  usecase "Assign Ticket"                 as UC12
+  usecase "Resolve Ticket"                as UC13
+  usecase "Use AI Troubleshooting"        as UC14
+  usecase "Search Knowledge Base"         as UC15
+  usecase "View AI Recommendations"       as UC16
+  usecase "Manage Assets"                 as UC17
+  usecase "Manage Inventory"              as UC18
+  usecase "Manage PC Units"               as UC19
+  usecase "Manage Procurement"            as UC20
+  usecase "Manage QR Codes"               as UC21
+  usecase "Scan QR Code"                  as UC22
+  usecase "Perform Maintenance"           as UC23
+  usecase "Schedule Preventive Maintenance" as UC24
+  usecase "Manage Locations"              as UC25
+  usecase "Manage Floor Plan"             as UC26
+  usecase "Manage Notifications"          as UC27
+  usecase "Manage Announcements"          as UC28
+  usecase "Manage Users"                  as UC29
+  usecase "Manage Roles & Permissions"    as UC30
+  usecase "Approve Registration"          as UC31
+  usecase "Generate Reports"              as UC32
+  usecase "View Analytics"                as UC33
+  usecase "View Audit Logs"               as UC34
+  usecase "Manage System Settings"        as UC35
+}
+
+' ---------------- Public Visitor (pre-authentication) ----------------
+PV -- UC01
+PV -- UC02
+PV -- UC03
+
+' ---------------- Common use cases — connected directly to each role ----
+TE -- UC04
+TE -- UC05
+TE -- UC06
+TE -- UC07
+TE -- UC10
+TE -- UC11
+TE -- UC14
+TE -- UC15
+TE -- UC16
+TE -- UC27
+TC -- UC04
+TC -- UC05
+TC -- UC06
+TC -- UC07
+TC -- UC10
+TC -- UC11
+TC -- UC14
+TC -- UC15
+TC -- UC16
+TC -- UC27
+AD -- UC04
+AD -- UC05
+AD -- UC06
+AD -- UC07
+AD -- UC10
+AD -- UC11
+AD -- UC14
+AD -- UC15
+AD -- UC16
+AD -- UC27
+
+' ---------------- Teacher / Requester (role-specific) ----------------
+TE -- UC08
+
+' ---------------- Technician (role-specific) ----------------
+TC -- UC13
+TC -- UC22
+TC -- UC23
+TC -- UC24
+TC -- UC12
+TC -- UC17
+TC -- UC18
+TC -- UC19
+TC -- UC21
+TC -- UC32
+
+' ---------------- Administrator (role-specific) ----------------
+AD -- UC12
+AD -- UC17
+AD -- UC18
+AD -- UC19
+AD -- UC21
+AD -- UC32
+AD -- UC20
+AD -- UC25
+AD -- UC26
+AD -- UC28
+AD -- UC29
+AD -- UC30
+AD -- UC31
+AD -- UC33
+AD -- UC34
+AD -- UC35
+
+' ---------------- External / system actors ----------------
+UC14 -- AIP
+UC15 -- AIP
+UC16 -- AIP
+UC03 -- MAIL
+UC27 -- MAIL
+UC29 -- MAIL
+UC31 -- MAIL
+UC12 -- NS
+UC23 -- NS
+UC24 -- NS
+UC27 -- NS
+UC28 -- NS
+UC22 -- QRS
+
+' ---------------- <<extend>> ----------------
+UC09 .> UC08 : <<extend>>
+@enduml

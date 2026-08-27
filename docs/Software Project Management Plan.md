@@ -3,13 +3,14 @@ title: Software Project Management Plan (SPMP)
 system: AI-Powered IT Asset & Service Management System (SccIT)
 doc_id: SCCIT-SPMP
 version: 1.0
-status: Approved — v1.0 Baseline (2026-07-03)
-date: 2026-07-03
+status: Waiting for Client Approval
+date: 2026-07-17
 author: Engineering (Beemo)
 classification: Internal — Confidential
 standard: Aligned with ISO/IEC/IEEE 16326:2019 (Project Management) — successor to IEEE Std 1058
 governs: How SccIT is managed across its lifecycle
 depends_on: SCCIT-SRS v1.0, SCCIT-SDD v1.0
+owner: Client / Product Owner (project owner · system owner · primary decision-maker)
 ---
 
 # Software Project Management Plan
@@ -25,25 +26,26 @@ depends_on: SCCIT-SRS v1.0, SCCIT-SDD v1.0
 | Field | Value |
 |---|---|
 | Document ID | SCCIT-SPMP |
-| Version | 1.0 (Approved) |
-| Date | 2026-07-03 |
+| Version | 1.0 |
+| Date | 2026-07-17 |
+| Status | **Waiting for Client Approval** |
 | Standard | ISO/IEC/IEEE 16326:2019 (and IEEE 1058 heritage) |
 | Prepared by | Engineering |
-| Approved by | Client / Product Owner — approved 2026-07-03 |
-| Primary inputs | SCCIT-SRS v1.0 (**approved**), SCCIT-SDD v1.0 (**approved**), current repository |
+| Owner / decision authority | Client / Product Owner — project owner, system owner, and primary decision-maker |
+| Primary inputs | SCCIT-SRS v1.0, SCCIT-SDD v1.0, current repository |
 | Related artifacts | `PRODUCT.md`, `DESIGN.md`, `docs/` (DEVELOPMENT, ENVIRONMENT, DOCKER, INSTALLATION, PROJECT_STRUCTURE), `.github/workflows/ci.yml`, `Makefile`, `scripts/`, `compose.yaml` |
 
 ### Revision History
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
-| 1.0 | 2026-07-03 | Engineering | Initial SPMP derived from the approved SRS/SDD and the implemented repository (phases 0–7 complete). Includes assumption register and a consistency-review appendix. |
-| 1.0 | 2026-07-03 | Client / Product Owner | Reviewed and approved; baselined as part of the v1.0 project specification (Git tag `v1.0-project-specification`). |
+| 1.0 | 2026-07-17 | Engineering | **Version 1.0 baseline.** Consolidated project management plan: purpose and scope, current state, management objectives, deliverables, team roles and responsibilities, lifecycle model, work breakdown structure and work packages, phase plan (**P2** Core · **P3** AI & Knowledge Base · **P4** Interactive Floor Plan & Real-time), milestones, estimation, risk management, quality assurance and verification, configuration and change management, issue management, acceptance, and Appendices A–B. Aligned to **SCCIT-SRS v1.0** and **SCCIT-SDD v1.0**. Status: **Waiting for Client Approval**. |
+| 1.0 | 2026-08-26 | Engineering | **Phase 2.5 — Asset Management** delivered against the Version 1.0 baseline (label unchanged). **WP-2.3** and **WP-2.4** marked ✅ done: PC units with the specification editor, serialized assets, the hardware catalog, audited lifecycle transitions, transfers, custodianship, attachments, the unified asset history, QR generate/regenerate/revoke/print, the module dashboard and the enterprise directory. Scope carried forward as **WP-2.4b** (consumables, stock ledger, procurement, disposal, import/export, bulk actions) and **WP-2.4c** (QR scan verification), so the remaining FR-AST/FR-QR requirements stay tracked rather than being absorbed silently. |
 
 ### Conventions
 
 - **Identifiers:** deliverables `DL-nn`; milestones `M0..Mn`; work packages `WP-<phase>.<n>`; project/management risks `PR-nn` (product/technical risks are inherited from **[SRS §32](#) `RSK-01..10`**); assumptions `SA-nn`; roles `R-xxx`.
-- **Phasing** matches the approved SRS/SDD exactly: **P2** Core · **P3** AI & Knowledge Base · **P4** Interactive Floor Plan & Real-time · **Future**.
+- **Phasing** matches the SRS/SDD exactly: **P2** Core · **P3** AI & Knowledge Base · **P4** Interactive Floor Plan & Real-time · **Future**.
 - **Effort sizing** uses relative T-shirt sizes (S ≤ 3 dev-days · M ≤ 1 sprint · L ≈ 1–2 sprints · XL > 2 sprints). Calendar figures are **indicative** and depend on confirmed team capacity ([SA-01](#appendix-b--assumption-register)).
 - **Reference markers** `FR-*`, `NFR-*`, `DD-*`, `RES-*`, `RSK-*` point to the identically-named items in the SRS/SDD.
 
@@ -91,7 +93,7 @@ depends_on: SCCIT-SRS v1.0, SCCIT-SDD v1.0
 
 ## 1. Executive Summary
 
-SccIT is a production-intended, vertical-agnostic ITSM/ITAM platform. Its **foundation is already built and verified**: a fully Dockerized Laravel 13 + React 19 stack, a production-grade PostgreSQL 17 data layer (66 models, integrity enforced in the database), and a green CI pipeline (phases 0–7). The **requirements (SRS) and design (SDD) are approved.** This SPMP governs the remaining lifecycle: building the application layer across three phases — **P2 Core**, **P3 AI & Knowledge Base**, **P4 Interactive Floor Plan & Real-time** — followed by steady-state maintenance.
+SccIT is a production-intended, vertical-agnostic ITSM/ITAM platform. Its **foundation is already built and verified**: a fully Dockerized Laravel 13 + React 19 stack, a production-grade PostgreSQL 17 data layer (66 models, integrity enforced in the database), and a green CI pipeline (phases 0–7). The **requirements (SRS) and design (SDD) are complete and are Waiting for Client Approval.** This SPMP governs the remaining lifecycle: building the application layer across three phases — **P2 Core**, **P3 AI & Knowledge Base**, **P4 Interactive Floor Plan & Real-time** — followed by steady-state maintenance.
 
 The project runs an **iterative, phase-gated** model that matches the established working agreement: work proceeds in short sprints inside each phase, and **each phase ends at a client approval gate** before the next begins. Quality is non-negotiable and largely automated — every change passes the same gates CI already enforces (Pint, Larastan level 6, Pest; ESLint, Prettier, TypeScript, Vitest, build) — and correctness is backstopped by database constraints, so the “done” bar is objective and repeatable.
 
@@ -104,27 +106,14 @@ Management is deliberately lightweight but disciplined: trunk-based Git with sho
 ### 2.1 Context
 SccIT replaces manual, fragmented IT operations with a single platform for asset management, service ticketing, preventive maintenance, QR verification, AI-assisted troubleshooting, and analytics (see [SRS §1–§6](#)). It is single-tenant, deployed first for an educational institution, and re-brandable to any organization via settings ([BO-08](#)).
 
-### 2.2 Current state (baseline for this plan)
-| Area | Status |
-|---|---|
-| Repository skeleton, Docker stack, single-origin Nginx | ✅ Complete (phases 0–1) |
-| Laravel 13 backend + React 19 frontend scaffolds | ✅ Complete (phases 2–3) |
-| Domain seams (`app/Domains/*`), feature slices | ✅ Complete (phase 4) |
-| Quality tooling + CI (all green) | ✅ Complete (phase 5) |
-| Developer docs + scripts | ✅ Complete (phase 6) |
-| Reproducible test DB + clean-rebuild verification | ✅ Complete (phase 7) |
-| **Database layer** (66 models, 34 enums, migrations, seeders, triggers/indexes) | ✅ **Implemented & verified** |
-| Requirements (SRS), Design (SDD) | ✅ **Approved** |
-| **Application/business-logic layer** | ⬜ **Not started** — this plan covers it |
-
-### 2.3 What this plan manages
-The build-out of the application layer (P2 → P3 → P4), its verification and release to production, and its ongoing maintenance — governed by the approved SRS/SDD and executed with the tooling already in the repository.
+### 2.2 What this plan manages
+The build-out of the application layer (P2 → P3 → P4), its verification and release to production, and its ongoing maintenance — governed by the SRS/SDD and executed with the tooling already in the repository.
 
 ---
 
 ## 3. Objectives
 
-The project succeeds when the approved requirements are delivered to production at the stated quality bar. Management objectives (traceable to [SRS §5 `BO-01..08`](#)):
+The project succeeds when the specified requirements are delivered to production at the stated quality bar. Management objectives (traceable to [SRS §5 `BO-01..08`](#)):
 
 | ID | Management objective | Measure of success |
 |---|---|---|
@@ -132,7 +121,7 @@ The project succeeds when the approved requirements are delivered to production 
 | PO-2 | Deliver P3 AI and P4 Floor Plan behind their own gates. | P3/P4 acceptance pass; [M6](#12-milestones)/[M7](#12-milestones) sign-off. |
 | PO-3 | Keep quality automated and continuous. | CI green on every merge; ≥ 80% domain test coverage ([NFR-MTN-005](#)). |
 | PO-4 | Hold the security & accessibility bar as a release gate, not an afterthought. | Security review + WCAG 2.2 AA audit pass each phase ([SRS §12](#), [§16](#)). |
-| PO-5 | Manage risk and change transparently against the approved baselines. | Risk register reviewed each sprint; changes go through [§25](#25-change-management). |
+| PO-5 | Manage risk and change transparently against the current baselines. | Risk register reviewed each sprint; changes go through [§25](#25-change-management). |
 | PO-6 | Preserve maintainability and knowledge for the long term. | Docs current in the vault; ADRs recorded; onboarding ≤ 1 day. |
 
 ---
@@ -146,7 +135,7 @@ Planning, execution, monitoring/control, and closure of the application build (P
 In-scope and out-of-scope **product** capabilities are defined authoritatively in **[SRS §3](#)**. Summary: P2 delivers the core ITSM/ITAM platform; P3 adds AI/RAG; P4 adds the interactive floor plan and real-time. Explicitly out of scope: ERP/LMS/RMM functions, native mobile apps, and multi-tenancy ([SRS §3.3](#), [CON-08](#)).
 
 ### 4.3 Scope control
-Scope is baselined by the approved SRS. Additions or changes follow [§25 Change Management](#25-change-management); the seven open product decisions ([SRS §33 `OI-01..07`](#)) are tracked as pending change items and must be resolved before they affect a phase they touch.
+Scope is baselined by the SRS. Additions or changes follow [§25 Change Management](#25-change-management); the seven open product decisions ([SRS §33 `OI-01..07`](#)) are tracked as pending change items and must be resolved before they affect a phase they touch.
 
 ---
 
@@ -154,9 +143,9 @@ Scope is baselined by the approved SRS. Additions or changes follow [§25 Change
 
 | ID | Deliverable | Phase | Acceptance basis |
 |---|---|---|---|
-| DL-01 | Approved SRS | Docs | Client sign-off ✅ |
-| DL-02 | Approved SDD | Docs | Client sign-off ✅ |
-| DL-03 | Approved SPMP (this document) | Docs | Client sign-off (pending) |
+| DL-01 | Software Requirements Specification (SRS) | Docs | Waiting for Client Approval |
+| DL-02 | Software Design Description (SDD) | Docs | Waiting for Client Approval |
+| DL-03 | Software Project Management Plan (SPMP, this document) | Docs | Waiting for Client Approval |
 | DL-04 | P2 Core application (all P2 FRs) + API (OpenAPI) | P2 | [SRS §31](#) P2 gates |
 | DL-05 | Design-system component library + accessible SPA shell | P2 | [NFR-USB](#), [NFR-ACC](#) |
 | DL-06 | Automated test suites (Pest + Vitest) ≥ 80% domain coverage | P2+ | [NFR-MTN-005](#) |
@@ -178,7 +167,7 @@ Stakeholders and their interests are defined in **[SRS §7](#)**. Management-rel
 | Stakeholder | Project responsibility |
 |---|---|
 | Client / sponsor | Funds the project; approves phase gates; owns the open product decisions ([SRS §33](#)); provides UAT participants. |
-| Product owner (client-side) | Prioritizes backlog within approved scope; signs off acceptance. |
+| Product owner (client-side) | Prioritizes backlog within defined scope; signs off acceptance. |
 | Engineering team | Delivers, tests, documents, and operates the system ([§7](#7-team-roles-and-responsibilities)). |
 | IT Administrators (end org) | UAT, operational readiness, production configuration/branding. |
 | Data-protection / security owner | Reviews AI data governance ([SRS §17.5](#)) and security posture. |
@@ -192,16 +181,11 @@ Stakeholders and their interests are defined in **[SRS §7](#)**. Management-rel
 
 | Role | Code | Responsibilities |
 |---|---|---|
-| Project Lead / Manager | R-PM | Plan, schedule, risk/issue tracking, client gate coordination, reporting. |
-| Technical Lead / Architect | R-TL | Guards SRS/SDD conformance; reviews design decisions; owns ADRs; final code-review authority. |
-| Backend Engineer | R-BE | Laravel domains (Services/Actions/Models), migrations, API, jobs, tests. |
-| Frontend Engineer | R-FE | React feature slices, design-system components, accessibility, tests. |
-| QA Engineer | R-QA | Test strategy, acceptance test execution, coverage, regression, a11y/perf verification. |
-| DevOps / Release Engineer | R-DO | CI/CD, environments, deployment, backup/monitoring, release cutovers. |
-| Security Lead | R-SEC | Security reviews, secrets/dependency management, incident response. |
-| UX / Design owner | R-UX | `DESIGN.md` conformance, usability, WCAG validation. |
+| Project Manager | R-PM | Plan, schedule, risk/issue tracking, client gate coordination, reporting. |
+| Developer | R-DEV | Guards SRS/SDD conformance; reviews and owns design decisions and ADRs; final code-review authority. Laravel domains (Services/Actions/Models), migrations, API, jobs; React feature slices, design-system components, accessibility; CI/CD, environments, deployment, backup/monitoring, release cutovers; security reviews, secrets/dependency management, incident response; `DESIGN.md` conformance, usability, WCAG validation; tests for all of the above. |
+| QA | R-QA | Test strategy, acceptance test execution, coverage, regression, a11y/perf verification. |
 
-RACI (condensed): R-PM *accountable* for schedule/risk; R-TL *accountable* for technical conformance; R-QA *accountable* for acceptance verification; client *accountable* for gate approvals. All engineers *responsible* for tests and docs of their work.
+RACI (condensed): R-PM *accountable* for schedule/risk; R-DEV *accountable* for technical conformance; R-QA *accountable* for acceptance verification; client *accountable* for gate approvals. All roles *responsible* for tests and docs of their work.
 
 ---
 
@@ -228,8 +212,8 @@ Sprint planning, sprint review/demo, and retrospective per sprint; short async d
 ## 9. Project Organization
 
 - **Structure:** a single cross-functional delivery team building a modular monolith ([SDD DD-01](#)); no sub-teams needed at current scale.
-- **Decision rights:** technical decisions → R-TL (recorded as ADRs in `vault/08 ADR`, rationale in Claude-Mem per the project’s knowledge model); scope/priority → client product owner; process → R-PM.
-- **Environments owned by R-DO:** development (Docker on the workstation), staging (production-like), production.
+- **Decision rights:** technical decisions → R-DEV (recorded as ADRs in `vault/08 ADR`, rationale in Claude-Mem per the project’s knowledge model); scope/priority → client product owner; process → R-PM.
+- **Environments owned by R-DEV:** development (Docker on the workstation), staging (production-like), production.
 - **Knowledge system** (per the project’s operating model): codebase graph = *what*; Claude-Mem = *why*; auto-memory = *how we work*; the Obsidian **vault** = human engineering docs (this plan, SRS, SDD, ADRs).
 
 ---
@@ -244,15 +228,17 @@ Decomposed by SDD domain. Effort is relative ([SA-01](#appendix-b--assumption-re
 | **WP-1** | Documentation (SRS, SDD, SPMP; resolve `OI-01..07`) | SRS §33 | M (in progress) | — |
 | **WP-2.0** | SPA shell + design system components + theming + a11y baseline | NFR-USB, NFR-ACC, DESIGN.md | L | WP-1 |
 | **WP-2.1** | **Identity & Access** domain: Sanctum auth, sessions, lockout, RBAC engine, users | FR-AUTH-*, FR-USER-*, NFR-SEC-* | L | WP-2.0 |
-| **WP-2.2** | **Locations** domain: buildings/floors/rooms CRUD | FR-LOC-* | M | WP-2.1 |
-| **WP-2.3** | **Assets** pt.1: PC units, specifications, QR generate/scan | FR-PC-*, FR-QR-* | L | WP-2.2 |
-| **WP-2.4** | **Assets** pt.2: catalog, serialized assets, consumables, stock ledger, procurement, transfers, disposal | FR-AST-* | XL | WP-2.3 |
+| **WP-2.2** | **Locations** domain: buildings/floors/rooms CRUD | FR-LOC-* | ✅ done | WP-2.1 |
+| **WP-2.3** | **Assets** pt.1: PC units, specifications, QR generate/print | FR-PC-*, FR-QR-001..004/007 | ✅ done | WP-2.2 |
+| **WP-2.4** | **Assets** pt.2: catalog, serialized assets, lifecycle, transfers, custodianship, attachments, history, module dashboard + enterprise directory | FR-AST-001/002/005/006/011/012/013/014/015 | ✅ done | WP-2.3 |
+| **WP-2.4b** | **Assets** pt.3 *(carried forward)*: consumables, stock ledger, procurement, disposal workflow, asset import/export, bulk actions | FR-AST-003/004/007/008/009/010 | L | WP-2.4 |
+| **WP-2.4c** | **QR scan verification** *(carried forward)*: scan endpoint, deterministic result classification, `qr_scan_logs`, QR-initiated maintenance | FR-QR-005/006/008/009 | M | WP-2.4, WP-2.6 |
 | **WP-2.5** | **Tickets** domain: lifecycle, comments, votes, attachments, tags, SLA, duplicates + technician assignment | FR-TKT-*, FR-ASN-* | XL | WP-2.1, WP-2.2 |
 | **WP-2.6** | **Maintenance** domain: corrective + preventive, checklists, images, notes, hardware replacements, reminders | FR-MNT-* | L | WP-2.3, WP-2.5 |
 | **WP-2.7** | **Administration** pt.1: notifications + preferences + announcements | FR-NOT-* | M | WP-2.1 |
 | **WP-2.8** | **Administration** pt.2: system settings + branding | FR-CFG-* | M | WP-2.1 |
 | **WP-2.9** | **Administration** pt.3: audit + activity log viewers | FR-AUD-* | S | WP-2.1 |
-| **WP-2.10** | **Analytics** domain: dashboards + KPIs + on-demand reports + export | FR-DSH-*, FR-RPT-* | L | WP-2.5, WP-2.4 |
+| **WP-2.10** | **Analytics** domain: dashboards + KPIs + on-demand reports + export | FR-DSH-*, FR-RPT-* | L (role dashboards ✅ done) | WP-2.5, WP-2.4 |
 | **WP-2.11** | P2 hardening: security review, WCAG AA audit, perf/load test, backup ops, prod deploy | SRS §12–§16 | L | WP-2.2..2.10 |
 | **WP-3.1** | AI provider + `ai_system_settings` + ticket triage (async) | FR-AI-001..003/010/014/015 | L | P2 GA |
 | **WP-3.2** | RAG: embedding pipeline + knowledge base + retrieval | FR-AI-005/006/007 | L | WP-3.1 |
@@ -279,6 +265,8 @@ Calendar is **indicative** ([SA-01](#appendix-b--assumption-register)); sequenci
 | **Maintenance** | Steady-state support & evolution | WP-5 + ongoing | continuous | [M8](#12-milestones) |
 
 **Intra-P2 sequencing:** shell + identity first (WP-2.0/2.1) because every screen needs auth, RBAC, and the design system; then the location foundation (WP-2.2); then value-generating domains (Assets, Tickets, Maintenance) in parallelizable slices; then cross-cutting admin/analytics; then hardening. Each domain slice ships API + UI + tests together (vertical slices), keeping the app demoable every sprint.
+
+**Delivery to date (implementation phases).** The build has been delivered as numbered increments, each ending green and demoable: **2.1** SPA shell + public entry (WP-2.0) · **2.2** authentication & authorization (WP-2.1a) · **2.3** user management (WP-2.1b) · **2.4** Location Management **plus the role-dashboard slice of WP-2.10**, brought forward at the client's request so each role has a purposeful landing surface while the operational domains are built. Reporting and export stay in WP-2.10; per-user dashboard customization (FR-DSH-002/006) is deferred with them. Bringing the dashboards forward carried little risk because they only *read* existing tables — no new schema, and the panels grow richer as each later domain lands.
 
 ---
 
@@ -343,7 +331,7 @@ Long-lived divergent branches are avoided (trunk-based). Feature flags / setting
 
 ## 16. Code Review Process
 
-- **Every PR reviewed** by at least one engineer other than the author (R-TL is the escalation/authority for architecture-affecting changes).
+- **Every PR reviewed** by at least one engineer other than the author (R-DEV is the escalation/authority for architecture-affecting changes).
 - **Automated first:** CI must be green before human review; reviewers do not spend time on style (Pint/Prettier) or type errors (Larastan/tsc) — the pipeline owns those.
 - **Review checklist:** conforms to SRS requirement(s) and SDD design; coding standards ([SDD §33](#)); security-sensitive paths (authz, input, secrets, file upload) scrutinized; accessibility for UI; tests present and meaningful; API documented; no id leakage (uuid-only); DB constraints respected; docs/ADR updated.
 - **Tooling assist:** the repo’s code-review tooling may be run on a diff for an extra pass; the `security-review` tooling is run on security-sensitive PRs. These **augment**, never replace, human review.
@@ -357,11 +345,11 @@ Documentation is a first-class, versioned deliverable, homed in the Obsidian **v
 
 | Doc type | Location | Owner | Cadence |
 |---|---|---|---|
-| SRS / SDD / SPMP | `vault/01 Project`, `vault/02 Architecture` | R-TL/R-PM | Versioned; change-controlled ([§25](#25-change-management)). |
-| ADRs (decision records) | `vault/08 ADR` | R-TL | Per significant decision. |
-| API contract (OpenAPI) | `backend/` (generated) | R-BE | Kept in sync per PR ([NFR-MTN-006](#)). |
-| Developer/ops docs | `docs/` (DEVELOPMENT, ENVIRONMENT, DOCKER, INSTALLATION) | R-DO | Updated with process/infra changes. |
-| User & admin guides | `vault` + delivered docs (DL-12) | R-UX/R-QA | Per phase GA. |
+| SRS / SDD / SPMP | `vault/01 Project`, `vault/02 Architecture` | R-DEV/R-PM | Versioned; change-controlled ([§25](#25-change-management)). |
+| ADRs (decision records) | `vault/08 ADR` | R-DEV | Per significant decision. |
+| API contract (OpenAPI) | `backend/` (generated) | R-DEV | Kept in sync per PR ([NFR-MTN-006](#)). |
+| Developer/ops docs | `docs/` (DEVELOPMENT, ENVIRONMENT, DOCKER, INSTALLATION) | R-DEV | Updated with process/infra changes. |
+| User & admin guides | `vault` + delivered docs (DL-12) | R-DEV/R-QA | Per phase GA. |
 | Rationale / “why” | Claude-Mem (project knowledge) | team | Continuous. |
 
 **Rule:** a PR that changes behavior updates the relevant doc in the same PR (Definition of Done). Requirements/design docs are **referenced, not copied**, to prevent drift.
@@ -430,13 +418,13 @@ Realizes [SRS §31 acceptance](#) and [NFR-MTN-001/002/005](#); mirrors the SDD 
 | ID | Project risk | L | I | Mitigation | Owner |
 |---|---|---|---|---|---|
 | PR-01 | Team capacity/velocity unconfirmed → schedule uncertainty. | H | M | Relative sizing; confirm capacity at approval; re-baseline after 2 sprints of actuals ([SA-01/03](#appendix-b--assumption-register)). | R-PM |
-| PR-02 | Bus factor (small team / single contributor). | M | H | ADRs + Claude-Mem + vault docs; pairing; ≥ 1 reviewer per PR; automated everything. | R-TL |
+| PR-02 | Bus factor (small team / single contributor). | M | H | ADRs + Claude-Mem + vault docs; pairing; ≥ 1 reviewer per PR; automated everything. | R-DEV |
 | PR-03 | Client-gate availability delays phase starts. | M | M | Schedule gate reviews in advance; keep decisions batched; async approval option. | R-PM |
-| PR-04 | AI provider cost/latency/policy change (P3). | M | M | Provider abstraction ([SDD DD-11](#)); token/latency logging; degrade gracefully; cost budget alert. | R-TL |
-| PR-05 | Third-party dependency churn (React 19 / Tailwind 4 / Laravel 13 ecosystem). | M | M | Pinned lockfiles; scheduled update sprints; CI catches breakage. | R-DO |
+| PR-04 | AI provider cost/latency/policy change (P3). | M | M | Provider abstraction ([SDD DD-11](#)); token/latency logging; degrade gracefully; cost budget alert. | R-DEV |
+| PR-05 | Third-party dependency churn (React 19 / Tailwind 4 / Laravel 13 ecosystem). | M | M | Pinned lockfiles; scheduled update sprints; CI catches breakage. | R-DEV |
 | PR-06 | Scope creep from Future/opt-in features into P2. | M | M | Firm phasing; [§25](#25-change-management); Future items stay in [§32](#32-future-roadmap). | R-PM |
 | PR-07 | Open decisions ([SRS `OI-01..07`](#)) unresolved before their phase. | M | M | Track as change items; force resolution at the relevant gate. | R-PM |
-| PR-08 | Environment drift (dev vs prod) causes “works on my machine”. | L | M | Docker parity; identical CI DB; staging mirrors prod. | R-DO |
+| PR-08 | Environment drift (dev vs prod) causes “works on my machine”. | L | M | Docker parity; identical CI DB; staging mirrors prod. | R-DEV |
 
 **Process:** risk register reviewed **every sprint**; each risk has L (likelihood), I (impact), mitigation, and owner; new risks logged in [Issue Management](#23-issue-management) with a `risk` label; top risks reported at each gate.
 
@@ -463,7 +451,7 @@ Realizes [SRS §31 acceptance](#) and [NFR-MTN-001/002/005](#); mirrors the SDD 
 | Sprint retrospective | per sprint | team | process improvements. |
 | **Phase-gate review** | per phase (M0,M5,M6,M7) | team + **client** | acceptance sign-off / go-no-go. |
 | Risk review | per sprint | team | updated risk register. |
-| Ad-hoc decision record | as needed | R-TL | ADR in `vault/08 ADR`. |
+| Ad-hoc decision record | as needed | R-DEV | ADR in `vault/08 ADR`. |
 
 **Channels:** repository (issues/PRs) is the system of record; synchronous calls for gate reviews; decisions captured as ADRs (structure) + Claude-Mem (rationale). **Reporting:** a one-page status per sprint (progress vs milestones, risks, defects, next gate).
 
@@ -471,12 +459,12 @@ Realizes [SRS §31 acceptance](#) and [NFR-MTN-001/002/005](#); mirrors the SDD 
 
 ## 25. Change Management
 
-- **Baselines under change control:** approved SRS, SDD, SPMP; the database schema; the API contract.
-- **Change request (CR) flow:** raise CR (issue, `change` label) → **impact analysis** against SRS/SDD/schedule/cost → decision (R-TL + R-PM, client for scope/cost) → update the affected baselined document with a version bump → implement.
+- **Baselines under change control:** the SRS, SDD, and SPMP; the database schema; the API contract.
+- **Change request (CR) flow:** raise CR (issue, `change` label) → **impact analysis** against SRS/SDD/schedule/cost → decision (R-DEV + R-PM, client for scope/cost) → update the affected baselined document with a version bump → implement.
 - **Schema changes** additionally require a migration + review and a `migrate:fresh`→`rollback`→`migrate` verification ([CON-02](#), [§20](#20-configuration-management)).
 - **The seven open product decisions ([SRS `OI-01..07`](#))** are pre-registered change items (single vs multi-role, self-registration, MFA, QR expiry, SLA model, auto-escalation, confirm NFR targets). Each must be resolved **before** the phase it affects; resolution updates the SRS to v1.1 and cascades to the SDD/SPMP as needed.
 - **Document versioning:** SemVer-style for docs (`1.0 → 1.1`); revision history table in each document; superseded versions retained.
-- **No silent scope change:** anything outside the approved SRS scope is a CR, not a task.
+- **No silent scope change:** anything outside the SRS scope is a CR, not a task.
 
 ---
 
@@ -524,7 +512,7 @@ Realizes [SRS `NFR-OBS-*`](#) and [`NFR-AVL-001`](#).
 
 Design references: [SDD §29 (Security Architecture)](#) implementing [SRS §12](#).
 
-- **Ownership:** R-SEC owns security posture; security is a **release gate** each phase (DL-09).
+- **Ownership:** R-DEV owns security posture; security is a **release gate** each phase (DL-09).
 - **Secrets:** managed via a secrets manager in production; least-privilege DB role (not the dev superuser); never committed (`docs/ENVIRONMENT.md`).
 - **Dependency & code security:** dependency vulnerability scanning in CI; the repo’s `security-review` tooling run on security-sensitive PRs; static analysis (Larastan) enforced.
 - **Application controls (verified per phase):** uuid-only external ids, deny-by-default RBAC, Sanctum first-party cookies + CSRF, server-side validation, output encoding, file-upload allow-list + checksum, append-only audit, rate limiting ([SRS `NFR-SEC-001..017`](#)).
@@ -537,7 +525,7 @@ Design references: [SDD §29 (Security Architecture)](#) implementing [SRS §12]
 
 ## 30. Acceptance Process
 
-- **Basis:** the approved acceptance criteria in **[SRS §31](#)** — the six **global gates `AC-G1..G6`** plus per-feature criteria (`AC-TKT-*`, `AC-AI-*`, etc.).
+- **Basis:** the acceptance criteria in **[SRS §31](#)** — the six **global gates `AC-G1..G6`** plus per-feature criteria (`AC-TKT-*`, `AC-AI-*`, etc.).
 - **Per work item:** demonstrated against its acceptance criteria at sprint review (Definition of Done).
 - **Per phase (formal):** an acceptance package is prepared for the phase-gate review — passing CI, coverage report, security review report, WCAG 2.2 AA audit report, load-test results, and UAT results against the operational scenarios ([SRS §26](#)).
 - **UAT:** client-side users execute scripted scenarios on staging; defects triaged by severity; S1/S2 must be resolved before sign-off.
@@ -616,10 +604,10 @@ All calendar/resourcing figures are **assumptions** pending confirmation at plan
 
 ## Appendix C — Consistency Review Log
 
-Per the required post-generation review: verify consistency with the approved SRS and SDD, remove contradictions/duplication, and improve clarity.
+Per the required post-generation review: verify consistency with the SRS and SDD, remove contradictions/duplication, and improve clarity.
 
 ### C.1 Sources reconciled
-Approved SRS v1.0 (phasing, `FR/NFR/BO/RSK/CON/ASM/OI` IDs, acceptance §31); approved SDD v1.0 (domains, `DD-01..16`, `RES-01/02`, deployment §5/§37, tech stack); and the **current repository** — `.github/workflows/ci.yml`, `Makefile`, `scripts/*`, `docs/DEVELOPMENT.md`, `docs/ENVIRONMENT.md`, `scripts/backup.sh`, `compose.yaml` — read directly for realism.
+SRS v1.0 (phasing, `FR/NFR/BO/RSK/CON/ASM/OI` IDs, acceptance §31); SDD v1.0 (domains, `DD-01..16`, `RES-01/02`, deployment §5/§37, tech stack); and the **current repository** — `.github/workflows/ci.yml`, `Makefile`, `scripts/*`, `docs/DEVELOPMENT.md`, `docs/ENVIRONMENT.md`, `scripts/backup.sh`, `compose.yaml` — read directly for realism.
 
 ### C.2 SRS/SDD consistency — confirmed
 - **Phasing** (P2/P3/P4/Future) is identical across SRS, SDD, and this plan; the WBS, phase plan, milestones, and roadmap all use it.
@@ -630,7 +618,7 @@ Approved SRS v1.0 (phasing, `FR/NFR/BO/RSK/CON/ASM/OI` IDs, acceptance §31); ap
 - **Security/backup/deployment** reference SDD §29/§5/§37 and SRS NFR targets (RPO ≤ 24 h, RTO ≤ 4 h, uptime ≥ 99.5%) without restating them.
 
 ### C.3 Repository consistency — confirmed
-CI gates, `make`/`scripts` commands, env-file strategy, Redis-for-everything scale-readiness, Sanctum stateful-domain config, and the `backup.sh`/`restore.sh` flow described here match the implemented files exactly (Appendix A). The “current state” table (§2.2) matches the git history (phases 0–7 + DB layer) and the SDD’s statement that the application layer is not yet built.
+CI gates, `make`/`scripts` commands, env-file strategy, Redis-for-everything scale-readiness, Sanctum stateful-domain config, and the `backup.sh`/`restore.sh` flow described here match the implemented files exactly (Appendix A). The baseline underlying this plan matches the git history (phases 0–7 + DB layer) and the SDD’s statement that the application layer is not yet built.
 
 ### C.4 Contradictions & duplication removed
 - **No duplication of requirements/design/schema:** all referenced by ID; product scope defers to SRS §3; deployment/security defer to SDD.
@@ -646,4 +634,4 @@ None blocking. Confirm the Appendix B assumptions (chiefly team capacity **SA-01
 
 ---
 
-*End of Software Project Management Plan v1.0 — approved v1.0 project-specification baseline. Phase 2 development proceeds on separate go-ahead.*
+*End of Software Project Management Plan v1.0 — Version 1.0 baseline — Waiting for Client Approval. Phase 2 development proceeds on separate go-ahead.*

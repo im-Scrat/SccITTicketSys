@@ -18,6 +18,7 @@ class PermissionSeeder extends Seeder
      */
     private array $matrix = [
         'tickets' => ['view', 'create', 'update', 'delete', 'assign', 'comment', 'vote', 'export'],
+        'locations' => ['view', 'create', 'update', 'delete'],
         'assets' => ['view', 'create', 'update', 'delete', 'transfer', 'dispose'],
         'maintenance' => ['view', 'create', 'update', 'delete', 'complete'],
         'inventory' => ['view', 'create', 'update', 'delete', 'adjust'],
@@ -49,11 +50,25 @@ class PermissionSeeder extends Seeder
     {
         $all = Permission::query()->pluck('id')->all();
 
+        // The `assets.*` module is Administrator-only for the same reason as
+        // `locations.*`: maintaining the equipment register is site
+        // administration, not day-to-day work. A Technician reaches the machine
+        // they are repairing through their assigned ticket or maintenance record,
+        // via the narrow lookup at `/api/lookups/*` — authorized by
+        // `tickets.*`/`maintenance.*`, never by an assets permission
+        // (see AssetPolicy::selectAsset, SDD DD-38).
+        // Phase 2.6: `tickets.assign` and `tickets.export` are withdrawn from the
+        // Technician baseline. Assignment authority is the Administrator's, and
+        // export is a whole-directory read that a technician who cannot browse
+        // the directory must not have. `tickets.assign` remains grantable
+        // *per-user* — FR-ASN-001's "(and permitted Technicians)" is the SRS's
+        // own narrow exception for a lead technician distributing workload
+        // (SDD DD-40). `tickets.view` is deliberately retained: it is scoped to
+        // their own assignments by TicketVisibility, not by the permission.
         $technician = Permission::query()->where(function ($q) {
             $q->whereIn('module', ['maintenance'])
                 ->orWhereIn('name', [
-                    'tickets.view', 'tickets.update', 'tickets.assign', 'tickets.comment', 'tickets.export',
-                    'assets.view', 'assets.update', 'assets.transfer',
+                    'tickets.view', 'tickets.update', 'tickets.comment',
                     'inventory.view', 'inventory.adjust',
                     'ai.view', 'ai.feedback',
                     'knowledge.view', 'knowledge.create',
@@ -61,6 +76,14 @@ class PermissionSeeder extends Seeder
                 ]);
         })->pluck('id')->all();
 
+        // The `locations.*` module is Administrator-only: it is site administration,
+        // not day-to-day work. Non-admins never receive `locations.view`.
+        //
+        // Where a non-admin workflow needs to name a place (a teacher reporting
+        // where a fault is, a technician recording where work happened), the
+        // narrow room lookup at `/api/lookups/*` serves it instead — authorized by
+        // the permission of the workflow that needs it, not by a locations
+        // permission (see RoomPolicy::selectLocation).
         $teacher = Permission::query()->whereIn('name', [
             'tickets.view', 'tickets.create', 'tickets.comment', 'tickets.vote',
             'knowledge.view', 'ai.view', 'ai.feedback',
@@ -69,5 +92,59 @@ class PermissionSeeder extends Seeder
         Role::query()->where('slug', 'administrator')->first()?->permissions()->syncWithoutDetaching($all);
         Role::query()->where('slug', 'technician')->first()?->permissions()->syncWithoutDetaching($technician);
         Role::query()->where('slug', 'teacher')->first()?->permissions()->syncWithoutDetaching($teacher);
+
+        $this->revokeWithdrawnBaselineGrants();
+    }
+
+    /**
+     * Permissions that were once seeded to a role and have since been withdrawn
+     * from the baseline: role slug => permission names to detach.
+     *
+     * Grants are applied with `syncWithoutDetaching` so that runtime adjustments
+     * an Administrator makes (FR-USER-010) survive re-seeding — which also means a
+     * grant removed from the matrix above would otherwise linger forever in an
+     * existing database. This list is the explicit correction. It is deliberately
+     * narrow rather than a blanket `sync()`, which would wipe every legitimate
+     * customization on each deployment seed.
+     *
+     * @var array<string, list<string>>
+     */
+    private array $withdrawn = [
+        // Phase 2.4 scope change: Locations is Administrator-only. Non-admins use
+        // the narrow room lookup instead (FR-LOC-011).
+        //
+        // Phase 2.5 scope change: Asset Management is Administrator-only on the
+        // same reasoning (SDD DD-38). Technicians previously held
+        // assets.view/update/transfer from the 2.2 baseline; those are withdrawn
+        // here so an existing database converges on the current matrix. They
+        // reach the equipment they are working on through the narrow lookup at
+        // `/api/lookups/*` instead.
+        //
+        // Phase 2.6 scope change: assignment authority is the Administrator's,
+        // and export is a whole-directory read. `tickets.assign` stays grantable
+        // per-user for a deputized lead technician (FR-ASN-001); the role
+        // baseline no longer carries either.
+        'technician' => [
+            'locations.view', 'assets.view', 'assets.update', 'assets.transfer',
+            'tickets.assign', 'tickets.export',
+        ],
+        'teacher' => ['locations.view'],
+    ];
+
+    private function revokeWithdrawnBaselineGrants(): void
+    {
+        foreach ($this->withdrawn as $roleSlug => $names) {
+            $role = Role::query()->where('slug', $roleSlug)->first();
+
+            if ($role === null) {
+                continue;
+            }
+
+            $ids = Permission::query()->whereIn('name', $names)->pluck('id')->all();
+
+            if ($ids !== []) {
+                $role->permissions()->detach($ids);
+            }
+        }
     }
 }

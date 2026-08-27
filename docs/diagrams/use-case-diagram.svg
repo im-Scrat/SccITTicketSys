@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1172" height="1610" viewBox="0 0 1172 1610" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<defs>
+<marker id="oarrow" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto"><path d="M1,1 L9,4 L1,7" fill="none" stroke="#9a6ab0" stroke-width="1.3"/></marker>
+<marker id="tri" markerWidth="17" markerHeight="14" refX="13" refY="6" orient="auto"><path d="M1,1 L13,6 L1,11 Z" fill="#fff" stroke="#4a5568" stroke-width="1.3"/></marker>
+</defs>
+<rect x="0" y="0" width="1172" height="1610" fill="#fff"/>
+<text x="586.0" y="34" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#1b2a4a">SccIT — System Use Case Diagram</text>
+<rect x="306" y="92" width="648.0" height="1450" rx="6" fill="#fff" stroke="#3a4657" stroke-width="2"/>
+<text x="630.0" y="122" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#20304d">AI-Powered School IT Asset &amp; Service Management System</text>
+<line x1="97.0" y1="218.0" x2="361.4" y2="200.1" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="218.0" x2="653.8" y2="196.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="218.0" x2="512.5" y2="253.9" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="359.0" y2="442.1" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="653.0" y2="439.5" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="374.9" y2="493.3" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="659.1" y2="498.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="410.8" y2="556.9" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="680.9" y2="562.2" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="431.8" y2="626.3" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="701.2" y2="629.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="443.8" y2="697.3" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="716.2" y2="699.6" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="455.0" x2="402.4" y2="371.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="460.6" y2="463.6" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="741.3" y2="462.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="457.1" y2="535.4" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="735.7" y2="534.4" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="452.3" y2="607.2" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="728.4" y2="605.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="445.3" y2="678.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="718.3" y2="676.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="434.3" y2="749.9" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="704.1" y2="746.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="410.1" y2="833.0" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="680.2" y2="827.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="373.8" y2="896.3" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="658.6" y2="890.9" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="365.4" y2="957.4" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="655.2" y2="961.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="403.3" y2="1018.1" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="675.1" y2="1023.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="427.7" y2="1086.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="933.0" x2="696.7" y2="1090.6" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="468.8" y2="463.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="754.9" y2="463.5" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="467.5" y2="535.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="752.7" y2="535.4" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="466.0" y2="607.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="750.1" y2="607.3" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="464.1" y2="679.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="746.9" y2="679.1" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="461.7" y2="751.6" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="743.0" y2="750.9" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="445.1" y2="994.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="717.9" y2="992.6" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="433.9" y2="1065.9" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="703.6" y2="1062.6" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="414.6" y2="1135.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="684.0" y2="1130.6" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="372.7" y2="1211.9" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="658.1" y2="1206.6" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="360.3" y2="1262.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="653.4" y2="1265.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="397.7" y2="1321.2" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="671.3" y2="1327.1" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="424.5" y2="1389.1" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="693.4" y2="1393.3" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="439.5" y2="1459.6" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="97.0" y1="1247.0" x2="710.6" y2="1462.3" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="676.0" x2="605.3" y2="657.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="676.0" x2="891.3" y2="664.2" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="676.0" x2="598.3" y2="713.2" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="944.0" x2="645.1" y2="291.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="944.0" x2="805.6" y2="751.3" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="944.0" x2="517.0" y2="1315.1" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="944.0" x2="512.0" y2="1386.8" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="1078.0" x2="573.1" y2="987.3" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="1078.0" x2="545.8" y2="906.1" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="1078.0" x2="808.8" y2="909.2" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="1078.0" x2="795.4" y2="751.7" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="1078.0" x2="809.4" y2="1242.9" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="1000.0" y1="810.0" x2="904.0" y2="810.0" stroke="#8a94a6" stroke-width="1.25"/>
+<line x1="652.0" y1="350.0" x2="608.0" y2="350.0" stroke="#9a6ab0" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#oarrow)"/>
+<rect x="658.0" y="341.0" width="60" height="17" fill="#fff" stroke="none"/>
+<text x="688.0" y="354.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-style="italic" fill="#7a3ea0">&#171;extend&#187;</text>
+<ellipse cx="482.0" cy="192.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="197.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Register Account</text>
+<ellipse cx="778.0" cy="192.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="197.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Log In</text>
+<ellipse cx="630.0" cy="264.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="630.0" y="269.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Reset Password</text>
+<ellipse cx="482.0" cy="350.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="355.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Submit Ticket</text>
+<ellipse cx="778.0" cy="350.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="355.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Attach Files</text>
+<ellipse cx="482.0" cy="436.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="441.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Log Out</text>
+<ellipse cx="778.0" cy="436.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="441.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Change Password</text>
+<ellipse cx="482.0" cy="508.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="513.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage Profile</text>
+<ellipse cx="778.0" cy="508.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="513.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">View Dashboard</text>
+<ellipse cx="482.0" cy="580.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="585.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Track Ticket Status</text>
+<ellipse cx="778.0" cy="580.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="585.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Comment on Ticket</text>
+<ellipse cx="482.0" cy="652.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="649.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Use AI</text>
+<text x="482.0" y="666.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Troubleshooting</text>
+<ellipse cx="778.0" cy="652.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="649.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Search Knowledge</text>
+<text x="778.0" y="666.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Base</text>
+<ellipse cx="482.0" cy="724.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="721.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">View AI</text>
+<text x="482.0" y="738.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Recommendations</text>
+<ellipse cx="778.0" cy="724.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="729.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage Notifications</text>
+<ellipse cx="482.0" cy="810.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="815.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Resolve Ticket</text>
+<ellipse cx="778.0" cy="810.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="815.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Scan QR Code</text>
+<ellipse cx="482.0" cy="882.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="887.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Perform Maintenance</text>
+<ellipse cx="778.0" cy="882.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="879.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Schedule Preventive</text>
+<text x="778.0" y="896.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Maintenance</text>
+<ellipse cx="482.0" cy="968.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="973.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Assign Ticket</text>
+<ellipse cx="778.0" cy="968.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="973.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage Assets</text>
+<ellipse cx="482.0" cy="1040.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="1045.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage Inventory</text>
+<ellipse cx="778.0" cy="1040.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="1045.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage PC Units</text>
+<ellipse cx="482.0" cy="1112.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="1117.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage QR Codes</text>
+<ellipse cx="778.0" cy="1112.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="1117.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Generate Reports</text>
+<ellipse cx="482.0" cy="1198.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="1203.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage Procurement</text>
+<ellipse cx="778.0" cy="1198.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="1203.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage Locations</text>
+<ellipse cx="482.0" cy="1270.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="1275.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage Floor Plan</text>
+<ellipse cx="778.0" cy="1270.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="1275.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage Announcements</text>
+<ellipse cx="482.0" cy="1342.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="1347.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage Users</text>
+<ellipse cx="778.0" cy="1342.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="1339.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage Roles &amp;</text>
+<text x="778.0" y="1356.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Permissions</text>
+<ellipse cx="482.0" cy="1414.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="1419.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Approve Registration</text>
+<ellipse cx="778.0" cy="1414.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="1419.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">View Analytics</text>
+<ellipse cx="482.0" cy="1486.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="482.0" y="1491.5" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">View Audit Logs</text>
+<ellipse cx="778.0" cy="1486.0" rx="126.0" ry="28.0" fill="#EAF0FB" stroke="#2E4A86" stroke-width="1.5"/>
+<text x="778.0" y="1483.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Manage System</text>
+<text x="778.0" y="1500.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" fill="#16233c">Settings</text>
+<circle cx="78" cy="194.0" r="13" fill="#fff" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="207.0" x2="78" y2="237.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="59" y1="218.0" x2="97" y2="218.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="237.0" x2="62" y2="261.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="237.0" x2="94" y2="261.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<text x="78" y="283.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#5a3d0a">Public Visitor</text>
+<circle cx="78" cy="431.0" r="13" fill="#fff" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="444.0" x2="78" y2="474.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="59" y1="455.0" x2="97" y2="455.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="474.0" x2="62" y2="498.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="474.0" x2="94" y2="498.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<text x="78" y="520.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#5a3d0a">Teacher /</text>
+<text x="78" y="537.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#5a3d0a">Requester</text>
+<circle cx="78" cy="909.0" r="13" fill="#fff" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="922.0" x2="78" y2="952.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="59" y1="933.0" x2="97" y2="933.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="952.0" x2="62" y2="976.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="952.0" x2="94" y2="976.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<text x="78" y="998.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#5a3d0a">Technician</text>
+<circle cx="78" cy="1223.0" r="13" fill="#fff" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="1236.0" x2="78" y2="1266.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="59" y1="1247.0" x2="97" y2="1247.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="1266.0" x2="62" y2="1290.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<line x1="78" y1="1266.0" x2="94" y2="1290.0" stroke="#1b3a5b" stroke-width="2.4"/>
+<text x="78" y="1312.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#5a3d0a">Administrator</text>
+<rect x="1000.0" y="648.0" width="152" height="56" rx="4" fill="#EAECEE" stroke="#5D6D7E" stroke-width="1.8"/>
+<text x="1076.0" y="667.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-style="italic" fill="#41505e">&#171;actor&#187;</text>
+<text x="1076.0" y="686.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#212F3D">AI Provider</text>
+<rect x="1000.0" y="916.0" width="152" height="56" rx="4" fill="#EAECEE" stroke="#5D6D7E" stroke-width="1.8"/>
+<text x="1076.0" y="935.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-style="italic" fill="#41505e">&#171;actor&#187;</text>
+<text x="1076.0" y="954.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#212F3D">Email Service</text>
+<rect x="1000.0" y="1048.0" width="152" height="60" rx="4" fill="#EAECEE" stroke="#5D6D7E" stroke-width="1.8"/>
+<text x="1076.0" y="1067.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-style="italic" fill="#41505e">&#171;actor&#187;</text>
+<text x="1076.0" y="1086.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#212F3D">Notification</text>
+<text x="1076.0" y="1102.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#212F3D">Service</text>
+<rect x="1000.0" y="782.0" width="152" height="56" rx="4" fill="#EAECEE" stroke="#5D6D7E" stroke-width="1.8"/>
+<text x="1076.0" y="801.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-style="italic" fill="#41505e">&#171;actor&#187;</text>
+<text x="1076.0" y="820.0" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#212F3D">QR Scanner</text>
+</svg>

@@ -1,0 +1,95 @@
+---
+title: "SccIT — Product Perspective (System Context) Block Diagram"
+config:
+  layout: elk
+  theme: base
+  themeVariables:
+    fontFamily: "Segoe UI, Helvetica, Arial, sans-serif"
+    fontSize: "15px"
+    lineColor: "#5c677d"
+    clusterBkg: "#ffffff"
+    clusterBorder: "#adb5bd"
+  flowchart:
+    htmlLabels: true
+    nodeSpacing: 40
+    rankSpacing: 60
+    padding: 8
+  elk:
+    nodePlacementStrategy: BRANDES_KOEPF
+---
+flowchart TB
+%% =========================================================
+%% SccIT — Product Perspective / System Context Block Diagram
+%% Flat, layered architecture (no phase annotations):
+%% Users -> Browser -> Nginx -> React SPA -> Laravel Backend
+%%       -> PostgreSQL / Redis -> External Services
+%% Backend modules are shown as connected components in one layer.
+%% =========================================================
+
+    subgraph USERS["External Users"]
+        direction LR
+        ADM["Administrator"]
+        TEC["Technician"]
+        TEA["Teacher / Requester"]
+    end
+
+    BROWSER["Web Browser<br/><i>desktop · tablet · mobile · QR camera</i>"]
+    NGINX["Nginx — Single-Origin Edge<br/><i>reverse proxy · TLS · static assets + /api routing</i>"]
+    SPA["React 19 SPA<br/><i>Vite · TanStack Query · Tailwind (design tokens)</i>"]
+
+    subgraph BACKEND["Laravel 13 Backend — REST API on PHP-FPM"]
+        direction LR
+        RBAC["&nbsp;Auth &amp; RBAC&nbsp;"]
+        AUD["&nbsp;Audit&nbsp;"]
+        NOTS["&nbsp;Notification&nbsp;"]
+        AISVC["&nbsp;AI Services&nbsp;"]
+        DOM["Domain Modules<br/><i>Tickets · Assets · Maintenance · Analytics</i>"]
+    end
+
+    subgraph DATA["Data Stores"]
+        direction LR
+        PG[("PostgreSQL 17<br/><i>+ pgvector · system of record</i>")]
+        REDIS[("Redis<br/><i>cache · session · queue</i>")]
+    end
+
+    subgraph EXT["External Services"]
+        direction LR
+        MAIL["Email<br/><i>Mailpit (dev) / SMTP (prod)</i>"]
+        GEMINI["AI Provider<br/><i>Google Gemini</i>"]
+        QRSVC["QR Code Services<br/><i>generate · verify</i>"]
+    end
+
+    INFRA["Infrastructure — Docker · Nginx · PHP-FPM · Redis-backed queue workers"]
+
+    %% ---- Communication flow (layered, top to bottom) ----
+    ADM --> BROWSER
+    TEC --> BROWSER
+    TEA --> BROWSER
+    BROWSER -->|"HTTPS · single origin"| NGINX
+    NGINX -->|"static assets"| SPA
+    SPA -->|"REST / JSON · cookies"| BACKEND
+    BACKEND -->|"SQL queries"| PG
+    BACKEND -->|"cache &amp; queue"| REDIS
+    NOTS -->|"e-mail (SMTP)"| MAIL
+    AISVC -->|"HTTPS · chat + embeddings"| GEMINI
+    DOM -->|"image · scan verify"| QRSVC
+    INFRA -.->|"builds &amp; hosts"| BACKEND
+
+    %% ---- Styling (colour = architectural tier) ----
+    classDef users fill:#E7F5FF,stroke:#1971C2,stroke-width:1.4px,color:#0b3d66;
+    classDef client fill:#F1F3F5,stroke:#495057,stroke-width:1.4px,color:#212529;
+    classDef front fill:#E6FCF5,stroke:#0CA678,stroke-width:1.4px,color:#0b503c;
+    classDef edge fill:#FFF3BF,stroke:#F08C00,stroke-width:1.4px,color:#66430a;
+    classDef svc fill:#EDF2FF,stroke:#3B5BDB,stroke-width:1.4px,color:#22318f;
+    classDef data fill:#F3F0FF,stroke:#7048E8,stroke-width:1.4px,color:#3f2a99;
+    classDef ext fill:#FFF0F6,stroke:#C2255C,stroke-width:1.4px,color:#7a1740;
+    classDef infra fill:#F8F9FA,stroke:#868E96,stroke-width:1.3px,color:#343a40,stroke-dasharray:5 3;
+
+    class ADM,TEC,TEA users;
+    class BROWSER client;
+    class SPA front;
+    class NGINX edge;
+    class RBAC,AUD,NOTS,AISVC,DOM svc;
+    class PG,REDIS data;
+    class MAIL,GEMINI,QRSVC ext;
+    class INFRA infra;

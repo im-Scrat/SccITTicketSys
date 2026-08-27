@@ -36,6 +36,19 @@ return [
     'rate_limits' => [
         'registration_per_hour' => (int) env('AUTH_REGISTRATION_PER_HOUR', 5),
         'password_per_hour' => (int) env('AUTH_PASSWORD_PER_HOUR', 6),
+
+        // Phase 2.6 — authenticated ticket actions, keyed per user rather than
+        // per IP so a whole school behind one address does not share a budget.
+        'tickets_per_hour' => (int) env('TICKETS_PER_HOUR', 20),
+        'ticket_comments_per_hour' => (int) env('TICKET_COMMENTS_PER_HOUR', 60),
+    ],
+
+    // File uploads (Phase 2.5 asset attachments; SRS NFR-SEC-007/008).
+    // The MIME/extension allow-list itself lives in the FormRequest — it is a
+    // validation rule, not a tunable — but the size ceiling is deployment
+    // policy, so a site can tighten it without a code change.
+    'uploads' => [
+        'max_kb' => (int) env('UPLOAD_MAX_KB', 10240),
     ],
 
 ];

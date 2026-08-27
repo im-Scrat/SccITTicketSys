@@ -1,0 +1,17 @@
+sequenceDiagram
+  participant B as SPA (camera)
+  participant L as QrService
+  participant DB as PostgreSQL
+  B->>L: POST /api/qr/{code}/scan (+geo?)
+  L->>DB: lookup qr_codes by code
+  alt unknown
+    L->>DB: qr_scan_logs(invalid)
+    L-->>B: 404 invalid
+  else active & resolvable
+    L->>DB: resolve pc_unit|asset (live)
+    L->>DB: qr_scan_logs(success)
+    L-->>B: 200 info panel
+  else revoked/retired/mismatch
+    L->>DB: qr_scan_logs(expired|mismatch)
+    L-->>B: 409 with reason
+  end

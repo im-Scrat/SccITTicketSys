@@ -1,0 +1,11 @@
+sequenceDiagram
+  participant A as Admin SPA
+  participant L as AssetPositionService
+  participant DB as PostgreSQL
+  participant RV as Reverb
+  participant V as Viewer SPA
+  A->>L: PATCH position (snap-to-grid)
+  L->>DB: upsert floor_plan_positions (unique layout+pc)
+  L->>RV: broadcast PositionUpdated
+  RV-->>V: event (or polling fallback)
+  V->>V: re-render PC icon at new pos/status

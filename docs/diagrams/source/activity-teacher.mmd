@@ -1,0 +1,49 @@
+---
+title: "SccIT — Teacher / Requester Workflow (Activity Diagram)"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Segoe UI, Helvetica, Arial, sans-serif"
+    fontSize: "16px"
+    lineColor: "#5c677d"
+  flowchart:
+    htmlLabels: true
+    nodeSpacing: 34
+    rankSpacing: 30
+---
+flowchart TD
+    s([Start]) --> login["Log in"]
+    login --> dash["View Teacher Dashboard<br/>(Reddit-style ticket feed)"]
+    dash --> search["Search existing tickets"]
+    search --> dup{"Similar ticket exists?"}
+    dup -- "Yes" --> vote["Upvote / comment on ticket"]
+    vote --> track
+    dup -- "No" --> form["Fill Submit Ticket form;<br/>attach files / images «extend»"]
+    form --> submit["Submit ticket"]
+    submit --> create[("Create ticket (Open) &<br/>queue AI analysis")]
+    create --> analyze["AI analyzes ticket &<br/>recommends priority"]
+    analyze --> logai[("Log AI recommendation")]
+    logai --> steps["AI shows troubleshooting steps"]
+    steps --> solved{"Resolved by self-service?"}
+    solved -- "Yes" --> conf["Confirm resolved"]
+    conf --> close[("Ticket → Resolved / Closed")]
+    close --> n1["Notify teacher"]
+    n1 --> e([End])
+    solved -- "No" --> esc["Confirm unresolved"]
+    esc --> escq[("Escalate to triage queue")]
+    escq --> n2["Notify Admin / Technician"]
+    n2 --> track["Track progress · get notifications"]
+    track --> e
+
+    classDef se fill:#E4E9F0,stroke:#334155,stroke-width:1.4px,color:#1e293b;
+    classDef act fill:#EAF0FB,stroke:#2E4A86,stroke-width:1.3px,color:#16233c;
+    classDef ai fill:#F1EAFB,stroke:#7048E8,stroke-width:1.3px,color:#3f2a99;
+    classDef data fill:#E6F7EE,stroke:#0CA678,stroke-width:1.3px,color:#0b503c;
+    classDef notif fill:#FDECF3,stroke:#C2255C,stroke-width:1.3px,color:#7a1740;
+    classDef dec fill:#FFF6E6,stroke:#E8901C,stroke-width:1.3px,color:#7a4a06;
+    class s,e se;
+    class login,dash,search,form,submit,vote,conf,esc,track act;
+    class analyze,steps ai;
+    class create,logai,close,escq data;
+    class n1,n2 notif;
+    class dup,solved dec;

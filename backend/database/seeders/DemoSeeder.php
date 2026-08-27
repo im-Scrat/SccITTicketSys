@@ -34,6 +34,7 @@ use App\Models\TicketStatus;
 use App\Models\TicketVote;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 /**
  * Realistic demo dataset for local development. Never runs in production
@@ -90,6 +91,66 @@ class DemoSeeder extends Seeder
                 }
             }
         }
+
+        // A second building with a mixed room-type profile, plus the
+        // out-of-service and archived states, so the Location Management
+        // explorer, directory, metrics and availability filters all have
+        // something real to show locally (Phase 2.4).
+        $annex = Building::factory()->create(['name' => 'Technology Annex', 'code' => 'TECH']);
+
+        $ground = Floor::factory()->create([
+            'building_id' => $annex->id,
+            'floor_number' => 1,
+            'name' => 'Ground floor',
+        ]);
+        Floor::factory()->create([
+            'building_id' => $annex->id,
+            'floor_number' => -1,
+            'name' => 'Basement',
+        ]);
+
+        foreach (['office', 'storage', 'server_room', 'faculty_room', 'library'] as $index => $type) {
+            Room::factory()->create([
+                'floor_id' => $ground->id,
+                'room_type' => $type,
+                'name' => Str::headline($type).' '.($index + 1),
+                'is_active' => true,
+            ]);
+        }
+
+        // One room out of service and one archived (the archive is a soft delete,
+        // so the row and its history stay).
+        Room::factory()->create([
+            'floor_id' => $ground->id,
+            'room_type' => 'storage',
+            'name' => 'Old Store Room',
+            'is_active' => false,
+        ]);
+        Room::factory()->create([
+            'floor_id' => $ground->id,
+            'room_type' => 'other',
+            'name' => 'Decommissioned Wing',
+            'deleted_at' => now(),
+        ]);
+
+        // An inactive building — its whole subtree drops out of every picker.
+        $retired = Building::factory()->create([
+            'name' => 'Old Workshop',
+            'code' => 'OLD',
+            'is_active' => false,
+        ]);
+        Room::factory()->create([
+            'floor_id' => Floor::factory()->create([
+                'building_id' => $retired->id,
+                'floor_number' => 1,
+                'name' => 'Workshop floor',
+            ])->id,
+            'room_type' => 'storage',
+            'name' => 'Workshop Store',
+        ]);
+
+        // A few unplaced PCs so the "unplaced" estate metric is non-zero.
+        PcUnit::factory(3)->create(['room_id' => null]);
 
         // Inventory catalog + stock.
         Asset::factory(12)->create();

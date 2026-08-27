@@ -34,7 +34,7 @@ import {
   sendPasswordReset,
   unlockAccount,
 } from '../api/usersApi'
-import { AuditTimeline } from '../components/AuditTimeline'
+import { AuditTimeline } from '@/components/AuditTimeline'
 import { EditUserDrawer } from '../components/EditUserDrawer'
 import { PermissionMatrix } from '../components/PermissionMatrix'
 import { UserStatusBadge } from '../components/UserStatusBadge'
@@ -468,7 +468,11 @@ function AuditTab({ id }: { id: string }) {
   return (
     <Surface className="p-5">
       <SectionTitle>Audit history</SectionTitle>
-      <AuditTimeline entries={data?.data} isLoading={isLoading} />
+      <AuditTimeline
+        entries={data?.data}
+        isLoading={isLoading}
+        emptyDescription="Registration, sign-ins, and administrative actions for this account will appear here."
+      />
       {data && data.meta.last_page > 1 && (
         <div className="mt-3 flex justify-end gap-2">
           <Button

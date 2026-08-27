@@ -1,6 +1,12 @@
 <?php
 
+use App\Enums\AssignmentStatus;
 use App\Models\Role;
+use App\Models\TechnicianAssignment;
+use App\Models\Ticket;
+use App\Models\TicketCategory;
+use App\Models\TicketPriority;
+use App\Models\TicketStatus;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -30,7 +36,7 @@ pest()->extend(TestCase::class)->in('Unit');
 // auth). CSRF is skipped automatically while running tests.
 pest()->beforeEach(function () {
     $this->withHeader('Origin', (string) config('app.url'));
-})->in('Feature/Auth', 'Feature/Users');
+})->in('Feature/Auth', 'Feature/Users', 'Feature/Locations', 'Feature/Dashboard', 'Feature/Assets', 'Feature/Tickets');
 
 /*
 |--------------------------------------------------------------------------
@@ -80,4 +86,39 @@ function userWithRole(string $roleSlug, array $attributes = []): User
     $role = Role::query()->where('slug', $roleSlug)->firstOrFail();
 
     return User::factory()->create([...['role_id' => $role->id], ...$attributes]);
+}
+
+/**
+ * A ticket wired to the **seeded** lookups rather than the factory-invented
+ * ones. `TicketFactory` creates a fresh status/priority/category per ticket,
+ * which is fine in isolation but useless for lifecycle work — the transition map
+ * is keyed on the seeded slugs. Requires `TicketLookupSeeder`.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function ticketFor(User $reporter, string $statusSlug = 'open', array $overrides = []): Ticket
+{
+    return Ticket::factory()->create([
+        'reporter_id' => $reporter->id,
+        'current_status_id' => TicketStatus::query()->where('slug', $statusSlug)->value('id'),
+        'priority_id' => TicketPriority::query()->where('slug', 'medium')->value('id'),
+        'category_id' => TicketCategory::query()->where('slug', 'hardware')->value('id'),
+        ...$overrides,
+    ]);
+}
+
+/** A seeded ticket status by slug. */
+function ticketStatus(string $slug): TicketStatus
+{
+    return TicketStatus::query()->where('slug', $slug)->firstOrFail();
+}
+
+/** Put a technician on a ticket in a given assignment state. */
+function assign(Ticket $ticket, User $technician, AssignmentStatus $status): TechnicianAssignment
+{
+    return TechnicianAssignment::factory()->create([
+        'ticket_id' => $ticket->id,
+        'technician_id' => $technician->id,
+        'status' => $status->value,
+    ]);
 }

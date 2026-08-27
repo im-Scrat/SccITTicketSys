@@ -9,6 +9,26 @@
  * text-ink, border-border, text-primary, …). Author components against these
  * semantic utilities only — never raw OKLCH — so light/dark parity and the
  * one-token re-brand come for free.
+ *
+ * ── Phase 2.5: the "no-zoom" accessibility pass ────────────────────────────
+ * The authenticated application is used by staff who should never have to reach
+ * for browser zoom. Three token-level decisions carry that, and because they
+ * live here every existing screen inherits them without being rewritten:
+ *
+ *  1. **20px body.** The type scale moved up a full step (xs 16 / sm 18 /
+ *     base 20) with line-heights at 1.7–1.8. Everything measured in rem, so
+ *     browser zoom still compounds on top.
+ *  2. **7:1 contrast.** Text roles clear WCAG 2.2 **AAA** (7:1), not merely AA.
+ *     That is what forced the brand and status hues darker in light mode and
+ *     lighter in dark mode — a mid-tone accent cannot reach 7:1 against either
+ *     ground, so `--primary` is now a deep navy on light and a pale tint on
+ *     dark, with the button's text colour flipping to match.
+ *  3. **Soft cream, never pure white.** `--bg` carries a warm cast to cut the
+ *     glare that drives eye strain on long sessions, and the surface above it
+ *     stays a shade lighter so cards still read as raised planes.
+ *
+ * The public marketing site keeps the Phase 2.1 presentation; these tokens are
+ * shared, so where it uses them it inherits the same improvements.
  */
 
 /* dark: applies under the [data-theme="dark"] attribute we toggle on <html>,
@@ -54,9 +74,9 @@
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
   /* radii (DESIGN.md) — full reserved for dots/avatars/knobs only */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 
   /* elevation — shadow means "floating overlay" only (Flat-Plane Rule) */
   --shadow-overlay-sm: 0 4px 12px oklch(0.2 0.02 258 / 0.1), 0 1px 3px oklch(0.2 0.02 258 / 0.08);
@@ -70,84 +90,129 @@
   --container-content: 76rem;
 }
 
+/*
+ * Type scale — fixed rem, ratio ≈ 1.2, raised a full step for the no-zoom
+ * directive. The old dense workhorse (15px) is now the *small* size, and 20px
+ * is the reading default. Line-heights opened to 1.7–1.8 so lines never blur
+ * together. Headings scale with the body so the hierarchy survives the increase.
+ * All values are rem: browser zoom and user font-size settings still compound.
+ */
+@theme {
+  --text-xs: 1rem; /* 16px — labels, captions, badges, timestamps */
+  --text-xs--line-height: 1.6;
+  --text-sm: 1.125rem; /* 18px — table cells, form values, secondary UI text */
+  --text-sm--line-height: 1.7;
+  --text-base: 1.25rem; /* 20px — the reading default */
+  --text-base--line-height: 1.8;
+  --text-lg: 1.5rem; /* 24px */
+  --text-lg--line-height: 1.5;
+  --text-xl: 1.875rem; /* 30px */
+  --text-xl--line-height: 1.4;
+  --text-2xl: 2.25rem; /* 36px */
+  --text-2xl--line-height: 1.3;
+  --text-3xl: 2.75rem; /* 44px */
+  --text-3xl--line-height: 1.2;
+}
+
 :root {
   color-scheme: light;
 
-  /* neutrals */
-  --bg: oklch(0.978 0.005 258);
-  --surface: oklch(1 0 0);
-  --surface-sunken: oklch(0.955 0.006 258);
-  --border: oklch(0.912 0.007 258);
-  --control-border: oklch(0.64 0.012 258);
-  --ink: oklch(0.255 0.02 258);
-  --ink-strong: oklch(0.205 0.022 258);
-  --muted: oklch(0.5 0.016 258);
-  --faint: oklch(0.62 0.012 258);
+  /*
+   * Neutrals. A soft cream ground rather than pure white — the same reason a
+   * book is not printed on backlit paper. Every text role below is verified at
+   * ≥7:1 against `--surface`.
+   */
+  --bg: oklch(0.972 0.009 85); /* soft cream */
+  --surface: oklch(0.995 0.004 85); /* warm near-white */
+  --surface-sunken: oklch(0.945 0.011 85);
+  --border: oklch(0.88 0.008 85);
+  --control-border: oklch(0.52 0.012 258); /* ≥4.5:1 — controls must be findable */
+  --ink: oklch(0.2 0.012 258); /* ~13:1  body */
+  --ink-strong: oklch(0.15 0.012 258); /* ~15:1  headings */
+  --muted: oklch(0.36 0.014 258); /* ~7.2:1 secondary text */
+  --faint: oklch(0.44 0.012 258); /* ~5.4:1 decorative glyphs only, never text */
 
-  /* brand */
-  --primary: oklch(0.545 0.17 258);
-  --primary-hover: oklch(0.48 0.165 258);
-  --primary-active: oklch(0.43 0.15 258);
-  --primary-strong: oklch(0.43 0.15 258);
-  --primary-subtle: oklch(0.955 0.03 258);
-  --on-primary: oklch(1 0 0);
-  --focus: oklch(0.545 0.17 258);
+  /*
+   * Brand. Deep enough that white label text on the filled button clears 7:1,
+   * and that `--primary-strong` as *text* on a surface clears 7:1 too. A
+   * mid-tone accent cannot do both, which is why this is darker than a typical
+   * brand blue.
+   */
+  --primary: oklch(0.36 0.15 262);
+  --primary-hover: oklch(0.31 0.14 262);
+  --primary-active: oklch(0.27 0.12 262);
+  --primary-strong: oklch(0.33 0.14 262);
+  --primary-subtle: oklch(0.945 0.03 262);
+  --on-primary: oklch(1 0 0); /* ~7.6:1 on --primary */
+  --focus: oklch(0.36 0.15 262);
 
-  /* status */
-  --success: oklch(0.56 0.13 150);
-  --success-strong: oklch(0.43 0.12 150);
-  --success-subtle: oklch(0.955 0.035 150);
-  --warning: oklch(0.7 0.15 75);
-  --warning-strong: oklch(0.47 0.11 75);
-  --warning-subtle: oklch(0.955 0.045 85);
-  --danger: oklch(0.55 0.2 28);
-  --danger-strong: oklch(0.455 0.175 28);
-  --danger-subtle: oklch(0.96 0.04 25);
-  --danger-fill: oklch(0.55 0.2 28);
-  --danger-on: oklch(1 0 0);
-  --info: oklch(0.45 0.12 235);
-  --info-subtle: oklch(0.955 0.03 235);
+  /* Status. `-strong` is the text tone (≥7:1 on its `-subtle` wash). */
+  --success: oklch(0.45 0.12 150);
+  --success-strong: oklch(0.34 0.1 150);
+  --success-subtle: oklch(0.945 0.04 150);
+  --warning: oklch(0.58 0.13 70);
+  --warning-strong: oklch(0.36 0.09 70);
+  --warning-subtle: oklch(0.95 0.05 80);
+  --danger: oklch(0.45 0.19 28);
+  --danger-strong: oklch(0.36 0.16 28);
+  --danger-subtle: oklch(0.95 0.04 25);
+  --danger-fill: oklch(0.38 0.17 28);
+  --danger-on: oklch(1 0 0); /* ~7.3:1 on --danger-fill */
+  --info: oklch(0.36 0.12 235);
+  --info-subtle: oklch(0.945 0.03 235);
 
   /* subtle brand-tinted grid, used only inside product visuals */
-  --grid-line: oklch(0.912 0.007 258 / 0.7);
+  --grid-line: oklch(0.88 0.008 85 / 0.7);
+
+  /* Reading measure — 50–60 characters for prose blocks. */
+  --content-measure: 60ch;
 }
 
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: oklch(0.165 0.007 258);
-  --surface: oklch(0.205 0.008 258);
-  --surface-sunken: oklch(0.245 0.009 258);
-  --border: oklch(0.3 0.01 258);
-  --control-border: oklch(0.55 0.012 258);
-  --ink: oklch(0.955 0.006 258);
-  --ink-strong: oklch(0.985 0.004 258);
-  --muted: oklch(0.72 0.012 258);
-  --faint: oklch(0.56 0.01 258);
+  /* Deep charcoal, never pure black: a black ground with white text produces
+     halation that is harder to read, not easier. */
+  --bg: oklch(0.16 0.008 258);
+  --surface: oklch(0.21 0.009 258);
+  --surface-sunken: oklch(0.26 0.01 258);
+  --border: oklch(0.34 0.011 258);
+  --control-border: oklch(0.62 0.013 258);
+  --ink: oklch(0.97 0.005 258); /* ~14:1 */
+  --ink-strong: oklch(0.99 0.003 258); /* ~15:1 */
+  --muted: oklch(0.79 0.012 258); /* ~7.4:1 */
+  --faint: oklch(0.66 0.011 258); /* decorative only */
 
-  --primary: oklch(0.545 0.17 258);
-  --primary-hover: oklch(0.5 0.17 258);
-  --primary-active: oklch(0.455 0.155 258);
-  --primary-strong: oklch(0.76 0.13 258);
+  /*
+   * On dark, the filled button inverts: a pale brand tint carrying near-black
+   * label text. A saturated mid-tone fill with white text cannot reach 7:1
+   * against either, so the roles swap rather than the contrast being dropped.
+   */
+  --primary: oklch(0.82 0.11 258);
+  --primary-hover: oklch(0.87 0.1 258);
+  --primary-active: oklch(0.76 0.11 258);
+  --primary-strong: oklch(0.84 0.1 258); /* ~8:1 as text on --surface */
   --primary-subtle: oklch(0.3 0.06 258);
-  --on-primary: oklch(1 0 0);
-  --focus: oklch(0.76 0.13 258);
+  --on-primary: oklch(0.16 0.02 258); /* ~9:1 on --primary */
+  --focus: oklch(0.84 0.1 258);
 
-  --success: oklch(0.72 0.13 150);
-  --success-strong: oklch(0.72 0.13 150);
-  --success-subtle: oklch(0.28 0.045 150);
-  --warning: oklch(0.78 0.13 80);
-  --warning-strong: oklch(0.78 0.13 80);
-  --warning-subtle: oklch(0.3 0.05 80);
-  --danger: oklch(0.68 0.17 28);
-  --danger-strong: oklch(0.68 0.17 28);
-  --danger-subtle: oklch(0.3 0.07 28);
-  --danger-fill: oklch(0.545 0.19 28);
-  --danger-on: oklch(1 0 0);
-  --info: oklch(0.74 0.11 235);
-  --info-subtle: oklch(0.29 0.045 235);
+  --success: oklch(0.82 0.13 150);
+  --success-strong: oklch(0.84 0.13 150);
+  --success-subtle: oklch(0.27 0.045 150);
+  --warning: oklch(0.85 0.13 80);
+  --warning-strong: oklch(0.87 0.13 80);
+  --warning-subtle: oklch(0.29 0.05 80);
+  --danger: oklch(0.78 0.15 28);
+  --danger-strong: oklch(0.8 0.15 28);
+  --danger-subtle: oklch(0.29 0.07 28);
+  --danger-fill: oklch(0.78 0.15 28);
+  --danger-on: oklch(0.16 0.02 28); /* dark text on a light danger fill */
+  --info: oklch(0.82 0.11 235);
+  --info-subtle: oklch(0.28 0.045 235);
 
-  --grid-line: oklch(0.3 0.01 258 / 0.6);
+  --grid-line: oklch(0.34 0.011 258 / 0.6);
+
+  --content-measure: 60ch;
 }
 
 @layer base {
@@ -158,7 +223,7 @@
   html {
     scroll-behavior: smooth;
     /* sticky-header offset for in-page anchors */
-    scroll-padding-top: 5.5rem;
+    scroll-padding-top: 6.5rem;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -171,19 +236,25 @@
     background-color: var(--bg);
     color: var(--ink);
     font-family: var(--font-sans);
-    font-size: 0.875rem;
-    line-height: 1.5;
+    /* 20px / 1.75 / medium — the no-zoom reading default. Never a light weight:
+       hairline strokes are the first thing to disappear for a low-vision
+       reader, whatever the size. */
+    font-size: 1.25rem;
+    line-height: 1.75;
+    font-weight: 500;
     font-feature-settings: 'cv05' 1;
   }
 
   #root {
-    min-height: 100vh;
+    min-height: 100dvh;
     isolation: isolate;
   }
 
-  /* One focus treatment, everywhere (DESIGN.md): 2px --focus ring at 2px offset. */
+  /* One focus treatment, everywhere: a 3px --focus ring at 2px offset. Widened
+     from 2px along with the type — a focus ring has to be as findable as the
+     text it surrounds. */
   :focus-visible {
-    outline: 2px solid var(--focus);
+    outline: 3px solid var(--focus);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
   }
@@ -202,6 +273,7 @@
   h3,
   h4 {
     color: var(--ink-strong);
+    font-weight: 700;
     text-wrap: balance;
   }
 
@@ -218,14 +290,23 @@
     font-variant-numeric: slashed-zero;
   }
 
-  /* Thin, theme-aware scrollbars — quiet, not decorative. */
+  /* Theme-aware scrollbars, widened so they are grabbable. */
   * {
-    scrollbar-width: thin;
+    scrollbar-width: auto;
     scrollbar-color: var(--control-border) transparent;
   }
 }
 
 @layer utilities {
+  /*
+   * Prose measure. Long text blocks cap at 50–60 characters so the eye can find
+   * the next line; tables, toolbars and grids are deliberately exempt — a data
+   * table constrained to 60ch is less readable, not more.
+   */
+  .measure {
+    max-width: var(--content-measure);
+  }
+
   /* Reveal-on-scroll primitive. Content is visible by default; the Reveal
      component only opts an element into the hidden→shown transition via JS,
      so no-JS / headless renders keep everything visible. */
@@ -292,5 +373,18 @@
   [data-reveal] {
     opacity: 1 !important;
     transform: none !important;
+  }
+}
+
+/* Print: QR labels and asset sheets must come out clean on a school printer —
+   no app chrome, no dark theme, black on white. */
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  [data-print-hide] {
+    display: none !important;
   }
 }

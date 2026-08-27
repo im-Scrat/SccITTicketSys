@@ -1,0 +1,17 @@
+sequenceDiagram
+  participant B as SPA
+  participant L as Laravel (CreateTicket)
+  participant DB as PostgreSQL
+  participant Q as Redis queue
+  participant W as Worker
+  participant G as Gemini
+  B->>L: POST /api/tickets (validated)
+  L->>DB: BEGIN · insert ticket · derive SLA due · status=Open · status_history
+  DB-->>L: COMMIT (triggers keep counters)
+  L->>Q: dispatch AnalyzeTicketJob
+  L-->>B: 201 {ticket resource (uuid)}
+  Q->>W: AnalyzeTicketJob
+  W->>G: chat(minimized+RAG context)
+  G-->>W: analysis
+  W->>DB: ai_analysis_logs + ai_recommendations · update ticket ai_summary/confidence
+  W->>Q: (if source changed) GenerateEmbeddingJob

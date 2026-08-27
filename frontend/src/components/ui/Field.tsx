@@ -35,8 +35,8 @@ export function Field({ label, children, error, hint, required }: FieldProps) {
     : children
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-xs font-medium text-ink">
+    <div className="flex flex-col gap-2">
+      <label htmlFor={id} className="text-sm font-semibold text-ink">
         {label}
         {required && (
           <span className="text-danger-strong" aria-hidden="true">
@@ -47,11 +47,11 @@ export function Field({ label, children, error, hint, required }: FieldProps) {
       </label>
       {control}
       {error ? (
-        <p id={errorId} className="text-xs text-danger-strong" role="alert">
+        <p id={errorId} className="text-sm font-medium text-danger-strong" role="alert">
           {error}
         </p>
       ) : hint ? (
-        <p id={hintId} className="text-xs text-muted">
+        <p id={hintId} className="text-sm text-muted">
           {hint}
         </p>
       ) : null}

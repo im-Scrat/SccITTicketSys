@@ -47,6 +47,71 @@ enum ActivityAction: string
     case UsersExported = 'users_exported';
     case BulkAction = 'bulk_action';
 
+    // Phase 2.4 — Location Management (SRS FR-LOC). One compact vocabulary for
+    // buildings, floors and rooms: the activity_logs subject morph identifies
+    // which entity the event is about, so the timeline renders e.g.
+    // "Building created" from the subject type + this label.
+    case LocationCreated = 'location_created';
+    case LocationUpdated = 'location_updated';
+    case LocationActivated = 'location_activated';
+    case LocationDeactivated = 'location_deactivated';
+    case LocationArchived = 'location_archived';
+    case LocationRestored = 'location_restored';
+    case LocationOccupantsReassigned = 'location_occupants_reassigned';
+
+    // Phase 2.5 — Asset Management (SRS FR-AST, FR-PC, FR-QR). As in Phase 2.4,
+    // the activity_logs subject morph identifies *which* asset or PC unit the
+    // event is about, so the timeline renders "Asset transferred" from the
+    // subject type + this label. Every lifecycle transition is written here as
+    // well as to `asset_status_history`, in the same transaction, so no status
+    // change can occur unaudited (FR-AST-005).
+    case AssetCreated = 'asset_created';
+    case AssetUpdated = 'asset_updated';
+    case AssetStatusChanged = 'asset_status_changed';
+    case AssetTransferred = 'asset_transferred';
+    case AssetTechnicianAssigned = 'asset_technician_assigned';
+    case AssetTechnicianUnassigned = 'asset_technician_unassigned';
+    case AssetArchived = 'asset_archived';
+    case AssetRestored = 'asset_restored';
+    case AssetAttachmentAdded = 'asset_attachment_added';
+    case AssetAttachmentRemoved = 'asset_attachment_removed';
+    case PcUnitCreated = 'pc_unit_created';
+    case PcUnitUpdated = 'pc_unit_updated';
+    case PcUnitArchived = 'pc_unit_archived';
+    case PcUnitRestored = 'pc_unit_restored';
+    case PcSpecificationUpdated = 'pc_specification_updated';
+    case QrGenerated = 'qr_generated';
+    case QrRegenerated = 'qr_regenerated';
+    case QrRevoked = 'qr_revoked';
+    case QrPrinted = 'qr_printed';
+
+    // Phase 2.6 — Ticket Management (SRS FR-TKT, FR-ASN). The activity_logs
+    // subject morph points at the Ticket, so the timeline renders "Assigned"
+    // from the subject type + this label. Lifecycle transitions are written
+    // here *and* to `ticket_status_history` in the same transaction, so no
+    // status can move unaudited (FR-TKT-005/012).
+    case TicketCreated = 'ticket_created';
+    case TicketUpdated = 'ticket_updated';
+    case TicketStatusChanged = 'ticket_status_changed';
+    case TicketPriorityChanged = 'ticket_priority_changed';
+    case TicketAssigned = 'ticket_assigned';
+    case TicketReassigned = 'ticket_reassigned';
+    case TicketAssignmentAccepted = 'ticket_assignment_accepted';
+    case TicketAssignmentDeclined = 'ticket_assignment_declined';
+    case TicketWorkStarted = 'ticket_work_started';
+    case TicketWorkHeld = 'ticket_work_held';
+    case TicketWorkCompleted = 'ticket_work_completed';
+    case TicketResolutionConfirmed = 'ticket_resolution_confirmed';
+    case TicketReopened = 'ticket_reopened';
+    case TicketCancelled = 'ticket_cancelled';
+    case TicketAutoClosed = 'ticket_auto_closed';
+    case TicketMarkedDuplicate = 'ticket_marked_duplicate';
+    case TicketArchived = 'ticket_archived';
+    case TicketRestored = 'ticket_restored';
+    case TicketCommentModerated = 'ticket_comment_moderated';
+    case TicketAttachmentAdded = 'ticket_attachment_added';
+    case TicketAttachmentRemoved = 'ticket_attachment_removed';
+
     /** Human-readable label for audit-timeline rendering. */
     public function label(): string
     {
@@ -76,6 +141,53 @@ enum ActivityAction: string
             self::PasswordResetEmailResent => 'Password reset email resent',
             self::UsersExported => 'Users exported',
             self::BulkAction => 'Bulk action',
+            self::LocationCreated => 'Created',
+            self::LocationUpdated => 'Updated',
+            self::LocationActivated => 'Activated',
+            self::LocationDeactivated => 'Deactivated',
+            self::LocationArchived => 'Archived',
+            self::LocationRestored => 'Restored',
+            self::LocationOccupantsReassigned => 'Occupants reassigned',
+            self::AssetCreated => 'Created',
+            self::AssetUpdated => 'Updated',
+            self::AssetStatusChanged => 'Status changed',
+            self::AssetTransferred => 'Transferred',
+            self::AssetTechnicianAssigned => 'Technician assigned',
+            self::AssetTechnicianUnassigned => 'Technician unassigned',
+            self::AssetArchived => 'Archived',
+            self::AssetRestored => 'Restored',
+            self::AssetAttachmentAdded => 'Attachment added',
+            self::AssetAttachmentRemoved => 'Attachment removed',
+            self::PcUnitCreated => 'Created',
+            self::PcUnitUpdated => 'Updated',
+            self::PcUnitArchived => 'Archived',
+            self::PcUnitRestored => 'Restored',
+            self::PcSpecificationUpdated => 'Specification updated',
+            self::QrGenerated => 'QR code generated',
+            self::QrRegenerated => 'QR code regenerated',
+            self::QrRevoked => 'QR code revoked',
+            self::QrPrinted => 'QR code printed',
+            self::TicketCreated => 'Created',
+            self::TicketUpdated => 'Updated',
+            self::TicketStatusChanged => 'Status changed',
+            self::TicketPriorityChanged => 'Priority changed',
+            self::TicketAssigned => 'Assigned',
+            self::TicketReassigned => 'Reassigned',
+            self::TicketAssignmentAccepted => 'Assignment accepted',
+            self::TicketAssignmentDeclined => 'Assignment declined',
+            self::TicketWorkStarted => 'Work started',
+            self::TicketWorkHeld => 'Work put on hold',
+            self::TicketWorkCompleted => 'Work completed',
+            self::TicketResolutionConfirmed => 'Resolution confirmed',
+            self::TicketReopened => 'Reopened',
+            self::TicketCancelled => 'Cancelled',
+            self::TicketAutoClosed => 'Closed automatically',
+            self::TicketMarkedDuplicate => 'Marked as duplicate',
+            self::TicketArchived => 'Archived',
+            self::TicketRestored => 'Restored',
+            self::TicketCommentModerated => 'Comment moderated',
+            self::TicketAttachmentAdded => 'Attachment added',
+            self::TicketAttachmentRemoved => 'Attachment removed',
         };
     }
 }

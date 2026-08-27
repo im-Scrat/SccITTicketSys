@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Tickets\Console\CloseStaleResolvedTickets;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsurePasswordIsCurrent;
 use Illuminate\Foundation\Application;
@@ -13,6 +14,18 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    /*
+     * Domain commands are registered explicitly.
+     *
+     * Laravel auto-discovers only `app/Console/Commands`, and this project keeps
+     * behaviour with the domain it belongs to (SDD DD-02) rather than in a
+     * framework-shaped folder. Listing them here is the small price of that
+     * choice — and it fails loudly if one is ever moved, which auto-discovery
+     * would not.
+     */
+    ->withCommands([
+        CloseStaleResolvedTickets::class,
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         // Enable Sanctum SPA cookie auth on the API group (single-origin).
         $middleware->statefulApi();

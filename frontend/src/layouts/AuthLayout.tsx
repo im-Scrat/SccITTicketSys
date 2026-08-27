@@ -39,9 +39,7 @@ export function AuthLayout({ children, title, subtitle, icon, footer }: AuthLayo
             {title && (
               <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink-strong">{title}</h1>
             )}
-            {subtitle && (
-              <p className="mt-2.5 text-[15px] leading-relaxed text-muted">{subtitle}</p>
-            )}
+            {subtitle && <p className="mt-2.5 text-sm leading-relaxed text-muted">{subtitle}</p>}
             <div className={title || subtitle ? 'mt-7' : undefined}>{children}</div>
           </Surface>
           {footer && <div className="mt-6 text-center text-sm text-muted">{footer}</div>}

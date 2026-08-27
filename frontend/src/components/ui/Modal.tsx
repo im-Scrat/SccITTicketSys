@@ -15,10 +15,11 @@ interface ModalProps {
   hideClose?: boolean
 }
 
+/* Widened with the type scale in Phase 2.5 — see the note in Drawer.tsx. */
 const sizes = {
-  sm: 'max-w-sm',
-  md: 'max-w-lg',
-  lg: 'max-w-2xl',
+  sm: 'max-w-md',
+  md: 'max-w-2xl',
+  lg: 'max-w-4xl',
 }
 
 /**

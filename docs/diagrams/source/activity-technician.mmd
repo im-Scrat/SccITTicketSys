@@ -1,0 +1,48 @@
+---
+title: "SccIT — Technician Workflow (Activity Diagram)"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Segoe UI, Helvetica, Arial, sans-serif"
+    fontSize: "16px"
+    lineColor: "#5c677d"
+  flowchart:
+    htmlLabels: true
+    nodeSpacing: 34
+    rankSpacing: 30
+---
+flowchart TD
+    s([Start]) --> login["Log in"]
+    login --> dash["View Technician Dashboard<br/>(only my assigned tickets)"]
+    dash --> open["Open an assigned ticket"]
+    open --> accept{"Accept assignment?"}
+    accept -- "Decline (reason)" --> ndec["Notify Admin; ticket<br/>returns to queue"]
+    ndec --> e([End])
+    accept -- "Accept" --> start["Start work — In Progress;<br/>view details + AI recommendations"]
+    start --> onsite["Scan QR code on the PC unit"]
+    onsite --> qr{"Correct, active asset?"}
+    qr -- "No — invalid / mismatch / expired" --> logbad[("Log scan; reconcile / reassign")]
+    logbad --> onsite
+    qr -- "Yes" --> repair["Perform maintenance / repair;<br/>add internal notes & status updates"]
+    repair --> evid["Capture & upload repair evidence<br/>(before / during / after + selfie)"]
+    evid --> rec[("Record maintenance, hardware<br/>replacement & asset status history")]
+    rec --> check["Complete checklist"]
+    check --> chk{"Checklist complete?"}
+    chk -- "No" --> check
+    chk -- "Yes" --> done["Close assigned work — Resolved"]
+    done --> notif["Notify reporter & Admin"]
+    notif --> logout["Log out"]
+    logout --> e
+
+    classDef se fill:#E4E9F0,stroke:#334155,stroke-width:1.4px,color:#1e293b;
+    classDef act fill:#EAF0FB,stroke:#2E4A86,stroke-width:1.3px,color:#16233c;
+    classDef ai fill:#F1EAFB,stroke:#7048E8,stroke-width:1.3px,color:#3f2a99;
+    classDef data fill:#E6F7EE,stroke:#0CA678,stroke-width:1.3px,color:#0b503c;
+    classDef notif fill:#FDECF3,stroke:#C2255C,stroke-width:1.3px,color:#7a1740;
+    classDef dec fill:#FFF6E6,stroke:#E8901C,stroke-width:1.3px,color:#7a4a06;
+    class s,e se;
+    class login,dash,open,start,onsite,repair,evid,check,done,logout act;
+    class start ai;
+    class logbad,rec data;
+    class ndec,notif notif;
+    class accept,qr,chk dec;

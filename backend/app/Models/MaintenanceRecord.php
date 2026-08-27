@@ -12,7 +12,35 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property int|null $ticket_id
+ * @property int|null $pc_unit_id
+ * @property int|null $asset_id
+ * @property int $technician_id
+ * @property int $maintenance_type_id
+ * @property string $title
+ * @property string|null $diagnosis
+ * @property string|null $root_cause
+ * @property string|null $resolution
+ * @property string|null $preventive_recommendation
+ * @property int|null $downtime_minutes
+ * @property string|null $labor_hours
+ * @property string|null $cost
+ * @property MaintenanceStatus $status
+ * @property Carbon|null $scheduled_for
+ * @property Carbon|null $started_at
+ * @property Carbon|null $completed_at
+ * @property Carbon|null $maintenance_date
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ */
 class MaintenanceRecord extends Model
 {
     /** @use HasFactory<MaintenanceRecordFactory> */

@@ -1,0 +1,13 @@
+flowchart TB
+  U[Browser 127.0.0.1:8080] --> NGX[sccit_nginx :80]
+  NGX -->|/api,/sanctum,/up,/storage| APP[sccit_app php-fpm:9000]
+  NGX -->|else| NODE[sccit_node Vite:5173]
+  APP --> PG[(sccit_postgres:5432)]
+  APP --> RDS[(sccit_redis:6379)]
+  APP --> MP[sccit_mailpit:1025]
+  QUE[sccit_queue worker] --> PG
+  QUE --> RDS
+  SCH[sccit_scheduler] --> RDS
+  subgraph net["sccit_network bridge · ports bound to 127.0.0.1"]
+    NGX & APP & NODE & PG & RDS & MP & QUE & SCH
+  end

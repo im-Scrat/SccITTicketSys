@@ -9,7 +9,22 @@ use Database\Factories\AssetStatusHistoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * One lifecycle transition (SRS FR-AST-005). Append-only: `UPDATED_AT` is
+ * disabled because a history row is never edited, only added.
+ *
+ * `from_status` is null on the opening row — the asset had no previous state.
+ *
+ * @property int $id
+ * @property int $asset_id
+ * @property AssetStatus|null $from_status
+ * @property AssetStatus $to_status
+ * @property int|null $changed_by
+ * @property string|null $reason
+ * @property Carbon|null $created_at
+ */
 class AssetStatusHistory extends Model
 {
     /** @use HasFactory<AssetStatusHistoryFactory> */

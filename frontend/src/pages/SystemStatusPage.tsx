@@ -43,7 +43,7 @@ export default function SystemStatusPage() {
           <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink-strong">
             System status
           </h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-muted">
+          <p className="mt-2 text-sm leading-relaxed text-muted">
             Live health of the SccIT backend services.
           </p>
         </div>
