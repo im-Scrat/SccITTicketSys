@@ -1,8 +1,12 @@
 <?php
 
+use App\Domains\Administration\Console\SendDailyDigest;
+use App\Domains\Maintenance\Console\DetectDuePreventiveMaintenance;
 use App\Domains\Tickets\Console\CloseStaleResolvedTickets;
+use App\Domains\Tickets\Console\DetectSlaBreaches;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsurePasswordIsCurrent;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -25,10 +29,23 @@ return Application::configure(basePath: dirname(__DIR__))
      */
     ->withCommands([
         CloseStaleResolvedTickets::class,
+        SendDailyDigest::class,
+        DetectDuePreventiveMaintenance::class,
+        DetectSlaBreaches::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         // Enable Sanctum SPA cookie auth on the API group (single-origin).
         $middleware->statefulApi();
+
+        /*
+         * Baseline security headers on everything Laravel serves — JSON and
+         * attachment streams alike (SDD DD-46). Appended to both groups rather
+         * than only to `api`, so a response can never leave the application
+         * without nosniff simply because a future route was registered
+         * elsewhere. The SPA document's own CSP comes from nginx, which is what
+         * actually serves it.
+         */
+        $middleware->append(SecurityHeaders::class);
 
         // Account-status enforcement — the single source of truth (SDD DD-19).
         // `password.current` gates feature routes behind the force-password-reset

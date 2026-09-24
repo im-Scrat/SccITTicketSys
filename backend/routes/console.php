@@ -30,3 +30,22 @@ Schedule::command('tickets:close-stale')
     ->dailyAt('02:15')
     ->withoutOverlapping()
     ->onOneServer();
+
+/**
+ * Report preventive maintenance that is overdue or falls due inside the
+ * configured reminder window (SRS FR-MNT-007).
+ *
+ * Detection only. It creates no maintenance record — FR-MNT-002 has a person
+ * open a preventive visit with a date — and it dispatches no notification,
+ * because the project channel driver (SDD DD-52) is WP-2.6b's minimum
+ * notification work. The same predicate feeds `/api/maintenance/scheduled` and
+ * the module dashboard, so this run and those screens can never disagree about
+ * what is overdue.
+ *
+ * Daily, ahead of the working day: the lead time is measured in days, so an
+ * hourly cadence would re-report the same rows 24 times as often.
+ */
+Schedule::command('maintenance:detect-due')
+    ->dailyAt('06:30')
+    ->withoutOverlapping()
+    ->onOneServer();

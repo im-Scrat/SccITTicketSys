@@ -38,7 +38,18 @@ owner: Client / Product Owner (project owner · system owner · primary decision
 |---|---|---|---|
 | 1.0 | 2026-07-17 | Engineering | **Version 1.0 baseline.** Consolidated requirements specification: scope, business objectives, stakeholders, user roles and the seeded permission matrix, system context, the complete functional requirement set (FR-AUTH/USER/LOC/PC/TKT/ASN/MNT/AST/AUD plus AI, QR, floor-plan, dashboard, reporting, notification and settings requirements), non-functional/security/performance/scalability/availability/accessibility requirements, external interfaces, business rules, operational scenarios, the System Use Case Diagram (**Figure 2**) with detailed use-case specifications (**UCS-01…10**) and workflow activity diagrams (**Figures 3–6**), system-wide AI behaviour, data requirements, traceability, acceptance criteria, risks/constraints/assumptions, open decisions, glossary, and Appendices A–B. Product Perspective Block Diagram at **Figure 1**. Status: **Waiting for Client Approval**. |
 | 1.0 | 2026-08-26 | Engineering | **Phase 2.5 — Asset Management** realized against the Version 1.0 baseline (label unchanged). Extended FR-AST-002/005/012 with per-unit asset name, custodianship, attachments, the audited transition map and the unified asset history; added **FR-AST-013** (Administrator-only module with a workflow-authorized narrow equipment lookup), **FR-AST-014** (navigable Asset Management dashboard) and **FR-AST-015** (enterprise search). Recorded the asset lifecycle vocabulary and the widened category domain. Updated the §8.4 seeded permission matrix: `assets.*` is now Administrator-only, withdrawing the Technician `view`/`update`/`transfer` grants. Added acceptance criteria AC-AST-005/005b/006/012/013/014/015, AC-PC-003 and AC-QR-001. |
+| 1.0 | 2026-08-28 | Engineering | **Phase 2.6 — Ticket Management** realized against the Version 1.0 baseline (label unchanged). Rewrote **FR-TKT-013** to the implemented three-role, row-scoped visibility model — a Teacher's own tickets in full plus a restricted community projection of others', a Technician scoped to their own assignments (read outliving the assignment, a decline granting nothing), an Administrator seeing all — and required lists and single-record reads to obey the same rule so a ticket absent from a list is unreachable by identifier. Corrected the §8.4 seeded matrix: the Technician baseline is now `view, update, comment`, with **`assign` and `export` withdrawn** (assign remains grantable per user as FR-ASN-001's documented deputization exception). Added a note explaining that `tickets.view` is a floor rather than a boundary, since all three roles hold it. |
+| 1.0 | 2026-08-28 | Engineering | **QR workflow clarification** recorded against the Version 1.0 baseline (label unchanged), ahead of implementation. Amended **FR-QR-005** (server-side resolution; the panel follows authentication and authorization; every scan attempt is logged) and **FR-QR-007** (QR label management is Administrator-only, resolving a conflict with [FR-AST-013](#108-inventory--asset-lifecycle-fr-ast)); added **FR-QR-010–013** (the identifier is not a credential; destination preservation without open redirect; the scan-scoped PC panel; enumeration and rate-limit resistance). Added **FR-MNT-009–011** (proof of work from the scanned workflow, its required evidence through the single attachment boundary, and row-scoped maintenance visibility) and a new **§10.7.1 FR-WSR-001–013** for technician work support requests, the administrator decision set (approve-and-reschedule, request face-to-face, decline with a required reason) and both tracking surfaces. Extended **FR-NOT-003** with the new triggers, added **DR-020/021**, **UCS-11**, acceptance criteria **AC-QR-010/012, AC-MNT-009, AC-WSR-008**, and open decisions **OI-08–OI-11**. Corrected the stale §8.2 Technician capability prose to match the §8.4 matrix. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-08-28 | Engineering | **QR workflow clarification — Client decisions recorded** against the Version 1.0 baseline (label unchanged). Resolved **OI-08** (authenticated SPA scan entry, code-only destination), **OI-09** (technician support requests are a dedicated job-scoped entity; `procurement_requests` is neither overloaded nor redesigned; exact schema to be approved before implementation), **OI-10** (record the clarification request, not a calendar) and **OI-11** (six controlled statuses — `cancelled` added so a technician may withdraw a request). Amended **FR-WSR-004** to the six-state controlled transition map with no in-place overwrite of prior decisions, and added **FR-WSR-014** (technician withdrawal). Amended **FR-MNT-009** so proof of work attaches to an **existing active** maintenance record and a scan never by itself confers permission to create maintenance work, and added **FR-MNT-012** (duplicate prevention by construction). Restricted **FR-QR-012** to the Client's approved operational field list under a dedicated authorization rule, with purchase price, supplier/procurement, unrelated financial data, unrestricted audit history and custodian records explicitly excluded. Updated **DR-020** accordingly. |
+| 1.0 | 2026-08-28 | Engineering | **WP-2.6 Maintenance Domain — Client decisions recorded** against the Version 1.0 baseline (label unchanged), ahead of implementation. Split **FR-MNT-009** explicitly across the two work packages so neither appears to skip it: the Maintenance-side foundation — technician-initiated corrective maintenance where authorized, an identifiable **active** maintenance record, and the row-scoped authority to work it — is delivered by **WP-2.6**, while the scanned entry point, the proof-of-work submission itself and its scan-bound idempotency ([FR-MNT-012](#107-maintenance-fr-mnt)) remain **WP-2.6b**. Amended **FR-MNT-006** to name the serialized asset *removed* and added **DR-022** for the additive `hardware_replacements.old_asset_id` column, without which [AC-MNT-006](#312-representative-feature-criteria) cannot be satisfied deterministically. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-08-28 | Engineering | **WP-2.6 — Maintenance Domain delivered** against the Version 1.0 baseline (label unchanged). Realized **FR-MNT-001..008, 010 and 011**, and the Maintenance-side half of **FR-MNT-009**: corrective and preventive records against a PC unit and/or asset with an optional ticket link, row-scoped visibility whose list rule and single-record rule are the same rule, an audited five-state lifecycle, checklists issued from the type's template with required-item enforcement before completion, repair evidence through the **existing** attachment trust boundary ([DR-021](#292-data-integrity--constraints)), notes, hardware replacements reconciling the PC's installation history ([DR-022](#292-data-integrity--constraints), [AC-MNT-006](#312-representative-feature-criteria)), preventive due detection on the configured cadence, and the technician and administrator surfaces — verified live for all three roles in development. Carried forward, unchanged and still tracked: the scanned entry and proof-of-work submission with its idempotency ([FR-MNT-009](#107-maintenance-fr-mnt) scan half, [FR-MNT-012](#107-maintenance-fr-mnt)) to WP-2.6b, and notification **delivery** for maintenance triggers ([FR-NOT-003](#22-notification-requirements)) to WP-2.6b/WP-2.7. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-08-30 | Engineering | **WP-2.6b — QR-verified technician job workflow delivered** against the Version 1.0 baseline (label unchanged). Realized **FR-QR-005/006/008..013**, **FR-MNT-009 (scanned half)/010/012**, **FR-WSR-001..011** and **FR-WSR-014**, and acceptance criteria **AC-QR-010/012, AC-MNT-009, AC-WSR-008**: the public scan endpoint that records every attempt and discloses nothing before authentication; destination preservation across sign-in by **code only**; the scan-scoped PC panel under its own authorization rule rather than any `assets.*` permission; proof of work attached to an existing active maintenance record, idempotent on the scan; technician work support requests on the six-state controlled transition map with no client-settable status; the administrator decision set (approve-and-reschedule, request face-to-face, decline with a reason enforced in the application **and** by a database CHECK); technician withdrawal and acknowledgement; authorized retrieval of request evidence through the single attachment trust boundary; and the technician's combined submission history covering proof-of-work records **and** support requests. Verified live for all three roles in development. Recorded as **deferred / carried forward**, not implemented: the notification centre, notification preferences and email delivery; the minimum notification channel and its workflow triggers ([FR-WSR-012](#), partial [FR-NOT-003](#), [DD-52](#)); the procurement bridge ([FR-WSR-013](#)); automatic support-request closure; axe/WCAG regression automation; browser visual regression; the two pre-existing Phase 2.4/2.5 factory-collision test flakes; ticket export ([FR-RPT-004](#)); ticket AI ([FR-AI-*](#)); WP-2.4b; the floor plan; and Phase 2.7. No requirement was removed and no version label was changed. |
 
+| 1.0 | 2026-09-06 | Engineering | **WP-2.7d — Quality & Operational Foundation delivered** against the Version 1.0 baseline (label unchanged). Recorded against **FR-QR-011** that the destination-preservation requirement's *resume* obligation was defective when first reported delivered — the guest route discarded the pending scan and sent every authenticated visitor to `/app` — and that WP-2.7d corrected it with regression coverage at three levels, converting an expected-failure browser test into a genuine assertion. The open-redirect half of FR-QR-011 was never at risk. No requirement was added or removed and no version label was changed. |
+| 1.0 | 2026-09-06 | Engineering | **WP-2.7a — Notification infrastructure delivered** against the Version 1.0 baseline (label unchanged). Recorded implementation status against **§22**: **FR-NOT-003 is partly satisfied — nine of its twelve triggers are implemented**, with low-stock reorder and procurement approval/rejection blocked on **WP-2.4b** and new announcements deferred to **WP-2.7c**; the requirement is explicitly **not** marked satisfied, and a unit test asserts the two blocked triggers have no topic and no event class so the gap cannot close silently. Recorded the two Client recipient decisions of 2026-09-05: *followed/owned* means **demonstrated participation** (reporter, assigned technician, prior commenters), with an **internal comment narrowing the audience to staff** so a requester is not told that a note they may not read exists; and SLA notifications reach **Administrators plus the assigned technician** and are **notify-only**, leaving **OI-06** open. Marked **FR-NOT-006** satisfied with the structural-facts content rule. Clarified **FR-NOT-002**: in-app delivery is a system obligation and does **not** prevent a user disabling in-app notifications per type, the account-lockout email being the sole forced-channel exception. Corrected **FR-NOT-008**, which named `notifications.digest_enabled` — **a column that has never existed** — to the approved **D1** shape, a third delivery *channel* on `notification_preferences`; the digest remains **unimplemented**, with no migration, no widened CHECK constraint and no scheduled command. Recorded **D5** against **FR-NOT-010/011**: announcement publishing generates an **in-app notification only, with no email**, audience targeting is an authorization boundary rather than a display filter, and no new permission is required. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-09-06 | Engineering | **WP-2.7b — Notification experience delivered** against the Version 1.0 baseline (label unchanged). Recorded **FR-NOT-001, 004 and 005** as satisfied by the delivered surface — the notification centre at `/app/notifications`, the top-bar entry with its unread badge and dropdown panel, individual and bulk read/unread, and filtering by unread state and by type across the nine-value set — and **FR-NOT-002** as satisfied by the opt-out channel x type matrix on `/app/account`. **FR-NOT-003 remains partly satisfied and is not re-marked.** Confirmed **FR-NOT-007** is still Future (P4) and unimplemented: freshness is a 60-second poll while the tab is visible, so the badge may be up to one interval stale and the product does not claim real-time behaviour. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-09-07 | Engineering | **WP-2.7c — Announcements delivered** against the Version 1.0 baseline (label unchanged). Recorded **FR-NOT-010** and **FR-NOT-011** as **satisfied**: administrators compose, publish, withdraw, re-notify and delete audience-targeted announcements, and the targeted audience reads them at `/app/announcements`, pinned first. Rewrote the §22.1 implementation status, which previously stated that no announcement domain code, publishing surface or trigger existed. Updated **FR-NOT-003** from **nine of twelve** to **ten of twelve** implemented triggers, marking trigger 12 (*new announcements*) ✅ implemented; the requirement remains **not** satisfied, because low-stock reorder (trigger 7) and procurement approval/rejection (trigger 8) are still blocked on **WP-2.4b** and their status is unchanged. Recorded how the **D5 (2026-09-05)** no-email guarantee is actually enforced — the announcement notification refuses the email channel in the dispatch path ([SDD DD-66](#)) rather than relying on the opt-out preference gate, which could not have delivered it. Recorded that publication is a named operation rather than a writable field, that audience targeting is enforced at the uuid as well as in the list, and that content is plain text with no attachments, no external URLs and no per-user read receipt. **No new permission** was added and the §8.4 matrix is unchanged. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-09-07 | Engineering | **WP-2.7e — Daily digest delivered** against the Version 1.0 baseline (label unchanged). Recorded **FR-NOT-008** as **satisfied**: the digest was built as the third delivery *channel* **D1 (2026-09-05)** approved, so `notification_preferences.channel` now allows `('in_app', 'email', 'digest')` while `notifications` and `notifications_type_check` stay untouched. Recorded the delivered semantics — **07:00 Asia/Manila** over the previous school-local calendar day as a half-open interval with `app.timezone` unchanged at **UTC**; the digest as a distinct channel that the `email` preference does **not** disable; per-type preferences read through the existing opt-out gate, taking the matrix to **27 cells**; all three roles eligible with **no cross-user aggregation**; **titles only**, never a notification's `message`; and an empty day sending nothing. Recorded that delivery is **at-most-once** — the record commits before the message is sent, uniqueness is enforced by the database on `(user_id, digest_date)`, and **`sent_at` means committed rather than confirmed delivered**. Recorded the seeded `notifications.digest_enabled` **system setting** as unused legacy state: it predates D1, is read by no code, and was neither used nor removed. No requirement was removed and no version label was changed. |
 ### Conventions used in this document
 
 - **Requirement verbs (RFC 2119 / ISO 29148 sense):** *shall* = mandatory; *should* = recommended; *may* = optional; *will* = statement of fact/intent.
@@ -295,7 +306,7 @@ Three **system roles** are seeded and non-deletable (`is_system = true`). Author
 Owns the system. Full oversight across sites, buildings, and teams. Capabilities: user & role management, permission assignment, technician assignment oversight, asset & inventory lifecycle, procurement approval, maintenance oversight, analytics/reports, all configuration and branding, audit review, backups, announcements, and (future) floor-plan editing. Administrators hold **all** permissions.
 
 ### 8.2 Technician
-The daily driver. Lives in the work queue. Capabilities: view/update/assign/comment/export tickets; run and complete maintenance (all maintenance permissions); view/update/transfer assets; view inventory and adjust stock; view AI output and give AI feedback; view and create knowledge articles; view reports; view the floor plan. Technicians **cannot** create/delete users, manage roles/system settings, delete tickets/assets, dispose assets, or approve procurement unless individually granted.
+The daily driver. Lives in the work queue. Capabilities: view, update and comment on the tickets **assigned to them** ([FR-TKT-013](#105-ticketing--itsm-fr-tkt)); run and complete maintenance (all maintenance permissions); view inventory and adjust stock; view AI output and give AI feedback; view and create knowledge articles; view reports; view the floor plan. Technicians hold **no** `assets.*` or `locations.*` permission — they reach the equipment and the places they work on through their assigned job: the narrow lookups ([FR-AST-013](#108-inventory--asset-lifecycle-fr-ast), [FR-LOC-011](#103-location-management-fr-loc)) and, on site, the scan-scoped PC panel ([FR-QR-012](#18-qr-code-requirements)). Technicians **cannot** create/delete users, manage roles/system settings, delete tickets/assets, dispose assets, assign or export tickets, manage QR labels, or approve procurement unless individually granted (`tickets.assign` is the documented per-user deputization path — [FR-ASN-001](#106-technician-assignment--workflow-fr-asn)).
 
 ### 8.3 Teacher / Requester
 Occasional, non-technical end user. Capabilities: create tickets; view **their own** tickets; comment on and upvote tickets; view published knowledge articles; use the AI assistant; give AI feedback. Teachers have **no** administrative or technician capabilities.
@@ -304,7 +315,7 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 
 | Module | Actions | Administrator | Technician | Teacher |
 |---|---|:--:|:--:|:--:|
-| tickets | view, create, update, delete, assign, comment, vote, export | all | view, update, assign, comment, export | view, create, comment, vote |
+| tickets | view, create, update, delete, assign, comment, vote, export | all | view, update, comment | view, create, comment, vote |
 | locations | view, create, update, delete | all | — | — |
 | assets | view, create, update, delete, transfer, dispose | all | — | — |
 | maintenance | view, create, update, delete, complete | all | all | — |
@@ -328,6 +339,10 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 > A Technician interacts with equipment **only through their assigned work**: the ticket they were given, the maintenance record they are completing. A Teacher interacts with it only when reporting a fault. Both are served by the **narrow equipment lookup** (FR-AST-013), authorized by `tickets.*` / `maintenance.*` and never by an `assets.*` permission.
 >
 > *(Withdrawn from the earlier baseline: Technicians previously held `view`, `update` and `transfer`. Those grants are revoked by the permission seeder so existing deployments converge on this matrix.)*
+>
+> **Note on the `tickets` module — the one that does not separate by permission.** All three roles hold `tickets.view`, and deliberately so: a Teacher must report and track, a Technician must work what they are given, and both need the same *ability*. What differs is **which rows** each may reach, and that is decided per record rather than per route ([FR-TKT-013](#105-ticketing--itsm-fr-tkt)). Reading this row as "Technicians and Teachers may see all tickets" would be wrong — the permission is a floor, not the boundary.
+>
+> *(Withdrawn from the Technician baseline in Phase 2.6: `assign` and `export`. Assignment authority is the Administrator's, and export is a whole-directory read that an account which cannot browse the directory must not hold. `tickets.assign` remains grantable **per user** — that is [FR-ASN-001](#106-technician-assignment-fr-asn)'s own "(and permitted Technicians)" exception, for a lead technician distributing workload — so the narrow deputization path stays open without widening the role.)*
 
 ---
 
@@ -470,7 +485,7 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | FR-TKT-010 | Maintain accurate counter caches (`upvote_count`, `comment_count`, `attachment_count`) transactionally so they never drift. | M | P2 | T |
 | FR-TKT-011 | Allow marking a ticket as a duplicate of another (`duplicate_of_id`), preventing self-reference, and surface the canonical ticket. | M | P2 | T |
 | FR-TKT-012 | Provide an append-only activity feed (`ticket_updates`) capturing comments, status/priority changes, assignment, AI analysis, and system events. | M | P2 | T |
-| FR-TKT-013 | Restrict a Teacher’s ticket views to tickets they reported (or are otherwise entitled to view); Technicians/Administrators may view all. | M | P2 | T |
+| FR-TKT-013 | Scope every ticket read to the caller, on a permission all three roles hold. A **Teacher** sees the tickets they reported in full, and every other reporter's only as a **restricted community projection** carrying no internal note, technician, SLA, attachment or AI field. A **Technician** sees only tickets they hold an assignment for — read access outlives the assignment so their own work history stays available, but a *declined* assignment grants nothing; they are refused the community feed rather than shown an empty one. An **Administrator** sees every ticket. The same rule shall govern lists and single-record reads alike, so a ticket absent from a caller's list is equally unreachable by its identifier. | M | P2 | T |
 | FR-TKT-014 | Provide full-text search over ticket title and description (Postgres `tsvector` + GIN) and filterable, sortable, paginated ticket lists (by status, priority, category, technician, room, tag, date range). | M | P2 | T |
 | FR-TKT-015 | Support tags (`tags` + `ticket_tags`) for classification and search. | M | P2 | T |
 | FR-TKT-016 | Allow reopening a Resolved or Closed ticket within a configurable window, stamping `reopened_at` and recording the transition (`Resolved` is non-terminal/awaiting confirmation; `Closed` is terminal). | M | P2 | T |
@@ -497,9 +512,36 @@ Occasional, non-technical end user. Capabilities: create tickets; view **their o
 | FR-MNT-003 | Track maintenance status (scheduled/in_progress/on_hold/completed/cancelled) with `started_at`/`completed_at`, and capture diagnosis, root cause, resolution, preventive recommendation, downtime minutes (≥0), labor hours (≥0), and cost (≥0). | M | P2 | T |
 | FR-MNT-004 | Support **checklist templates** and template items per maintenance type, instantiated into per-record checklists with completion tracking (who/when) and required-item enforcement before completion. | M | P2 | T |
 | FR-MNT-005 | Allow attaching repair images typed `before`/`during`/`after`, and free-form maintenance notes. | M | P2 | T |
-| FR-MNT-006 | Record **hardware replacements** during maintenance, referencing the old/new catalog component and the specific new serialized asset fitted (`new_asset_id`), with quantity (>0) and optional warranty months (≥0); update the PC’s installation history accordingly. | M | P2 | T |
+| FR-MNT-006 | Record **hardware replacements** during maintenance, referencing the old/new catalog component and the specific serialized asset **removed** (`old_asset_id`, nullable — a replaced part is not always a registered serialized unit) and the specific new serialized asset fitted (`new_asset_id`), with quantity (>0) and optional warranty months (≥0); update the PC’s installation history accordingly, closing the removed asset’s installation and opening one for the asset fitted ([DR-022](#292-data-integrity--constraints)). | M | P2 | T |
 | FR-MNT-007 | Generate preventive-maintenance due reminders based on the configurable default interval (`maintenance.default_interval_days`, default 90) and reminder lead time (`maintenance.reminder_days`, default 7). | M | P2 | T |
 | FR-MNT-008 | Update the target PC unit’s `status`/`current_condition` when maintenance starts and completes (e.g. → `under_maintenance` → prior/working). | M | P2 | T |
+| FR-MNT-009 | Allow a Technician to submit **proof that work was performed on a specific PC unit** from the scanned workflow ([FR-QR-008](#18-qr-code-requirements)). The submission shall attach to an **existing active maintenance record** for the scanned unit that the technician is authorized to work — that is the primary and default path. The scan shall **not** by itself confer permission to create maintenance work: a new record may be created from this workflow **only** where the maintenance workflow explicitly supports technician-initiated unscheduled or corrective maintenance **and** the technician holds the ability to create it; otherwise the submission shall be refused with an explanation rather than silently creating a record. Where a record is created, it shall be linked to the originating ticket when the work arose from an assignment, or stand alone when it did not (`maintenance_records.ticket_id` nullable, [FR-MNT-002](#107-maintenance-fr-mnt)). The scan that produced the submission shall be recorded against the record (`qr_scan_logs.maintenance_record_id`). **Work-package split (Client-approved 2026-08-28).** The Maintenance-side foundation this requirement stands on — technician-initiated corrective maintenance for a technician holding `maintenance.create`, an identifiable **active** maintenance record for a unit, and the row-scoped rule that decides whether a given technician may work it ([FR-MNT-011](#107-maintenance-fr-mnt)) — is delivered by **WP-2.6**. The scanned entry point, the proof-of-work submission itself and its scan-bound idempotency ([FR-MNT-012](#107-maintenance-fr-mnt)) are delivered by **WP-2.6b**. Neither package omits the requirement; each owns the half it can verify on its own. | M | P2 | T |
+| FR-MNT-010 | Require, for a proof-of-work submission, at minimum: what was done (resolution text), the outcome status, and at least one item of **evidence** — a repair image typed `before`/`during`/`after` ([FR-MNT-005](#107-maintenance-fr-mnt)). Evidence uploads shall pass through the system’s single attachment trust boundary: server-side type detection against an allow-list, a stored SHA-256 checksum, storage outside the web root, and a re-checked type on download ([NFR-SEC-007](#12-security-requirements), [FR-TKT-008](#105-ticketing--itsm-fr-tkt)). No second upload path shall be introduced for maintenance evidence. | M | P2 | T |
+| FR-MNT-011 | Scope maintenance records by row, not by permission: a Technician shall reach the records they created or were assigned, and no others — in lists **and** by direct identifier — while an Administrator sees all. The rule applied to a list and the rule applied to a single record shall be the same rule ([FR-TKT-013](#105-ticketing--itsm-fr-tkt) establishes the pattern). | M | P2 | T |
+| FR-MNT-012 | Prevent duplicate proof-of-work submissions by construction, not by convention: a repeated scan of the same code, a resubmission of the same scan, or a repeat submission against the same active record shall **update** that record rather than create a second one; the operation shall be idempotent on the scan and constrained by the maintenance workflow so that no sequence of repeated scans or submissions can leave two records describing one physical job. | M | P2 | T |
+
+#### 10.7.1 Technician Work Support Requests (FR-WSR)
+
+A Technician working a specific PC unit frequently cannot finish without something only an Administrator can authorize — a replacement part, consumable stock, a tool, access, or a decision. These requirements specify that request and the Administrator’s response. It is a **job-scoped escalation**, not a general purchasing system: every request is anchored to the PC unit being worked on, and to the ticket and/or maintenance record it arose from. Where an approved request genuinely requires buying something, it links to a procurement request ([FR-AST-008](#108-inventory--asset-lifecycle-fr-ast)) rather than duplicating it.
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-WSR-001 | Allow a Technician to submit a **work support request** from the workflow of a specific PC unit, bound to that unit, and — when the work arose from one — to the related ticket and/or maintenance record. A request unrelated to any ticket shall still be permitted, provided it names a PC unit. | M | P2 | T |
+| FR-WSR-002 | Require, on submission: what is needed (one or more line items — a catalog hardware model or free-text description, quantity > 0), and a **written explanation of why it is needed** to complete the job. Optional supporting evidence may be attached. A request with no items or no explanation shall be refused. | M | P2 | T |
+| FR-WSR-003 | Accept supporting evidence through the system’s single attachment trust boundary only — server-side type detection against an allow-list, a stored checksum, storage outside the web root, and a re-checked type with safe disposition on download ([NFR-SEC-007](#12-security-requirements), [FR-MNT-010](#107-maintenance-fr-mnt)). | M | P2 | T |
+| FR-WSR-004 | Track each request through a controlled status model of exactly `submitted`, `clarification_requested`, `approved`, `declined`, `cancelled` and `closed`. `clarification_requested` returns to `approved` or `declined` after the discussion; `approved` and `declined` are the Administrator’s decisions; `cancelled` is the submitting Technician’s withdrawal ([FR-WSR-014](#1071-technician-work-support-requests-fr-wsr)); `closed` records that the request is finished or its job has completed. **Transitions shall be enforced by a transition map, not by accepting a status field from the client** — an arbitrary status update shall be refused. No prior decision, schedule or workflow state shall be overwritten in place: a superseded value shall remain recoverable from the request’s history ([FR-WSR-011](#1071-technician-work-support-requests-fr-wsr)). | M | P2 | T |
+| FR-WSR-005 | Present Administrators a **request-management surface** — not a bare notification — showing for each request: the submitting technician, the PC unit, the related ticket and maintenance record when applicable, the requested items, the technician’s explanation, any attached evidence and the relevant proof of work, the full decision history, and the current status. | M | P2 | T |
+| FR-WSR-006 | **Decision A — approve and reschedule.** Allow an Administrator to approve a request and set a new date/time for the work. The new schedule shall be written to the related maintenance record’s `scheduled_for` and recorded on the request; the **previous value shall be preserved in the activity history rather than silently overwritten**; the related ticket shall move to a held/awaiting state rather than being resolved or closed; the technician shall be notified; and the technician’s acknowledgement shall be recorded when given. | M | P2 | T |
+| FR-WSR-007 | **Decision B — request a face-to-face discussion.** Allow an Administrator to ask the technician for an in-person explanation, recording that clarification was requested, the reason, the resulting status, and an optional proposed time. The system shall **not** implement a calendar or meeting-scheduling subsystem for this ([OI-10](#33-open-issues--decisions-requiring-client-approval)). | M | P2 | T |
+| FR-WSR-008 | **Decision C — decline.** Allow an Administrator to decline a request, requiring a non-empty explanation enforced **server-side**; a decline without a reason shall be refused. The technician shall be able to see that the request was declined, the Administrator’s explanation, the PC unit, the related job context, and the resulting status. | M | P2 | T |
+| FR-WSR-009 | Give Technicians a dedicated navigation item and page tracking **everything they personally submitted** — proof-of-work records and support requests — with current status, the Administrator’s decision, reschedule details, clarification details, decline explanation, the related PC unit, ticket and maintenance record, and submission history. A technician shall reach their own records and no others, in lists **and** by direct identifier ([FR-MNT-011](#107-maintenance-fr-mnt)). | M | P2 | T |
+| FR-WSR-010 | Give Administrators a dedicated navigation item and page for receiving and managing technician requests, filterable by workflow state: pending review, awaiting clarification, approved/rescheduled, declined, and closed. | M | P2 | T |
+| FR-WSR-011 | Record every submission, decision, reschedule, clarification request, acknowledgement and closure in the activity log with actor, subject, and the before/after values of anything changed ([FR-AUD-001](#109-audit--activity-logging-fr-aud), [FR-AUD-003](#109-audit--activity-logging-fr-aud)). No workflow transition shall occur unlogged. | M | P2 | T |
+| FR-WSR-012 | Notify the Administrator on submission and the Technician on every decision, honouring per-user channel preferences ([FR-NOT-002](#22-notification-requirements), [FR-NOT-003](#22-notification-requirements)). | M | P2 | T |
+| FR-WSR-013 | Link an approved request to a **procurement request** ([FR-AST-008](#108-inventory--asset-lifecycle-fr-ast)) when fulfilment requires purchasing, rather than reimplementing procurement. Approval of a support request shall not by itself constitute procurement approval ([FR-AST-009](#108-inventory--asset-lifecycle-fr-ast)). | M | P2 | T |
+| FR-WSR-014 | Allow the **submitting Technician** to cancel their own request while it is `submitted` or `clarification_requested` — that is, while no Administrator decision has been recorded — moving it to `cancelled` with an optional note. A request that has been approved or declined shall not be cancelled; a cancelled request is terminal and shall not be reopened, a fresh request being submitted instead. An Administrator may cancel on a technician’s behalf, and the actor shall be recorded either way. | M | P2 | T |
+
+> **Why this is not procurement.** `procurement_requests` models a purchasing lifecycle (draft → submitted → approved/rejected → fulfilled/cancelled) with a request number and estimated costs, and it carries no link to a PC unit, ticket or maintenance record. The workflow above is a technician standing at a machine asking for what the job needs, and its decisions include *reschedule* and *discuss in person* — states purchasing does not have. Keeping them separate preserves both vocabularies; [FR-WSR-013](#1071-technician-work-support-requests-fr-wsr) is the bridge where they genuinely meet. See [OI-09](#33-open-issues--decisions-requiring-client-approval).
 
 ### 10.8 Inventory & Asset Lifecycle (FR-AST)
 
@@ -763,12 +805,30 @@ SccIT integrates Google **Gemini** for (a) **ticket triage/analysis**, (b) a **c
 | FR-QR-002 | Store the canonical scannable value in `qr_codes.code`; treat `pc_units.qr_identifier` as a denormalized convenience copy kept in sync. | M | P2 | T |
 | FR-QR-003 | Render a printable QR image at the configured default size (`qr.default_size`, default 256 px) and error-correction level (`qr.error_correction`, default M). | M | P2 | T |
 | FR-QR-004 | Track QR lifecycle status (active/inactive/revoked) and `generated_at`/`last_scanned_at`. | M | P2 | T |
-| FR-QR-005 | On scan, verify the code and resolve the target, returning the target’s live info panel to the scanning user; record every scan in `qr_scan_logs` with result (success/invalid/expired/mismatch), scanner, IP, and optional geolocation (validated: lat ∈ [-90,90], lon ∈ [-180,180]). | M | P2 | T |
+| FR-QR-005 | On scan, verify the code and resolve the target **server-side**, then — only after the scanning user is authenticated and authorized — return the scan-scoped info panel for that target ([FR-QR-012](#18-qr-code-requirements)); record **every** scan attempt in `qr_scan_logs`, authenticated or not, with result (success/invalid/expired/mismatch), scanner (null when unauthenticated), IP, and optional geolocation (validated: lat ∈ [-90,90], lon ∈ [-180,180]). | M | P2 | T |
 | FR-QR-006 | Classify a scan result deterministically: **success** (active code, resolvable live target); **invalid** (unknown code); **mismatch** (code resolves but points to a different/moved target than claimed); **expired** (code whose status is `inactive`/`revoked` or whose target is `retired`/`disposed`). | M | P2 | T |
-| FR-QR-007 | Allow Administrators/Technicians to regenerate or revoke a QR code, preserving prior scan history. | M | P2 | T |
+| FR-QR-007 | Allow **Administrators** (`assets.update`) to generate, print, regenerate or revoke a QR code, preserving prior scan history; a regenerated code revokes its predecessor rather than mutating it. QR label management is part of the Administrator-only Asset Management module ([FR-AST-013](#108-inventory--asset-lifecycle-fr-ast)); a Technician may be granted it only by per-user override ([FR-USER-004](#102-user--role-management-fr-user)). | M | P2 | T |
 | FR-QR-008 | Support QR-initiated maintenance: a scan may start/attach a maintenance record for the resolved target (`qr_scan_logs.maintenance_record_id`). | M | P2 | T |
 | FR-QR-009 | Function on standard mobile-browser cameras without a native app. | M | P2 | D |
+| FR-QR-010 | Treat the QR identifier as an **identifier only, never a credential**. Scanning shall grant no access by itself: an unauthenticated scan shall disclose no target information — no name, code, location, status, specification, ticket or maintenance data — and shall offer no submission action. The scan shall be recorded, the scanner sent to authentication, and authorization re-evaluated after sign-in. | M | P2 | T |
+| FR-QR-011 | Preserve the scanned destination across authentication **without accepting a caller-supplied URL**. The system shall carry only the scanned `code` and rebuild the destination itself; it shall never redirect to an absolute URL, a protocol-relative path, or any location outside the application origin, whatever a query string, referrer or session value contains. After sign-in the user shall resume at the scanned PC unit’s workflow; if authorization then fails, the refusal shall be shown instead of the panel. | M | P2 | T |
+| FR-QR-012 | Return, to an authenticated and authorized scanner, a **scan-scoped PC panel** — a projection distinct from both the label-only lookup ([FR-AST-013](#108-inventory--asset-lifecycle-fr-ast)) and the Administrator’s asset record, and governed by its **own authorization rule** rather than by any `assets.*` ability. It shall carry only operational information the technician needs to perform authorized technical work, and only where the data model supports it: the PC unit identifier and name; its laboratory/location; its condition and status; the relevant technical specification and installed components; the relevant **active ticket**; the relevant **active maintenance record** and the repair information that job needs; and the applicable checklist or work instructions. It shall **not** carry purchase price, supplier or procurement details, unrelated financial information, unrestricted audit history, custodian or other private administrative records, archived rows, any information outside the technician’s authorized work context, or any edit affordance of the Asset Management module. A Technician’s panel shall be limited to units reachable through their assigned work; an Administrator’s is unrestricted. | M | P2 | T |
+| FR-QR-013 | Resist identifier enumeration and abuse: the scan endpoint shall be rate-limited per client and per account ([NFR-SEC-009](#12-security-requirements)); an unknown, revoked, inactive or retired code shall answer an unauthenticated caller with an indistinguishable non-disclosing refusal while still being classified precisely in `qr_scan_logs` ([FR-QR-006](#18-qr-code-requirements)); and a code shall never be accepted as proof that the scanner is standing in front of the machine — evidence of presence is the submitted proof of work ([FR-WSR-002](#1071-technician-work-support-requests-fr-wsr)), not the scan. | M | P2 | T |
 
+> **The scan is an entry point, not an authorization.** The mandated order is: scan → server-side QR validation → authentication check →
+> sign-in if required → return to the originally scanned PC workflow → authorization check → the scan-scoped panel and the technician
+> actions it permits ([FR-QR-010](#18-qr-code-requirements)–[FR-QR-013](#18-qr-code-requirements)). Each step is separately verifiable, and
+> none of them may be satisfied by possession of the code alone. The primary actor is the **Technician**; the label itself is issued and
+> printed by an **Administrator** ([FR-QR-007](#18-qr-code-requirements)).
+>
+> **FR-QR-011 — defect found and corrected (recorded 2026-09-06, Version 1.0 unchanged).** WP-2.6b delivered the destination-preservation
+> mechanism as specified — the scanned `code` is carried, never a caller-supplied URL — but the requirement's *second* obligation, that the
+> user **resume at the scanned PC unit's workflow after sign-in**, was not met: the guest route sent every authenticated visitor to `/app`,
+> discarding the pending scan. The open-redirect half of the requirement was never at risk; the resume half was silently broken.
+> **WP-2.7d fixed it** and covered it at three levels (34 resolver unit tests, 7 guard component tests, 4 browser tests), converting a
+> browser test that had been running as an expected failure into a genuine assertion. Recorded because the requirement was not satisfied
+> when it was first reported as delivered — and because [SDD §24](#) had predicted this exact failure in writing before it occurred.
+>
 > **Inconsistency flagged & resolved:** the `scan_result` domain includes `expired`, but `qr_codes` has no explicit expiry timestamp. Resolution: `expired` is defined behaviorally (FR-QR-006) against QR/target status rather than a date. If time-based QR expiry is later required, add `qr_codes.expires_at` (see [§33 OI-04](#33-open-issues--decisions-requiring-client-approval)).
 
 ---
@@ -833,12 +893,129 @@ SccIT integrates Google **Gemini** for (a) **ticket triage/analysis**, (b) a **c
 |---|---|:--:|:--:|:--:|
 | FR-NOT-001 | Deliver in-app notifications via a notification center (`notifications`: type, title, message, JSON data, optional action URL, read state) with an unread badge count. | M | P2 | T |
 | FR-NOT-002 | Support delivery channels in-app and email (`notification_channel`), honoring per-user, per-type channel preferences (`notification_preferences`, unique per user+channel+type). | M | P2 | T |
-| FR-NOT-003 | Generate notifications for at least: ticket assigned/reassigned; ticket status change; new comment on a followed/owned ticket; SLA breach/nearing breach; maintenance scheduled/due; low-stock reorder; procurement approval/rejection; account lockout; and new announcements. | M | P2 | T |
+| FR-NOT-003 | Generate notifications for at least: ticket assigned/reassigned; ticket status change; new comment on a followed/owned ticket; SLA breach/nearing breach; maintenance scheduled/due; **maintenance rescheduled**; low-stock reorder; procurement approval/rejection; **a technician work support request submitted (to Administrators)**; **an Administrator decision on that request — approved with a new schedule, clarification requested, or declined with a reason (to the submitting Technician)**; account lockout; and new announcements. | M | P2 | T |
 | FR-NOT-004 | Mark notifications read/unread individually and in bulk; persist `read_at`. | M | P2 | T |
 | FR-NOT-005 | Respect notification type set (info/success/warning/error/ticket_update/assignment/announcement/maintenance/system) for filtering and display. | M | P2 | T |
 | FR-NOT-006 | Send email notifications through the configured mail transport, with content safe for external delivery (no secrets, minimal PII). | M | P2 | T |
 | FR-NOT-007 | Push in-app notifications in real time via Reverb (with polling fallback). | F | — | T |
-| FR-NOT-008 | Support a daily digest email (`notifications.digest_enabled`) aggregating unread items. | M | P2 | T |
+| FR-NOT-008 | Support a daily digest email aggregating unread items, selected per user as a **delivery channel** on `notification_preferences` (`channel = 'digest'`) rather than as a notification type. | M | P2 | T |
+
+> **Implementation status (recorded 2026-09-06, Version 1.0 unchanged).**
+>
+> **FR-NOT-001 / 004 / 005 — satisfied.** WP-2.7a built the `notifications`
+> read/write API and the unread badge count; **WP-2.7b** built the surface: the
+> notification centre at `/app/notifications`, the top-bar entry with its unread
+> badge and dropdown panel, individual and bulk read/unread, and filtering by
+> unread state and by type across the nine-value set FR-NOT-005 names. Freshness
+> is a **60-second poll while the tab is visible** — see FR-NOT-007.
+>
+> **FR-NOT-002 — satisfied, with one clarification that matters.** The channel ×
+> type matrix is **opt-out**: an absent `notification_preferences` row means
+> *enabled*, and the API returns the complete matrix with gaps resolved so no
+> client re-implements that rule. WP-2.7b renders it on `/app/account`.
+> **Delivering in-app is an obligation on the system, not a limit on the user:**
+> a user may disable in-app delivery for any type, and the system must not treat
+> "in-app is the guaranteed channel" as a reason to ignore that choice. The
+> **sole** forced-channel exception is the account-lockout email (the FR-NOT-003
+> lockout trigger), which bypasses the preference gate because a security notice
+> silenced months earlier is a security notice that does not exist.
+>
+> **FR-NOT-003 — partly satisfied. Ten of its twelve triggers are
+> implemented.** WP-2.7c added the twelfth clause, *new announcements*. See the
+> trigger note below; this requirement must **not** be recorded as satisfied
+> while low-stock reorder and procurement approval/rejection remain blocked on
+> WP-2.4b.
+>
+> **FR-NOT-006 — satisfied.** Mail delivery runs through the configured
+> transport (WP-2.7a). Content carries **structural facts only** — identifiers,
+> states and timestamps — and never borrows prose from the record it describes,
+> which is how "no secrets, minimal PII" is enforced rather than merely intended.
+>
+> **FR-NOT-007 — not implemented; unchanged as Future (P4).** There is no
+> Reverb, WebSocket, SSE or browser-push transport in the system. The badge is
+> polled, so its count may be up to one polling interval stale; the product does
+> not claim real-time behaviour.
+>
+> **FR-NOT-008 — satisfied; delivered by WP-2.7e (recorded 2026-09-07).** The
+> decision recorded as **D1 (2026-09-05)** approved digest as a **third delivery
+> channel** rather than a tenth notification type, and that is how it was built:
+> `notification_preferences.channel` now allows `('in_app', 'email', 'digest')`
+> and `notifications` is untouched — a digest aggregates unread rows, it does
+> not create one.
+>
+> **Delivered semantics**, each settled by Client decision before implementation:
+>
+> - **07:00 Asia/Manila, covering the previous school-local calendar day**, as a
+>   half-open `[start, end)` interval. The application's own timezone stays
+>   **UTC**; only the digest's business semantics are school-local, and
+>   `Asia/Manila` observes no daylight saving, so the delivery hour is stable
+>   year-round.
+> - **The digest is a distinct channel.** Switching the `email` channel off does
+>   **not** disable it; the `digest` row of the preference matrix is the sole
+>   opt-in, and that matrix is now 3 × 9 = 27 cells.
+> - **Per-type preferences apply.** `digest × type` means "include this type in
+>   my digest", read through the same opt-out gate as every other channel.
+> - **All three roles** are eligible, active accounts only, and a digest carries
+>   **only that user's own** notifications — no cross-user aggregation exists.
+> - **Content is notification titles only.** The structural-facts rule
+>   (FR-NOT-006) binds harder here than for a single notification, because a
+>   digest is many at once: no `message` body is ever mailed.
+> - **An empty day sends nothing** — no email and no record.
+>
+> **Delivery is at-most-once, deliberately.** SMTP cannot take part in a database
+> transaction, so exactly-once is unavailable: the record is committed *before*
+> the message is sent, which means a crash mid-send costs that user one day's
+> digest rather than risking a duplicate school-wide mailing. Uniqueness is
+> enforced by the database on `(user_id, digest_date)` — not by the scheduler's
+> lock, which only prevents runs overlapping. **`sent_at` therefore records
+> commitment, not confirmed delivery,** and must not be read as proof that mail
+> arrived.
+>
+> The earlier wording of this requirement named a column
+> `notifications.digest_enabled`; **that column has never existed** in the
+> baselined schema and the reference is corrected above. A **system setting** of
+> that name is seeded (default `false`); it predates D1, is **read by no code**,
+> and WP-2.7e deliberately neither uses it as a kill switch nor removes it. It is
+> recorded here as unused legacy state so it cannot later be mistaken for live
+> behaviour.
+
+**FR-NOT-003 trigger status (recorded 2026-09-06; trigger 12 updated
+2026-09-07).** The requirement enumerates **twelve** trigger clauses. **Ten are
+implemented** and two are not:
+
+| # | Trigger | State | Delivered by / blocked on |
+|---:|---|---|---|
+| 1 | Ticket assigned / reassigned | ✅ implemented | WP-2.7a |
+| 2 | Ticket status change | ✅ implemented | WP-2.7a |
+| 3 | New comment on a followed/owned ticket | ✅ implemented | WP-2.7a |
+| 4 | SLA breach / nearing breach | ✅ implemented | WP-2.7a |
+| 5 | Maintenance scheduled / due | ✅ implemented | WP-2.7a (two dispatch paths — scheduled, and due/overdue detection) |
+| 6 | Maintenance rescheduled | ✅ implemented | WP-2.7a |
+| 7 | Low-stock reorder | ❌ **not implemented** | **WP-2.4b** — `consumables` is a baselined table with no domain code and no reorder thresholds |
+| 8 | Procurement approval / rejection | ❌ **not implemented** | **WP-2.4b** — `procurement_requests` likewise; also the dependency behind [FR-WSR-013](#1071-technician-work-support-requests-fr-wsr) |
+| 9 | Work support request submitted (to Administrators) | ✅ implemented | WP-2.7a |
+| 10 | Administrator decision on that request | ✅ implemented | WP-2.7a |
+| 11 | Account lockout | ✅ implemented | WP-2.7a (forced email channel) |
+| 12 | New announcements | ✅ implemented | **WP-2.7c** — publishing dispatches `AnnouncementPublished` to the targeted audience, in-app only; see [§22.1](#221-announcements) |
+
+Two recipient rules were decided by the Client on 2026-09-05 and are recorded
+here so the requirement is verifiable rather than interpretable:
+
+- **Trigger 3 — "followed/owned" means demonstrated participation.** No
+  follower, watcher or subscription table exists anywhere in the schema, so the
+  recipient set is the **reporter, the assigned technician, and anyone who has
+  already commented**. Nothing is invented and nothing new is stored;
+  participation is a fact `ticket_comments` already records. **An internal
+  comment narrows the audience to Administrators and Technicians** — the
+  *existence* of an internal note is itself staff-only information, so a
+  requester receives no notification at all rather than a redacted one.
+- **Trigger 4 — recipients are Administrators plus the assigned technician**,
+  and the trigger is **notify-only**. No automatic reassignment, priority change
+  or other escalation occurs; that remains the open decision
+  [OI-06](#33-open-issues--decisions-requiring-client-approval).
+
+A unit test asserts that **no topic and no event class exists for triggers 7 and
+8**, so the gap cannot close silently or be mistaken for delivered work.
 
 ### 22.1 Announcements
 
@@ -846,6 +1023,66 @@ SccIT integrates Google **Gemini** for (a) **ticket triage/analysis**, (b) a **c
 |---|---|:--:|:--:|:--:|
 | FR-NOT-010 | Allow Administrators (`system.announcements.manage`) to publish announcements targeted to an audience (all/teachers/technicians/admins), with optional start/end window (`ends_at > starts_at`), active flag, and pin flag. | M | P2 | T |
 | FR-NOT-011 | Display active, in-window announcements to the targeted audience; pinned announcements appear first. | M | P2 | D |
+
+> **Implementation status — satisfied; delivered by WP-2.7c (recorded
+> 2026-09-07, Version 1.0 unchanged).**
+>
+> **FR-NOT-010 — satisfied.** Administrators holding
+> `system.announcements.manage` create, edit, publish, withdraw and delete
+> announcements targeted at `all` / `teachers` / `technicians` / `admins`, with
+> the optional window and the pin flag. **Publication is a named operation, not
+> a writable field:** `is_active` cannot be set by any request body, so no edit
+> can make an announcement live — and therefore no edit can notify an audience
+> as a side effect. Creating an announcement produces a **draft**; publishing,
+> withdrawing and re-notifying are separate endpoints, each with its own audit
+> action.
+>
+> **FR-NOT-011 — satisfied.** The reader at `/app/announcements` lists the
+> announcements addressed to the caller — active, inside their window, and
+> targeted at their audience or at everyone — pinned first. A dedicated
+> per-announcement page is reachable from the notification.
+>
+> **Decision D5 (2026-09-05), as implemented.** **Publishing an announcement
+> creates an in-app notification. It does not send email.** All four constraints
+> recorded before implementation were met:
+>
+> - **Audience targeting is an authorization boundary, not a display filter.**
+>   One visibility rule answers both the list question and the single-record
+>   question, so an announcement absent from a reader's list is **equally
+>   unreachable by its uuid** rather than merely hidden. Asserted by test, role
+>   by role.
+> - **User notification preferences apply.** `announcement` remains one of the
+>   nine [FR-NOT-005](#22-notification-requirements) types and the existing
+>   preference gate covers it; a user who has switched announcements off in-app
+>   is still not notified.
+> - **Authorization is the existing `system.announcements.manage`**, already
+>   seeded to Administrators. **No new permission was added** and the
+>   [§8.4](#84-seeded-permission-matrix-baseline) matrix is unchanged.
+> - **The existing notification security and content rules applied unchanged** —
+>   structural facts only, and a relative in-application destination. The
+>   announcement **body is deliberately absent** from the notification even
+>   though it is plain text: the notification says *that* something was
+>   announced and links to it.
+>
+> **How the no-email guarantee is enforced.** Preferences are **opt-out**, so
+> the preference gate alone could not deliver it: on a fresh system an absent
+> row means *enabled*, and a single `all` announcement would have mailed the
+> whole organisation. The guarantee therefore lives in the dispatch path —
+> the announcement notification **refuses the email channel outright**, before
+> the gate is consulted ([SDD DD-66](#40-design-decision-register)). It was not
+> solved by seeding preferences, which would have made a system guarantee depend
+> on every row staying correct in perpetuity.
+>
+> **Content is plain text.** Announcements carry no HTML and no Markdown, so
+> there is no sanitisation surface; the client renders them as escaped text.
+> **No attachments and no external URLs** are supported, and **no per-user
+> announcement read receipt exists** — read/unread state remains owned by the
+> notification system ([FR-NOT-004](#22-notification-requirements)).
+>
+> **Sequencing consequence, as realised:** because publishing notifies,
+> **WP-2.7c depended on WP-2.7a**, which was delivered first. Because it sends
+> no email, the school-wide blast risk that motivated the original
+> recommendation did not arise.
 
 ---
 
@@ -1094,6 +1331,16 @@ These specifications elaborate the principal use cases end-to-end in the ISO/IEC
 - **Postconditions:** the user is informed; read state is persisted.
 - **Traceability:** FR-NOT-001..006/008, FR-TKT-013/017 · `notifications`, `notification_preferences`, `tickets`.
 
+**UCS-11 — QR-Verified On-Site Work, Proof of Work & Support Request.**
+- **Primary actor:** Technician. **Secondary actors:** Administrator, QR Scanner, Notification Service.
+- **Preconditions:** the PC unit carries an active QR label issued by an Administrator ([FR-QR-007](#18-qr-code-requirements)); the technician has an assignment or a scheduled maintenance for it.
+- **Trigger:** the technician scans the label on the machine with a phone camera.
+- **Main flow:** (1) the scan opens the application in the browser at the scanned code ([FR-QR-009](#18-qr-code-requirements)); (2) the system **validates the code server-side** and logs the scan attempt, disclosing nothing about the target ([FR-QR-005](#18-qr-code-requirements)/[FR-QR-010](#18-qr-code-requirements)); (3) if the scanner is not authenticated they are sent to sign-in, with the destination carried as the **code only** and rebuilt by the system afterwards — never as a caller-supplied URL ([FR-QR-011](#18-qr-code-requirements)); (4) after sign-in the system re-evaluates authorization and, if it holds, returns the **scan-scoped PC panel** ([FR-QR-012](#18-qr-code-requirements)); (5) the technician performs the work and **submits proof** — resolution text, outcome, and before/during/after evidence — which attaches to the **existing active maintenance record** they are authorized to work on that unit; the scan alone does not permit creating maintenance work, and a new record may be opened from here only where technician-initiated corrective maintenance is supported and the technician is authorized ([FR-MNT-009](#107-maintenance-fr-mnt)/[FR-MNT-010](#107-maintenance-fr-mnt)/[FR-MNT-012](#107-maintenance-fr-mnt), [FR-QR-008](#18-qr-code-requirements)); (6) if the job cannot be finished without a part, material or decision, the technician submits a **work support request** naming the PC unit, the items and the reason ([FR-WSR-001](#1071-technician-work-support-requests-fr-wsr)/[FR-WSR-002](#1071-technician-work-support-requests-fr-wsr)); (7) the Administrator is notified and reviews it on the request-management surface ([FR-WSR-005](#1071-technician-work-support-requests-fr-wsr), [FR-NOT-003](#22-notification-requirements)); (8) the Administrator **approves and reschedules**, **requests a face-to-face discussion**, or **declines with a required reason** ([FR-WSR-006](#1071-technician-work-support-requests-fr-wsr)–[FR-WSR-008](#1071-technician-work-support-requests-fr-wsr)); (9) the technician is notified and sees the decision on their own tracking page ([FR-WSR-009](#1071-technician-work-support-requests-fr-wsr)); (10) every transition is written to the activity log ([FR-WSR-011](#1071-technician-work-support-requests-fr-wsr)).
+- **Alternate flows:** *A1 —* the code is revoked, unknown or the target retired → the scan is classified and logged, and the scanner is refused without disclosure ([FR-QR-006](#18-qr-code-requirements)/[FR-QR-013](#18-qr-code-requirements)). *A2 —* the scanner is authenticated but not authorized for that unit → the refusal is shown instead of the panel. *A3 —* the approved reschedule is acknowledged by the technician ([FR-WSR-006](#1071-technician-work-support-requests-fr-wsr)).
+- **Exceptions:** *E1 —* a decline is attempted with no reason → refused ([FR-WSR-008](#1071-technician-work-support-requests-fr-wsr)). *E2 —* a repeat scan or repeat submission updates the same record rather than creating a second ([FR-MNT-012](#107-maintenance-fr-mnt)). *E4 —* the scanned unit has no active maintenance record the technician may work, and technician-initiated creation is not permitted → the submission is refused with an explanation ([FR-MNT-009](#107-maintenance-fr-mnt)). *E3 —* an evidence upload whose detected type is outside the allow-list is rejected at upload ([FR-MNT-010](#107-maintenance-fr-mnt)).
+- **Postconditions:** the scan is logged with its result; the proof of work and its evidence are recorded against a maintenance record for the scanned unit; any support request carries a decision, a reason where one is required, and a complete audit trail; both parties are notified.
+- **Traceability:** FR-QR-005/006/008/009/010/011/012/013, FR-MNT-009/010/011/012, FR-WSR-001..014, FR-NOT-003, FR-AUD-001/003 · `qr_codes`, `qr_scan_logs`, `maintenance_records`, `repair_images`, `work_support_requests`, `technician_assignments`, `tickets`, `notifications`, `activity_logs`.
+
 ### 27.3 Operational Workflow Activity Diagrams
 
 The following UML **activity diagrams** model the end-to-end operational flow — from login to completion — for each principal role and for the system-wide AI, complementing the specifications in [§27.2](#272-detailed-use-case-specifications). They share one visual convention: rounded **start/end** nodes, rectangular **actions**, amber **decision** diamonds, green **database effects** (persisted writes), pink **notification effects**, and violet **AI steps**. Every step traces to the requirements cited beneath each figure. (High-resolution vector sources accompany each PNG in `docs/diagrams/`.)
@@ -1200,6 +1447,9 @@ The physical data model is authoritatively specified in `docs/database/database_
 | DR-017 | Carry one additive, backward-compatible column on `floors`: `uuid` (unique, `gen_random_uuid()` default, backfilled). `buildings` and `rooms` were created with a public `uuid`; `floors` was not, because it was originally an internal child table. Exposing floor management ([FR-LOC-002](#103-location-management-fr-loc)) requires a stable public identifier, since numeric primary keys never appear in URLs or payloads ([NFR-SEC-001](#12-security-requirements)). No existing column is renamed, retyped or removed. *(Phase 2.4.)* | T |
 | DR-018 | Record the **cascade receipt** for a location archive in the existing `deleted_at` columns: one timestamp is computed per cascade and written to the building, its floors and its rooms, so a restore reverses exactly those rows and a separately-archived child keeps its own, different stamp. Because `deleted_at` is second-precision, the cascade stamp is advanced until no descendant already carries it. No column is added for this. *(Phase 2.4; realizes [FR-LOC-004](#103-location-management-fr-loc).)* | T |
 | DR-019 | Derive all dashboard figures from the authoritative operational tables at read time (tickets and `ticket_statuses.is_open`/`is_terminal`, `technician_assignments`, `maintenance_records`, `assets`, `consumables`, `announcements`, `activity_logs`, plus the users and locations aggregates). Dashboards store nothing of their own and add no tables; the per-user payload is cached for 30 seconds to meet [NFR-PERF-008](#13-performance-requirements). *(Phase 2.4.)* | A |
+| DR-020 | Model the technician **work support request** ([§10.7.1](#1071-technician-work-support-requests-fr-wsr)) as its own entity with a public `uuid`, a **required** PC-unit reference, **nullable** ticket and maintenance-record references, the submitting technician, a free-text explanation, a status constrained by CHECK to `submitted`/`clarification_requested`/`approved`/`declined`/`cancelled`/`closed`, the decision fields each decision needs (deciding administrator and timestamp; `decline_reason`; `rescheduled_to` and `reschedule_reason`; `clarification_reason` and optional `proposed_meeting_at`; `acknowledged_at`), an optional link to a `procurement_requests` row for the purchasing bridge ([FR-WSR-013](#1071-technician-work-support-requests-fr-wsr)), and a child line-item table (catalog `hardware_model_id` **or** free-text description, quantity > 0). A decline shall be refused at the database level as well as the application level when no reason is present. The **exact schema shall be proposed and approved before implementation** ([OI-09](#33-open-issues--decisions-requiring-client-approval), decided). *(Planned — [WP-2.6b](#).)* | T |
+| DR-021 | Carry four additive, backward-compatible columns on `repair_images`: `original_filename`, `mime_type`, `file_size` and `checksum`. The table was baselined with only `disk`/`storage_path`/`caption`, which cannot express the allow-listed, checksummed, server-detected type that [NFR-SEC-007](#12-security-requirements) requires and that ticket and asset attachments already carry. Adding them lets maintenance evidence pass through the **same** attachment trust boundary instead of growing a third upload path. No existing column is renamed, retyped or removed. *(Planned — [WP-2.6](#).)* | T |
+| DR-022 | Carry one additive, backward-compatible column on `hardware_replacements`: `old_asset_id` (nullable, indexed, foreign key to `assets` with `ON DELETE SET NULL`). The table was baselined with `old_component_id`/`new_component_id` pointing at the **generic catalog** (`hardware_components`) and `new_asset_id` at the fitted **serialized** unit, but with no reference to the serialized unit *removed* — and `pc_component_installations` is keyed on `asset_id`, so [AC-MNT-006](#312-representative-feature-criteria)’s “the replaced asset is no longer marked installed in that PC” cannot be satisfied deterministically without it. Nullable because a replaced part is not always a registered serialized asset (a fan, a thermal pad, a cable). No existing column is renamed, retyped or removed. *(Planned — [WP-2.6](#).)* | T |
 
 ### 29.3 Reference/seed data (baseline)
 The system ships with seeded roles, the permission matrix ([§8.4](#84-seeded-permission-matrix-baseline)) — including the `locations` module — ticket categories (Hardware, Software, Network, Peripheral, Account & Access, Other), priorities and SLAs ([BR-05](#25-business-rules)), statuses (Open→Cancelled with open/terminal flags), maintenance types (Preventive, Corrective, Hardware Upgrade, Inspection, Cleaning), AI models (Gemini 1.5 Flash; text-embedding-004/768), AI defaults (threshold 0.70; advanced features off), and system settings across all groups. A non-production demo seeder provides sample data; it must never run in production.
@@ -1213,8 +1463,8 @@ The system ships with seeded roles, the permission matrix ([§8.4](#84-seeded-pe
 | Objective | Primary requirements |
 |---|---|
 | BO-01 Faster resolution | FR-TKT-004/005/006/017, FR-ASN-001..006, FR-DSH-003/004, FR-RPT-001, FR-AI-001..004 |
-| BO-02 Accurate assets | FR-AST-001..012, FR-PC-001..006, FR-QR-001..008, DR-002/005 |
-| BO-03 Preventive maintenance | FR-MNT-002/004/007, FR-DSH-003 |
+| BO-02 Accurate assets | FR-AST-001..012, FR-PC-001..006, FR-QR-001..013, DR-002/005 |
+| BO-03 Preventive maintenance | FR-MNT-002/004/007/009/010/011/012, FR-WSR-001..014, FR-QR-008/012, FR-DSH-003 |
 | BO-04 Operational truth | FR-DSH-001..007, FR-RPT-001..005, NFR-PERF-008 |
 | BO-05 Low-effort reporting | FR-TKT-001, FR-AI-003, NFR-USB-001, NFR-ACC-* |
 | BO-06 Accountability | FR-AUD-001..004, FR-USER-009, NFR-SEC-010/017, DR-002/007/008 |
@@ -1229,7 +1479,7 @@ The system ships with seeded roles, the permission matrix ([§8.4](#84-seeded-pe
 | Locations | buildings, floors, rooms | FR-LOC-* |
 | PC & QR | pc_units, pc_specifications, qr_codes, qr_scan_logs, pc_component_installations | FR-PC-*, FR-QR-* |
 | Ticketing | tickets (+ children), ticket_* lookups, tags | FR-TKT-*, FR-ASN-* |
-| Maintenance | maintenance_records (+ children), checklist_*, maintenance_types | FR-MNT-* |
+| Maintenance | maintenance_records (+ children), repair_images, checklist_*, maintenance_types, work_support_requests (+ items) | FR-MNT-*, FR-WSR-* |
 | Inventory | assets, consumables, catalog, stock_transactions, procurement_*, asset_transfers, disposal_records | FR-AST-* |
 | AI | ai_* (models, logs, embeddings, knowledge, feedback, settings) | FR-AI-* |
 | Floor Plan | room_layouts, floor_plan_positions | FR-FP-* |
@@ -1277,6 +1527,10 @@ General acceptance patterns plus representative Given/When/Then criteria. Each F
 - **AC-LOC-011 (FR-LOC-011):** *Given* a Technician or Teacher, *when* they sign in, *then* no Locations navigation item is present; *and when* they request any Locations page URL directly, *then* the Forbidden (403) surface is shown; *and when* they call any `locations` API endpoint directly, *then* the response is **403**; *and* the narrow lookup remains **200** for them so a location field still works inside the form that needs it.
 - **AC-DSH-001 (FR-DSH-001/008):** *Given* the three seeded roles, *when* each signs in and loads the dashboard, *then* each receives its own layout; *and* a Technician's payload contains no user-management or audit figures; *and when* a permission behind a widget is revoked by a per-user override, *then* that widget is absent from the payload.
 - **AC-QR-006 (FR-QR-005/006):** *Given* a revoked QR code, *when* scanned, *then* the scan is logged with result `expired` and no live target panel is returned; an unknown code logs `invalid`.
+- **AC-QR-010 (FR-QR-010/011):** *Given* an unauthenticated visitor holding a valid QR code, *when* they open the scanned link, *then* the response carries no identity, location, status or specification of the target, the scan is logged with a null scanner, and they are sent to sign-in; *and when* they sign in successfully, *then* they resume at that PC unit's workflow; *and* no query string, referrer or stored value can redirect them to a host outside the application origin.
+- **AC-QR-012 (FR-QR-012, FR-AST-013):** *Given* a Technician with no `assets.*` permission, *when* they scan a unit reachable through their assigned work, *then* the scan-scoped panel is returned and contains no purchase price, supplier, warranty terms, custodian record or audit trail; *and when* they request any Asset Management endpoint for the same unit directly, *then* the response is **403**; *and when* they scan a unit they have no work on, *then* the panel is refused.
+- **AC-MNT-009 (FR-MNT-009/010/011/012):** *Given* a Technician who has scanned a PC unit with an active maintenance record they are authorized to work, *when* they submit proof of work twice for the same scan, *then* one maintenance record exists and it was updated rather than duplicated; *and* a submission with no evidence is refused; *and given* a scanned unit with no such active record and no permission to create one, *when* they submit, *then* the submission is refused and no maintenance record is created; *and* a maintenance record absent from another technician's list is equally unreachable by its identifier.
+- **AC-WSR-008 (FR-WSR-004/008/009/011/014):** *Given* a submitted work support request, *when* an Administrator declines it without an explanation, *then* the request is refused and the status is unchanged; *and when* they decline it with one, *then* the technician sees the decline, the reason, the PC unit and the job context, and the transition appears in the activity log with its actor; *and* no other technician can reach that request by list or by identifier; *and* a client-supplied status field is never honoured — only a transition the map permits for that actor; *and given* a request already approved or declined, *when* the submitting technician attempts to cancel it, *then* the attempt is refused while a still-undecided request cancels successfully and terminally.
 - **AC-AI-010 (FR-AI-010/032):** *Given* AI analysis below the confidence threshold, *when* presented, *then* it is labeled advisory and no automated state change occurs; *and* AI never closes/deletes a ticket or disposes an asset without explicit human action.
 - **AC-AI-020 (FR-AI-020):** *Given* the Gemini API is unreachable, *when* a user creates and works tickets, *then* all non-AI functions succeed and AI panels show an unavailable state; queued analyses retry on recovery.
 - **AC-CFG-004 (FR-CFG-002/004):** *Given* a non-public setting (e.g. mail credentials), *when* a non-admin requests settings, *then* the value is never returned; *and* a non-admin write attempt is denied and audited.
@@ -1342,10 +1596,14 @@ These are decisions that would **change the specified business model or major sy
 | **OI-03** | MFA | No MFA in P2 (FR-AUTH-012/NFR-SEC-016 Future); schema note defers MFA columns. | Add TOTP MFA (schema columns + enrollment flow). **Pro:** materially stronger auth for privileged accounts. **Con:** added columns, flows, and support burden. | Add MFA for Administrators in an early post-P2 increment; approve now if security posture requires it. |
 | **OI-04** | QR expiry semantics | `expired` defined by QR/target status, no date field (FR-QR-006). | Add `qr_codes.expires_at` for time-based expiry. **Pro:** supports rotating/temporary codes. **Con:** schema change; scan logic change. | Keep status-based unless time-limited QR is required. |
 | **OI-05** | SLA model | Per-priority SLA on `ticket_priorities` (BR-05). | Dedicated `sla_policies` (per category/audience/asset-class). **Pro:** granular SLAs. **Con:** new tables + assignment logic. | Keep per-priority for P2; add `sla_policies` if differentiated SLAs are needed. |
-| **OI-06** | Ticket auto-escalation | Breach is flagged + notified; no automatic action (FR-TKT-017; FR-TKT-018 Future). | Auto-reassign/raise priority on breach. **Pro:** enforces response. **Con:** changes workflow behavior; risk of churn. | Ship notify-only; add configurable escalation later. |
+| **OI-06** | Ticket auto-escalation | **STILL OPEN.** Breach is flagged + notified; no automatic action (FR-TKT-017; FR-TKT-018 Future). The baseline is now **implemented** — WP-2.7a delivers SLA breach/nearing detection and notification to Administrators plus the assigned technician, and it is deliberately **notify-only**. | Auto-reassign/raise priority on breach. **Pro:** enforces response. **Con:** changes workflow behavior; risk of churn. | Ship notify-only; add configurable escalation later. **The notify-only half is shipped; the escalation decision remains open and unimplemented.** |
 | **OI-07** | Indicative NFR targets | Performance/availability/SLA/capacity numbers are indicative defaults ([§13](#13-performance-requirements)–[§15](#15-availability--reliability-requirements)). | Client-specified targets. **Impact:** changes test thresholds and sizing. | Confirm exact numbers at approval; no design impact beyond thresholds. |
+| **OI-08** | QR scan entry surface | **RESOLVED (2026-08-28).** The Client approved the baseline. The scanned link opens the **SPA** at `/qr/{code}`; the browser resolves it and the API validates it ([FR-QR-005](#18-qr-code-requirements)/[FR-QR-011](#18-qr-code-requirements)). | Resolve the scan at the server and issue a redirect, or embed a signed token in the payload. **Pro:** works before the SPA boots; a signed payload is tamper-evident. **Con:** a redirect endpoint is the classic open-redirect surface, and a signed token in a printed label cannot be rotated without reprinting every sticker. | Implemented as the baseline in [WP-2.6b](#). |
+| **OI-09** | Where technician support requests live | **RESOLVED (2026-08-28).** The Client adopted the baseline: a **new job-scoped entity** ([§10.7.1](#1071-technician-work-support-requests-fr-wsr), [DR-020](#292-data-integrity--constraints)) that links to procurement only when purchasing is genuinely required. | Extend `procurement_requests` with PC-unit/ticket/maintenance references and two new statuses. **Pro:** one table, one approval surface. **Con:** overloads a purchasing lifecycle with `clarification_requested` and reschedule semantics, forces a request number and cost estimate on a technician asking for a screwdriver, and widens a table whose CHECK constraint currently states a clean purchasing vocabulary. | Decided: separate entities, with [FR-WSR-013](#1071-technician-work-support-requests-fr-wsr) as the bridge. `procurement_requests` shall be neither overloaded nor redesigned. The exact schema is to be proposed and approved before implementation. |
+| **OI-10** | Face-to-face scheduling depth | **RESOLVED (2026-08-28).** The Client approved the baseline: record that clarification was requested, the reason, and an **optional proposed time** ([FR-WSR-007](#1071-technician-work-support-requests-fr-wsr)). | A meeting-scheduling subsystem (availability, invitations, calendar integration, reminders). **Pro:** removes the out-of-band coordination. **Con:** a calendar platform is a product of its own, unjustified by a request that two people in the same building resolve by walking to each other. | Decided: the record, not the calendar — the request, the Administrator’s explanation, an optional proposed date/time, and the audited transition. |
+| **OI-11** | Request status vocabulary | **RESOLVED (2026-08-28).** The Client adopted the baseline **plus `cancelled`**: `submitted`, `clarification_requested`, `approved`, `declined`, `cancelled`, `closed` ([FR-WSR-004](#1071-technician-work-support-requests-fr-wsr)). "Pending" and "needs review" remain the **same** state seen through different filters, not separate values. | `under_review` (an administrator has claimed it) was **not** adopted — it would require a claim/release mechanic to stay truthful and the described workflow does not need it. | Decided: six controlled states, enforced by a transition map; a technician withdraws a no-longer-needed request via `cancelled` ([FR-WSR-014](#1071-technician-work-support-requests-fr-wsr)). |
 
-> **OI-02 has been resolved** (registration-request workflow; see above) and is reflected in the functional requirements, business rules, and data requirements of this document. The remaining open items (OI-01, OI-03–OI-07) are not applied in a way that alters the schema or behavior in this document; resolving any of them updates a future SRS revision and feeds the SDD.
+> **OI-02 has been resolved** (registration-request workflow; see above) and is reflected in the functional requirements, business rules, and data requirements of this document. **OI-08–OI-11 were resolved by the Client on 2026-08-28** and are reflected in [§18](#18-qr-code-requirements), [§10.7.1](#1071-technician-work-support-requests-fr-wsr) and [DR-020](#292-data-integrity--constraints); per the Client's standing instruction they are recorded **in place against Version 1.0** rather than by advancing the version label. The remaining open items (OI-01, OI-03–OI-07) are not applied in a way that alters the schema or behavior in this document; resolving any of them is recorded the same way and feeds the SDD.
 
 ---
 

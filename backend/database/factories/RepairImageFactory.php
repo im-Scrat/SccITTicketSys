@@ -27,6 +27,12 @@ class RepairImageFactory extends Factory
             'image_type' => fake()->randomElement(RepairImageType::values()),
             'disk' => 'local',
             'storage_path' => "repairs/{$name}.jpg",
+            // The four columns DR-021 added, so a factory-built row is shaped
+            // like one AttachRepairImage would actually write.
+            'original_filename' => "{$name}.jpg",
+            'mime_type' => 'image/jpeg',
+            'file_size' => fake()->numberBetween(20_000, 4_000_000),
+            'checksum' => hash('sha256', $name),
             'caption' => fake()->optional()->sentence(),
         ];
     }

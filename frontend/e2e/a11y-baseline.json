@@ -1,0 +1,20 @@
+{
+  "$schema": "sccit.a11y-baseline/1",
+  "$comment": [
+    "Known serious/critical axe violations at the time the accessibility harness",
+    "was introduced (WP-2.7d). A route may produce ONLY the rule ids listed for",
+    "it; anything new fails the gate. Fixing a listed issue never fails a run —",
+    "the suite prints a note asking for the stale entry to be removed.",
+    "",
+    "Keys are the audit key, not always the URL: authenticated entries are",
+    "'<role> <route>' because /app renders a different dashboard per role.",
+    "",
+    "This file is DEBT, not policy. Entries should be deleted, never added,",
+    "outside a deliberate and recorded decision. The full WCAG AA audit is",
+    "SPMP WP-2.11."
+  ],
+  "routes": {
+    "/sign-in": ["link-in-text-block"],
+    "/register": ["link-in-text-block"]
+  }
+}

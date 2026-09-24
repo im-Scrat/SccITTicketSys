@@ -10,6 +10,7 @@ use App\Enums\ActivityAction;
 use App\Models\Attachment;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Support\Attachments\AttachmentSecurity;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -18,11 +19,12 @@ use Illuminate\Support\Facades\Storage;
  * Attach evidence to a ticket (SRS FR-TKT-008, NFR-SEC-007/008).
  *
  * Mirrors {@see AttachAssetFile} exactly rather than inventing a second upload
- * design — same private disk, same server-generated storage name, same SHA-256
- * checksum, same allow-list enforced in the FormRequest. Two upload paths with
- * different security properties is how one of them ends up being the weak one.
+ * design — and, since both once drifted into persisting a client-supplied MIME
+ * type, the rules that make a file safe now live in one place both call
+ * ({@see AttachmentSecurity}). Two upload paths with different security
+ * properties is how one of them ends up being the weak one.
  *
- * The three properties that matter:
+ * The four properties that matter:
  *
  *  1. **Private disk.** `local` is not web-served, so an attachment is reachable
  *     only through the download controller, which re-checks the owning ticket's
@@ -30,7 +32,9 @@ use Illuminate\Support\Facades\Storage;
  *  2. **Server-decided filename.** The stored path is composed here; a
  *     client-supplied name is the classic traversal and double-extension vector.
  *     The original name is kept as *data*, for display.
- *  3. **`attachment_count` is the trigger's.** Never written from PHP.
+ *  3. **Server-decided MIME type.** Detected from the bytes and allow-listed by
+ *     {@see AttachmentSecurity::detect()}. `getClientMimeType()` is never read.
+ *  4. **`attachment_count` is the trigger's.** Never written from PHP.
  */
 class AttachTicketFile
 {
@@ -42,6 +46,11 @@ class AttachTicketFile
         User $actor,
         Request $request,
     ): Attachment {
+        // Detected from the file's own bytes and re-checked against the ticket
+        // allow-list *before* anything is written, so the value that lands in
+        // the database is one the server vouched for.
+        $mime = AttachmentSecurity::detect($file, AttachmentSecurity::PROFILE_TICKET);
+
         // Composed here, never taken from the upload.
         $path = $file->store("tickets/{$ticket->uuid}", 'local');
 
@@ -51,7 +60,7 @@ class AttachTicketFile
             'disk' => 'local',
             'storage_path' => $path,
             'original_filename' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType(),
+            'mime_type' => $mime,
             'file_size' => $file->getSize(),
             'checksum' => hash_file('sha256', $file->getRealPath()) ?: null,
             'created_at' => now(),

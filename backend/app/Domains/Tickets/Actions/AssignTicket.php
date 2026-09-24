@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Tickets\Actions;
 
 use App\Domains\Identity\Services\AuditLogger;
+use App\Domains\Tickets\Events\TicketAssigned;
 use App\Domains\Tickets\Exceptions\AssignmentConflictException;
 use App\Domains\Tickets\Services\TicketLifecycle;
 use App\Enums\ActivityAction;
@@ -131,6 +132,27 @@ class AssignTicket
                 $isReassignment ? 'reassigned to' : 'assigned to',
                 $technician->fullName(),
             ),
+        );
+
+        /*
+         * WP-2.7a — the notification seam (FR-ASN-005, FR-NOT-003 T1).
+         *
+         * Raised after the transaction and after the audit entry, so a
+         * notification is only ever about an assignment that actually landed.
+         * Both technicians travel on the event because a reassignment is two
+         * facts to two people, and the closed `$previous` row would have to be
+         * re-read to recover the second afterwards.
+         *
+         * Nothing here can affect the return value: the dispatcher swallows
+         * delivery failures, so an assignment that succeeded stays succeeded
+         * whatever the queue is doing.
+         */
+        TicketAssigned::dispatch(
+            $ticket,
+            $assignment,
+            $technician,
+            $previous?->technician,
+            $actor,
         );
 
         return $assignment;

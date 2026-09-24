@@ -232,7 +232,17 @@ export async function restorePcUnit(id: string): Promise<void> {
 export interface QrPayload {
   data: QrCodeItem[]
   meta: {
-    active: { data: QrCodeItem } | null
+    /**
+     * The active label, **unwrapped**.
+     *
+     * Laravel wraps a resource in `data` only when it is the *top level* of a
+     * response. `meta.active` is a resource nested inside `additional()`, so it
+     * serializes as the object itself — unlike `QrPrintPayload.data`, which is
+     * the top-level resource and therefore *is* wrapped. Reading
+     * `meta.active.data` here silently yielded `undefined`, which the panel read
+     * as "no label" and rendered its empty state over a machine that had one.
+     */
+    active: QrCodeItem | null
     svg: string | null
     default_size: number
     error_correction: string

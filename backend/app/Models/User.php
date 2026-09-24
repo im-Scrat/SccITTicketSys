@@ -159,6 +159,42 @@ class User extends Authenticatable
         return $this->morphMany(ActivityLog::class, 'subject');
     }
 
+    /**
+     * The user's in-app notifications (SRS FR-NOT-001; SDD DD-52).
+     *
+     * **This deliberately overrides the `Notifiable` trait's own
+     * `notifications()`.** The framework's version is a morph to
+     * `Illuminate\Notifications\DatabaseNotification`, which expects
+     * `notifiable_type` / `notifiable_id` columns and a uuid primary key — none
+     * of which this project's `notifications` table has. Left in place it would
+     * be a loaded gun: the first person to write `$user->notifications` would
+     * get an SQL error about a column that has never existed here, and would
+     * have no reason to suspect the trait rather than their own code.
+     *
+     * The trait is still worth having for everything else it provides —
+     * `notify()`, `routeNotificationFor()` and the mail routing the Identity
+     * notifications have used since Phase 2.2.
+     *
+     * @return HasMany<Notification, $this>
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class)->latest('created_at');
+    }
+
+    /**
+     * Unread notifications — the badge count's relation form.
+     *
+     * Served by the `notifications_unread` partial index, which exists in the
+     * baseline schema for exactly this predicate.
+     *
+     * @return HasMany<Notification, $this>
+     */
+    public function unreadNotifications(): HasMany
+    {
+        return $this->notifications()->whereNull('read_at');
+    }
+
     /** @return HasMany<Ticket, $this> */
     public function reportedTickets(): HasMany
     {

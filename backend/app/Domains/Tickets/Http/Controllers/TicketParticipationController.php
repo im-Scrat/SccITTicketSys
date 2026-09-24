@@ -17,6 +17,7 @@ use App\Models\Attachment;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
+use App\Support\Attachments\AttachmentSecurity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -196,10 +197,15 @@ class TicketParticipationController extends Controller
             abort(404);
         }
 
-        return $disk->response(
+        // Headers are decided by AttachmentSecurity, never by the stored string:
+        // a type outside the allow-list — including a row written before that
+        // class existed — degrades to an opaque `attachment` download.
+        return AttachmentSecurity::stream(
+            $disk,
             $attachment->storage_path,
             $attachment->original_filename,
-            ['Content-Type' => $attachment->mime_type ?? 'application/octet-stream'],
+            $attachment->mime_type,
+            AttachmentSecurity::PROFILE_TICKET,
         );
     }
 

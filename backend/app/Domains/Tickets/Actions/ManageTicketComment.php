@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Tickets\Actions;
 
 use App\Domains\Identity\Services\AuditLogger;
+use App\Domains\Tickets\Events\TicketCommented;
 use App\Enums\ActivityAction;
 use App\Enums\TicketUpdateType;
 use App\Models\Ticket;
@@ -40,7 +41,7 @@ class ManageTicketComment
         Request $request,
         ?TicketComment $parent = null,
     ): TicketComment {
-        return DB::transaction(function () use ($ticket, $body, $isInternal, $actor, $parent): TicketComment {
+        $comment = DB::transaction(function () use ($ticket, $body, $isInternal, $actor, $parent): TicketComment {
             $comment = TicketComment::query()->create([
                 'ticket_id' => $ticket->getKey(),
                 'user_id' => $actor->getKey(),
@@ -62,6 +63,19 @@ class ManageTicketComment
 
             return $comment;
         })->load('user.role');
+
+        /*
+         * WP-2.7a — the notification seam (FR-TKT-007, FR-NOT-003 T3).
+         *
+         * After the transaction, so the comment exists before anyone is told
+         * about it. The comment itself travels on the event rather than just its
+         * text: the listener needs `is_internal` to decide *who* may be told,
+         * and reading that from the event is what keeps the staff-only rule in
+         * one place instead of being re-derived per recipient.
+         */
+        TicketCommented::dispatch($ticket, $comment, $actor);
+
+        return $comment;
     }
 
     /**

@@ -34,7 +34,7 @@ export function QrCodePanel({
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<'regenerate' | 'revoke' | null>(null)
 
-  const active = data?.meta.active?.data ?? null
+  const active = data?.meta.active ?? null
   const svg = data?.meta.svg ?? null
 
   const run = async (action: () => Promise<unknown>) => {

@@ -25,6 +25,19 @@ const PendingApprovalPage = lazy(() => import('@/features/auth/pages/PendingAppr
 const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'))
 const AccountPage = lazy(() => import('@/features/auth/pages/WorkspaceHomePage'))
+
+// Notification centre (Phase 2.7 / WP-2.7b).
+const NotificationsPage = lazy(() => import('@/features/notifications/pages/NotificationsPage'))
+
+// Announcements (Phase 2.7 / WP-2.7c).
+const AnnouncementsPage = lazy(() => import('@/features/announcements/pages/AnnouncementsPage'))
+const AnnouncementManagementPage = lazy(
+  () => import('@/features/announcements/pages/AnnouncementManagementPage'),
+)
+const AnnouncementDetailPage = lazy(
+  () => import('@/features/announcements/pages/AnnouncementDetailPage'),
+)
+
 const RegistrationsPage = lazy(() => import('@/features/users/pages/RegistrationsPage'))
 const UsersDashboardPage = lazy(() => import('@/features/users/pages/UsersDashboardPage'))
 const UserDetailPage = lazy(() => import('@/features/users/pages/UserDetailPage'))
@@ -54,6 +67,34 @@ const AssignedTicketDetailPage = lazy(
 const TicketManagementPage = lazy(() => import('@/features/tickets/pages/TicketManagementPage'))
 const TicketAdminDetailPage = lazy(() => import('@/features/tickets/pages/TicketAdminDetailPage'))
 
+// Maintenance (Phase 2.7).
+const MaintenanceQueuePage = lazy(() => import('@/features/maintenance/pages/MaintenanceQueuePage'))
+const CreateMaintenancePage = lazy(
+  () => import('@/features/maintenance/pages/CreateMaintenancePage'),
+)
+const ScheduledMaintenancePage = lazy(
+  () => import('@/features/maintenance/pages/ScheduledMaintenancePage'),
+)
+const MaintenanceHistoryPage = lazy(
+  () => import('@/features/maintenance/pages/MaintenanceHistoryPage'),
+)
+const MaintenanceManagementPage = lazy(
+  () => import('@/features/maintenance/pages/MaintenanceManagementPage'),
+)
+const MaintenanceDetailPage = lazy(
+  () => import('@/features/maintenance/pages/MaintenanceDetailPage'),
+)
+
+// Scanned technician workflow (WP-2.6b).
+const ScanLandingPage = lazy(() => import('@/features/qr/pages/ScanLandingPage'))
+const ScanPanelPage = lazy(() => import('@/features/qr/pages/ScanPanelPage'))
+
+// Work support requests (WP-2.6b Stage E).
+const MySubmissionsPage = lazy(() => import('@/features/work-support/pages/MySubmissionsPage'))
+const SupportRequestInboxPage = lazy(
+  () => import('@/features/work-support/pages/SupportRequestInboxPage'),
+)
+
 function App() {
   return (
     <ErrorBoundary>
@@ -75,6 +116,20 @@ function App() {
               <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
 
+            {/*
+              The scanned label's landing route (FR-QR-005/009/010).
+
+              Public, and outside every layout, deliberately. A printed sticker
+              is scanned by whoever is holding the phone — often before signing
+              in, sometimes by someone with no account at all — and FR-QR-010
+              requires that attempt to be *recorded* and answered without
+              disclosing anything. A route guard here would redirect before the
+              scan reached the server, losing exactly the attempts worth having
+              in the log. The page itself shows nothing about the equipment; the
+              server decides where the visitor goes next.
+            */}
+            <Route path="/qr/:code" element={<ScanLandingPage />} />
+
             {/* Post-submission acknowledgements (reachable in any auth state). */}
             <Route path="/register/submitted" element={<RegistrationSubmittedPage />} />
             <Route path="/pending-approval" element={<PendingApprovalPage />} />
@@ -86,6 +141,29 @@ function App() {
                     profile and password moved to /app/account. */}
                 <Route index element={<DashboardPage />} />
                 <Route path="account" element={<AccountPage />} />
+                {/* Notifications are addressed to a person, not granted by a
+                    permission — every authenticated user has them, and no
+                    `notifications.*` permission exists. So this route is
+                    ungated exactly like /app/account, and ownership is enforced
+                    server-side on every endpoint behind it (FR-NOT-001). */}
+                <Route path="notifications" element={<NotificationsPage />} />
+                {/* The announcement reader is ungated for the same reason the
+                    notification centre is: an announcement is addressed to a
+                    role, and the audience scope is applied server-side, so
+                    there is no permission to check here (FR-NOT-011). */}
+                <Route path="announcements" element={<AnnouncementsPage />} />
+                <Route
+                  path="announcements/manage"
+                  element={
+                    <RequirePermission permission="system.announcements.manage">
+                      <AnnouncementManagementPage />
+                    </RequirePermission>
+                  }
+                />
+                {/* Declared after `manage` so the literal segment is never read
+                    as an id. This is the destination every announcement
+                    notification carries (decision D3). */}
+                <Route path="announcements/:id" element={<AnnouncementDetailPage />} />
                 {/* Locations is site administration: `locations.view` is seeded to
                     Administrators only, so a Technician or Teacher who types one of
                     these URLs gets the Forbidden page — and the API refuses the
@@ -232,6 +310,121 @@ function App() {
                   element={
                     <RequirePermission permission="tickets.view">
                       <TicketDetailPage />
+                    </RequirePermission>
+                  }
+                />
+                {/* Maintenance is the second module whose *permission* does
+                    not separate the roles: `maintenance.*` is seeded to
+                    Administrators and Technicians alike, and which records each
+                    may reach is decided by MaintenanceVisibility on every query
+                    and on every direct uuid (SDD DD-55). So these routes are
+                    gated by `maintenance.view` only as a floor. A Teacher holds
+                    no maintenance permission at all, so every one of them is the
+                    Forbidden surface for them — and the API refuses the calls
+                    behind it regardless. */}
+                {/*
+                  The scan-scoped panel and its proof-of-work form (FR-QR-012,
+                  FR-MNT-009).
+
+                  Gated on `maintenance.view` only as a floor — the same floor
+                  the API checks, and for the same reason it is not the control.
+                  No permission can express "this machine"; `ScannedPcAccess`
+                  decides that per unit on every request, and this route being
+                  reachable proves nothing about whether the panel will open.
+                */}
+                <Route
+                  path="qr/:code"
+                  element={
+                    <RequirePermission permission="maintenance.view">
+                      <ScanPanelPage />
+                    </RequirePermission>
+                  }
+                />
+                {/*
+                  Work support requests (FR-WSR-009/010).
+
+                  Both surfaces sit on the same `maintenance.view` floor and are
+                  separated by role, because `maintenance.view` is a floor every
+                  technician clears and no permission distinguishes oversight
+                  from fieldwork (Client decision OD-4 — no `wsr.*` was
+                  invented).
+
+                  The tracking page is **technician-only** (Client decision,
+                  2026-08-30): "My submissions" is the technician's record of
+                  what they submitted, and the administrator's counterpart is
+                  the inbox below — what others sent them. An administrator gets
+                  Forbidden here rather than an empty personal history.
+
+                  UX gating only, as everywhere else: `GET /api/technician/
+                  submissions` takes no identifier and reads the session, so it
+                  cannot express "someone else's submissions" whatever the route
+                  allows.
+                */}
+                <Route
+                  path="work-support"
+                  element={
+                    <RequirePermission permission="maintenance.view">
+                      <RequireRole roles={['technician']}>
+                        <MySubmissionsPage />
+                      </RequireRole>
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="work-support/manage"
+                  element={
+                    <RequireRole roles={['administrator']}>
+                      <SupportRequestInboxPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="maintenance"
+                  element={
+                    <RequirePermission permission="maintenance.view">
+                      <MaintenanceQueuePage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="maintenance/new"
+                  element={
+                    <RequirePermission permission="maintenance.create">
+                      <CreateMaintenancePage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="maintenance/scheduled"
+                  element={
+                    <RequirePermission permission="maintenance.view">
+                      <ScheduledMaintenancePage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="maintenance/history"
+                  element={
+                    <RequirePermission permission="maintenance.view">
+                      <MaintenanceHistoryPage />
+                    </RequirePermission>
+                  }
+                />
+                <Route
+                  path="maintenance/manage"
+                  element={
+                    <RequireRole roles={['administrator']}>
+                      <MaintenanceManagementPage />
+                    </RequireRole>
+                  }
+                />
+                {/* Declared last so every literal segment above wins over the
+                    uuid wildcard. */}
+                <Route
+                  path="maintenance/:id"
+                  element={
+                    <RequirePermission permission="maintenance.view">
+                      <MaintenanceDetailPage />
                     </RequirePermission>
                   }
                 />

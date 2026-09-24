@@ -6,29 +6,27 @@ namespace App\Domains\Tickets\Http\Requests;
 
 use App\Domains\Assets\Http\Requests\StoreAssetAttachmentRequest;
 use App\Models\Ticket;
+use App\Support\Attachments\AttachmentSecurity;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Validates a ticket attachment upload (SRS FR-TKT-008, NFR-SEC-007/008).
  *
- * Mirrors {@see StoreAssetAttachmentRequest} exactly, including the dual
- * MIME + extension allow-list: `mimetypes:` checks the **detected** type of the
- * uploaded bytes, so a renamed executable is rejected regardless of extension,
- * and `extensions:` closes the double-extension trick where a browser might
- * re-interpret `x.php.png`.
+ * The rules come from {@see AttachmentSecurity}, which owns the allow-list for
+ * both upload surfaces. Mirroring {@see StoreAssetAttachmentRequest} by hand is
+ * what let the two drift apart before; deriving both from one map means a type
+ * cannot be permitted here and refused there, or — worse — validated against one
+ * list and stored against another.
  *
- * One deliberate difference: tickets accept a slightly wider set, because a
- * teacher photographing a fault may reasonably send a phone screenshot or a
- * short error-log text file, neither of which is asset evidence.
+ * The ticket profile is deliberately slightly wider than the asset profile: a
+ * teacher reporting a fault may reasonably send a phone screenshot or a short
+ * error-log text file, neither of which is asset evidence.
  *
  * The size ceiling is the same configurable `security.uploads.max_kb`, so a
  * deployment tightens both surfaces at once rather than leaving one behind.
  */
 class StoreTicketAttachmentRequest extends FormRequest
 {
-    /** Kilobytes. 10 MB by default, matching FR-TKT-008. */
-    private const DEFAULT_MAX_KB = 10240;
-
     public function authorize(): bool
     {
         $ticket = $this->route('ticket');
@@ -41,16 +39,8 @@ class StoreTicketAttachmentRequest extends FormRequest
      */
     public function rules(): array
     {
-        $maxKb = (int) config('security.uploads.max_kb', self::DEFAULT_MAX_KB);
-
         return [
-            'file' => [
-                'required',
-                'file',
-                "max:{$maxKb}",
-                'mimetypes:image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain',
-                'extensions:png,jpg,jpeg,webp,gif,pdf,txt,log',
-            ],
+            'file' => AttachmentSecurity::rules(AttachmentSecurity::PROFILE_TICKET),
         ];
     }
 

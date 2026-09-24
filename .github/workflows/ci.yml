@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # The browser job is heavy (it builds and boots the whole Compose stack), so
+  # it is opt-in rather than on every push. See the `e2e` job below.
+  workflow_dispatch:
+    inputs:
+      run_browser_suite:
+        description: 'Also run the Playwright E2E + accessibility suites'
+        type: boolean
+        default: false
 
 jobs:
   backend:
@@ -81,6 +89,11 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        # Playwright's own browsers are never used: the suites run against the
+        # Alpine Chromium baked into the node image (docker/node/Dockerfile).
+        # Without this, `npm ci` would download ~400 MB of unusable binaries.
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
         run: npm ci
 
       - name: Lint (ESLint)
@@ -89,8 +102,55 @@ jobs:
       - name: Format check (Prettier)
         run: npm run format:check
 
+      - name: Types (tsc)
+        run: npx tsc -b
+
       - name: Tests (Vitest)
         run: npm run test
 
       - name: Build
         run: npm run build
+
+  # ---------------------------------------------------------------
+  #  Browser verification (WP-2.7d) — opt-in.
+  #
+  #  Runs the committed Playwright suites against a real Compose stack, which
+  #  is the only way they can run: they need nginx, php-fpm, PostgreSQL, Redis
+  #  and the seeded fixtures. That costs several minutes, so it is triggered
+  #  deliberately rather than on every push. The same command runs locally, so
+  #  this job is a convenience, not the only place the suite exists.
+  # ---------------------------------------------------------------
+  e2e:
+    name: Browser E2E + accessibility
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.run_browser_suite
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          cp backend/.env.example backend/.env
+
+      - name: Start the development stack
+        run: |
+          docker compose up -d --build
+          docker compose exec -T app php artisan key:generate
+          docker compose exec -T app php artisan migrate --force
+          docker compose exec -T app php artisan db:seed --force
+
+      - name: E2E suite
+        run: sh scripts/e2e.sh --project e2e
+
+      - name: Accessibility suite
+        run: sh scripts/e2e.sh --project a11y
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            frontend/test-results/
+            frontend/e2e/.artifacts/
+          retention-days: 7

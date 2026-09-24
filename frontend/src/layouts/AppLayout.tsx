@@ -2,14 +2,19 @@ import {
   Building2,
   ChevronDown,
   ClipboardList,
+  Gauge,
+  HandHelping,
   HardDrive,
+  Inbox,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   type LucideIcon,
   Ticket,
   UserCheck,
   UserCog,
   Users,
+  Wrench,
 } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/cn'
@@ -17,6 +22,7 @@ import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useLogout } from '@/features/auth/hooks/useAuthMutations'
+import { NotificationMenu } from '@/features/notifications/components/NotificationMenu'
 
 interface NavItem {
   to: string
@@ -74,6 +80,78 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'tickets.view',
     roles: ['administrator'],
   },
+  {
+    to: '/app/maintenance',
+    label: 'Maintenance',
+    icon: Wrench,
+    permission: 'maintenance.view',
+    end: true,
+  },
+  {
+    to: '/app/maintenance/manage',
+    label: 'Maintenance management',
+    icon: Gauge,
+    // Same shape as Ticket management: the permission is a floor every
+    // technician clears, so the role is what keeps the estate view
+    // administrator-only (SDD DD-55).
+    permission: 'maintenance.view',
+    roles: ['administrator'],
+  },
+  {
+    // FR-WSR-009 asks for **one** dedicated navigation item covering both
+    // proof-of-work records and support requests, so this is relabelled
+    // rather than joined by a second item — two would have contradicted the
+    // sentence they were meant to satisfy.
+    //
+    // **Technician-only** (Client decision, 2026-08-30). An earlier reading
+    // let any holder of the floor open this, reasoning that the feed is
+    // scoped to the caller either way so an administrator would simply see
+    // their own. The Client has since ruled that the two roles own different
+    // surfaces outright: "My submissions" is the technician's record of what
+    // *they* submitted, and the administrator's equivalent is the request
+    // inbox below — a surface for reviewing what others sent, not a personal
+    // history. An administrator therefore has no My submissions page at all,
+    // rather than an empty one.
+    //
+    // `maintenance.view` is kept as the floor beneath the role, matching the
+    // shape used by the three management items: the permission says whether
+    // you take part in the workflow, the role says which surface is yours.
+    to: '/app/work-support',
+    label: 'My submissions',
+    icon: HandHelping,
+    permission: 'maintenance.view',
+    roles: ['technician'],
+    end: true,
+  },
+  {
+    // FR-WSR-010's own navigation item. Same shape as Ticket and Maintenance
+    // management: the permission is a floor every technician clears, so the
+    // role is what keeps the inbox administrator-only.
+    to: '/app/work-support/manage',
+    label: 'Support requests',
+    icon: Inbox,
+    permission: 'maintenance.view',
+    roles: ['administrator'],
+  },
+  {
+    // The reader is open to every authenticated role: an announcement is
+    // addressed to people because of the role they hold, and the audience
+    // scope is the server's (FR-NOT-011). No permission gates it, exactly as
+    // no permission gates the notification centre.
+    to: '/app/announcements',
+    label: 'Announcements',
+    icon: Megaphone,
+    end: true,
+    excludes: ['/app/announcements/manage'],
+  },
+  {
+    // Management is the administrator's surface, on the same
+    // permission-is-the-floor shape the other management items use.
+    to: '/app/announcements/manage',
+    label: 'Announcement management',
+    icon: Megaphone,
+    permission: 'system.announcements.manage',
+  },
   { to: '/app/assets', label: 'Assets', icon: HardDrive, permission: 'assets.view' },
   { to: '/app/locations', label: 'Locations', icon: Building2, permission: 'locations.view' },
   { to: '/app/users', label: 'Users', icon: Users, permission: 'users.view' },
@@ -129,7 +207,19 @@ export function AppLayout() {
             <Logo />
           </NavLink>
 
+          {/*
+            The header utility cluster, which DESIGN.md §5 already names as
+            where notifications belong: "top bar … holding global search,
+            environment/org switcher, **notifications**, and the user menu."
+
+            Not the primary nav row below. That row is 8–13 items wide depending
+            on role and scrolls horizontally on narrow screens — and a badge on
+            a scrolling row can scroll out of sight, which is the one thing a
+            notification indicator must never do. This cluster is sticky and
+            always visible.
+          */}
           <div className="ml-auto flex items-center gap-3">
+            <NotificationMenu />
             <ThemeToggle />
 
             <details className="group relative">

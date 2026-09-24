@@ -75,3 +75,5 @@ Then:
 - [Project Structure](docs/PROJECT_STRUCTURE.md)
 - [Docker Guide](docs/DOCKER.md)
 - [Development Guide](docs/DEVELOPMENT.md)
+- [Testing & Quality Gates](docs/TESTING.md)
+- [Operations Runbook](docs/OPERATIONS.md)

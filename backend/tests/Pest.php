@@ -1,6 +1,8 @@
 <?php
 
 use App\Enums\AssignmentStatus;
+use App\Models\MaintenanceRecord;
+use App\Models\MaintenanceType;
 use App\Models\Role;
 use App\Models\TechnicianAssignment;
 use App\Models\Ticket;
@@ -36,7 +38,7 @@ pest()->extend(TestCase::class)->in('Unit');
 // auth). CSRF is skipped automatically while running tests.
 pest()->beforeEach(function () {
     $this->withHeader('Origin', (string) config('app.url'));
-})->in('Feature/Auth', 'Feature/Users', 'Feature/Locations', 'Feature/Dashboard', 'Feature/Assets', 'Feature/Tickets');
+})->in('Feature/Auth', 'Feature/Users', 'Feature/Locations', 'Feature/Dashboard', 'Feature/Assets', 'Feature/Tickets', 'Feature/Maintenance', 'Feature/Qr', 'Feature/WorkSupport');
 
 /*
 |--------------------------------------------------------------------------
@@ -121,4 +123,34 @@ function assign(Ticket $ticket, User $technician, AssignmentStatus $status): Tec
         'technician_id' => $technician->id,
         'status' => $status->value,
     ]);
+}
+
+/**
+ * A maintenance record wired to a **seeded** maintenance type rather than a
+ * factory-invented one, and owned by a named technician.
+ *
+ * `MaintenanceTypeFactory` invents a type per record, which is fine in
+ * isolation and useless for the checklist and preventive-vs-corrective rules —
+ * both are keyed on the seeded slugs. Requires `MaintenanceTypeSeeder`.
+ *
+ * `created_by` defaults to the same person as `technician_id` because that is
+ * the shape a technician-initiated record has; pass it explicitly to model an
+ * administrator scheduling work for someone else (FR-MNT-011 reaches both).
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function maintenanceFor(User $technician, string $typeSlug = 'corrective', array $overrides = []): MaintenanceRecord
+{
+    return MaintenanceRecord::factory()->create([
+        'technician_id' => $technician->id,
+        'created_by' => $technician->id,
+        'maintenance_type_id' => MaintenanceType::query()->where('slug', $typeSlug)->value('id'),
+        ...$overrides,
+    ]);
+}
+
+/** A seeded maintenance type by slug. */
+function maintenanceType(string $slug): MaintenanceType
+{
+    return MaintenanceType::query()->where('slug', $slug)->firstOrFail();
 }

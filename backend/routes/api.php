@@ -1,5 +1,8 @@
 <?php
 
+use App\Domains\Administration\Http\Controllers\AnnouncementController;
+use App\Domains\Administration\Http\Controllers\NotificationController;
+use App\Domains\Administration\Http\Controllers\NotificationPreferenceController;
 use App\Domains\Analytics\Http\Controllers\DashboardController;
 use App\Domains\Assets\Http\Controllers\Admin\AssetActionController;
 use App\Domains\Assets\Http\Controllers\Admin\AssetAttachmentController;
@@ -10,6 +13,7 @@ use App\Domains\Assets\Http\Controllers\Admin\CatalogController;
 use App\Domains\Assets\Http\Controllers\Admin\PcUnitController;
 use App\Domains\Assets\Http\Controllers\Admin\QrCodeController;
 use App\Domains\Assets\Http\Controllers\AssetLookupController;
+use App\Domains\Assets\Http\Controllers\QrScanController;
 use App\Domains\Identity\Http\Controllers\Admin\RegistrationReviewController;
 use App\Domains\Identity\Http\Controllers\Admin\RoleController;
 use App\Domains\Identity\Http\Controllers\Admin\UserActionController;
@@ -33,6 +37,15 @@ use App\Domains\Locations\Http\Controllers\Admin\LocationDashboardController;
 use App\Domains\Locations\Http\Controllers\Admin\LocationTreeController;
 use App\Domains\Locations\Http\Controllers\Admin\RoomController;
 use App\Domains\Locations\Http\Controllers\LocationLookupController;
+use App\Domains\Maintenance\Http\Controllers\Admin\MaintenanceDirectoryController;
+use App\Domains\Maintenance\Http\Controllers\HardwareReplacementController;
+use App\Domains\Maintenance\Http\Controllers\MaintenanceChecklistController;
+use App\Domains\Maintenance\Http\Controllers\MaintenanceEvidenceController;
+use App\Domains\Maintenance\Http\Controllers\MaintenanceNoteController;
+use App\Domains\Maintenance\Http\Controllers\MaintenanceOptionsController;
+use App\Domains\Maintenance\Http\Controllers\MaintenanceQueueController;
+use App\Domains\Maintenance\Http\Controllers\MaintenanceRecordController;
+use App\Domains\Maintenance\Http\Controllers\QrProofOfWorkController;
 use App\Domains\Tickets\Http\Controllers\Admin\TicketAssignmentController;
 use App\Domains\Tickets\Http\Controllers\Admin\TicketDirectoryController;
 use App\Domains\Tickets\Http\Controllers\TechnicianQueueController;
@@ -40,6 +53,10 @@ use App\Domains\Tickets\Http\Controllers\TicketController;
 use App\Domains\Tickets\Http\Controllers\TicketFeedController;
 use App\Domains\Tickets\Http\Controllers\TicketOptionsController;
 use App\Domains\Tickets\Http\Controllers\TicketParticipationController;
+use App\Domains\WorkSupport\Http\Controllers\Admin\WorkSupportRequestDecisionController;
+use App\Domains\WorkSupport\Http\Controllers\TechnicianSubmissionController;
+use App\Domains\WorkSupport\Http\Controllers\WorkSupportAttachmentController;
+use App\Domains\WorkSupport\Http\Controllers\WorkSupportRequestController;
 use App\Http\Controllers\HealthController;
 use App\Http\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
@@ -65,6 +82,29 @@ Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'
 Route::post('/reset-password', [PasswordResetController::class, 'reset'])
     ->middleware('throttle:password');
 
+/*
+|--------------------------------------------------------------------------
+| QR scan entry (WP-2.6b) — PUBLIC BY DESIGN
+|--------------------------------------------------------------------------
+| The one feature route outside `auth:sanctum`, and it is deliberate. A printed
+| label is a public artifact: anyone can photograph it, so the scan must be
+| *resolvable and loggable* without a session, and must grant nothing
+| (FR-QR-010, SDD DD-47). An unauthenticated scan discloses no target
+| information at all and is answered with "go and sign in".
+|
+| `statefulApi()` runs on the whole API group, so when a session cookie *is*
+| present `$request->user()` resolves here without any extra wiring — one
+| endpoint serves both states rather than two endpoints that could drift.
+|
+| The `{code}` pattern is bounded to the issued alphabet so a tampered value
+| cannot reach the controller as a path or a URL; the resolver bounds the length
+| again for callers that are not HTTP. `throttle:qr-scan` carries two ceilings,
+| per client and per account (FR-QR-013).
+*/
+Route::post('/qr/{code}/scan', [QrScanController::class, 'scan'])
+    ->middleware('throttle:qr-scan')
+    ->where('code', '[A-Za-z0-9-]{1,64}');
+
 // Authenticated endpoints.
 Route::middleware('auth:sanctum')->group(function () {
     // Logout is always available to an authenticated session (even if the
@@ -80,6 +120,201 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Self-service profile (name) edit (FR-USER-008).
         Route::put('/profile', [ProfileController::class, 'update']);
+
+        /*
+        |------------------------------------------------------------------
+        | Scan-scoped PC panel (WP-2.6b) — FR-QR-012, SDD DD-49
+        |------------------------------------------------------------------
+        | The authenticated half of the scan flow. Deliberately **not** under
+        | the `/admin` prefix and **not** gated by any `assets.*` permission: a
+        | Technician holds none (DD-38), and this surface exists so they can
+        | reach the machine they are working on without one (FR-AST-013).
+        |
+        | There is no route-level `can:` gate at all, because no permission can
+        | express the rule. `maintenance.view` is held by administrators and
+        | technicians alike and says nothing about *which* machine; the control
+        | is `PcUnitPolicy::viewScanned`, which asks `ScannedPcAccess` whether
+        | this person has work on this unit. The permission floor is checked
+        | inside the controller so a caller without it receives the same
+        | non-disclosing refusal the public scan endpoint gives.
+        |
+        | `password.current` matches every other feature route: a user under a
+        | forced password reset does not get a working panel.
+        */
+        Route::middleware('password.current')
+            ->get('/qr/{code}/panel', [QrScanController::class, 'panel'])
+            ->where('code', '[A-Za-z0-9-]{1,64}');
+
+        /*
+        |------------------------------------------------------------------
+        | Proof of work from the scanned workflow (WP-2.6b Stage D)
+        |------------------------------------------------------------------
+        | FR-MNT-009/010/012, FR-QR-008; SDD DD-50.
+        |
+        | `can:maintenance.update` **is** meaningful here, unlike on the panel
+        | above: attaching evidence and moving a record is a maintenance write,
+        | and it is the identical floor the module's own evidence route carries.
+        | It stays a floor — *whose* record may be written is decided per record
+        | by `MaintenanceVisibility::canWork()`, and *which machine* by
+        | `PcUnitPolicy::viewScanned`, exactly as on the panel.
+        |
+        | Throttled per account. The panel is a read and the scan endpoint has
+        | its own public ceilings; this one accepts file uploads, so a runaway
+        | client retrying a submission must cost the server a bounded amount.
+        */
+        Route::middleware(['password.current', 'can:maintenance.update'])
+            ->group(function () {
+                Route::get('/qr/{code}/work', [QrProofOfWorkController::class, 'index'])
+                    ->where('code', '[A-Za-z0-9-]{1,64}');
+
+                Route::post('/qr/{code}/proof', [QrProofOfWorkController::class, 'store'])
+                    ->middleware('throttle:qr-proof')
+                    ->where('code', '[A-Za-z0-9-]{1,64}');
+
+                /*
+                | Raising a work support request (WP-2.6b Stage E) —
+                | FR-WSR-001/002/003.
+                |
+                | Addressed by the printed code, exactly like proof of work, so
+                | the machine is resolved server-side and there is no PC
+                | identifier for a caller to change. `ScannedPcAccess` decides
+                | whether this technician may raise anything against this
+                | machine at all.
+                */
+                Route::post('/qr/{code}/support-requests', [WorkSupportRequestController::class, 'store'])
+                    ->middleware('throttle:qr-proof')
+                    ->where('code', '[A-Za-z0-9-]{1,64}');
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Work support requests (WP-2.6b Stage E) — FR-WSR-009/014
+        |------------------------------------------------------------------
+        | The technician's own tracking surface. Gated on `maintenance.view`
+        | as a floor only (Client decision OD-4 — no `wsr.*` permission was
+        | invented); `WorkSupportVisibility` decides whose rows, on the list
+        | and on the single record alike, so a request absent from the list is
+        | equally unreachable by uuid (FR-WSR-009).
+        |
+        | Cancel and acknowledge are **named POST operations**, never a PATCH
+        | of a status field — FR-WSR-004 requires the transition map to be the
+        | only thing that writes `status`, and that applies to the technician's
+        | own moves as strictly as to the administrator's.
+        */
+        Route::middleware(['password.current', 'can:maintenance.view'])->group(function () {
+            Route::get('/work-support-requests', [WorkSupportRequestController::class, 'index']);
+            Route::get('/work-support-requests/{workSupportRequest:uuid}', [WorkSupportRequestController::class, 'show']);
+            Route::post('/work-support-requests/{workSupportRequest:uuid}/cancel', [WorkSupportRequestController::class, 'cancel']);
+            Route::post('/work-support-requests/{workSupportRequest:uuid}/acknowledge', [WorkSupportRequestController::class, 'acknowledge']);
+
+            /*
+            | Evidence on a support request (WP-2.6b Stage F) — FR-WSR-003/005.
+            |
+            | **Nested on purpose, and there is deliberately no
+            | `GET /attachments/{uuid}`.** The parent is authorized first and
+            | the child must belong to it, so an attachment's own identifier is
+            | never sufficient for access — an identifier is not an entitlement
+            | (DD-47). A harvested or guessed uuid is refused identically
+            | whether it belongs to another request, another technician, or to
+            | nothing at all.
+            |
+            | No new ability: reading the evidence is part of reading the
+            | request, so this authorizes `view` on the parent and adds no
+            | permission of any kind.
+            */
+            Route::get(
+                '/work-support-requests/{workSupportRequest:uuid}/attachments/{attachment:uuid}',
+                [WorkSupportAttachmentController::class, 'download'],
+            )->scopeBindings();
+
+            /*
+            | The technician's combined submission history — FR-WSR-009.
+            |
+            | Named for the person rather than the entity: this is *what I
+            | submitted*, of which support requests are one kind and proof of
+            | work the other. It takes no identifier at all — the subject is the
+            | session — so "someone else's submissions" is not a request this
+            | route can express.
+            */
+            Route::get('/technician/submissions', [TechnicianSubmissionController::class, 'index']);
+        });
+
+        /*
+        |------------------------------------------------------------------
+        | Notification centre (Phase 2.7 / WP-2.7a, WP-2.7b) — FR-NOT-001..008
+        |------------------------------------------------------------------
+        | Every route here is scoped to the caller. There is no `can:` gate,
+        | because no permission can express "your own notifications": the
+        | control is `NotificationPolicy`, which compares the notifiable to the
+        | authenticated user and refuses another person's row by uuid rather
+        | than merely omitting it from the list.
+        |
+        | `password.current` matches every other feature route: a user under a
+        | forced password reset does not get a working notification centre.
+        |
+        | Literal paths precede {uuid} wildcards, and `whereUuid` keeps a
+        | non-uuid path segment a clean 404 instead of a Postgres cast error.
+        */
+        Route::middleware('password.current')->group(function () {
+            Route::get('/notifications', [NotificationController::class, 'index']);
+            Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+            Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+
+            Route::get('/notifications/{notification}', [NotificationController::class, 'show'])
+                ->whereUuid('notification');
+            Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])
+                ->whereUuid('notification');
+            Route::patch('/notifications/{notification}/unread', [NotificationController::class, 'markUnread'])
+                ->whereUuid('notification');
+
+            Route::get('/notification-preferences', [NotificationPreferenceController::class, 'index']);
+            Route::put('/notification-preferences', [NotificationPreferenceController::class, 'update']);
+
+            /*
+             * Announcements — the READER (FR-NOT-011, WP-2.7c).
+             *
+             * Open to every authenticated user and scoped by audience, not by
+             * permission: an announcement is addressed to people because of the
+             * role they hold, and `AnnouncementVisibility` answers both the list
+             * question and the single-record question with the same rule. A
+             * reader outside an announcement's audience is refused by uuid, not
+             * merely shown a shorter list.
+             *
+             * The literal segment is declared before the wildcard so `/mine`
+             * style additions later cannot be swallowed as a uuid.
+             */
+            Route::get('/announcements', [AnnouncementController::class, 'index']);
+            Route::get('/announcements/{announcement}', [AnnouncementController::class, 'show'])
+                ->whereUuid('announcement');
+        });
+
+        /*
+        |------------------------------------------------------------------
+        | Announcement management (Phase 2.7 / WP-2.7c) — ADMINISTRATOR ONLY
+        |------------------------------------------------------------------
+        | Every route below requires `system.announcements.manage`, which the
+        | Client's SS8.4 matrix seeds to Administrators alone. WP-2.7c
+        | deliberately did NOT split it into create/update/delete abilities
+        | (decision D5): one management ability, and the policy re-asserts it
+        | per record.
+        |
+        | Publication is a named operation rather than a field, so no request
+        | body can make an announcement live -- and therefore no request body
+        | can notify an audience as a side effect (decision D7). Re-notifying
+        | is its own endpoint for exactly the same reason.
+        */
+        Route::middleware(['password.current', 'can:system.announcements.manage'])
+            ->prefix('admin')
+            ->whereUuid('announcement')
+            ->group(function () {
+                Route::get('/announcements', [AnnouncementController::class, 'manage']);
+                Route::post('/announcements', [AnnouncementController::class, 'store']);
+                Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update']);
+                Route::post('/announcements/{announcement}/publish', [AnnouncementController::class, 'publish']);
+                Route::post('/announcements/{announcement}/unpublish', [AnnouncementController::class, 'unpublish']);
+                Route::post('/announcements/{announcement}/notify', [AnnouncementController::class, 'notifyAgain']);
+                Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
+            });
 
         // Feature routes additionally require a current password (FR-USER force reset).
         Route::middleware('password.current')->prefix('admin')->group(function () {
@@ -463,6 +698,161 @@ Route::middleware('auth:sanctum')->group(function () {
                 // Technicians)" deputization path.
                 Route::post('/tickets/{ticket:uuid}/assign', [TicketAssignmentController::class, 'store'])
                     ->middleware('can:tickets.assign');
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Maintenance (Phase 2.7) — FR-MNT-001..008/010/011
+        |------------------------------------------------------------------
+        | The second module whose route gate does NOT separate the roles:
+        | `maintenance.*` is seeded to Administrators and Technicians alike
+        | (SRS §8.4), and which *rows* each may reach is decided by
+        | `MaintenanceVisibility` — consulted by the policy AND by every query
+        | object, so a record absent from a technician's queue is equally
+        | unreachable by uuid (SDD DD-55, on the DD-40 pattern).
+        |
+        | Read the gates below as a floor, not a fence. `can:maintenance.view`
+        | says "you may do maintenance at all"; the policy says whose.
+        |
+        | A Teacher holds no `maintenance.*` permission, so every route here is
+        | a 403 for them before any policy runs — the Locations/Assets stance,
+        | reached by a different mechanism.
+        */
+        Route::middleware('password.current')
+            ->whereUuid(['record', 'image'])
+            ->group(function () {
+                // Shared vocabularies — the payload itself is role-shaped.
+                Route::get('/maintenance/options', MaintenanceOptionsController::class)
+                    ->middleware('can:maintenance.view');
+
+                /*
+                 * A technician's own work. Literal segments precede the
+                 * {record} wildcard so `/maintenance/history` is never read as
+                 * a uuid.
+                 */
+                Route::middleware('can:maintenance.view')->group(function () {
+                    Route::get('/maintenance', [MaintenanceQueueController::class, 'index']);
+                    Route::get('/maintenance/history', [MaintenanceQueueController::class, 'history']);
+                    Route::get('/maintenance/scheduled', [MaintenanceQueueController::class, 'scheduled']);
+
+                    Route::get('/maintenance/{record:uuid}', [MaintenanceRecordController::class, 'show']);
+                    Route::get('/maintenance/{record:uuid}/audit', [MaintenanceRecordController::class, 'audit']);
+                });
+
+                // Open a record. Corrective and preventive are the same write
+                // path with a different type (FR-MNT-001/002).
+                Route::post('/maintenance', [MaintenanceRecordController::class, 'store'])
+                    ->middleware('can:maintenance.create');
+
+                /*
+                 * Writes. The gate is the floor; MaintenanceRecordPolicy decides
+                 * whose record it is, and MaintenanceLifecycle decides which
+                 * moves are legal — the route knows neither.
+                 */
+                Route::middleware('can:maintenance.update')->group(function () {
+                    Route::put('/maintenance/{record:uuid}', [MaintenanceRecordController::class, 'update']);
+                    Route::put('/maintenance/{record:uuid}/status', [MaintenanceRecordController::class, 'changeStatus']);
+                });
+
+                /*
+                 * Reassignment is administrator-only, but there is no
+                 * `maintenance.assign` permission in the seeded matrix (SRS
+                 * §8.4) and WP-2.6 does not invent one — so the gate here is the
+                 * ordinary update floor and `MaintenanceRecordPolicy::reassign`
+                 * is the actual control.
+                 */
+                Route::post('/maintenance/{record:uuid}/reassign', [MaintenanceRecordController::class, 'reassign'])
+                    ->middleware('can:maintenance.update');
+
+                /*
+                 * Checklist, evidence, notes and replacements — the parts of
+                 * doing the job.
+                 *
+                 * All four are gated on `maintenance.update` (the floor) while
+                 * the policy decides: the record must be this caller's and the
+                 * visit must still be open. Every child is addressed **through**
+                 * its record, so an enumerated child identifier can only reach a
+                 * row belonging to a record the caller was already authorized
+                 * for.
+                 */
+                Route::middleware('can:maintenance.view')->group(function () {
+                    Route::get('/maintenance/{record:uuid}/checklist', [MaintenanceChecklistController::class, 'index']);
+                    Route::get('/maintenance/{record:uuid}/evidence', [MaintenanceEvidenceController::class, 'index']);
+                    Route::get('/maintenance/{record:uuid}/notes', [MaintenanceNoteController::class, 'index']);
+                    Route::get('/maintenance/{record:uuid}/replacements', [HardwareReplacementController::class, 'index']);
+
+                    // Streamed from a private disk; the owning record's policy
+                    // is re-checked on every download, and the image must
+                    // belong to that record or the route 404s.
+                    Route::get('/maintenance/{record:uuid}/evidence/{image:uuid}', [MaintenanceEvidenceController::class, 'download']);
+                });
+
+                Route::middleware('can:maintenance.update')->group(function () {
+                    Route::put('/maintenance/{record:uuid}/checklist/{item}', [MaintenanceChecklistController::class, 'update'])
+                        ->whereNumber('item');
+
+                    Route::post('/maintenance/{record:uuid}/evidence', [MaintenanceEvidenceController::class, 'store']);
+                    Route::delete('/maintenance/{record:uuid}/evidence/{image:uuid}', [MaintenanceEvidenceController::class, 'destroy']);
+
+                    Route::post('/maintenance/{record:uuid}/notes', [MaintenanceNoteController::class, 'store']);
+                    Route::post('/maintenance/{record:uuid}/replacements', [HardwareReplacementController::class, 'store']);
+                });
+
+                // Archive + restore. A technician holds `maintenance.delete`, so
+                // the policy is what caps them at their own untouched work.
+                Route::middleware('can:maintenance.delete')->group(function () {
+                    Route::delete('/maintenance/{record:uuid}', [MaintenanceRecordController::class, 'destroy']);
+                    Route::post('/maintenance/{record:uuid}/restore', [MaintenanceRecordController::class, 'restore'])
+                        ->withTrashed();
+                });
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Maintenance administration (Phase 2.7) — ADMINISTRATOR ONLY
+        |------------------------------------------------------------------
+        | `can:maintenance.view` cannot close this surface — a Technician holds
+        | it — so each method additionally authorizes `viewAdministrative`,
+        | which is role-gated. The route prefix is a convention here, not the
+        | control.
+        */
+        Route::middleware('password.current')
+            ->prefix('admin')
+            ->whereUuid(['record'])
+            ->group(function () {
+                Route::middleware('can:maintenance.view')->group(function () {
+                    Route::get('/maintenance/dashboard', [MaintenanceDirectoryController::class, 'dashboard']);
+                    Route::get('/maintenance', [MaintenanceDirectoryController::class, 'index']);
+                });
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Work support request management (WP-2.6b Stage E) — ADMINISTRATOR
+        |------------------------------------------------------------------
+        | FR-WSR-005/006/007/008/010.
+        |
+        | Same shape and same reasoning as maintenance administration above:
+        | `can:maintenance.view` is a floor a Technician also clears, so every
+        | method additionally authorizes through `WorkSupportVisibility`, which
+        | is role-gated. The prefix is a convention, not the control.
+        |
+        | **Three decisions, three endpoints, and no `PATCH /status` anywhere.**
+        | FR-WSR-004 requires transitions to come from the map rather than from
+        | the client, so the decision *is* the route and the payload carries
+        | only that decision's evidence — a date to approve, a reason to
+        | discuss, an explanation to decline.
+        */
+        Route::middleware(['password.current', 'can:maintenance.view'])
+            ->prefix('admin')
+            ->group(function () {
+                Route::get('/work-support-requests', [WorkSupportRequestDecisionController::class, 'index']);
+                Route::get('/work-support-requests/{workSupportRequest:uuid}', [WorkSupportRequestDecisionController::class, 'show']);
+
+                Route::post('/work-support-requests/{workSupportRequest:uuid}/approve', [WorkSupportRequestDecisionController::class, 'approve']);
+                Route::post('/work-support-requests/{workSupportRequest:uuid}/request-clarification', [WorkSupportRequestDecisionController::class, 'requestClarification']);
+                Route::post('/work-support-requests/{workSupportRequest:uuid}/decline', [WorkSupportRequestDecisionController::class, 'decline']);
+                Route::post('/work-support-requests/{workSupportRequest:uuid}/close', [WorkSupportRequestDecisionController::class, 'close']);
             });
 
         /*

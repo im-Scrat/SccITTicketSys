@@ -8,6 +8,7 @@ import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Surface } from '@/components/ui/Surface'
+import { PreferenceMatrix } from '@/features/notifications/components/PreferenceMatrix'
 import { useAuth } from '../hooks/useAuth'
 import { useChangePassword, useUpdateProfile } from '../hooks/useAuthMutations'
 import { applyServerErrors, getErrorMessage } from '../lib/serverErrors'
@@ -65,6 +66,15 @@ export default function WorkspaceHomePage() {
         <ChangeNameCard />
         <ChangePasswordCard />
       </div>
+
+      {/*
+        Notification preferences live here rather than on the notification
+        centre (Client decision, Q5): this is where a user already comes to
+        change things about themselves, and the page is ungated for exactly the
+        same reason the centre is — everyone has an account, and everyone has
+        notifications (FR-NOT-002).
+      */}
+      <PreferenceMatrix />
     </div>
   )
 }

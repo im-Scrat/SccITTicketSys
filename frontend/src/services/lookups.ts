@@ -97,3 +97,18 @@ export async function lookupPcUnits(search?: string): Promise<EquipmentLookupOpt
   })
   return data.data
 }
+
+/**
+ * Selectable serialized assets — the sibling of {@link lookupPcUnits}.
+ *
+ * Added in WP-2.6 for the hardware-replacement form, which has to name the unit
+ * that came out and the unit that went in. Same endpoint family, same narrow
+ * contract: labels only, authorized by the consuming workflow's permission
+ * (`maintenance.*`) and never by an `assets.*` one.
+ */
+export async function lookupAssets(search?: string): Promise<EquipmentLookupOption[]> {
+  const { data } = await api.get<{ data: EquipmentLookupOption[] }>('/lookups/assets', {
+    params: clean({ search }),
+  })
+  return data.data
+}

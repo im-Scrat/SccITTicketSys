@@ -91,6 +91,12 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./backend:/var/www/html
+      # Read-only, test-only. The security header suite verifies that the
+      # production CSP's script hash still matches index.html's inline theme
+      # script — a drift that would otherwise break theming in production with
+      # nothing to catch it. Neither path is readable by application code.
+      - ./docker/nginx:/repo/docker/nginx:ro
+      - ./frontend/index.html:/repo/frontend/index.html:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -112,6 +118,7 @@ services:
     volumes:
       - ./backend:/var/www/html:ro
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/security-headers.dev.conf:/etc/nginx/snippets/security-headers.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/up >/dev/null 2>&1 || exit 1"]
       interval: 15s

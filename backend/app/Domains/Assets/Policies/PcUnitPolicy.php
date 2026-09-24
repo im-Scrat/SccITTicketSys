@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Assets\Policies;
 
+use App\Domains\Assets\Services\ScannedPcAccess;
 use App\Models\PcUnit;
 use App\Models\User;
 
@@ -48,6 +49,30 @@ class PcUnitPolicy
     public function view(User $actor, PcUnit $pcUnit): bool
     {
         return $this->viewAny($actor);
+    }
+
+    /**
+     * The **scan-scoped panel** for one machine (SRS FR-QR-012; SDD DD-49).
+     *
+     * A third door onto a PC unit, between the label-only lookup
+     * ({@see selectPcUnit}) and the Administrator's record ({@see view}), and
+     * the only one a Technician can open. It is authorized by its **own**
+     * ability rather than by any `assets.*` permission, because a Technician
+     * holds none (DD-38) and FR-AST-013 is explicit that a workflow needing to
+     * reach equipment is authorized by the permission of *that workflow* —
+     * here `maintenance.*` / `tickets.update`, checked inside
+     * {@see ScannedPcAccess::hasFloor()}.
+     *
+     * **Scanning grants nothing.** No code reaches this method, and none is
+     * consulted by it: the answer is the same whether the caller scanned the
+     * sticker, typed the URL or guessed it. What decides is whether the machine
+     * is reachable through work this person actually holds — the identical
+     * predicate the panel query uses, so a machine outside their reachable set
+     * is equally unreachable by uuid (FR-QR-012, NFR-SEC-003).
+     */
+    public function viewScanned(User $actor, PcUnit $pcUnit): bool
+    {
+        return app(ScannedPcAccess::class)->canReach($actor, $pcUnit);
     }
 
     public function viewHistory(User $actor, PcUnit $pcUnit): bool

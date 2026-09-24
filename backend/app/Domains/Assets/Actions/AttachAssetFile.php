@@ -10,6 +10,7 @@ use App\Models\Asset;
 use App\Models\AssetAttachment;
 use App\Models\PcUnit;
 use App\Models\User;
+use App\Support\Attachments\AttachmentSecurity;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -27,10 +28,11 @@ use Illuminate\Support\Facades\Storage;
  *  2. **Server-decided names.** The stored filename is generated, never taken
  *     from the upload — a client-supplied name is the classic path-traversal and
  *     double-extension vector. The original name is kept as *data* for display.
- *  3. **Server-decided kind.** `kind` is derived from the detected MIME type
- *     rather than trusted from the payload, so a renamed executable cannot
- *     present itself as an image. The MIME allow-list itself is enforced in the
- *     FormRequest.
+ *  3. **Server-decided MIME type and kind.** Both come from
+ *     {@see AttachmentSecurity::detect()}, which reads the file's own bytes and
+ *     re-checks the allow-list. `getClientMimeType()` is never read: it is
+ *     attacker-controlled, and persisting it is what previously allowed a
+ *     permitted upload to be re-served as `text/html`.
  *
  * A checksum is stored so a later integrity check has something to compare
  * against.
@@ -49,16 +51,19 @@ class AttachAssetFile
         $isPcUnit = $target instanceof PcUnit;
         $folder = $isPcUnit ? 'pc-units' : 'assets';
 
+        // Detected from the file's own bytes and re-checked against the asset
+        // allow-list *before* anything is written, so the value that lands in
+        // the database is one the server vouched for.
+        $mime = AttachmentSecurity::detect($file, AttachmentSecurity::PROFILE_ASSET);
+
         // The stored path is composed here, never taken from the upload.
         $path = $file->store("{$folder}/{$target->uuid}", 'local');
-
-        $mime = $file->getClientMimeType();
 
         $attachment = DB::transaction(fn (): AssetAttachment => AssetAttachment::query()->create([
             'asset_id' => $isPcUnit ? null : $target->getKey(),
             'pc_unit_id' => $isPcUnit ? $target->getKey() : null,
             'uploaded_by' => $actor->getKey(),
-            'kind' => AssetAttachment::kindForMime($mime),
+            'kind' => AttachmentSecurity::kindFor($mime),
             'disk' => 'local',
             'storage_path' => $path,
             'original_filename' => $file->getClientOriginalName(),

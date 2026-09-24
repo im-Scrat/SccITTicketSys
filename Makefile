@@ -5,7 +5,9 @@
 SHELL := /bin/sh
 
 .PHONY: help up down restart build rebuild logs ps shell migrate fresh test lint format backup restore psql redis \
-        prod-build prod-up prod-setup prod-down prod-logs prod-ps prod-shell
+        prod-build prod-up prod-setup prod-down prod-logs prod-ps prod-shell \
+        gates smoke smoke-dev backup-prod restore-prod deploy-prod rollback-prod releases \
+        e2e e2e-a11y e2e-smoke
 
 # Production-like stack (compose.prod.yaml). The explicit `-p sccit_prod` is
 # REQUIRED: the root .env's COMPOSE_PROJECT_NAME=sccit would otherwise place
@@ -80,11 +82,50 @@ prod-ps: ## [prod] List production services
 prod-shell: ## [prod] Shell into the production app container
 	$(PROD) exec app_prod sh
 
-backup: ## Back up the database to backups/
-	sh scripts/backup.sh
+# ---------------------------------------------------------------
+#  WP-2.7d — operational foundation.
+#  Every target below delegates to scripts/, which source scripts/lib/stack.sh
+#  so the production `-p sccit_prod` flags cannot be forgotten.
+# ---------------------------------------------------------------
 
-restore: ## Restore the database (make restore FILE=backups/x.sql.gz)
-	sh scripts/restore.sh $(FILE)
+gates: ## Run the full quality gate (Pint, PHPStan, Pest, tsc, ESLint, Prettier, Vitest, build)
+	sh scripts/gates.sh
+
+smoke: ## [prod] HTTP smoke test against :8081
+	sh scripts/smoke.sh --stack prod
+
+smoke-dev: ## HTTP smoke test against :8080
+	sh scripts/smoke.sh --stack dev
+
+e2e: ## Browser suite — three-role auth, authorization, QR workflow (dev :8080)
+	sh scripts/e2e.sh --project e2e
+
+e2e-a11y: ## Accessibility regression against the committed axe baseline (dev :8080)
+	sh scripts/e2e.sh --project a11y
+
+e2e-smoke: ## [prod] Browser smoke — does the deployed bundle boot? (:8081)
+	sh scripts/e2e.sh --project smoke
+
+backup: ## Snapshot the dev database + uploads to backups/dev/
+	sh scripts/backup.sh --stack dev
+
+backup-prod: ## [prod] Snapshot the production database + uploads to backups/prod/
+	sh scripts/backup.sh --stack prod
+
+restore: ## Restore a dev snapshot (make restore FILE=backups/dev/<ts>)
+	sh scripts/restore.sh --stack dev $(FILE)
+
+restore-prod: ## [prod] Restore a production snapshot (make restore-prod FILE=backups/prod/<ts>)
+	sh scripts/restore.sh --stack prod $(FILE)
+
+deploy-prod: ## [prod] Gate, snapshot, build, tag, deploy, migrate and smoke-test a release
+	sh scripts/deploy-prod.sh
+
+rollback-prod: ## [prod] Roll back to a retained release (make rollback-prod REL=<sha>)
+	sh scripts/rollback-prod.sh $(REL)
+
+releases: ## [prod] List retained release artifacts
+	sh scripts/releases.sh list
 
 psql: ## Open a psql shell
 	docker compose exec postgres psql -U postgres -d school_it_service_management

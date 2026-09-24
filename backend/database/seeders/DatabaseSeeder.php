@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             TicketLookupSeeder::class,
             MaintenanceTypeSeeder::class,
+            // After the types: each template binds itself to a type as that
+            // type's default checklist (FR-MNT-004).
+            ChecklistTemplateSeeder::class,
             AiSeeder::class,
             SystemSettingSeeder::class,
             AdminUserSeeder::class,

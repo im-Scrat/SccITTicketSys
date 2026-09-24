@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Identity\Services;
 
+use App\Domains\Administration\Services\NotificationDispatcher;
 use App\Domains\Identity\Exceptions\AccountNotActiveException;
 use App\Domains\Identity\Notifications\AccountLocked;
 use App\Enums\LoginStatus;
@@ -25,7 +26,10 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly NotificationDispatcher $notifications,
+    ) {}
 
     /**
      * @throws ValidationException on bad credentials or lockout
@@ -49,7 +53,18 @@ class AuthService
             // Threshold just crossed with this attempt → lock out and notify once.
             if (RateLimiter::remaining($key, $maxAttempts) <= 0) {
                 $this->audit->login($user, LoginStatus::LockedOut, $request);
-                $user?->notify(new AccountLocked(RateLimiter::availableIn($key)));
+
+                /*
+                 * Through the dispatcher rather than `$user->notify()` (WP-2.7a).
+                 * Two reasons, and the second is the one that matters on this
+                 * particular code path: the notification now has an in-app half
+                 * as well as an email, and — more importantly — the dispatcher
+                 * swallows a delivery failure. A mail or queue outage must not
+                 * turn a lockout into a 500, because a 500 here is an
+                 * authentication endpoint telling an attacker that their guess
+                 * did something interesting.
+                 */
+                $this->notifications->sendTo($user, new AccountLocked(RateLimiter::availableIn($key)));
 
                 throw $this->lockoutException($key);
             }

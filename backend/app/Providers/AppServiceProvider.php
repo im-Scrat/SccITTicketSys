@@ -9,18 +9,22 @@ use App\Domains\Identity\Services\PermissionResolver;
 use App\Domains\Locations\Policies\BuildingPolicy;
 use App\Domains\Locations\Policies\FloorPolicy;
 use App\Domains\Locations\Policies\RoomPolicy;
+use App\Domains\Maintenance\Policies\MaintenanceRecordPolicy;
 use App\Domains\Tickets\Policies\TicketAssignmentPolicy;
 use App\Domains\Tickets\Policies\TicketCommentPolicy;
 use App\Domains\Tickets\Policies\TicketPolicy;
+use App\Domains\WorkSupport\Policies\WorkSupportRequestPolicy;
 use App\Models\Asset;
 use App\Models\Building;
 use App\Models\Floor;
+use App\Models\MaintenanceRecord;
 use App\Models\PcUnit;
 use App\Models\Room;
 use App\Models\TechnicianAssignment;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
+use App\Models\WorkSupportRequest;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -83,6 +87,20 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Ticket::class, TicketPolicy::class);
         Gate::policy(TicketComment::class, TicketCommentPolicy::class);
         Gate::policy(TechnicianAssignment::class, TicketAssignmentPolicy::class);
+
+        // Maintenance (Phase 2.7): the same shape as Tickets, for the same
+        // reason — `maintenance.*` is seeded to Administrators and
+        // Technicians alike, so the permission cannot say whose work a
+        // record is. `MaintenanceVisibility` does, for lists and for single
+        // records, from one predicate (DD-55).
+        Gate::policy(MaintenanceRecord::class, MaintenanceRecordPolicy::class);
+
+        // Work support requests (WP-2.6b Stage E): the third module whose
+        // permission does not separate the roles. No `wsr.*` permission was
+        // invented — that would change the Client's §8.4 matrix — so
+        // `maintenance.view` is the floor and `WorkSupportVisibility` decides
+        // whose requests, for lists and for single records alike (DD-54, OD-4).
+        Gate::policy(WorkSupportRequest::class, WorkSupportRequestPolicy::class);
     }
 
     /**
@@ -116,6 +134,43 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('ticket-comments', fn (Request $request): Limit => Limit::perHour(
             (int) config('security.rate_limits.ticket_comments_per_hour', 60),
         )->by((string) ($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        /*
+         * WP-2.6b — the QR scan endpoint (FR-QR-013).
+         *
+         * The only limiter in this application that returns **two** limits, and
+         * the requirement is explicit about why: "the scan endpoint shall be
+         * rate-limited per client **and** per account". Both apply to every
+         * request and the stricter one wins.
+         *
+         * Keyed per IP *and* per user rather than the usual "user, falling back
+         * to IP", because this route is reachable with no session at all: the
+         * IP ceiling is the one that resists an anonymous enumeration sweep, and
+         * signing in must not lift it.
+         *
+         * @return list<Limit>
+         */
+        RateLimiter::for('qr-scan', fn (Request $request): array => [
+            Limit::perMinute(
+                (int) config('security.rate_limits.qr_scan_per_minute', 20),
+            )->by('qr-scan:ip:'.($request->ip() ?? 'unknown')),
+
+            Limit::perMinute(
+                (int) config('security.rate_limits.qr_scan_per_user_per_minute', 30),
+            )->by('qr-scan:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')),
+        ]);
+
+        /*
+         * WP-2.6b Stage D — the proof-of-work submission (FR-MNT-009/010).
+         *
+         * One limit, keyed per account, because unlike `qr-scan` this endpoint
+         * is behind authentication: there is no anonymous caller to ration, and
+         * an IP ceiling would punish a school on a single NAT address. It exists
+         * to bound file uploads under a retrying client, not to ration work.
+         */
+        RateLimiter::for('qr-proof', fn (Request $request): Limit => Limit::perMinute(
+            (int) config('security.rate_limits.qr_proof_per_user_per_minute', 12),
+        )->by('qr-proof:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
     }
 
     /**

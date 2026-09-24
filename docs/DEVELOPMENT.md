@@ -46,21 +46,37 @@ reseeds: `docker compose up -d --build node`.
 ## Quality gates
 
 ```bash
-make lint     # Pint --test + Larastan + ESLint
-make format   # Pint + Prettier (auto-fix)
-make test     # Pest + Vitest
+sh scripts/gates.sh          # the whole gate, one command, in the containers
+make lint                    # Pint --test + Larastan + ESLint
+make format                  # Pint + Prettier (auto-fix)
+make test                    # Pest + Vitest
 ```
 
-Backend tests run against the dedicated `school_it_service_management_test`
-database (configured in `backend/phpunit.xml`). CI runs the same gates —
+`scripts/gates.sh` runs all nine gates in order, always attempting every one so
+a single invocation tells you everything that is broken. Backend tests run
+against the dedicated `school_it_service_management_test` database (configured
+in `backend/phpunit.xml`). CI runs the same gates —
 see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+
+Browser (Playwright) and accessibility (axe) suites, the deterministic fixture
+accounts, and the two known pre-existing flakes are documented in
+[TESTING.md](TESTING.md).
+
+```bash
+sh scripts/e2e.sh --project e2e     # three-role auth, authorization, QR workflow
+sh scripts/e2e.sh --project a11y    # axe regression against the committed baseline
+```
 
 ## Database backup / restore
 
 ```bash
-make backup                                   # -> backups/<db>-<ts>.sql.gz
-make restore FILE=backups/<db>-<ts>.sql.gz
+sh scripts/backup.sh --stack dev              # -> backups/dev/<ts>/ (db + uploads + manifest)
+sh scripts/restore.sh --stack dev backups/dev/<ts>
 ```
+
+Snapshots are directories carrying a manifest (git commit, image ids, migration
+count), not loose dumps — see [OPERATIONS.md](OPERATIONS.md) for why, and for
+the production stack's deploy, rollback and retention procedures.
 
 ## Adding a feature later (the intended flow)
 

@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { lookupPcUnits } from '@/services/lookups'
+import { lookupAssets, lookupPcUnits } from '@/services/lookups'
 
 export const equipmentLookupKeys = {
   all: ['lookups', 'equipment'] as const,
   pcUnits: (search?: string) => ['lookups', 'equipment', 'pc-units', search ?? ''] as const,
+  assets: (search?: string) => ['lookups', 'equipment', 'assets', search ?? ''] as const,
 }
 
 /**
@@ -18,6 +19,22 @@ export function usePcUnitLookup(search?: string, enabled = true) {
   return useQuery({
     queryKey: equipmentLookupKeys.pcUnits(search),
     queryFn: () => lookupPcUnits(search),
+    staleTime: 60_000,
+    enabled,
+  })
+}
+
+/**
+ * Selectable serialized assets for a form's component field.
+ *
+ * Kept in the same cache namespace as the PC lookup and outside `assets` for the
+ * same reason: an administrator's register query and a technician's picker must
+ * never share an entry.
+ */
+export function useAssetLookup(search?: string, enabled = true) {
+  return useQuery({
+    queryKey: equipmentLookupKeys.assets(search),
+    queryFn: () => lookupAssets(search),
     staleTime: 60_000,
     enabled,
   })

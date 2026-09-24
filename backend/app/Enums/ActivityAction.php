@@ -112,6 +112,76 @@ enum ActivityAction: string
     case TicketAttachmentAdded = 'ticket_attachment_added';
     case TicketAttachmentRemoved = 'ticket_attachment_removed';
 
+    // Phase 2.7 — Maintenance (SRS FR-MNT). The activity_logs subject morph
+    // points at the MaintenanceRecord, so the timeline renders "Work started"
+    // from the subject type plus this label. There is deliberately no
+    // `maintenance_status_history` table (SDD DD-55): no FR-MNT requires one,
+    // and these rows — written in the same transaction as the change, with
+    // before/after values in `properties` — are the lifecycle record.
+    case MaintenanceCreated = 'maintenance_created';
+    case MaintenanceUpdated = 'maintenance_updated';
+    case MaintenanceRescheduled = 'maintenance_rescheduled';
+    case MaintenanceReassigned = 'maintenance_reassigned';
+    case MaintenanceStarted = 'maintenance_started';
+    case MaintenanceHeld = 'maintenance_held';
+    case MaintenanceResumed = 'maintenance_resumed';
+    case MaintenanceCompleted = 'maintenance_completed';
+    case MaintenanceCancelled = 'maintenance_cancelled';
+    case MaintenanceArchived = 'maintenance_archived';
+    case MaintenanceRestored = 'maintenance_restored';
+    case MaintenanceChecklistItemCompleted = 'maintenance_checklist_item_completed';
+    case MaintenanceChecklistItemReopened = 'maintenance_checklist_item_reopened';
+    case MaintenanceEvidenceAdded = 'maintenance_evidence_added';
+    case MaintenanceEvidenceRemoved = 'maintenance_evidence_removed';
+    case MaintenanceNoteAdded = 'maintenance_note_added';
+    case MaintenanceHardwareReplaced = 'maintenance_hardware_replaced';
+
+    /*
+     * WP-2.6b — proof of work submitted from the scanned workflow
+     * (SRS FR-MNT-009; SDD DD-50).
+     *
+     * Its own action rather than a reused `MaintenanceUpdated`, because the
+     * timeline has to be able to answer "was this recorded by someone standing
+     * at the machine?" — the scan's uuid travels in `properties`, which is the
+     * only place that link is visible to an auditor. A scan on its own still
+     * writes **no** activity row; this is the business event, and it is the
+     * point at which the attempt became one.
+     */
+    case MaintenanceProofSubmitted = 'maintenance_proof_submitted';
+
+    /*
+     * WP-2.6b Stage E — technician work support requests (SRS FR-WSR-011;
+     * SDD DD-54).
+     *
+     * One verb per transition, not a single `work_support_request_updated`
+     * carrying a status pair. FR-WSR-011 requires *every* submission, decision,
+     * reschedule, clarification, acknowledgement and closure to be logged with
+     * before/after values, and DD-54 makes each of them a separately-authorized
+     * operation — so the timeline reads as the sequence of decisions it actually
+     * was, and a reader can filter for "declines" without parsing properties.
+     *
+     * There is deliberately **no** `work_support_request_events` table: these
+     * rows, with `properties` carrying the superseded values, are the history
+     * FR-WSR-004 asks to keep recoverable (the DD-55 stance).
+     */
+    case WorkSupportRequestSubmitted = 'work_support_request_submitted';
+    case WorkSupportRequestApproved = 'work_support_request_approved';
+    case WorkSupportRequestDeclined = 'work_support_request_declined';
+    case WorkSupportClarificationRequested = 'work_support_clarification_requested';
+    case WorkSupportRequestAcknowledged = 'work_support_request_acknowledged';
+    case WorkSupportRequestCancelled = 'work_support_request_cancelled';
+    case WorkSupportRequestClosed = 'work_support_request_closed';
+
+    /* ---------------------------------------------- announcements (WP-2.7c) */
+
+    case AnnouncementCreated = 'announcement_created';
+    case AnnouncementUpdated = 'announcement_updated';
+    case AnnouncementPublished = 'announcement_published';
+    case AnnouncementUnpublished = 'announcement_unpublished';
+    /** A deliberate second notification to the same audience (decision D7). */
+    case AnnouncementRenotified = 'announcement_renotified';
+    case AnnouncementDeleted = 'announcement_deleted';
+
     /** Human-readable label for audit-timeline rendering. */
     public function label(): string
     {
@@ -188,6 +258,38 @@ enum ActivityAction: string
             self::TicketCommentModerated => 'Comment moderated',
             self::TicketAttachmentAdded => 'Attachment added',
             self::TicketAttachmentRemoved => 'Attachment removed',
+            self::MaintenanceCreated => 'Created',
+            self::MaintenanceUpdated => 'Updated',
+            self::MaintenanceRescheduled => 'Rescheduled',
+            self::MaintenanceReassigned => 'Reassigned',
+            self::MaintenanceStarted => 'Work started',
+            self::MaintenanceHeld => 'Work put on hold',
+            self::MaintenanceResumed => 'Work resumed',
+            self::MaintenanceCompleted => 'Work completed',
+            self::MaintenanceCancelled => 'Cancelled',
+            self::MaintenanceArchived => 'Archived',
+            self::MaintenanceRestored => 'Restored',
+            self::MaintenanceChecklistItemCompleted => 'Checklist item completed',
+            self::MaintenanceChecklistItemReopened => 'Checklist item reopened',
+            self::MaintenanceEvidenceAdded => 'Repair evidence added',
+            self::MaintenanceEvidenceRemoved => 'Repair evidence removed',
+            self::MaintenanceNoteAdded => 'Note added',
+            self::MaintenanceHardwareReplaced => 'Hardware replaced',
+            self::MaintenanceProofSubmitted => 'Proof of work submitted',
+
+            self::WorkSupportRequestSubmitted => 'Support request submitted',
+            self::WorkSupportRequestApproved => 'Support request approved',
+            self::WorkSupportRequestDeclined => 'Support request declined',
+            self::WorkSupportClarificationRequested => 'Face-to-face discussion requested',
+            self::WorkSupportRequestAcknowledged => 'New schedule acknowledged',
+            self::WorkSupportRequestCancelled => 'Support request withdrawn',
+            self::WorkSupportRequestClosed => 'Support request closed',
+            self::AnnouncementCreated => 'Announcement created',
+            self::AnnouncementUpdated => 'Announcement updated',
+            self::AnnouncementPublished => 'Announcement published',
+            self::AnnouncementUnpublished => 'Announcement unpublished',
+            self::AnnouncementRenotified => 'Announcement audience notified again',
+            self::AnnouncementDeleted => 'Announcement deleted',
         };
     }
 }

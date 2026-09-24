@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Tickets\Services;
 
 use App\Domains\Identity\Services\AuditLogger;
+use App\Domains\Tickets\Events\TicketStatusChanged;
 use App\Enums\ActivityAction;
 use App\Enums\TicketUpdateType;
 use App\Models\SystemSetting;
@@ -188,6 +189,18 @@ class TicketLifecycle
                 $target->name,
             ),
         );
+
+        /*
+         * WP-2.7a — the notification seam (FR-NOT-003 T2).
+         *
+         * Outside the transaction and after the audit row, so the event
+         * describes a move that has actually committed. `$actor` is passed
+         * through unchanged, including the null the scheduled auto-close
+         * arrives with (FR-TKT-016): a system-driven transition still has to
+         * reach the reporter, and the listener treats "nobody did this" as a
+         * case rather than as a missing value.
+         */
+        TicketStatusChanged::dispatch($ticket, $from, $target, $actor);
 
         return $ticket->refresh();
     }

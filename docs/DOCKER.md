@@ -63,6 +63,36 @@ disabled for them. `mailpit` ships its own.
 
 ## Production seam
 
-This is a production-grade **development** environment. For deployment, build
-the `production` targets (baked code + `npm run build` static assets, no
-dev server / HMR) and add a `compose.prod.yaml`. The structure is ready for it.
+This is a production-grade **development** environment. The production stack
+exists: `compose.prod.yaml` builds the `production` targets (baked code +
+`npm run build` static assets, no dev server / HMR) and runs on `:8081`.
+
+Every production command needs `-p sccit_prod`, because the root `.env`'s
+`COMPOSE_PROJECT_NAME=sccit` overrides the `name:` inside the file and would
+otherwise place the stack in the dev project. The scripts in `scripts/` carry
+those flags for you — see [OPERATIONS.md](OPERATIONS.md) for deployment,
+snapshots, release retention and rollback.
+
+## Browser testing in the `node` image
+
+The `development` stage bakes Alpine's Chromium plus its runtime libraries
+(`nss`, `freetype`, `harfbuzz`, fonts) for the Playwright and axe suites.
+
+It is baked rather than installed into the running container, which is how the
+browser arrived for the Phase 2.4–2.6b verification passes: that browser lived
+in a container's writable layer, vanished on the next rebuild, and left results
+nobody could reproduce without an undocumented `apk add`.
+
+Alpine's Chromium is used instead of Playwright's own download because this is a
+musl image and Playwright ships glibc builds — hence
+`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` and `CHROMIUM_PATH=/usr/bin/chromium`, both
+set in the image and read by `frontend/playwright.config.ts`.
+
+After changing `frontend/package.json`, refresh the named `node_modules` volume —
+Docker only seeds an empty volume, so an image rebuild alone will not do it:
+
+```bash
+docker compose exec -T node sh -lc 'cd /app && npm install'
+# or, to rebuild the image and reseed:
+docker compose up -d --build --force-recreate node
+```

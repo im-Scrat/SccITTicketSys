@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Attachments\AttachmentSecurity;
 use App\Support\Concerns\HasUuidRouteKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -70,11 +71,15 @@ class AssetAttachment extends Model
         return $this->kind === self::KIND_IMAGE;
     }
 
-    /** Derive the stored `kind` from an uploaded file's MIME type. */
+    /**
+     * Derive the stored `kind` from a **trusted** MIME type.
+     *
+     * Delegates so that Assets and Tickets classify identically; the caller is
+     * responsible for having obtained the type from
+     * {@see AttachmentSecurity::detect()} rather than from the request.
+     */
     public static function kindForMime(?string $mime): string
     {
-        return $mime !== null && str_starts_with($mime, 'image/')
-            ? self::KIND_IMAGE
-            : self::KIND_DOCUMENT;
+        return AttachmentSecurity::kindFor($mime);
     }
 }

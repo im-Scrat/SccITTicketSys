@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Assets\Http\Resources;
 
 use App\Models\AssetAttachment;
+use App\Support\Attachments\AttachmentSecurity;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -30,7 +31,12 @@ class AssetAttachmentResource extends JsonResource
             'kind' => $this->kind,
             'is_image' => $this->isImage(),
             'filename' => $this->original_filename,
-            'mime_type' => $this->mime_type,
+            // Re-checked against the allow-list rather than read straight off the
+            // row, so a value written before AttachmentSecurity existed cannot
+            // reach the client as though the server vouched for it.
+            'mime_type' => AttachmentSecurity::isAllowed($this->mime_type, AttachmentSecurity::PROFILE_ASSET)
+                ? $this->mime_type
+                : null,
             'file_size' => $this->file_size,
             'caption' => $this->caption,
             'uploaded_by' => $this->uploadedBy?->fullName(),

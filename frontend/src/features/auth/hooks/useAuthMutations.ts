@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { notificationKeys } from '@/features/notifications/hooks/queries'
 import {
   changePassword,
   type ChangePasswordPayload,
@@ -25,6 +26,21 @@ export function useLogin() {
   })
 }
 
+/**
+ * End the session, then drop what the previous principal could read.
+ *
+ * `onSettled` rather than `onSuccess`: a logout whose request failed still ends
+ * the session as far as this browser is concerned, and leaving the cache
+ * populated because the network blinked is the wrong way round.
+ *
+ * **Notifications are removed here for a specific reason.** They are addressed
+ * to one person by name and are the most personal thing this client caches — on
+ * a shared machine, a list that survived a sign-out would show the next user
+ * what the last one was told. TanStack keeps cached data after the query's
+ * observers unmount, so signing out and signing in as someone else would render
+ * the previous inbox from cache for as long as it took the refetch to land.
+ * Removing the key makes that window not exist.
+ */
 export function useLogout() {
   const queryClient = useQueryClient()
 
@@ -33,6 +49,7 @@ export function useLogout() {
     onSettled: () => {
       queryClient.setQueryData(AUTH_USER_KEY, null)
       queryClient.removeQueries({ queryKey: ['registrations'] })
+      queryClient.removeQueries({ queryKey: notificationKeys.all })
     },
   })
 }

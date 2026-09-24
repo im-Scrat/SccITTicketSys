@@ -8,7 +8,16 @@ use Database\Factories\MaintenanceNoteFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $maintenance_record_id
+ * @property int|null $technician_id
+ * @property string $body
+ * @property Carbon|null $created_at
+ * @property-read User|null $technician
+ */
 class MaintenanceNote extends Model
 {
     /** @use HasFactory<MaintenanceNoteFactory> */

@@ -41,6 +41,30 @@ return [
         // per IP so a whole school behind one address does not share a budget.
         'tickets_per_hour' => (int) env('TICKETS_PER_HOUR', 20),
         'ticket_comments_per_hour' => (int) env('TICKET_COMMENTS_PER_HOUR', 60),
+
+        /*
+         * WP-2.6b — the QR scan endpoint (FR-QR-013, NFR-SEC-009).
+         *
+         * Two ceilings, both applied: the endpoint is **public**, so the IP
+         * limit is what resists an anonymous enumeration sweep, while the
+         * per-account limit stops a signed-in user from doing the same at a
+         * higher budget. Per minute rather than per hour because enumeration is
+         * a burst and legitimate scanning is not — a technician walking a lab
+         * scans a machine every minute or two, not twenty a minute.
+         */
+        'qr_scan_per_minute' => (int) env('QR_SCAN_PER_MINUTE', 20),
+        'qr_scan_per_user_per_minute' => (int) env('QR_SCAN_PER_USER_PER_MINUTE', 30),
+
+        /*
+         * WP-2.6b Stage D — proof-of-work submission (FR-MNT-009/010).
+         *
+         * Per account only: the endpoint is authenticated, so there is no
+         * anonymous sweep to resist, and an IP ceiling would ration a whole
+         * school behind one address. Generous enough that a technician
+         * photographing a job in several passes never meets it, tight enough
+         * that a client stuck in a retry loop cannot upload without bound.
+         */
+        'qr_proof_per_user_per_minute' => (int) env('QR_PROOF_PER_USER_PER_MINUTE', 12),
     ],
 
     // File uploads (Phase 2.5 asset attachments; SRS NFR-SEC-007/008).

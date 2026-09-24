@@ -55,5 +55,15 @@ export default defineConfig({
     globals: true,
     setupFiles: './src/test/setup.ts',
     css: true,
+    /*
+     * Vitest owns `src/`; Playwright owns `e2e/`.
+     *
+     * Vitest's default `include` is `**\/*.{test,spec}.?(c|m)[jt]s?(x)`, which
+     * matches the browser specs in e2e/ by name. Without this they are imported
+     * into jsdom, where `@playwright/test` is not a test runner and the fixture
+     * manifest's file:// URL cannot resolve — four failures that say nothing
+     * about the application. They are run by `sh scripts/e2e.sh`.
+     */
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 })
