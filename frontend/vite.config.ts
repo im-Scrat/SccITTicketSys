@@ -29,6 +29,13 @@ export default defineConfig({
           ) {
             return 'vendor'
           }
+          // The real-time client (services/echo.ts) gets its own stable chunk
+          // rather than joining `vendor`: it is dynamically imported on first
+          // subscription, so the public site and most screens never fetch it,
+          // yet once fetched it stays cached across deploys like `vendor`.
+          if (/[\\/]node_modules[\\/](laravel-echo|pusher-js|tweetnacl)[\\/]/.test(id)) {
+            return 'realtime'
+          }
           return undefined
         },
       },

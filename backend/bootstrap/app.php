@@ -4,6 +4,7 @@ use App\Domains\Administration\Console\SendDailyDigest;
 use App\Domains\Maintenance\Console\DetectDuePreventiveMaintenance;
 use App\Domains\Tickets\Console\CloseStaleResolvedTickets;
 use App\Domains\Tickets\Console\DetectSlaBreaches;
+use App\Http\Middleware\AuthenticateSession;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsurePasswordIsCurrent;
 use App\Http\Middleware\SecurityHeaders;
@@ -18,6 +19,32 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    /*
+     * Private-channel authorization — `GET|POST /broadcasting/auth` (WP-A).
+     *
+     * Registered here rather than through `withRouting(channels: …)`, which is
+     * what `install:broadcasting` writes. That shorthand puts the endpoint in
+     * the `web` group: session-guard auth with none of this application's
+     * account rules. A socket subscription is a read of whatever the channel
+     * carries, so it gets exactly the gate an API read gets — the same stack as
+     * the feature routes in routes/api.php:
+     *
+     *   api               Sanctum's stateful SPA handling (cookie session +
+     *                     XSRF), the same first-party origin check as /api/*
+     *   auth:sanctum      no principal → 401, before any channel callback runs
+     *   active            a suspended account cannot subscribe (SDD DD-19)
+     *   AuthenticateSession
+     *                     a session invalidated by a password change on another
+     *                     device cannot keep authorizing channels (FR-AUTH-011)
+     *   password.current  an account under forced password reset has no feature
+     *                     access, so it has nothing to subscribe to
+     *
+     * The path stays `/broadcasting/auth` — no `api` prefix — so nginx routes it
+     * to Laravel explicitly in both stacks rather than it riding on `/api/`.
+     */
+    ->withBroadcasting(__DIR__.'/../routes/channels.php', [
+        'middleware' => ['api', 'auth:sanctum', 'active', AuthenticateSession::class, 'password.current'],
+    ])
     /*
      * Domain commands are registered explicitly.
      *

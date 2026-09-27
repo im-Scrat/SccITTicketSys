@@ -186,6 +186,33 @@ services:
     networks:
       - sccit_prod_network
 
+  # ---------- Reverb (WebSocket server, reuses the prod app image) -
+  # Internal only — `expose`, never `ports`: browsers connect same-origin via
+  # nginx_prod at /reverb/app/…; app_prod and queue_prod publish to it at
+  # REVERB_HOST=reverb_prod / REVERB_PORT=6001 over the prod network. The prod
+  # entrypoint runs config:cache first, exactly as for queue_prod.
+  reverb_prod:
+    image: sccit/app:prod
+    container_name: sccit_prod_reverb
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=6001"]
+    env_file:
+      - ./backend/.env.production
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 6001) ? 0 : 1);"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    expose:
+      - "6001"
+    depends_on:
+      app_prod:
+        condition: service_started
+    networks:
+      - sccit_prod_network
+
 networks:
   sccit_prod_network:
     name: sccit_prod_network

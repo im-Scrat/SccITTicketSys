@@ -57,6 +57,7 @@ use App\Domains\WorkSupport\Http\Controllers\Admin\WorkSupportRequestDecisionCon
 use App\Domains\WorkSupport\Http\Controllers\TechnicianSubmissionController;
 use App\Domains\WorkSupport\Http\Controllers\WorkSupportAttachmentController;
 use App\Domains\WorkSupport\Http\Controllers\WorkSupportRequestController;
+use App\Http\Controllers\BroadcastingConfigController;
 use App\Http\Controllers\HealthController;
 use App\Http\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
@@ -120,6 +121,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Self-service profile (name) edit (FR-USER-008).
         Route::put('/profile', [ProfileController::class, 'update']);
+
+        // Reverb app KEY for the SPA's socket (WP-A). Same floor as
+        // /broadcasting/auth: without it a key opens nothing worth having.
+        Route::middleware('password.current')
+            ->get('/broadcasting/config', BroadcastingConfigController::class);
 
         /*
         |------------------------------------------------------------------

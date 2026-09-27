@@ -173,6 +173,36 @@ services:
     networks:
       - sccit_network
 
+  # ---------- Reverb (WebSocket server, reuses the app image) -
+  # Internal only: `expose`, never `ports`. Browsers reach it same-origin via
+  # nginx (/reverb/app/… → reverb:6001/app/…); app and queue publish to it
+  # directly over sccit_network at REVERB_HOST=reverb / REVERB_PORT=6001.
+  # 6001 is fixed here beside the nginx upstream that must match it, and is
+  # deliberately not 8080 — that is the host-facing nginx port.
+  reverb:
+    image: sccit/app:dev
+    container_name: sccit_reverb
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=6001"]
+    # Long-running socket server, not php-fpm: replace the baked FPM check
+    # with "is the port accepting connections".
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 6001) ? 0 : 1);"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    expose:
+      - "6001"
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      app:
+        condition: service_started
+    networks:
+      - sccit_network
+
   # ---------- Node (Vite dev server, HMR) --------------------
   node:
     build:
