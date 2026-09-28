@@ -72,7 +72,7 @@ class PermissionSeeder extends Seeder
                     'inventory.view', 'inventory.adjust',
                     'ai.view', 'ai.feedback',
                     'knowledge.view', 'knowledge.create',
-                    'reports.view', 'floorplan.view',
+                    'reports.view',
                 ]);
         })->pluck('id')->all();
 
@@ -124,9 +124,17 @@ class PermissionSeeder extends Seeder
         // and export is a whole-directory read. `tickets.assign` stays grantable
         // per-user for a deputized lead technician (FR-ASN-001); the role
         // baseline no longer carries either.
+        //
+        // Phase 2.8 scope change: the Interactive Floor Plan is Administrator-
+        // only — the client's brief says technicians and teachers "will not have
+        // this access". `floorplan.view` was seeded to Technicians from the 2.2
+        // baseline (SRS FR-FP-006); it is withdrawn here so an existing database
+        // converges. The floor-plan policies additionally require the
+        // Administrator role, so a later per-user grant cannot reopen it.
         'technician' => [
             'locations.view', 'assets.view', 'assets.update', 'assets.transfer',
             'tickets.assign', 'tickets.export',
+            'floorplan.view',
         ],
         'teacher' => ['locations.view'],
     ];

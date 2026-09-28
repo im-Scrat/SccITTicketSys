@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Domains\Assets\Policies\AssetPolicy;
 use App\Domains\Assets\Policies\PcUnitPolicy;
+use App\Domains\FloorPlan\Policies\FloorPlanPositionPolicy;
+use App\Domains\FloorPlan\Policies\RoomLayoutPolicy;
 use App\Domains\Identity\Policies\UserPolicy;
 use App\Domains\Identity\Services\PermissionResolver;
 use App\Domains\Locations\Policies\BuildingPolicy;
@@ -17,9 +19,11 @@ use App\Domains\WorkSupport\Policies\WorkSupportRequestPolicy;
 use App\Models\Asset;
 use App\Models\Building;
 use App\Models\Floor;
+use App\Models\FloorPlanPosition;
 use App\Models\MaintenanceRecord;
 use App\Models\PcUnit;
 use App\Models\Room;
+use App\Models\RoomLayout;
 use App\Models\TechnicianAssignment;
 use App\Models\Ticket;
 use App\Models\TicketComment;
@@ -101,6 +105,17 @@ class AppServiceProvider extends ServiceProvider
         // `maintenance.view` is the floor and `WorkSupportVisibility` decides
         // whose requests, for lists and for single records alike (DD-54, OD-4).
         Gate::policy(WorkSupportRequest::class, WorkSupportRequestPolicy::class);
+
+        // Interactive Floor Plan (Phase 2.8): Administrator-only, and closed by
+        // the *policy*, not by a permission string. `Gate::before` above allows
+        // any ability whose name equals a permission in the user's set, and
+        // per-user grants (FR-USER-010) can put `floorplan.*` in a
+        // Technician's — so a `can:floorplan.manage` gate would open for them.
+        // The policy abilities (`viewAny`/`view`/`manage`) never match a
+        // permission name, so `Gate::before` returns null and the policy
+        // decides, requiring the Administrator role as well as the permission.
+        Gate::policy(RoomLayout::class, RoomLayoutPolicy::class);
+        Gate::policy(FloorPlanPosition::class, FloorPlanPositionPolicy::class);
     }
 
     /**

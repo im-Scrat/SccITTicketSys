@@ -182,6 +182,18 @@ enum ActivityAction: string
     case AnnouncementRenotified = 'announcement_renotified';
     case AnnouncementDeleted = 'announcement_deleted';
 
+    /* ------------------------------ interactive floor plan (Phase 2.8) */
+
+    // The activity_logs subject morph points at the RoomLayout or PcUnit, so
+    // the timeline renders "Position changed" from the subject + this label.
+    // Position history is these rows, with the before/after coordinates in
+    // `properties` — no dedicated history table (the DD-55 stance).
+    case LayoutCreated = 'layout_created';
+    case LayoutActivated = 'layout_activated';
+    case LayoutUpdated = 'layout_updated';
+    case AssetPositionChanged = 'asset_position_changed';
+    case AssetPositionCleared = 'asset_position_cleared';
+
     /** Human-readable label for audit-timeline rendering. */
     public function label(): string
     {
@@ -290,6 +302,11 @@ enum ActivityAction: string
             self::AnnouncementUnpublished => 'Announcement unpublished',
             self::AnnouncementRenotified => 'Announcement audience notified again',
             self::AnnouncementDeleted => 'Announcement deleted',
+            self::LayoutCreated => 'Layout created',
+            self::LayoutActivated => 'Layout activated',
+            self::LayoutUpdated => 'Layout updated',
+            self::AssetPositionChanged => 'Position changed',
+            self::AssetPositionCleared => 'Position cleared',
         };
     }
 }
