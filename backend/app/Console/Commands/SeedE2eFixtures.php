@@ -12,12 +12,14 @@ use App\Enums\RoomType;
 use App\Enums\UserStatus;
 use App\Models\Building;
 use App\Models\Floor;
+use App\Models\FloorPlanPosition;
 use App\Models\MaintenanceRecord;
 use App\Models\MaintenanceType;
 use App\Models\PcUnit;
 use App\Models\QrCode;
 use App\Models\Role;
 use App\Models\Room;
+use App\Models\RoomLayout;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -95,6 +97,7 @@ class SeedE2eFixtures extends Command
             [$pcUnit, $room] = $this->equipment();
             $qr = $this->qrCode($pcUnit, $room);
             $maintenance = $this->maintenance($pcUnit, $users['technician']);
+            $this->floorPlan($room, $pcUnit);
 
             return [
                 'password' => $password,
@@ -212,6 +215,50 @@ class SeedE2eFixtures extends Command
         );
 
         return [$pcUnit, $room];
+    }
+
+    /**
+     * An active layout for the fixture room with one unit in **every** PC
+     * status, so the floor-plan map (WP-C) is audited with all six shapes and
+     * labels on screen rather than with an empty grid.
+     *
+     * The fixture PC is placed too. Its own status is whatever the maintenance
+     * fixture left it in, which is why the six status-carrying units are
+     * separate rows: a status that some other fixture may change cannot be the
+     * one the map's coverage depends on.
+     */
+    private function floorPlan(Room $room, PcUnit $fixturePc): void
+    {
+        $layout = RoomLayout::query()->updateOrCreate(
+            ['room_id' => $room->id, 'version' => 1],
+            ['width' => 1000, 'height' => 600, 'grid_size' => 20, 'is_active' => true],
+        );
+
+        foreach (PcStatus::cases() as $index => $status) {
+            $number = $index + 1;
+
+            $pc = PcUnit::query()->updateOrCreate(
+                ['unit_code' => "E2E-FP-{$number}"],
+                [
+                    'room_id' => $room->id,
+                    'asset_tag' => "E2E-FP-AT-{$number}",
+                    'hostname' => "e2e-plan-pc-{$number}",
+                    'pc_name' => "E2E Plan PC {$number}",
+                    'status' => $status->value,
+                    'current_condition' => PcCondition::Working->value,
+                ],
+            );
+
+            FloorPlanPosition::query()->updateOrCreate(
+                ['room_layout_id' => $layout->id, 'pc_unit_id' => $pc->id],
+                ['pos_x' => 120 + 140 * $index, 'pos_y' => 200, 'rotation' => 0, 'z_index' => 0],
+            );
+        }
+
+        FloorPlanPosition::query()->updateOrCreate(
+            ['room_layout_id' => $layout->id, 'pc_unit_id' => $fixturePc->id],
+            ['pos_x' => 120, 'pos_y' => 420, 'rotation' => 0, 'z_index' => 0],
+        );
     }
 
     /**

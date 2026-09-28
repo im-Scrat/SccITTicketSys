@@ -7,6 +7,7 @@ import { GuestRoute } from '@/features/auth/guards/GuestRoute'
 import { ProtectedRoute } from '@/features/auth/guards/ProtectedRoute'
 import { RequirePermission } from '@/features/auth/guards/RequirePermission'
 import { RequireRole } from '@/features/auth/guards/RequireRole'
+import { RequireFloorPlan } from '@/features/floor-plan/guards/RequireFloorPlan'
 import { PublicLayout } from '@/layouts/PublicLayout'
 
 // Route-level code splitting keeps the initial bundle lean (SDD §7.5).
@@ -47,6 +48,10 @@ const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPag
 const LocationsPage = lazy(() => import('@/features/locations/pages/LocationsPage'))
 const BuildingDetailPage = lazy(() => import('@/features/locations/pages/BuildingDetailPage'))
 const RoomDetailPage = lazy(() => import('@/features/locations/pages/RoomDetailPage'))
+
+// Interactive Floor Plan (Phase 2.8 / WP-C) — read-only map, Administrator-only.
+const FloorPlanPage = lazy(() => import('@/features/floor-plan/pages/FloorPlanPage'))
+const FloorPlanRoomPage = lazy(() => import('@/features/floor-plan/pages/FloorPlanRoomPage'))
 
 // Asset Management (Phase 2.5).
 const AssetDashboardPage = lazy(() => import('@/features/assets/pages/AssetDashboardPage'))
@@ -426,6 +431,26 @@ function App() {
                     <RequirePermission permission="maintenance.view">
                       <MaintenanceDetailPage />
                     </RequirePermission>
+                  }
+                />
+                {/* The floor plan is Administrator-only: the guard requires the
+                    role as well as `floorplan.view`, because a permission alone
+                    can be granted to an individual Technician or Teacher. The
+                    API refuses them regardless (WP-B `FloorPlanAccess`). */}
+                <Route
+                  path="floor-plan"
+                  element={
+                    <RequireFloorPlan>
+                      <FloorPlanPage />
+                    </RequireFloorPlan>
+                  }
+                />
+                <Route
+                  path="floor-plan/rooms/:id"
+                  element={
+                    <RequireFloorPlan>
+                      <FloorPlanRoomPage />
+                    </RequireFloorPlan>
                   }
                 />
                 <Route

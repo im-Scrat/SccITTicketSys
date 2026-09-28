@@ -8,6 +8,7 @@ import {
   Inbox,
   LayoutDashboard,
   LogOut,
+  Map as MapIcon,
   Megaphone,
   type LucideIcon,
   Ticket,
@@ -154,6 +155,16 @@ const NAV_ITEMS: NavItem[] = [
   },
   { to: '/app/assets', label: 'Assets', icon: HardDrive, permission: 'assets.view' },
   { to: '/app/locations', label: 'Locations', icon: Building2, permission: 'locations.view' },
+  {
+    // Administrator-only, so — like Ticket management — the role sits beside the
+    // permission: a per-user `floorplan.view` grant must not surface the item
+    // for a Technician or Teacher (the page and API refuse them regardless).
+    to: '/app/floor-plan',
+    label: 'Floor plan',
+    icon: MapIcon,
+    permission: 'floorplan.view',
+    roles: ['administrator'],
+  },
   { to: '/app/users', label: 'Users', icon: Users, permission: 'users.view' },
   { to: '/app/registrations', label: 'Registrations', icon: UserCheck, permission: 'users.update' },
 ]

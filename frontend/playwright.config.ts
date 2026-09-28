@@ -82,7 +82,7 @@ export default defineConfig({
       // Functional regression: three-role authentication, the authorization
       // boundaries between them, and the QR-verified technician workflow.
       name: 'e2e',
-      testMatch: /specs\/(auth|qr-workflow|notifications|announcements)\.spec\.ts/,
+      testMatch: /specs\/(auth|qr-workflow|notifications|announcements|floor-plan)\.spec\.ts/,
       use: {
         ...chromium,
         baseURL: `http://localhost:${DEV_PORT}`,

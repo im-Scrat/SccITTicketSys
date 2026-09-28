@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import type { Role } from '../fixtures/manifest'
+import { manifest, type Role } from '../fixtures/manifest'
 import { goto, signIn } from '../fixtures/app'
 
 /**
@@ -115,6 +115,9 @@ const AUTHENTICATED: Record<Role, string[]> = {
     // WP-2.7c: the reader, plus the administrator-only management surface.
     '/app/announcements',
     '/app/announcements/manage',
+    // WP-C: the floor-plan room picker. The map itself needs the fixture room's
+    // uuid, so it is audited by its own test below.
+    '/app/floor-plan',
   ],
   technician: [
     '/app',
@@ -163,5 +166,27 @@ test.describe('accessibility — the notification panel', () => {
       await target.getByRole('button', { name: /^Notifications/ }).click()
       await expect(target.getByRole('dialog', { name: 'Notifications' })).toBeVisible()
     })
+  })
+})
+
+/**
+ * The floor-plan map, audited **with units on it** — WP-C.
+ *
+ * An empty grid would prove only that the toolbar has names. The fixture room
+ * carries an active layout with a unit in every PC status, so the audit sees
+ * all six shapes, their written labels, the legend and the text alternative —
+ * the parts where colour-only signalling or an unnamed graphic would show up.
+ */
+test.describe('accessibility — the floor-plan map', () => {
+  test('axe: administrator floor-plan map', async ({ page }) => {
+    await signIn(page, 'administrator')
+    await auditRoute(
+      page,
+      `/app/floor-plan/rooms/${manifest().room.uuid}`,
+      'administrator floor-plan map',
+      async (target) => {
+        await expect(target.getByTestId('floor-plan-node')).toHaveCount(7)
+      },
+    )
   })
 })

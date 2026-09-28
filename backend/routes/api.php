@@ -14,6 +14,7 @@ use App\Domains\Assets\Http\Controllers\Admin\PcUnitController;
 use App\Domains\Assets\Http\Controllers\Admin\QrCodeController;
 use App\Domains\Assets\Http\Controllers\AssetLookupController;
 use App\Domains\Assets\Http\Controllers\QrScanController;
+use App\Domains\FloorPlan\Http\Controllers\Admin\FloorPlanController;
 use App\Domains\Identity\Http\Controllers\Admin\RegistrationReviewController;
 use App\Domains\Identity\Http\Controllers\Admin\RoleController;
 use App\Domains\Identity\Http\Controllers\Admin\UserActionController;
@@ -60,6 +61,7 @@ use App\Domains\WorkSupport\Http\Controllers\WorkSupportRequestController;
 use App\Http\Controllers\BroadcastingConfigController;
 use App\Http\Controllers\HealthController;
 use App\Http\Middleware\AuthenticateSession;
+use App\Models\RoomLayout;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -674,6 +676,30 @@ Route::middleware('auth:sanctum')->group(function () {
                     Route::post('/tickets/{ticket:uuid}/attachments', [TicketParticipationController::class, 'storeAttachment']);
                     Route::delete('/tickets/attachments/{attachment:uuid}', [TicketParticipationController::class, 'destroyAttachment']);
                 });
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Interactive Floor Plan (Phase 2.8 / WP-C) — ADMINISTRATOR ONLY, read-only
+        |------------------------------------------------------------------
+        | Gated by the **policy** ability `viewAny` on RoomLayout, never by
+        | `can:floorplan.view`. `Gate::before` answers any ability whose string is
+        | a permission in the user's set, and a per-user grant (FR-USER-010) can
+        | put `floorplan.*` in a Technician's or Teacher's — so a permission-string
+        | gate would open for them. `viewAny` matches no permission name, so the
+        | policy decides, and it requires the Administrator role as well.
+        |
+        | `{room}` is deliberately a plain string, not `{room:uuid}`: implicit
+        | binding runs before this gate, and a bound model would turn an unknown
+        | uuid into a 404 for callers who are about to be refused with a 403. The
+        | service resolves it after authorizing. `whereUuid` keeps numeric ids and
+        | junk a clean 404 at the router (NFR-SEC-001).
+        */
+        Route::middleware(['password.current', 'can:viewAny,'.RoomLayout::class])
+            ->prefix('admin')
+            ->whereUuid('room')
+            ->group(function () {
+                Route::get('/floor-plan/rooms/{room}', [FloorPlanController::class, 'showRoom']);
             });
 
         /*
