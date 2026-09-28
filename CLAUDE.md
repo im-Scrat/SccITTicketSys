@@ -210,6 +210,25 @@ phase is not verified until the production image has been rebuilt and the same
 behaviour confirmed on `:8081`. Check parity by comparing migration count and
 domain contents inside the prod container against the repo — never by assuming.
 
+**Dependency changes in dev go through `scripts/dep-update.sh`, never a bare
+`composer`/`npm` command.** `backend/` is bind-mounted, so a live `composer
+update` rewrites real class-definition source under the *running* app/queue/
+scheduler/reverb containers. Dev's OPcache revalidates every request with
+tracing JIT on, and the compiled-code cache and JIT buffer are shared memory
+across the whole worker pool — a worker executing JIT-native code from the old
+definition can run against memory another worker's invalidation reallocates
+mid-request once the new class differs structurally. This caused 592 SIGSEGV
+php-fpm crashes during OD-1 (2026-09-28), invisible to Pest/Pint/PHPStan
+(`opcache.enable_cli=0`) and only visible on the served stack. Confirmed by
+controlled reproduction: `composer dump-autoload` under 600 concurrent requests
+(a real vendor/ rewrite, but data only, not code) — zero crashes. **Not a
+production risk by architecture**: prod installs during `docker build` into an
+immutable layer, never into a running container, and its
+`opcache.validate_timestamps=0` means a live prod worker never revalidates at
+all. `scripts/dep-update.sh` runs the command, restarts every affected dev
+service, and verifies 0 crashes under load before returning — do not disable
+JIT or hand-restart instead of using it.
+
 ---
 
 ## 6. Testing and verification
