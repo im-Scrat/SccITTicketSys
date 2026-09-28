@@ -38,6 +38,17 @@ RUN apk add --no-cache \
 ENV CHROMIUM_PATH=/usr/bin/chromium \
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
+# `@playwright/test` / `playwright` are pinned to an EXACT version in
+# frontend/package.json (no `^`), not the project's usual range — deliberately.
+# We never download Playwright's own browser build (line above), so the only
+# browser Playwright ever drives is whatever `apk add chromium` resolves to at
+# image-build time. Playwright validates its driver protocol against the exact
+# browser build it shipped with; letting `npm install`/`npm ci` float to a newer
+# patch here would validate against a Chromium neither pinned nor tested,
+# breaking E2E on a protocol mismatch that has nothing to do with the
+# application. Bump both together, deliberately, after re-running the full E2E
+# and accessibility suites — never let one drift ahead of the other.
+
 # Install from the lockfile into the image; at runtime a named volume
 # mounts over /app/node_modules and is seeded from this layer, giving
 # the container Linux-native binaries (not the Windows host's).
