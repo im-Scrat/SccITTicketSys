@@ -144,9 +144,7 @@ describe('PC node status representation (never colour alone)', () => {
 
     const nodes = screen.getAllByRole('img')
     expect(nodes).toHaveLength(ALL_STATUS_VALUES.length)
-    expect(
-      screen.getByRole('img', { name: 'PC-03, Online, position 300 by 120' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'PC-03, Online, at x 300, y 120' })).toBeInTheDocument()
 
     for (const node of nodes) expect(node).toHaveAccessibleName()
   })

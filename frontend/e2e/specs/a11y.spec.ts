@@ -189,4 +189,31 @@ test.describe('accessibility — the floor-plan map', () => {
       },
     )
   })
+
+  /**
+   * WP-D — the editor mid-move: units are buttons, one is lifted into keyboard
+   * move mode (selection ring, drop shadow, live-region announcement), and the
+   * numeric placement form is on the page. The states a static audit of the
+   * map would never reach.
+   */
+  test('axe: administrator floor-plan map with a unit in move mode', async ({ page }) => {
+    await signIn(page, 'administrator')
+    await auditRoute(
+      page,
+      `/app/floor-plan/rooms/${manifest().room.uuid}`,
+      'administrator floor-plan map (moving)',
+      async (target) => {
+        const unit = target.getByRole('button', { name: /^E2E Plan PC 1,/ })
+        await unit.focus()
+        await target.keyboard.press('Enter')
+        await target.keyboard.press('ArrowRight')
+        await expect(unit).toHaveAttribute('data-moving', 'true')
+        await expect(
+          target.getByRole('heading', { name: 'Place a unit by position' }),
+        ).toBeVisible()
+      },
+    )
+    // Leave the unit where it was: Escape abandons the move, nothing is sent.
+    await page.keyboard.press('Escape')
+  })
 })

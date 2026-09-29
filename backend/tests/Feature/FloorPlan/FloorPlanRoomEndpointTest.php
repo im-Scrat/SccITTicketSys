@@ -240,6 +240,43 @@ it('answers a room with no active layout with an empty plan, not an error', func
         ->assertJsonPath('data.unplaced_count', 1);
 });
 
+it('lists the room\'s unplaced units — narrowly, and never another room\'s or an archived one', function (): void {
+    $waiting = PcUnit::factory()->create(['room_id' => $this->room->id, 'pc_name' => 'WAITING-PC', 'status' => PcStatus::Offline->value]);
+    PcUnit::factory()->create(['room_id' => $this->room->id, 'pc_name' => 'ARCHIVED-PC'])->delete();
+    PcUnit::factory()->create(['room_id' => Room::factory()->create()->id, 'pc_name' => 'ELSEWHERE-PC']);
+
+    $response = $this->actingAs(userWithRole('administrator'))->getJson(($this->url)($this->room->uuid))->assertOk();
+
+    $response->assertJsonCount(1, 'data.unplaced')
+        ->assertJsonPath('data.unplaced.0.id', $waiting->uuid)
+        ->assertJsonPath('data.unplaced.0.name', 'WAITING-PC')
+        ->assertJsonPath('data.unplaced.0.status', [
+            'value' => 'offline', 'label' => PcStatus::Offline->label(), 'tone' => PcStatus::Offline->tone(),
+        ])
+        ->assertJsonPath('data.unplaced_count', 1);
+
+    expect(array_keys($response->json('data.unplaced.0')))->toBe(['id', 'name', 'unit_code', 'status'])
+        ->and($response->getContent())
+        ->not->toContain('ARCHIVED-PC')
+        ->not->toContain('ELSEWHERE-PC')
+        ->not->toContain((string) $waiting->serial_number);
+});
+
+it('tells an Administrator the plan is editable, with the snap default', function (): void {
+    $this->actingAs(userWithRole('administrator'))->getJson(($this->url)($this->room->uuid))
+        ->assertOk()
+        ->assertJsonPath('data.editor.can_edit', true)
+        ->assertJsonPath('data.editor.snap_to_grid', true);
+});
+
+it('offers no editor when the room has no active layout', function (): void {
+    $this->layout->update(['is_active' => false]);
+
+    $this->actingAs(userWithRole('administrator'))->getJson(($this->url)($this->room->uuid))
+        ->assertOk()
+        ->assertJsonPath('data.editor.can_edit', false);
+});
+
 it('counts live PC units that have no position yet', function (): void {
     PcUnit::factory()->count(2)->create(['room_id' => $this->room->id]);
     PcUnit::factory()->create(['room_id' => $this->room->id])->delete();
@@ -275,10 +312,11 @@ it('exposes a narrow payload with no numeric ids and no register data', function
     $response = $this->actingAs(userWithRole('administrator'))->getJson(($this->url)($this->room->uuid))->assertOk();
     $data = $response->json('data');
 
-    expect(array_keys($data))->toBe(['room', 'layout', 'pcs', 'unplaced_count'])
+    expect(array_keys($data))->toBe(['room', 'layout', 'pcs', 'unplaced', 'unplaced_count', 'editor'])
         ->and(array_keys($data['room']))->toBe(['id', 'name', 'code', 'floor', 'building'])
         ->and(array_keys($data['layout']))->toBe(['version', 'width', 'height', 'grid_size'])
-        ->and(array_keys($data['pcs'][0]))->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index']);
+        ->and(array_keys($data['pcs'][0]))->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index'])
+        ->and(array_keys($data['editor']))->toBe(['can_edit', 'snap_to_grid']);
 
     $encoded = (string) $response->getContent();
 

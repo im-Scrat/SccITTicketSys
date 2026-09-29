@@ -9,10 +9,11 @@ use App\Models\FloorPlanPosition;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Read-model assembly for the floor-plan map (SDD §25). Read-only: nothing here
- * creates, moves or activates anything.
+ * creates, moves or activates anything — placement is `PlacePcUnit`.
  *
  * Authorization, room resolution and the active-layout lookup are all
  * {@see RoomLayoutService}'s — this class adds no second copy of that logic. It
@@ -21,7 +22,10 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
  */
 class FloorPlanService
 {
-    public function __construct(private readonly RoomLayoutService $layouts) {}
+    public function __construct(
+        private readonly RoomLayoutService $layouts,
+        private readonly FloorPlanDefaults $defaults,
+    ) {}
 
     /**
      * The active layout of a room and the PC units placed on it.
@@ -57,6 +61,27 @@ class FloorPlanService
             ->orderBy('id')
             ->get();
 
-        return new RoomPlan($room, $layout, $positions, max(0, $liveUnits - $positions->count()));
+        // The units an editor could still place: live in this room, with no
+        // trusted position on this layout. Same room and soft-delete scoping as
+        // the positions above, so nothing from outside the room can appear.
+        $unplaced = $room->pcUnits()
+            ->whereNotIn('id', $positions->pluck('pc_unit_id'))
+            ->orderBy('pc_name')
+            ->orderBy('id')
+            ->get();
+
+        return new RoomPlan(
+            $room,
+            $layout,
+            $positions,
+            $unplaced->count(),
+            $unplaced,
+            // The same policy ability the write route and `PlacePcUnit` check,
+            // so the editor is offered exactly when a write would be accepted.
+            // `activeLayout()` only ever returns an active layout, which is the
+            // other half of "editable".
+            Gate::forUser($actor)->allows('manage', FloorPlanPosition::class),
+            $this->defaults->snapToGrid(),
+        );
     }
 }

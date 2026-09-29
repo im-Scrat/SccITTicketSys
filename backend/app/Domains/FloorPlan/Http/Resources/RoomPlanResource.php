@@ -6,6 +6,7 @@ namespace App\Domains\FloorPlan\Http\Resources;
 
 use App\Domains\FloorPlan\DTOs\RoomPlan;
 use App\Models\FloorPlanPosition;
+use App\Models\PcUnit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -50,23 +51,32 @@ class RoomPlanResource extends JsonResource
                 'grid_size' => $layout->grid_size,
             ],
             'pcs' => $plan->positions
-                ->map(fn (FloorPlanPosition $position): array => [
-                    'id' => $position->pcUnit->uuid,
-                    'name' => $position->pcUnit->pc_name,
-                    'unit_code' => $position->pcUnit->unit_code,
+                ->map(fn (FloorPlanPosition $position): array => (new FloorPlanPcResource($position))->toArray($request))
+                ->values()
+                ->all(),
+            // Units in the room with no place on this layout yet: the same
+            // narrow identity-and-status shape as a placed unit, minus the
+            // coordinates they do not have.
+            'unplaced' => $plan->unplaced
+                ->map(fn (PcUnit $pcUnit): array => [
+                    'id' => $pcUnit->uuid,
+                    'name' => $pcUnit->pc_name,
+                    'unit_code' => $pcUnit->unit_code,
                     'status' => [
-                        'value' => $position->pcUnit->status->value,
-                        'label' => $position->pcUnit->status->label(),
-                        'tone' => $position->pcUnit->status->tone(),
+                        'value' => $pcUnit->status->value,
+                        'label' => $pcUnit->status->label(),
+                        'tone' => $pcUnit->status->tone(),
                     ],
-                    'x' => (float) $position->pos_x,
-                    'y' => (float) $position->pos_y,
-                    'rotation' => (float) $position->rotation,
-                    'z_index' => $position->z_index,
                 ])
                 ->values()
                 ->all(),
             'unplaced_count' => $plan->unplacedCount,
+            // What the client may offer. A courtesy, not a control: every
+            // write is authorized again by the route gate and `PlacePcUnit`.
+            'editor' => [
+                'can_edit' => $plan->canEdit,
+                'snap_to_grid' => $plan->snapToGrid,
+            ],
         ];
     }
 }

@@ -1,4 +1,4 @@
-import type { PcStatus, PcStatusValue, PlacedPc, RoomPlan, Tone } from '../types'
+import type { PcStatus, PcStatusValue, PlacedPc, RoomPlan, Tone, UnplacedPc } from '../types'
 
 /**
  * Test data shaped exactly like the API payload. The label and tone pairs are
@@ -49,8 +49,20 @@ export function roomPlan(overrides: Partial<RoomPlan> = {}): RoomPlan {
     },
     layout: { version: 1, width: 1000, height: 600, grid_size: 20 },
     pcs: ALL_STATUS_VALUES.map((value, i) => pc(i + 1, value)),
+    unplaced: [],
     unplaced_count: 0,
+    editor: { can_edit: false, snap_to_grid: true },
     ...overrides,
+  }
+}
+
+/** A unit of the room that has no position yet. */
+export function unplacedPc(index: number, value: PcStatusValue = 'available'): UnplacedPc {
+  return {
+    id: `unplaced-uuid-${index}`,
+    name: `PC-U${index}`,
+    unit_code: `LAB-U${index}`,
+    status: STATUSES[value],
   }
 }
 

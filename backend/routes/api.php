@@ -15,6 +15,7 @@ use App\Domains\Assets\Http\Controllers\Admin\QrCodeController;
 use App\Domains\Assets\Http\Controllers\AssetLookupController;
 use App\Domains\Assets\Http\Controllers\QrScanController;
 use App\Domains\FloorPlan\Http\Controllers\Admin\FloorPlanController;
+use App\Domains\FloorPlan\Http\Controllers\Admin\FloorPlanPositionController;
 use App\Domains\Identity\Http\Controllers\Admin\RegistrationReviewController;
 use App\Domains\Identity\Http\Controllers\Admin\RoleController;
 use App\Domains\Identity\Http\Controllers\Admin\UserActionController;
@@ -61,6 +62,7 @@ use App\Domains\WorkSupport\Http\Controllers\WorkSupportRequestController;
 use App\Http\Controllers\BroadcastingConfigController;
 use App\Http\Controllers\HealthController;
 use App\Http\Middleware\AuthenticateSession;
+use App\Models\FloorPlanPosition;
 use App\Models\RoomLayout;
 use Illuminate\Support\Facades\Route;
 
@@ -680,7 +682,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         /*
         |------------------------------------------------------------------
-        | Interactive Floor Plan (Phase 2.8 / WP-C) — ADMINISTRATOR ONLY, read-only
+        | Interactive Floor Plan (Phase 2.8 / WP-C map, WP-D placement) —
+        | ADMINISTRATOR ONLY
         |------------------------------------------------------------------
         | Gated by the **policy** ability `viewAny` on RoomLayout, never by
         | `can:floorplan.view`. `Gate::before` answers any ability whose string is
@@ -697,9 +700,27 @@ Route::middleware('auth:sanctum')->group(function () {
         */
         Route::middleware(['password.current', 'can:viewAny,'.RoomLayout::class])
             ->prefix('admin')
-            ->whereUuid('room')
+            // One `where*` call per group: a second one on the registrar
+            // *replaces* the first rather than merging, so per-route patterns
+            // (like `version` below) go on the route itself.
+            ->whereUuid(['room', 'pcUnit'])
             ->group(function () {
                 Route::get('/floor-plan/rooms/{room}', [FloorPlanController::class, 'showRoom']);
+
+                /*
+                | Placing / moving a PC unit (WP-D) — FR-FP-003/009.
+                |
+                | Writes additionally need the policy ability `manage` on
+                | FloorPlanPosition — again never `can:floorplan.manage`. The
+                | layout is addressed as (room, version) through its room, and
+                | the unit through the layout's room, all resolved after
+                | authorization inside `PlacePcUnit`; that scoping is what keeps
+                | this route from ever re-homing a machine (an asset transfer).
+                */
+                Route::patch(
+                    '/floor-plan/rooms/{room}/layouts/{version}/positions/{pcUnit}',
+                    [FloorPlanPositionController::class, 'update'],
+                )->whereNumber('version')->middleware('can:manage,'.FloorPlanPosition::class);
             });
 
         /*

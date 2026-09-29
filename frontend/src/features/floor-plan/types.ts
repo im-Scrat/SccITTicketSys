@@ -31,11 +31,29 @@ export interface PlacedPc {
   z_index: number
 }
 
+/** A unit of the room with no position on this layout yet. */
+export interface UnplacedPc {
+  id: string
+  name: string
+  unit_code: string
+  status: PcStatus
+}
+
 export interface PlanLayout {
   version: number
   width: number
   height: number
   grid_size: number
+}
+
+/**
+ * What the client may offer. A courtesy only: every write is authorized again
+ * on the server, which answers a refused edit with a 403 whatever this says.
+ */
+export interface PlanEditor {
+  can_edit: boolean
+  /** The `floor_plan.snap_to_grid` default. */
+  snap_to_grid: boolean
 }
 
 export interface RoomPlan {
@@ -49,6 +67,15 @@ export interface RoomPlan {
   /** Null when the room has no active layout yet. */
   layout: PlanLayout | null
   pcs: PlacedPc[]
+  unplaced: UnplacedPc[]
   /** Live PC units in the room that have no position on this layout. */
   unplaced_count: number
+  editor: PlanEditor
+}
+
+/** Where a unit was aimed. The server snaps (unless `snap` is false), clamps and stores. */
+export interface PlacementRequest {
+  x: number
+  y: number
+  snap: boolean
 }

@@ -49,6 +49,20 @@ class FloorPlanRuleViolation extends RuntimeException
         );
     }
 
+    /**
+     * Two machines cannot stand on the same spot: the second would be drawn
+     * exactly over the first and vanish from the map, and from the keyboard
+     * user's list of focusable units it would read as a duplicate.
+     */
+    public static function positionOccupied(): self
+    {
+        return new self(
+            'Another PC unit already stands at that position.',
+            'position_occupied',
+            422,
+        );
+    }
+
     public function errorCode(): string
     {
         return $this->errorCode;
