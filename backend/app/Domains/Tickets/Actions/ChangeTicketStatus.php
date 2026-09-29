@@ -6,6 +6,7 @@ namespace App\Domains\Tickets\Actions;
 
 use App\Domains\Tickets\Services\TicketLifecycle;
 use App\Enums\ActivityAction;
+use App\Enums\TicketUpdateType;
 use App\Models\Ticket;
 use App\Models\TicketStatus;
 use App\Models\User;
@@ -34,6 +35,8 @@ class ChangeTicketStatus
         Request $request,
         ?string $remarks = null,
     ): Ticket {
+        $selfResolving = $this->isReporterSelfResolving($ticket, $target, $actor);
+
         return $this->lifecycle->transition(
             $ticket,
             $target,
@@ -41,7 +44,21 @@ class ChangeTicketStatus
             $remarks,
             $request,
             $this->actionFor($ticket, $target, $actor),
+            $selfResolving ? TicketUpdateType::AiAnalysis : null,
         );
+    }
+
+    /**
+     * WP-J — the reporter's FIXED outcome: their own ticket, straight from
+     * `open` to `resolved`, which only a reporter may do (TicketLifecycle).
+     * Read before the transition runs, so `status` is still the *from* state.
+     */
+    private function isReporterSelfResolving(Ticket $ticket, TicketStatus $target, ?User $actor): bool
+    {
+        return $actor !== null
+            && $ticket->reporter_id === $actor->getKey()
+            && $target->slug === 'resolved'
+            && $ticket->status?->slug === 'open';
     }
 
     /**
@@ -64,6 +81,9 @@ class ChangeTicketStatus
             $target->slug === 'open' && $ticket->status?->slug === 'resolved' => ActivityAction::TicketReopened,
             $target->slug === 'in-progress' => ActivityAction::TicketWorkStarted,
             $target->slug === 'on-hold' => ActivityAction::TicketWorkHeld,
+            // WP-J: must precede the generic `resolved` arm — a reporter fixing
+            // their own fault is not a technician's completed work.
+            $this->isReporterSelfResolving($ticket, $target, $actor) => ActivityAction::TicketFixedByReporter,
             $target->slug === 'resolved' => ActivityAction::TicketWorkCompleted,
             default => ActivityAction::TicketStatusChanged,
         };

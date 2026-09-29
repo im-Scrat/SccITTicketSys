@@ -67,6 +67,19 @@ class TicketLifecycle
         'open' => [
             'assigned' => [self::ACTOR_ADMIN],
             'in-progress' => [self::ACTOR_ADMIN],
+            /*
+             * WP-J — the reporter's FIXED outcome after trying the AI's
+             * recommendations. The one deliberate departure from §6.1 of the
+             * Phase 2.6 plan: that map had no path from `open` to `resolved`
+             * for anyone. It lands on `resolved` rather than `closed` so the
+             * existing FR-TKT-016 machinery applies unchanged — the reporter can
+             * still reopen, and CloseStaleResolvedTickets still auto-closes it
+             * after `tickets.auto_close_days`. Reporter-only: a technician or
+             * administrator resolving a ticket goes through `in-progress` as
+             * before. The AI itself is never an actor here — only a human
+             * reporter's explicit request reaches this row.
+             */
+            'resolved' => [self::ACTOR_REPORTER],
             'cancelled' => [self::ACTOR_ADMIN, self::ACTOR_REPORTER],
             'closed' => [self::ACTOR_ADMIN],
         ],
@@ -113,6 +126,12 @@ class TicketLifecycle
     /**
      * Move a ticket to a new status, recording history and audit atomically.
      *
+     * `$updateType` refines the `ticket_updates` row the same way `$action`
+     * refines the audit verb — WP-J passes `AiAnalysis` for a reporter's FIXED
+     * outcome, so the timeline row says *why* the ticket moved, not just that
+     * it did. Omitted, it is `StatusChange`, exactly as before for every
+     * existing caller.
+     *
      * @throws ValidationException when the transition is illegal, the actor is
      *                             not entitled to it, or the reopen window has
      *                             closed
@@ -124,6 +143,7 @@ class TicketLifecycle
         ?string $remarks = null,
         ?Request $request = null,
         ?ActivityAction $action = null,
+        ?TicketUpdateType $updateType = null,
     ): Ticket {
         $ticket->loadMissing('status');
         $from = $ticket->status;
@@ -136,7 +156,7 @@ class TicketLifecycle
 
         $this->assertTransitionAllowed($ticket, $from, $target, $actor);
 
-        DB::transaction(function () use ($ticket, $from, $target, $actor, $remarks): void {
+        DB::transaction(function () use ($ticket, $from, $target, $actor, $remarks, $updateType): void {
             $ticket->forceFill([
                 'current_status_id' => $target->getKey(),
                 'updated_by' => $actor?->getKey(),
@@ -155,7 +175,7 @@ class TicketLifecycle
             TicketUpdate::query()->create([
                 'ticket_id' => $ticket->getKey(),
                 'user_id' => $actor?->getKey(),
-                'update_type' => TicketUpdateType::StatusChange->value,
+                'update_type' => ($updateType ?? TicketUpdateType::StatusChange)->value,
                 'body' => $remarks,
                 'metadata' => [
                     'from' => $from?->slug,

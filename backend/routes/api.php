@@ -652,6 +652,11 @@ Route::middleware('auth:sanctum')->group(function () {
                     // actor may make, answering 422 with the reachable set.
                     Route::put('/tickets/{ticket:uuid}/status', [TicketController::class, 'changeStatus']);
 
+                    // WP-J NOT FIXED. Not a transition (the ticket stays open),
+                    // so it has its own route; FIXED is the ordinary
+                    // open → resolved move through /status above.
+                    Route::post('/tickets/{ticket:uuid}/not-fixed', [TicketController::class, 'reportNotFixed']);
+
                     Route::get('/tickets/{ticket:uuid}/attachments', [TicketParticipationController::class, 'attachments']);
                     Route::get('/tickets/attachments/{attachment:uuid}', [TicketParticipationController::class, 'downloadAttachment']);
 

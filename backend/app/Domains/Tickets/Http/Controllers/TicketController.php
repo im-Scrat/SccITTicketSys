@@ -6,9 +6,11 @@ namespace App\Domains\Tickets\Http\Controllers;
 
 use App\Domains\Tickets\Actions\ChangeTicketStatus;
 use App\Domains\Tickets\Actions\CreateTicket;
+use App\Domains\Tickets\Actions\ReportTicketNotFixed;
 use App\Domains\Tickets\Actions\UpdateTicket;
 use App\Domains\Tickets\Http\Requests\ChangeTicketStatusRequest;
 use App\Domains\Tickets\Http\Requests\IndexTicketsRequest;
+use App\Domains\Tickets\Http\Requests\ReportTicketNotFixedRequest;
 use App\Domains\Tickets\Http\Requests\StoreTicketRequest;
 use App\Domains\Tickets\Http\Requests\UpdateTicketRequest;
 use App\Domains\Tickets\Http\Resources\TicketDetailResource;
@@ -143,6 +145,31 @@ class TicketController extends Controller
     }
 
     /**
+     * WP-J NOT FIXED — the reporter tried the AI's recommendations and the
+     * fault remains. FIXED needs no endpoint of its own: it is the ordinary
+     * `open → resolved` move through {@see changeStatus()}.
+     */
+    public function reportNotFixed(
+        ReportTicketNotFixedRequest $request,
+        Ticket $ticket,
+        ReportTicketNotFixed $action,
+    ): JsonResponse {
+        /** @var User $actor */
+        $actor = $request->user();
+
+        $ticket = $action->handle($ticket, $actor, $request, $request->validated('remarks'));
+
+        $ticket->load(['status', 'priority', 'category', 'reporter', 'assignedTechnician']);
+
+        return (new TicketDetailResource($ticket))
+            ->additional([
+                'message' => 'Thanks — the ticket stays open and is back in the queue for a technician.',
+                'meta' => ['transitions' => $this->lifecycle->availableTransitions($ticket, $actor)],
+            ])
+            ->response();
+    }
+
+    /**
      * Flag which tickets the caller has already voted on.
      *
      * Done as one `whereIn` for the whole page rather than a per-row `exists`,
@@ -185,6 +212,9 @@ class TicketController extends Controller
             'confirm_resolution' => $user->can('confirmResolution', $ticket),
             'reopen' => $user->can('reopen', $ticket) && $this->lifecycle->withinReopenWindow($ticket),
             'cancel' => $user->can('cancelOwn', $ticket),
+            // WP-J — the reporter's outcome after trying the AI's recommendations.
+            'mark_fixed' => $user->can('markFixed', $ticket),
+            'report_not_fixed' => $user->can('reportNotFixed', $ticket),
             'assign' => $user->can('assign', $ticket),
             'change_priority' => $user->can('changePriority', $ticket),
         ];

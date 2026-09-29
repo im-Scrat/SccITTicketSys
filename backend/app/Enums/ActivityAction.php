@@ -118,6 +118,16 @@ enum ActivityAction: string
     // PII-minimization posture the AI work packages are held to generally.
     case TicketAiAnalyzed = 'ticket_ai_analyzed';
 
+    // WP-J — the reporter's own FIXED/NOT-FIXED outcome after trying the
+    // AI's recommendations. Distinct from TicketWorkCompleted (a
+    // technician's physical repair) and TicketStatusChanged (everything
+    // else): a reader of the timeline should be able to tell "the reporter
+    // fixed this themselves" apart from "a technician did", and "the
+    // reporter tried and it didn't work" is not a status change at all — the
+    // status stays open, only the escalation state does.
+    case TicketFixedByReporter = 'ticket_fixed_by_reporter';
+    case TicketNotFixedByReporter = 'ticket_not_fixed_by_reporter';
+
     // Phase 2.7 — Maintenance (SRS FR-MNT). The activity_logs subject morph
     // points at the MaintenanceRecord, so the timeline renders "Work started"
     // from the subject type plus this label. There is deliberately no
@@ -277,6 +287,8 @@ enum ActivityAction: string
             self::TicketAttachmentAdded => 'Attachment added',
             self::TicketAttachmentRemoved => 'Attachment removed',
             self::TicketAiAnalyzed => 'AI pre-screening completed',
+            self::TicketFixedByReporter => 'Marked fixed by reporter',
+            self::TicketNotFixedByReporter => 'Not fixed by reporter — escalated',
             self::MaintenanceCreated => 'Created',
             self::MaintenanceUpdated => 'Updated',
             self::MaintenanceRescheduled => 'Rescheduled',

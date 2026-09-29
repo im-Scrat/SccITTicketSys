@@ -169,6 +169,28 @@ class TicketPolicy
             && $ticket->assigned_technician_id === null;
     }
 
+    /**
+     * WP-J FIXED — the reporter resolved their own fault after trying the AI's
+     * recommendations. Only from `open`: once a technician is on it the
+     * ticket has moved on, and the ordinary resolution path applies. The move
+     * itself goes through `PUT /tickets/{uuid}/status`, so `TicketLifecycle`
+     * still re-checks it; this ability is what the client reads to offer it.
+     */
+    public function markFixed(User $actor, Ticket $ticket): bool
+    {
+        return $this->isReporterOf($actor, $ticket) && $ticket->status?->slug === 'open';
+    }
+
+    /**
+     * WP-J NOT FIXED — the reporter tried the AI's recommendations and they did
+     * not work. Not a status change (the ticket stays `open`), so it has its
+     * own endpoint and this ability is its real gate, not only a UI hint.
+     */
+    public function reportNotFixed(User $actor, Ticket $ticket): bool
+    {
+        return $this->isReporterOf($actor, $ticket) && $ticket->status?->slug === 'open';
+    }
+
     /* ---------------------------------------------- participation & files */
 
     public function comment(User $actor, Ticket $ticket): bool
