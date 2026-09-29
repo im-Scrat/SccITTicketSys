@@ -9,6 +9,7 @@ import {
   deleteComment,
   markDuplicate,
   postComment,
+  reportTicketNotFixed,
   respondToAssignment,
   type TicketPayload,
   toggleVote,
@@ -52,6 +53,15 @@ export function useChangeTicketStatus(id: string) {
   return useMutation({
     mutationFn: ({ status, remarks }: { status: string; remarks?: string }) =>
       changeTicketStatus(id, status, remarks),
+    onSuccess: () => void invalidate(),
+  })
+}
+
+/** WP-J NOT FIXED — see `reportTicketNotFixed`. */
+export function useReportNotFixed(id: string) {
+  const invalidate = useInvalidateTickets()
+  return useMutation({
+    mutationFn: ({ remarks }: { remarks?: string }) => reportTicketNotFixed(id, remarks),
     onSuccess: () => void invalidate(),
   })
 }

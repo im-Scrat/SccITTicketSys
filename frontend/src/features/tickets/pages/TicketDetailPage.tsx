@@ -5,6 +5,7 @@ import { Alert, Badge, Button, PageLoader, Tabs } from '@/components/ui'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { formatRelative } from '@/lib/datetime'
+import { TicketAiTroubleshooting } from '../components/TicketAiTroubleshooting'
 import { TicketAttachments } from '../components/TicketAttachments'
 import { TicketPriorityBadge, TicketStatusBadge } from '../components/TicketBadges'
 import { TicketComments } from '../components/TicketComments'
@@ -12,7 +13,7 @@ import { TicketEditDrawer } from '../components/TicketEditDrawer'
 import { TicketStatusActions } from '../components/TicketStatusActions'
 import { TicketSummary } from '../components/TicketSummary'
 import { VoteButton } from '../components/VoteButton'
-import { useTicket } from '../hooks/queries'
+import { useTicket, useTicketAiAnalysis } from '../hooks/queries'
 import { isFullTicket, type TicketCard } from '../types'
 
 /**
@@ -35,6 +36,9 @@ export default function TicketDetailPage() {
   const navigate = useNavigate()
   const { hasPermission } = useAuth()
   const { data, isLoading, isError, error } = useTicket(id)
+  // Only the full record's viewers may read the analysis (the server enforces
+  // it; this just avoids asking on a community card).
+  const ai = useTicketAiAnalysis(id, Boolean(data && isFullTicket(data)))
 
   const [tab, setTab] = useState('details')
   const [editing, setEditing] = useState(false)
@@ -74,7 +78,13 @@ export default function TicketDetailPage() {
   const ticket = data.data
   const meta = data.meta ?? {}
   const can = meta.can
-  const transitions = meta.transitions ?? []
+  // When the AI panel offers "This fixed it", it owns the reporter's
+  // open → resolved move; listing it again below would be two buttons for one
+  // action. Without an analysis, the generic list keeps it (labelled below).
+  const panelOffersFixed = ai.data?.meta.available === true && can?.mark_fixed === true
+  const transitions = (meta.transitions ?? []).filter(
+    (transition) => !(panelOffersFixed && transition.value === 'resolved'),
+  )
 
   const tabs = [
     { value: 'details', label: 'Details' },
@@ -107,6 +117,20 @@ export default function TicketDetailPage() {
         </div>
       </div>
 
+      <TicketAiTroubleshooting
+        ticketId={ticket.id}
+        statusSlug={ticket.status.slug ?? ''}
+        hasPcUnit={ticket.pc_unit !== null}
+        analysis={ai.data}
+        analysisUpdatedAt={ai.dataUpdatedAt}
+        isError={ai.isError}
+        error={ai.error}
+        onRetry={() => void ai.refetch()}
+        canMarkFixed={can?.mark_fixed ?? false}
+        canReportNotFixed={can?.report_not_fixed ?? false}
+        reopenWindowDays={meta.reopen_window_days}
+      />
+
       {transitions.length > 0 && (
         <section className="flex flex-col gap-4 rounded-lg border-2 border-border bg-surface p-6">
           <h2 className="text-base font-bold text-ink-strong">What would you like to do?</h2>
@@ -122,6 +146,8 @@ export default function TicketDetailPage() {
               closed: 'Confirm this is fixed',
               open: 'It is still not fixed — reopen',
               cancelled: 'Withdraw this report',
+              // WP-J FIXED, when there is no AI panel to offer it.
+              resolved: 'I fixed it myself',
             }}
             hint={
               meta.reopen_window_days !== undefined

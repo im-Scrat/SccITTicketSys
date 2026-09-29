@@ -177,7 +177,49 @@ export interface TicketAbilities {
   cancel: boolean
   assign: boolean
   change_priority: boolean
+  /** WP-J — the reporter's own open ticket: resolve it after trying the AI's steps. */
+  mark_fixed?: boolean
+  /** WP-J — the reporter tried the steps and it still isn't working (once per open period). */
+  report_not_fixed?: boolean
 }
+
+/** One ordered step from the AI pre-screening (WP-I). */
+export interface AiRecommendationStep {
+  step: number
+  text: string
+  is_completed: boolean
+}
+
+/**
+ * The AI pre-screening for one ticket (WP-I) — always advisory.
+ *
+ * `meets_confidence_threshold` is null when no threshold is configured or the
+ * model gave no confidence; the client treats null as "not known to meet it"
+ * and never presents the analysis as fact on that basis.
+ */
+export interface TicketAiAnalysis {
+  ai_generated: true
+  advisory: true
+  confidence: number | null
+  confidence_threshold: number | null
+  meets_confidence_threshold: boolean | null
+  problem_category: string | null
+  severity: string | null
+  estimated_resolution_minutes: number | null
+  technician_required: boolean
+  summary: string | null
+  recommendations?: AiRecommendationStep[]
+  analyzed_at: string | null
+}
+
+export type ReporterOutcome = 'fixed' | 'not_fixed'
+
+export type TicketAiAnalysisEnvelope =
+  | { data: null; meta: { available: false } }
+  | {
+      data: TicketAiAnalysis
+      meta: { available: true; reporter_outcome: ReporterOutcome | null }
+    }
 
 export interface AssignmentMeta {
   status: string

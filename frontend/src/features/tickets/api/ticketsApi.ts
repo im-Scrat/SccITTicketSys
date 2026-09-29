@@ -2,6 +2,7 @@ import { api } from '@/services/api'
 import type {
   CursorPaginated,
   Paginated,
+  TicketAiAnalysisEnvelope,
   TicketAttachment,
   TicketCard,
   TicketComment,
@@ -107,6 +108,33 @@ export async function changeTicketStatus(
   remarks?: string,
 ): Promise<TicketDetailEnvelope> {
   const { data } = await api.put<TicketDetailEnvelope>(`/tickets/${id}/status`, { status, remarks })
+  return data
+}
+
+/* ------------------------------------------------ AI troubleshooting (WP-I/J) */
+
+/**
+ * The AI pre-screening for one ticket. Full-visibility callers only (the
+ * reporter, the assigned technician, an administrator) — anyone else is a 403.
+ * `meta.available` is false until the background analysis has run, and stays
+ * false if AI is not configured.
+ */
+export async function fetchTicketAiAnalysis(id: string): Promise<TicketAiAnalysisEnvelope> {
+  const { data } = await api.get<TicketAiAnalysisEnvelope>(`/tickets/${id}/ai-analysis`)
+  return data
+}
+
+/**
+ * NOT FIXED — the reporter tried the suggested steps and the fault remains.
+ * Not a status change: the ticket stays open and returns to the unassigned
+ * queue. FIXED needs no function of its own; it is `changeTicketStatus(id,
+ * 'resolved')`.
+ */
+export async function reportTicketNotFixed(
+  id: string,
+  remarks?: string,
+): Promise<TicketDetailEnvelope> {
+  const { data } = await api.post<TicketDetailEnvelope>(`/tickets/${id}/not-fixed`, { remarks })
   return data
 }
 

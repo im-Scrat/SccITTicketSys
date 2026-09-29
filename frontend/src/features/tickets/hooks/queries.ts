@@ -1,4 +1,5 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import {
   fetchAdminTicket,
   fetchAssignedTicket,
@@ -10,6 +11,7 @@ import {
   fetchFeed,
   fetchMyTickets,
   fetchTicket,
+  fetchTicketAiAnalysis,
   fetchTicketDashboard,
   fetchTicketDirectory,
   fetchTicketOptions,
@@ -32,6 +34,9 @@ export const ticketsKeys = {
   history: (params: TicketParams) => ['tickets', 'history', params] as const,
   comments: (id: string, page: number) => ['tickets', 'comments', id, page] as const,
   attachments: (id: string) => ['tickets', 'attachments', id] as const,
+  // Under the `tickets` namespace on purpose: every ticket write invalidates it,
+  // so FIXED / NOT FIXED refresh the outcome shown here with no extra wiring.
+  aiAnalysis: (id: string) => ['tickets', 'ai-analysis', id] as const,
 }
 
 /** Vocabularies change rarely; hold them for the session. */
@@ -159,5 +164,26 @@ export function useTicketAttachments(id: string | undefined, enabled = true) {
     queryKey: ticketsKeys.attachments(id ?? ''),
     queryFn: () => fetchAttachments(id as string),
     enabled: Boolean(id) && enabled,
+  })
+}
+
+/**
+ * The AI pre-screening for one ticket (WP-I), shown on the reporter's page.
+ *
+ * Frugal by design: this endpoint shares the 20-per-hour `tickets` rate limiter
+ * (the WP-I mandate), so it does not refetch on window focus and holds for five
+ * minutes. It still refreshes immediately after FIXED / NOT FIXED, because those
+ * writes invalidate the whole `tickets` namespace. A refusal (403/404) or a
+ * spent limit (429) will not change on a retry, so none is attempted.
+ */
+export function useTicketAiAnalysis(id: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ticketsKeys.aiAnalysis(id ?? ''),
+    queryFn: () => fetchTicketAiAnalysis(id as string),
+    enabled: Boolean(id) && enabled,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: (count, error) =>
+      count < 1 && !(isAxiosError(error) && [403, 404, 429].includes(error.response?.status ?? 0)),
   })
 }
