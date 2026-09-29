@@ -11,6 +11,18 @@ const get = vi.fn()
 
 vi.mock('@/services/api', () => ({ api: { get: (...args: unknown[]) => get(...args) } }))
 
+// WP-E: the page subscribes to the room's Reverb channel on mount. Stubbed so
+// that never resolves into a real socket (or a call through the mocked `api`
+// above, which would double-count `get`) — realtime reconciliation itself is
+// covered in useFloorPlanChannel.test.tsx.
+vi.mock('@/services/echo', () => {
+  function stubChannel(): { listen: () => unknown } {
+    const channel = { listen: () => channel }
+    return channel
+  }
+  return { getEcho: () => Promise.resolve({ private: stubChannel, leave: () => undefined }) }
+})
+
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 

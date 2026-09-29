@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Maintenance\Services;
 
+use App\Domains\FloorPlan\Events\PcStatusChanged;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Domains\Tickets\Services\TicketLifecycle;
 use App\Enums\ActivityAction;
@@ -110,13 +111,16 @@ class MaintenanceLifecycle
             $this->assertCompletable($record, $actor, $payload);
         }
 
-        return DB::transaction(function () use ($record, $from, $target, $actor, $payload, $request): MaintenanceRecord {
+        $pcEffect = null;
+
+        $updated = DB::transaction(function () use ($record, $from, $target, $actor, $payload, $request, &$pcEffect): MaintenanceRecord {
             $changes = $this->stampsFor($record, $target, $payload);
 
             // The PC effect is computed *inside* the transaction and applied to
             // the same rows the record update touches, so a failure anywhere
             // leaves neither the record nor the machine half-moved.
             $pcChanges = $this->applyPcUnitEffect($record, $target);
+            $pcEffect = $pcChanges['pc_unit'];
 
             $record->forceFill([...$changes, ...$pcChanges['record'], 'updated_by' => $actor->getKey()])->save();
 
@@ -137,6 +141,30 @@ class MaintenanceLifecycle
 
             return $record->refresh();
         });
+
+        /*
+         * WP-E — the floor-plan notification seam (FR-FP-007). Outside the
+         * transaction and after it has committed, same convention as
+         * TicketLifecycle::transition. `$pcEffect` is non-null only when
+         * `applyPcUnitEffect` actually moved the machine's status (see its own
+         * docblock); a cancelled or completed record whose PC was already
+         * archived, or a target that touches nothing, dispatches no event.
+         */
+        if ($pcEffect !== null) {
+            $pcUnit = $updated->pcUnit?->fresh('room');
+
+            if ($pcUnit instanceof PcUnit && $pcUnit->room !== null) {
+                PcStatusChanged::dispatch(
+                    $pcUnit->room->uuid,
+                    $pcUnit->uuid,
+                    $pcUnit->pc_name,
+                    $pcUnit->unit_code,
+                    ['value' => $pcUnit->status->value, 'label' => $pcUnit->status->label(), 'tone' => $pcUnit->status->tone()],
+                );
+            }
+        }
+
+        return $updated;
     }
 
     /**

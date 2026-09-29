@@ -97,6 +97,35 @@ export function withPlaced(plan: RoomPlan, placed: PlacedPc): RoomPlan {
   }
 }
 
+/**
+ * The plan with one unit's status updated in place — wherever it currently
+ * sits (placed or unplaced), leaving its position untouched. Used both by the
+ * WP-E broadcast reconciliation and available for a future direct fetch of
+ * the same shape, so a status merge is written once.
+ */
+export function withStatusChanged(
+  plan: RoomPlan,
+  changed: Pick<PlacedPc, 'id' | 'name' | 'unit_code' | 'status'>,
+): RoomPlan {
+  let touched = false
+
+  const pcs = plan.pcs.map((pc) => {
+    if (pc.id !== changed.id) return pc
+    touched = true
+    return { ...pc, name: changed.name, unit_code: changed.unit_code, status: changed.status }
+  })
+
+  const unplaced = plan.unplaced.map((pc) => {
+    if (pc.id !== changed.id) return pc
+    touched = true
+    return { ...pc, name: changed.name, unit_code: changed.unit_code, status: changed.status }
+  })
+
+  // The unit is neither placed nor unplaced on *this* layout (a different
+  // room, or a machine this viewer's plan never listed) — nothing to merge.
+  return touched ? { ...plan, pcs, unplaced } : plan
+}
+
 function withUnplaced(plan: RoomPlan, unit: UnplacedPc): RoomPlan {
   const pcs = plan.pcs.filter((pc) => pc.id !== unit.id)
   const unplaced = plan.unplaced.some((pc) => pc.id === unit.id)

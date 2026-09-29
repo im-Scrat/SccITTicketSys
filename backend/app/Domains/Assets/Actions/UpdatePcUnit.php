@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Assets\Actions;
 
 use App\Domains\Assets\Actions\Concerns\ResolvesAssetReferences;
+use App\Domains\FloorPlan\Events\PcStatusChanged;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Enums\ActivityAction;
 use App\Enums\PcCondition;
@@ -121,7 +122,26 @@ class UpdatePcUnit
             description: "PC unit {$pcUnit->unit_code} updated",
         );
 
-        return $pcUnit->refresh()->load(['room.floor.building', 'specification']);
+        $updated = $pcUnit->refresh()->load(['room.floor.building', 'specification']);
+
+        /*
+         * WP-E — the floor-plan notification seam (FR-FP-007). Outside the
+         * transaction and after it has committed, same convention as every
+         * other domain event here; only when `status` actually moved, and only
+         * to the unit's *current* room's channel — a machine with no room has
+         * no floor-plan viewer to tell.
+         */
+        if (array_key_exists('status', $changes) && $updated->room !== null) {
+            PcStatusChanged::dispatch(
+                $updated->room->uuid,
+                $updated->uuid,
+                $updated->pc_name,
+                $updated->unit_code,
+                ['value' => $updated->status->value, 'label' => $updated->status->label(), 'tone' => $updated->status->tone()],
+            );
+        }
+
+        return $updated;
     }
 
     private function stringify(mixed $value): ?string

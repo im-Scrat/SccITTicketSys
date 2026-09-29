@@ -26,6 +26,18 @@ vi.mock('@/services/api', () => ({
   },
 }))
 
+// WP-E: stub the realtime subscription every render of this page now opens,
+// so it never resolves through the mocked `api` above (double-counting `get`)
+// or attempts a real socket. Reconciliation itself is covered in
+// useFloorPlanChannel.test.tsx.
+vi.mock('@/services/echo', () => {
+  function stubChannel(): { listen: () => unknown } {
+    const channel = { listen: () => channel }
+    return channel
+  }
+  return { getEcho: () => Promise.resolve({ private: stubChannel, leave: () => undefined }) }
+})
+
 function editablePlan(overrides: Partial<RoomPlan> = {}): RoomPlan {
   return roomPlan({
     pcs: [pc(1, 'online', { x: 120, y: 80 }), pc(2, 'offline', { x: 400, y: 300 })],

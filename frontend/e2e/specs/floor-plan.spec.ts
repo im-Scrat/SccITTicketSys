@@ -276,6 +276,186 @@ test.describe('floor plan — administrator places units (WP-D)', () => {
   })
 })
 
+/**
+ * WP-E — real-time synchronization between two independently authenticated
+ * browsers, over the real stack: app -> Redis -> queue worker -> Reverb ->
+ * WebSocket, exactly the path WP-A's own two-browser proof travelled.
+ *
+ * "Two browsers" here is two independent Playwright `BrowserContext`s — each
+ * with its own cookie jar, page and WebSocket connection, signed in
+ * separately through the real `/sign-in` form. That is a stronger and more
+ * standard isolation boundary for this than two OS processes would be (no
+ * shared storage, no shared socket), and it is what a genuinely different
+ * browser window of the same administrator would look like. The floor plan is
+ * Administrator-only (D2), so both sides are the one seeded administrator
+ * account — two sessions of it, not a shared session.
+ *
+ * Every assertion below polls the live DOM (`expect(...).toHaveText` etc.,
+ * Playwright's built-in auto-waiting) and never calls `page.reload()` on the
+ * receiving side — a passing assertion is only possible if the update arrived
+ * over the socket, not from a fetch this test triggered.
+ */
+test.describe('floor plan — real-time synchronization (WP-E)', () => {
+  test('a position change made in one browser appears live in another, without a refresh', async ({
+    browser,
+  }) => {
+    const contextA = await browser.newContext()
+    const contextB = await browser.newContext()
+
+    try {
+      const pageA = await contextA.newPage()
+      const pageB = await contextB.newPage()
+
+      // Dev also opens a Vite HMR socket on this same origin; only the one at
+      // /reverb/app/ is Echo's, so frames are captured from that one alone.
+      const socketFramesB: unknown[] = []
+      let reverbSocketSeenB = false
+      pageB.on('websocket', (ws) => {
+        if (!ws.url().includes('/reverb/app/')) return
+        reverbSocketSeenB = true
+        ws.on('framereceived', (frame) => {
+          if (typeof frame.payload !== 'string') return
+          try {
+            socketFramesB.push(JSON.parse(frame.payload) as unknown)
+          } catch {
+            // Pusher's own ping/pong frames are not JSON; ignore them.
+          }
+        })
+      })
+
+      await signIn(pageA, 'administrator')
+      await signIn(pageB, 'administrator')
+      await Promise.all([goto(pageA, mapUrl()), goto(pageB, mapUrl())])
+
+      // Both pages render the same fixture unit before anything happens.
+      const nameA = new RegExp(`^${'E2E Fixture PC'},`)
+      await expect(pageA.getByRole('button', { name: nameA })).toBeVisible()
+      await expect(pageB.getByRole('button', { name: nameA })).toBeVisible()
+
+      // Confirm B actually opened the real Reverb socket and subscribed before
+      // A acts, so a later silent failure to deliver cannot be mistaken for
+      // "too soon".
+      await expect.poll(() => reverbSocketSeenB).toBe(true)
+      await expect
+        .poll(() =>
+          socketFramesB.some((frame) =>
+            isPusherEvent(frame, 'pusher_internal:subscription_succeeded'),
+          ),
+        )
+        .toBe(true)
+
+      const before = await labelPoint(pageA, 'E2E Fixture PC')
+      const nodeA = pageA.getByRole('button', { name: nameA })
+      // `page.mouse` works in viewport coordinates: a node below the fold
+      // would be "pressed" on whatever renders at that point instead.
+      await nodeA.scrollIntoViewIfNeeded()
+      const box = (await nodeA.boundingBox())!
+
+      const saved = pageA.waitForResponse(
+        (response) =>
+          response.request().method() === 'PATCH' && response.url().includes('/positions/'),
+      )
+      await pageA.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await pageA.mouse.down()
+      await pageA.mouse.move(box.x + box.width / 2 + 100, box.y + box.height / 2 + 60, { steps: 8 })
+      await pageA.mouse.up()
+      const response = await saved
+      const stored = ((await response.json()) as { data: { x: number; y: number } }).data
+
+      // B updates on its own — no navigation, no reload, from the socket alone.
+      await expect
+        .poll(async () => labelPoint(pageB, 'E2E Fixture PC'), { timeout: 10_000 })
+        .toEqual({ x: stored.x, y: stored.y })
+      await expect(pageB.getByTestId('floor-plan-announcer')).toContainText(
+        'E2E Fixture PC moved to',
+      )
+
+      // The actual frame carried exactly this move and nothing more.
+      const positionFrame = socketFramesB.find((frame) =>
+        isPusherEvent(frame, 'floor-plan.position-updated'),
+      )
+      expect(positionFrame).toBeDefined()
+      const positionData = JSON.parse((positionFrame as { data: string }).data) as {
+        pc: { id: string; x: number; y: number }
+      }
+      expect(positionData.pc.x).toBe(stored.x)
+      expect(positionData.pc.y).toBe(stored.y)
+      expect(JSON.stringify(positionFrame)).not.toContain('serial_number')
+
+      await putBack(pageA, 'E2E Fixture PC', before.x, before.y)
+    } finally {
+      await contextA.close()
+      await contextB.close()
+    }
+  })
+
+  test('a PC status change made in one browser appears live in another, without a refresh', async ({
+    browser,
+  }) => {
+    const contextA = await browser.newContext()
+    const contextB = await browser.newContext()
+
+    try {
+      const pageA = await contextA.newPage()
+      const pageB = await contextB.newPage()
+
+      await signIn(pageA, 'administrator')
+      await signIn(pageB, 'administrator')
+      await Promise.all([goto(pageA, mapUrl()), goto(pageB, mapUrl())])
+
+      const name = 'E2E Plan PC 6'
+      const nameRe = new RegExp(`^${name},`)
+      await expect(pageB.getByRole('button', { name: nameRe })).toBeVisible()
+
+      const { unit } = await planUnit(pageA, name)
+      // Confirmed by the fixture's own seed order (PcStatus::cases()[5]).
+      const originalStatus = 'retired'
+
+      const result = await apiJson<{ data: { status: string } }>(
+        pageA,
+        `/api/admin/pc-units/${unit.id}`,
+        'PUT',
+        { status: 'available' },
+      )
+      expect(result.status).toBe(200)
+
+      // B's node relabels itself — status only, no reload — purely from the
+      // PcStatusChanged broadcast.
+      await expect(pageB.getByRole('button', { name: /^E2E Plan PC 6, Available,/ })).toBeVisible({
+        timeout: 10_000,
+      })
+      await expect(pageB.getByTestId('floor-plan-announcer')).toContainText(
+        'E2E Plan PC 6 is now Available',
+      )
+
+      // Restore the fixture's seeded status.
+      const restore = await apiJson<{ data: { status: string } }>(
+        pageA,
+        `/api/admin/pc-units/${unit.id}`,
+        'PUT',
+        { status: originalStatus },
+      )
+      expect(restore.status).toBe(200)
+      await expect(pageB.getByRole('button', { name: /^E2E Plan PC 6, Retired,/ })).toBeVisible({
+        timeout: 10_000,
+      })
+    } finally {
+      await contextA.close()
+      await contextB.close()
+    }
+  })
+})
+
+/** Narrows a decoded Pusher-protocol frame to one carrying a given event name. */
+function isPusherEvent(frame: unknown, event: string): frame is { event: string; data: string } {
+  return (
+    typeof frame === 'object' &&
+    frame !== null &&
+    'event' in frame &&
+    (frame as { event: unknown }).event === event
+  )
+}
+
 for (const role of ['technician', 'teacher'] as const) {
   test.describe(`floor plan — ${role} cannot place units`, () => {
     test('the write API refuses them with real identifiers', async ({ page }) => {

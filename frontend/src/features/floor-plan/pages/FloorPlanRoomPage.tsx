@@ -12,6 +12,7 @@ import { PcUnitList } from '../components/PcUnitList'
 import { PlacementPanel } from '../components/PlacementPanel'
 import { UnplacedUnits } from '../components/UnplacedUnits'
 import { usePlacePcUnit } from '../hooks/mutations'
+import { useFloorPlanChannel } from '../hooks/useFloorPlanChannel'
 import { useRoomPlan } from '../hooks/queries'
 import { placementErrorMessage } from '../lib/errors'
 import { describePoint, freeSpot, nodeMetrics, previewPoint, type Point } from '../lib/placement'
@@ -81,6 +82,15 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
       else next.delete(pcId)
       return next
     })
+
+  // WP-E — live updates from every other viewer of this room (FR-FP-007). Own
+  // in-flight moves are skipped: their own onSuccess is the authoritative
+  // reconciliation, so an echo of the same move is a no-op rather than a race.
+  useFloorPlanChannel(roomId, {
+    layoutVersion: layout?.version,
+    isOwnPendingMove: (pcId) => saving.has(pcId),
+    announce,
+  })
 
   /** The one write path — drag, keyboard move, numeric form and "Place on plan" all end here. */
   const placeUnit = async (pcId: string, point: Point, snap: boolean): Promise<PlacedPc> => {

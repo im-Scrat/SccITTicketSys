@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domains\FloorPlan\Actions;
 
+use App\Domains\FloorPlan\Events\PositionUpdated;
 use App\Domains\FloorPlan\Exceptions\FloorPlanRuleViolation;
+use App\Domains\FloorPlan\Http\Resources\FloorPlanPcResource;
 use App\Domains\FloorPlan\Services\CoordinateService;
 use App\Domains\FloorPlan\Services\FloorPlanDefaults;
 use App\Domains\FloorPlan\Services\RoomLayoutService;
@@ -96,7 +98,7 @@ final class PlacePcUnit
                 'y' => $this->coordinates->clamp($y, $layout->height),
             ];
 
-        return DB::transaction(function () use ($layout, $pcUnit, $point): FloorPlanPosition {
+        $position = DB::transaction(function () use ($layout, $pcUnit, $point): FloorPlanPosition {
             /** @var RoomLayout $lockedLayout */
             $lockedLayout = RoomLayout::query()->whereKey($layout->getKey())->lockForUpdate()->firstOrFail();
             $this->layouts->assertEditable($lockedLayout);
@@ -121,6 +123,19 @@ final class PlacePcUnit
 
             return $position->refresh()->setRelation('pcUnit', $lockedPc);
         });
+
+        /*
+         * WP-E — the notification seam (FR-FP-007). Outside the transaction and
+         * after the write has actually committed, matching the project's
+         * established convention (TicketLifecycle::transition dispatches its
+         * TicketStatusChanged the same way): a subscriber must never be told
+         * about a move that a concurrent failure then rolled back. The payload
+         * is the same shape the HTTP response and the WP-C read endpoint use —
+         * one resource, so a broadcast and a fetch can never disagree.
+         */
+        PositionUpdated::dispatch($room->uuid, $layout->version, (new FloorPlanPcResource($position))->resolve());
+
+        return $position;
     }
 
     /** The rejection test, applied to what the client actually sent. */
