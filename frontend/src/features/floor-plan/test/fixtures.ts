@@ -34,6 +34,10 @@ export function pc(
     y: 120,
     rotation: 0,
     z_index: 0,
+    // WP-F: the optimistic-concurrency token. Distinct per index by default so
+    // a test that forgets to override it on a second unit doesn't accidentally
+    // share one.
+    updated_at: `2026-01-01T00:00:${String(index).padStart(2, '0')}Z`,
     ...overrides,
   }
 }

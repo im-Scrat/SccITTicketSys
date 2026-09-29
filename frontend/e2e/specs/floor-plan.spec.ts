@@ -106,7 +106,7 @@ test.describe('floor plan — administrator', () => {
 type PlanPayload = {
   data: {
     layout: { version: number }
-    pcs: { id: string; name: string; x: number; y: number }[]
+    pcs: { id: string; name: string; x: number; y: number; updated_at: string }[]
   }
 }
 
@@ -455,6 +455,99 @@ function isPusherEvent(frame: unknown, event: string): frame is { event: string;
     (frame as { event: unknown }).event === event
   )
 }
+
+/**
+ * WP-F — optimistic concurrency (D3), through two independently authenticated
+ * browsers, exactly as the requirement names it: "client A updates a PC;
+ * client B, holding a stale `expected_updated_at`, is refused with 409 and
+ * reconciles."
+ *
+ * Two Playwright `BrowserContext`s (see the WP-E section above for why this
+ * is the real, standard way to model two independent sessions of the one
+ * seeded administrator here — the floor plan is Administrator-only, D2).
+ */
+test.describe('floor plan — optimistic concurrency (WP-F)', () => {
+  test("client B, holding a stale token, is refused with 409 and reconciles to client A's move — without a reload", async ({
+    browser,
+  }) => {
+    const contextA = await browser.newContext()
+    const contextB = await browser.newContext()
+
+    try {
+      const pageA = await contextA.newPage()
+      const pageB = await contextB.newPage()
+
+      await signIn(pageA, 'administrator')
+      await signIn(pageB, 'administrator')
+
+      const name = 'E2E Plan PC 4'
+      const nameRe = new RegExp(`^${name},`)
+
+      // Both clients "load the plan" at the same moment: the same stored
+      // updated_at token.
+      const { unit: before, version } = await planUnit(pageA, name)
+      await Promise.all([goto(pageA, mapUrl()), goto(pageB, mapUrl())])
+      await expect(pageA.getByRole('button', { name: nameRe })).toBeVisible()
+      await expect(pageB.getByRole('button', { name: nameRe })).toBeVisible()
+
+      // Client A moves it — through the real UI, so its own token updates.
+      const nodeA = pageA.getByRole('button', { name: nameRe })
+      await nodeA.focus()
+      await pageA.keyboard.press('Enter')
+      await pageA.keyboard.press('ArrowRight')
+      await pageA.keyboard.press('ArrowRight')
+      await pageA.keyboard.press('Enter')
+      await expect(pageA.getByTestId('floor-plan-announcer')).toContainText(`${name} placed at`)
+      const afterA = await labelPoint(pageA, name)
+      expect(afterA).not.toEqual({ x: before.x, y: before.y })
+
+      // Client B, still holding the pre-A token, tries to move the SAME unit
+      // directly against the write API (B's own tab never refreshed, so this
+      // is exactly what B's UI would send).
+      const staleResult = await apiJson<{
+        message: string
+        code: string
+        current: { x: number; y: number; updated_at: string }
+      }>(pageB, positionUrl(version, before.id), 'PATCH', {
+        x: afterA.x + 40,
+        y: afterA.y,
+        snap: false,
+        expected_updated_at: before.updated_at,
+      })
+
+      expect(staleResult.status).toBe(409)
+      expect(staleResult.data.code).toBe('position_stale')
+      // The 409 body itself already carries A's move — client B's
+      // reconciliation source, with no extra round trip.
+      expect(staleResult.data.current.x).toBe(afterA.x)
+      expect(staleResult.data.current.y).toBe(afterA.y)
+
+      // B's UI, never told to reload, still shows A's move: whatever
+      // mechanism last synced B's cache (the WP-E broadcast this same drag
+      // triggered) — never a stale, pre-A position.
+      expect(await labelPoint(pageB, name)).toEqual(afterA)
+
+      // B retries with the value the 409 just gave it, and it succeeds.
+      const retried = await apiJson<{ x: number; y: number }>(
+        pageB,
+        positionUrl(version, before.id),
+        'PATCH',
+        {
+          x: afterA.x + 40,
+          y: afterA.y,
+          snap: false,
+          expected_updated_at: staleResult.data.current.updated_at,
+        },
+      )
+      expect(retried.status).toBe(200)
+
+      await putBack(pageA, name, before.x, before.y)
+    } finally {
+      await contextA.close()
+      await contextB.close()
+    }
+  })
+})
 
 for (const role of ['technician', 'teacher'] as const) {
   test.describe(`floor plan — ${role} cannot place units`, () => {

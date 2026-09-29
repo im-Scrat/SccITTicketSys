@@ -22,6 +22,8 @@ class FloorPlanRuleViolation extends RuntimeException
         string $message,
         private readonly string $errorCode,
         private readonly int $status,
+        /** @var array<string, mixed> */
+        private readonly array $extra = [],
     ) {
         parent::__construct($message);
     }
@@ -63,6 +65,25 @@ class FloorPlanRuleViolation extends RuntimeException
         );
     }
 
+    /**
+     * WP-F — optimistic concurrency (D3). The position this actor loaded no
+     * longer matches what is stored: someone else moved this unit since. The
+     * refusal carries the **current** stored state, in the identical shape a
+     * successful placement returns, so the client can reconcile to it in the
+     * same round trip rather than issuing a second GET.
+     *
+     * @param  array<string, mixed>  $current
+     */
+    public static function staleWrite(array $current): self
+    {
+        return new self(
+            'This unit was moved by someone else since the plan was loaded.',
+            'position_stale',
+            409,
+            ['current' => $current],
+        );
+    }
+
     public function errorCode(): string
     {
         return $this->errorCode;
@@ -73,6 +94,7 @@ class FloorPlanRuleViolation extends RuntimeException
         return response()->json([
             'message' => $this->getMessage(),
             'code' => $this->errorCode,
+            ...$this->extra,
         ], $this->status);
     }
 }

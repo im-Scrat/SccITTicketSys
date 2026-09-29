@@ -16,6 +16,7 @@ use App\Domains\Assets\Http\Controllers\AssetLookupController;
 use App\Domains\Assets\Http\Controllers\QrScanController;
 use App\Domains\FloorPlan\Http\Controllers\Admin\FloorPlanController;
 use App\Domains\FloorPlan\Http\Controllers\Admin\FloorPlanPositionController;
+use App\Domains\FloorPlan\Http\Controllers\Admin\RoomLayoutController;
 use App\Domains\Identity\Http\Controllers\Admin\RegistrationReviewController;
 use App\Domains\Identity\Http\Controllers\Admin\RoleController;
 use App\Domains\Identity\Http\Controllers\Admin\UserActionController;
@@ -682,8 +683,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         /*
         |------------------------------------------------------------------
-        | Interactive Floor Plan (Phase 2.8 / WP-C map, WP-D placement) —
-        | ADMINISTRATOR ONLY
+        | Interactive Floor Plan (Phase 2.8 / WP-C map, WP-D placement,
+        | WP-E real-time, WP-F layout persistence) — ADMINISTRATOR ONLY
         |------------------------------------------------------------------
         | Gated by the **policy** ability `viewAny` on RoomLayout, never by
         | `can:floorplan.view`. `Gate::before` answers any ability whose string is
@@ -721,6 +722,25 @@ Route::middleware('auth:sanctum')->group(function () {
                     '/floor-plan/rooms/{room}/layouts/{version}/positions/{pcUnit}',
                     [FloorPlanPositionController::class, 'update'],
                 )->whereNumber('version')->middleware('can:manage,'.FloorPlanPosition::class);
+
+                /*
+                | Layout persistence (WP-F) — FR-FP-001/008.
+                |
+                | Same gate as placement, on RoomLayout instead of
+                | FloorPlanPosition: `can:manage,RoomLayout` — never
+                | `can:floorplan.manage`. Both actions re-check it themselves
+                | (RoomLayoutService::authorizeManage) before resolving
+                | anything, so this middleware is a floor, not the only gate.
+                */
+                Route::post(
+                    '/floor-plan/rooms/{room}/layouts',
+                    [RoomLayoutController::class, 'store'],
+                )->middleware('can:manage,'.RoomLayout::class);
+
+                Route::post(
+                    '/floor-plan/rooms/{room}/layouts/{version}/activate',
+                    [RoomLayoutController::class, 'activate'],
+                )->whereNumber('version')->middleware('can:manage,'.RoomLayout::class);
             });
 
         /*

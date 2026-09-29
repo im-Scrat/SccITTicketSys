@@ -41,6 +41,8 @@ class FloorPlanPositionController extends Controller
             (float) $request->validated('x'),
             (float) $request->validated('y'),
             $request->has('snap') ? $request->boolean('snap') : null,
+            $request->validated('expected_updated_at'),
+            $request,
         );
 
         return (new FloorPlanPcResource($position))->response();

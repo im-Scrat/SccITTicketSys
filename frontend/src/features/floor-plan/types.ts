@@ -29,6 +29,12 @@ export interface PlacedPc {
   y: number
   rotation: number
   z_index: number
+  /**
+   * The optimistic-concurrency token (WP-F, D3). Echoed back as
+   * `expected_updated_at` on the next move of this unit; the server refuses
+   * with 409 when it no longer matches what is actually stored.
+   */
+  updated_at: string
 }
 
 /** A unit of the room with no position on this layout yet. */
@@ -78,4 +84,13 @@ export interface PlacementRequest {
   x: number
   y: number
   snap: boolean
+  /** This unit's last-known `updated_at`, or null for a unit never placed before. */
+  expected_updated_at: string | null
+}
+
+/** The server's answer to a refused, stale write (WP-F, D3): the current truth to reconcile to. */
+export interface StaleWriteConflict {
+  code: 'position_stale'
+  message: string
+  current: PlacedPc
 }

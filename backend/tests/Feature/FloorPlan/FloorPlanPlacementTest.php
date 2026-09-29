@@ -230,7 +230,7 @@ it('answers with the same narrow shape as the map, and no numeric id', function 
     $response = $this->actingAs($this->admin)->patchJson(($this->url)(), ['x' => 200, 'y' => 200])->assertOk();
 
     expect(array_keys($response->json('data')))
-        ->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index']);
+        ->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index', 'updated_at']);
 
     $encoded = (string) $response->getContent();
     foreach (['serial_number', 'ip_address', 'mac_address', 'asset_tag', 'hostname', 'room_id', 'pc_unit_id', 'room_layout_id'] as $field) {

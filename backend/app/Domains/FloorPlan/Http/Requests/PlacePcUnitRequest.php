@@ -34,6 +34,10 @@ class PlacePcUnitRequest extends FormRequest
             'x' => ['required', 'numeric', 'min:0', 'max:100000'],
             'y' => ['required', 'numeric', 'min:0', 'max:100000'],
             'snap' => ['sometimes', 'boolean'],
+            // WP-F, D3: the `updated_at` the client last saw for this unit's
+            // position. Omitted only by a caller with no prior value to echo
+            // (a first placement); PlacePcUnit is where a mismatch is refused.
+            'expected_updated_at' => ['sometimes', 'nullable', 'date'],
         ];
     }
 }

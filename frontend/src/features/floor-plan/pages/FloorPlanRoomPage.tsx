@@ -95,7 +95,8 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
   /** The one write path — drag, keyboard move, numeric form and "Place on plan" all end here. */
   const placeUnit = async (pcId: string, point: Point, snap: boolean): Promise<PlacedPc> => {
     if (!layout) throw new Error('No active layout.')
-    const unit = plan.pcs.find((pc) => pc.id === pcId) ?? plan.unplaced.find((pc) => pc.id === pcId)
+    const placed = plan.pcs.find((pc) => pc.id === pcId)
+    const unit = placed ?? plan.unplaced.find((pc) => pc.id === pcId)
     const name = unit?.name ?? 'The unit'
 
     setPlaceError(null)
@@ -104,7 +105,10 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
       const stored = await place.mutateAsync({
         version: layout.version,
         pcId,
-        request: { x: point.x, y: point.y, snap },
+        // WP-F, D3: echo what this browser currently believes the position
+        // is. A unit not yet on the plan (`placed` undefined) has nothing to
+        // echo — null, so the write proceeds as a first placement.
+        request: { x: point.x, y: point.y, snap, expected_updated_at: placed?.updated_at ?? null },
         preview: previewPoint(point, layout, snap),
       })
       // Say where it actually is — the server's point, which may have been

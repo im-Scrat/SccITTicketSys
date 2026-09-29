@@ -137,7 +137,7 @@ describe('placing from the map', () => {
     await waitFor(() =>
       expect(patch).toHaveBeenCalledWith(
         '/admin/floor-plan/rooms/room-uuid-1/layouts/1/positions/pc-uuid-1',
-        { x: 160, y: 100, snap: true },
+        { x: 160, y: 100, snap: true, expected_updated_at: '2026-01-01T00:00:01Z' },
       ),
     )
 
@@ -171,7 +171,12 @@ describe('placing from the map', () => {
     await user.keyboard('{Enter}{ArrowRight}{Enter}')
 
     await waitFor(() => expect(announcer()).toHaveTextContent('PC-01 placed at x 140, y 80.'))
-    expect(patch).toHaveBeenCalledWith(expect.any(String), { x: 140, y: 80, snap: true })
+    expect(patch).toHaveBeenCalledWith(expect.any(String), {
+      x: 140,
+      y: 80,
+      snap: true,
+      expected_updated_at: '2026-01-01T00:00:01Z',
+    })
   })
 
   it('puts the unit back and explains, when the server refuses the spot', async () => {
@@ -257,6 +262,7 @@ describe('placing by numbers', () => {
       x: 517,
       y: 243,
       snap: true,
+      expected_updated_at: '2026-01-01T00:00:01Z',
     })
     await waitFor(() => expect(unit().getAttribute('transform')).toBe('translate(520 240)'))
     await waitFor(() => expect(screen.getByLabelText('X position')).toHaveValue(520))
@@ -311,6 +317,7 @@ describe('placing by numbers', () => {
           y: 60,
           rotation: 0,
           z_index: 0,
+          updated_at: '2026-01-01T00:05:00Z',
         } satisfies PlacedPc,
       },
     })
@@ -321,9 +328,10 @@ describe('placing by numbers', () => {
 
     await user.click(screen.getByRole('button', { name: 'Place PC-U9 on the plan' }))
 
+    // An unplaced unit has no prior updated_at to echo.
     expect(patch).toHaveBeenCalledWith(
       expect.stringContaining('/positions/unplaced-uuid-9'),
-      expect.objectContaining({ snap: true }),
+      expect.objectContaining({ snap: true, expected_updated_at: null }),
     )
     await screen.findByRole('button', { name: /^PC-U9, Offline, at x 60, y 60$/ })
     expect(screen.queryByRole('heading', { name: /Not on the plan yet/ })).toBeNull()
@@ -341,5 +349,84 @@ describe('when the server says the plan is not editable', () => {
     expect(screen.queryByRole('button', { name: /^PC-01/ })).toBeNull()
     expect(screen.getByRole('img', { name: /^PC-01/ })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Place a unit by position' })).toBeNull()
+  })
+})
+
+describe('optimistic concurrency — a stale write (WP-D3)', () => {
+  it('echoes the unit’s own updated_at as expected_updated_at on every move', async () => {
+    get.mockResolvedValue({
+      data: {
+        data: editablePlan({
+          pcs: [pc(1, 'online', { x: 120, y: 80, updated_at: '2026-01-01T00:00:05.123456+00:00' })],
+        }),
+      },
+    })
+    patch.mockResolvedValue({ data: { data: pc(1, 'online', { x: 160, y: 100 }) } })
+    renderPage()
+    await screen.findByRole('heading', { name: 'Computer Lab 2' })
+
+    drag(unit(), { x: 167, y: 103 })
+
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ expected_updated_at: '2026-01-01T00:00:05.123456+00:00' }),
+      ),
+    )
+  })
+
+  it('reconciles to the server’s current state on a 409, instead of rolling back to the pre-drag value', async () => {
+    get.mockResolvedValue({ data: { data: editablePlan() } })
+    const conflicting = pc(1, 'online', {
+      x: 340,
+      y: 220,
+      updated_at: '2026-01-01T00:09:00.000001+00:00',
+    })
+    patch.mockRejectedValue(
+      serverError(409, {
+        code: 'position_stale',
+        message: 'This unit was moved by someone else since the plan was loaded.',
+        current: conflicting,
+      }),
+    )
+    renderPage()
+    await screen.findByRole('heading', { name: 'Computer Lab 2' })
+
+    drag(unit(), { x: 167, y: 103 })
+
+    // Not the pre-drag (120, 80): the server's own current answer (340, 220).
+    await waitFor(() => expect(unit().getAttribute('transform')).toBe('translate(340 220)'))
+    expect(screen.getByRole('alert')).toHaveTextContent(/someone else already moved this unit/i)
+    expect(announcer()).toHaveTextContent(/someone else already moved this unit/i)
+
+    // The plan is not refetched — the 409 body already carried the truth.
+    expect(get).toHaveBeenCalledTimes(1)
+  })
+
+  it('the next move after a stale-write reconciliation echoes the reconciled value, not the old one', async () => {
+    get.mockResolvedValue({ data: { data: editablePlan() } })
+    const conflicting = pc(1, 'online', {
+      x: 340,
+      y: 220,
+      updated_at: '2026-01-01T00:09:00.000001+00:00',
+    })
+    patch.mockRejectedValueOnce(
+      serverError(409, { code: 'position_stale', message: '…', current: conflicting }),
+    )
+    patch.mockResolvedValueOnce({ data: { data: pc(1, 'online', { x: 500, y: 260 }) } })
+    renderPage()
+    await screen.findByRole('heading', { name: 'Computer Lab 2' })
+
+    drag(unit(), { x: 167, y: 103 })
+    await waitFor(() => expect(unit().getAttribute('transform')).toBe('translate(340 220)'))
+
+    drag(unit(), { x: 260, y: 180 }, { x: 340, y: 220 })
+
+    await waitFor(() =>
+      expect(patch).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.objectContaining({ expected_updated_at: '2026-01-01T00:09:00.000001+00:00' }),
+      ),
+    )
   })
 })

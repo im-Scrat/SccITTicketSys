@@ -30,10 +30,12 @@ use Illuminate\Support\Str;
  * — a version that belongs to another room simply is not found — rather than
  * something to remember to check afterwards.
  *
- * Creating and activating versions is not here: that is layout persistence, a
- * later package. The one-active-per-room rule is already enforced by the
- * database (`room_layouts_one_active_per_room`); {@see assertEditable()} is the
- * application-side reading of it.
+ * Creating and activating a version (WP-F) is not here — that is
+ * `CreateRoomLayout` / `ActivateRoomLayout` — but both authorize their write
+ * through {@see authorizeManage()} below before resolving anything, the same
+ * order `PlacePcUnit` already established. The one-active-per-room rule is
+ * already enforced by the database (`room_layouts_one_active_per_room`);
+ * {@see assertEditable()} is the application-side reading of it.
  */
 class RoomLayoutService
 {
@@ -130,6 +132,19 @@ class RoomLayoutService
     private function authorizeView(User $actor): void
     {
         Gate::forUser($actor)->authorize('viewAny', RoomLayout::class);
+    }
+
+    /**
+     * The write-side gate for layout creation and activation (WP-F). A
+     * caller must pass this *before* calling {@see Room()} — `manage` and
+     * `viewAny` are separate permissions, and a per-user deny on one without
+     * the other is a real, tested state (see `RoomLayoutServiceTest`), so
+     * `room()`'s own re-check of `viewAny` still has the final say on whether
+     * a write can proceed at all.
+     */
+    public function authorizeManage(User $actor): void
+    {
+        Gate::forUser($actor)->authorize('manage', RoomLayout::class);
     }
 
     /** An archived room is gone as far as the floor plan is concerned. */

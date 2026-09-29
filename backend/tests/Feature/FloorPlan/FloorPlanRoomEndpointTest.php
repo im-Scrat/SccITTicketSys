@@ -315,7 +315,7 @@ it('exposes a narrow payload with no numeric ids and no register data', function
     expect(array_keys($data))->toBe(['room', 'layout', 'pcs', 'unplaced', 'unplaced_count', 'editor'])
         ->and(array_keys($data['room']))->toBe(['id', 'name', 'code', 'floor', 'building'])
         ->and(array_keys($data['layout']))->toBe(['version', 'width', 'height', 'grid_size'])
-        ->and(array_keys($data['pcs'][0]))->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index'])
+        ->and(array_keys($data['pcs'][0]))->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index', 'updated_at'])
         ->and(array_keys($data['editor']))->toBe(['can_edit', 'snap_to_grid']);
 
     $encoded = (string) $response->getContent();

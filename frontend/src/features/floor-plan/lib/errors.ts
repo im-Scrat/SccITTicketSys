@@ -25,6 +25,8 @@ export function placementErrorMessage(error: unknown): string {
       return 'This layout is no longer the active one. The plan has been reloaded.'
     case 'pc_unit_not_in_room':
       return 'That unit is no longer in this room. The plan has been reloaded.'
+    case 'position_stale':
+      return 'Someone else already moved this unit. It has been updated to its current position.'
   }
 
   if (status === 422 && data?.errors) {

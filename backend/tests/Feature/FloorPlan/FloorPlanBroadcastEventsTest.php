@@ -49,6 +49,13 @@ it('dispatches PositionUpdated on the room\'s private channel after a successful
         expect($event->broadcastAs())->toBe('floor-plan.position-updated');
 
         $wire = json_decode((string) json_encode($event->broadcastWith()), true);
+        // WP-F: a real timestamp, unknown in advance — checked for shape, not
+        // an exact value, then excluded from the fixed-shape comparison below.
+        $updatedAt = $wire['pc']['updated_at'] ?? null;
+        unset($wire['pc']['updated_at']);
+
+        expect($updatedAt)->toBeString()
+            ->and($updatedAt)->toMatch('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}[+-]\d{2}:\d{2}$/');
 
         expect($wire)->toBe([
             'layout_version' => 1,

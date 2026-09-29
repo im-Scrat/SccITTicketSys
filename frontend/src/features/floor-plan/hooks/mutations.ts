@@ -1,7 +1,7 @@
 import { isAxiosError } from 'axios'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { placePcUnit } from '../api/floorPlanApi'
-import type { PlacedPc, PlacementRequest, RoomPlan, UnplacedPc } from '../types'
+import type { PlacedPc, PlacementRequest, RoomPlan, StaleWriteConflict, UnplacedPc } from '../types'
 import { floorPlanKeys } from './queries'
 
 export interface PlaceVariables {
@@ -31,8 +31,13 @@ interface PlaceContext {
  * flight at once, and restoring a snapshot taken for the first would silently
  * undo the second.
  *
- * A 404 (the unit left the room) or 409 (the layout is no longer the active
- * one) means the cached plan is out of date, so it is refetched as well.
+ * A 404 (the unit left the room) or a 409 for a no-longer-active layout means
+ * the cached plan is out of date, so it is refetched as well. A 409 for a
+ * **stale position** (WP-F, D3 — another admin moved this exact unit since
+ * this browser last read it) reconciles straight to the `current` state the
+ * server's refusal already carries, rather than a refetch: the server told
+ * this browser the truth in the same response, so asking again would only
+ * spend a round trip confirming it.
  */
 export function usePlacePcUnit(roomId: string) {
   const queryClient = useQueryClient()
@@ -50,7 +55,16 @@ export function usePlacePcUnit(roomId: string) {
       const optimistic: PlacedPc | undefined = before
         ? { ...before, ...preview }
         : wasUnplaced
-          ? { ...wasUnplaced, ...preview, rotation: 0, z_index: 0 }
+          ? // A never-placed unit has no updated_at yet; the placeholder here
+            // is overwritten by the server's real value in onSuccess/onError
+            // before anything could read it back as an expected_updated_at.
+            {
+              ...wasUnplaced,
+              ...preview,
+              rotation: 0,
+              z_index: 0,
+              updated_at: new Date().toISOString(),
+            }
           : undefined
 
       if (optimistic) {
@@ -63,15 +77,21 @@ export function usePlacePcUnit(roomId: string) {
     },
 
     onError: (error, { pcId }, context) => {
+      const conflict = staleWriteConflict(error)
+
       queryClient.setQueryData<RoomPlan>(key, (current) => {
-        if (!current || !context) return current
+        if (!current) return current
+        // The server already told us the truth — reconcile to exactly that,
+        // rather than the (now equally stale) pre-drag snapshot.
+        if (conflict) return withPlaced(current, conflict.current)
+        if (!context) return current
         if (context.before) return withPlaced(current, context.before)
         if (context.wasUnplaced) return withUnplaced(current, context.wasUnplaced)
         return withoutUnit(current, pcId)
       })
 
       const status = isAxiosError(error) ? error.response?.status : undefined
-      if (status === 404 || status === 409) {
+      if (!conflict && (status === 404 || status === 409)) {
         void queryClient.invalidateQueries({ queryKey: key })
       }
     },
@@ -137,4 +157,11 @@ function withUnplaced(plan: RoomPlan, unit: UnplacedPc): RoomPlan {
 
 function withoutUnit(plan: RoomPlan, pcId: string): RoomPlan {
   return { ...plan, pcs: plan.pcs.filter((pc) => pc.id !== pcId) }
+}
+
+/** Narrows a refusal to the WP-F stale-write shape, or null for any other error. */
+function staleWriteConflict(error: unknown): StaleWriteConflict | null {
+  if (!isAxiosError(error) || error.response?.status !== 409) return null
+  const data = error.response.data as Partial<StaleWriteConflict> | undefined
+  return data?.code === 'position_stale' && data.current ? (data as StaleWriteConflict) : null
 }
