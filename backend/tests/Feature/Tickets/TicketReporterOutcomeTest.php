@@ -387,3 +387,62 @@ it('never resolves a ticket from AI output alone, however confident the analysis
                 ActivityAction::TicketWorkCompleted->value,
             ])->exists())->toBeFalse();
 });
+
+/* --------------------------------------- once per open period (follow-up) */
+
+it('accepts NOT FIXED once per open period, then withdraws the offer', function () {
+    $ticket = ticketFor($this->teacher);
+
+    $this->actingAs($this->teacher)->postJson("/api/tickets/{$ticket->uuid}/not-fixed")->assertOk();
+
+    $this->actingAs($this->teacher)->getJson("/api/tickets/{$ticket->uuid}")
+        ->assertJsonPath('meta.can.report_not_fixed', false)
+        // FIXED stays available: the reporter may still sort it out themselves.
+        ->assertJsonPath('meta.can.mark_fixed', true);
+
+    $this->actingAs($this->teacher)->postJson("/api/tickets/{$ticket->uuid}/not-fixed")->assertForbidden();
+
+    expect(TicketUpdate::query()->where('ticket_id', $ticket->id)
+        ->where('update_type', TicketUpdateType::AiAnalysis->value)->count())->toBe(1);
+});
+
+it('refuses a double-submitted NOT FIXED under the row lock, even past a stale policy check', function () {
+    $ticket = ticketFor($this->teacher);
+    $action = app(ReportTicketNotFixed::class);
+
+    $action->handle(Ticket::query()->findOrFail($ticket->id), $this->teacher, Request::create('/'));
+
+    expect(fn () => $action->handle(Ticket::query()->findOrFail($ticket->id), $this->teacher, Request::create('/')))
+        ->toThrow(ValidationException::class);
+
+    expect(TicketUpdate::query()->where('ticket_id', $ticket->id)
+        ->where('update_type', TicketUpdateType::AiAnalysis->value)->count())->toBe(1);
+});
+
+it('starts a new open period on reopen, where the reporter can answer again', function () {
+    $ticket = ticketFor($this->teacher);
+
+    $this->actingAs($this->teacher)->putJson("/api/tickets/{$ticket->uuid}/status", fixedPayload())->assertOk();
+    $this->actingAs($this->teacher)->putJson("/api/tickets/{$ticket->uuid}/status", ['status' => 'open'])->assertOk();
+
+    $this->actingAs($this->teacher)->postJson("/api/tickets/{$ticket->uuid}/not-fixed")->assertOk();
+});
+
+it('exposes the reporter outcome for the current open period alongside the analysis', function () {
+    $ticket = ticketFor($this->teacher);
+    AiAnalysisLog::factory()->create(['ticket_id' => $ticket->id]);
+    $outcome = fn () => $this->actingAs($this->teacher)
+        ->getJson("/api/tickets/{$ticket->uuid}/ai-analysis")->assertOk()->json('meta.reporter_outcome');
+
+    expect($outcome())->toBeNull();
+
+    $this->actingAs($this->teacher)->postJson("/api/tickets/{$ticket->uuid}/not-fixed")->assertOk();
+    expect($outcome())->toBe('not_fixed');
+
+    $this->actingAs($this->teacher)->putJson("/api/tickets/{$ticket->uuid}/status", fixedPayload())->assertOk();
+    expect($outcome())->toBe('fixed');
+
+    // Reopened: the earlier answer is history, not the reporter's position now.
+    $this->actingAs($this->teacher)->putJson("/api/tickets/{$ticket->uuid}/status", ['status' => 'open'])->assertOk();
+    expect($outcome())->toBeNull();
+});

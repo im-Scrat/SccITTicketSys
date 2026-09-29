@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Tickets\Policies;
 
+use App\Domains\Tickets\Services\ReporterOutcome;
 use App\Domains\Tickets\Services\TicketVisibility;
 use App\Models\Ticket;
 use App\Models\User;
@@ -23,7 +24,10 @@ use App\Models\User;
  */
 class TicketPolicy
 {
-    public function __construct(private readonly TicketVisibility $visibility) {}
+    public function __construct(
+        private readonly TicketVisibility $visibility,
+        private readonly ReporterOutcome $outcome,
+    ) {}
 
     /* ------------------------------------------------------------- reads */
 
@@ -185,10 +189,16 @@ class TicketPolicy
      * WP-J NOT FIXED — the reporter tried the AI's recommendations and they did
      * not work. Not a status change (the ticket stays `open`), so it has its
      * own endpoint and this ability is its real gate, not only a UI hint.
+     *
+     * Once per open period: saying it again adds nothing for triage, only
+     * another timeline row. A reopen (or the ticket being returned to the
+     * queue) starts a new period, where the question is fair to ask again.
      */
     public function reportNotFixed(User $actor, Ticket $ticket): bool
     {
-        return $this->isReporterOf($actor, $ticket) && $ticket->status?->slug === 'open';
+        return $this->isReporterOf($actor, $ticket)
+            && $ticket->status?->slug === 'open'
+            && $this->outcome->current($ticket) !== ReporterOutcome::NOT_FIXED;
     }
 
     /* ---------------------------------------------- participation & files */

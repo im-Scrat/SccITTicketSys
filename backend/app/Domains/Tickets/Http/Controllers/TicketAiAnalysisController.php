@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Tickets\Http\Controllers;
 
 use App\Domains\KnowledgeBase\Http\Resources\TicketAiAnalysisResource;
+use App\Domains\Tickets\Services\ReporterOutcome;
 use App\Http\Controllers\Controller;
 use App\Models\AiAnalysisLog;
 use App\Models\Ticket;
@@ -28,7 +29,7 @@ use Illuminate\Http\JsonResponse;
  */
 class TicketAiAnalysisController extends Controller
 {
-    public function show(Ticket $ticket): JsonResponse
+    public function show(Ticket $ticket, ReporterOutcome $outcome): JsonResponse
     {
         $this->authorize('viewFull', $ticket);
 
@@ -47,7 +48,12 @@ class TicketAiAnalysisController extends Controller
 
         return response()->json([
             'data' => new TicketAiAnalysisResource($log),
-            'meta' => ['available' => true],
+            'meta' => [
+                'available' => true,
+                // WP-J — what the reporter said after trying these steps, in the
+                // ticket's current open period, so the panel survives a reload.
+                'reporter_outcome' => $outcome->current($ticket),
+            ],
         ]);
     }
 }

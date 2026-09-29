@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Tickets\Actions;
 
 use App\Domains\Identity\Services\AuditLogger;
+use App\Domains\Tickets\Services\ReporterOutcome;
 use App\Enums\ActivityAction;
 use App\Enums\TicketUpdateType;
 use App\Models\AiAnalysisLog;
@@ -37,7 +38,10 @@ use Illuminate\Validation\ValidationException;
  */
 class ReportTicketNotFixed
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly ReporterOutcome $outcome,
+    ) {}
 
     /**
      * @throws ValidationException when the ticket is no longer open
@@ -51,6 +55,14 @@ class ReportTicketNotFixed
             if ($locked->status?->slug !== 'open') {
                 throw ValidationException::withMessages([
                     'status' => 'This ticket has already moved on — a technician or administrator is handling it.',
+                ]);
+            }
+
+            // The policy checked this too; re-checked under the lock so a
+            // double-submit waits here and is refused rather than written twice.
+            if ($this->outcome->current($locked) === ReporterOutcome::NOT_FIXED) {
+                throw ValidationException::withMessages([
+                    'status' => 'You have already told the IT team this is not fixed. A technician will pick it up.',
                 ]);
             }
 
