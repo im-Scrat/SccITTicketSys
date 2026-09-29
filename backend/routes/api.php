@@ -52,6 +52,7 @@ use App\Domains\Maintenance\Http\Controllers\QrProofOfWorkController;
 use App\Domains\Tickets\Http\Controllers\Admin\TicketAssignmentController;
 use App\Domains\Tickets\Http\Controllers\Admin\TicketDirectoryController;
 use App\Domains\Tickets\Http\Controllers\TechnicianQueueController;
+use App\Domains\Tickets\Http\Controllers\TicketAiAnalysisController;
 use App\Domains\Tickets\Http\Controllers\TicketController;
 use App\Domains\Tickets\Http\Controllers\TicketFeedController;
 use App\Domains\Tickets\Http\Controllers\TicketOptionsController;
@@ -653,6 +654,19 @@ Route::middleware('auth:sanctum')->group(function () {
 
                     Route::get('/tickets/{ticket:uuid}/attachments', [TicketParticipationController::class, 'attachments']);
                     Route::get('/tickets/attachments/{attachment:uuid}', [TicketParticipationController::class, 'downloadAttachment']);
+
+                    /*
+                     * WP-I — the Teacher AI panel. `can:tickets.view` is the
+                     * floor, same as every route in this group; the controller's
+                     * own `viewFull` check (TicketVisibility::canSeeFull()) is
+                     * the actual gate, because this group's floor alone would
+                     * let a Teacher reach another Teacher's full AI analysis
+                     * through the community-card scope. `throttle:tickets`
+                     * reuses the existing 20/hour/user ticket-creation limiter
+                     * rather than defining a second one for the same actor.
+                     */
+                    Route::get('/tickets/{ticket:uuid}/ai-analysis', [TicketAiAnalysisController::class, 'show'])
+                        ->middleware('throttle:tickets');
                 });
 
                 // Participation.

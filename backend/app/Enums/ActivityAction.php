@@ -112,6 +112,12 @@ enum ActivityAction: string
     case TicketAttachmentAdded = 'ticket_attachment_added';
     case TicketAttachmentRemoved = 'ticket_attachment_removed';
 
+    // WP-I — AI pre-screening (SRS FR-AI-021). Properties carry only
+    // non-sensitive metadata (model identifier, category, severity,
+    // confidence) — never the summary or recommendation text, matching the
+    // PII-minimization posture the AI work packages are held to generally.
+    case TicketAiAnalyzed = 'ticket_ai_analyzed';
+
     // Phase 2.7 — Maintenance (SRS FR-MNT). The activity_logs subject morph
     // points at the MaintenanceRecord, so the timeline renders "Work started"
     // from the subject type plus this label. There is deliberately no
@@ -270,6 +276,7 @@ enum ActivityAction: string
             self::TicketCommentModerated => 'Comment moderated',
             self::TicketAttachmentAdded => 'Attachment added',
             self::TicketAttachmentRemoved => 'Attachment removed',
+            self::TicketAiAnalyzed => 'AI pre-screening completed',
             self::MaintenanceCreated => 'Created',
             self::MaintenanceUpdated => 'Updated',
             self::MaintenanceRescheduled => 'Rescheduled',

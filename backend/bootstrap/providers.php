@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Administration\Providers\NotificationServiceProvider;
+use App\Domains\KnowledgeBase\Providers\AiServiceProvider;
 use App\Providers\AppServiceProvider;
 
 return [
@@ -13,4 +14,7 @@ return [
      * question "what is notified, and to whom" has one file to open.
      */
     NotificationServiceProvider::class,
+
+    // WP-I. The AI domain's event map — see the provider's own docblock.
+    AiServiceProvider::class,
 ];
