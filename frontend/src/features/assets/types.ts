@@ -307,9 +307,19 @@ export interface PcUnitDetail extends Omit<PcUnitListItem, 'components_count' | 
   attachments?: AssetAttachment[]
   qr_codes?: QrCodeItem[]
   maintenance?: MaintenanceItem[]
+  /** Open tickets against this machine right now (WP-G) — not its full history. */
+  active_tickets: ActiveTicketRef[]
   created_by: string | null
   updated_by: string | null
   archived_at: string | null
+}
+
+export interface ActiveTicketRef {
+  id: string
+  number: string
+  title: string
+  status: string | null
+  priority: string | null
 }
 
 /** One entry in the merged asset timeline. */

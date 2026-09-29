@@ -18,6 +18,7 @@ use App\Domains\Assets\Http\Resources\PcUnitDetailResource;
 use App\Domains\Assets\Http\Resources\PcUnitListResource;
 use App\Domains\Assets\Services\AssetDirectoryQuery;
 use App\Domains\Assets\Services\AssetGuard;
+use App\Domains\Assets\Services\ScannedPcAccess;
 use App\Http\Controllers\Controller;
 use App\Models\PcUnit;
 use App\Models\User;
@@ -40,9 +41,12 @@ class PcUnitController extends Controller
         return PcUnitListResource::collection($directory->pcUnits($request->validated()));
     }
 
-    public function show(Request $request, PcUnit $pcUnit, AssetGuard $guard): JsonResponse
+    public function show(Request $request, PcUnit $pcUnit, AssetGuard $guard, ScannedPcAccess $access): JsonResponse
     {
         $this->authorize('view', $pcUnit);
+
+        /** @var User $viewer */
+        $viewer = $request->user();
 
         $pcUnit->load([
             'room.floor.building',
@@ -55,6 +59,14 @@ class PcUnitController extends Controller
             'componentInstallations.installedBy',
             'maintenanceRecords.type',
             'maintenanceRecords.technician',
+            // WP-G — the PC's open ticket(s) (FR-PC-006's "ticket history",
+            // the *active* slice of it). Reuses ScannedPcAccess's existing
+            // "is this ticket open" scope rather than restating it — for an
+            // Administrator (the only viewer this route admits) it reduces to
+            // exactly "every open ticket against this machine", the same
+            // predicate the scanned technician panel already established.
+            'tickets' => fn ($query) => $access->scopeRelevantTickets($query->getQuery(), $viewer)
+                ->with(['status:id,name,slug', 'priority:id,name']),
         ]);
 
         $blockers = $guard->pcUnitBlockers($pcUnit);

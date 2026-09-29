@@ -524,6 +524,10 @@ Route::middleware('auth:sanctum')->group(function () {
                     Route::get('/pc-units/{pc_unit:uuid}', [PcUnitController::class, 'show'])->withTrashed();
                     Route::get('/pc-units/{pc_unit:uuid}/history', [AssetHistoryController::class, 'pcUnitTimeline'])->withTrashed();
                     Route::get('/pc-units/{pc_unit:uuid}/audit', [AssetHistoryController::class, 'pcUnitAudit'])->withTrashed();
+                    // WP-G — the real maintenance history (full records, not
+                    // the timeline's lossy projection). Same can:assets.view
+                    // floor as every other pc-units read on this line.
+                    Route::get('/pc-units/{pc_unit:uuid}/maintenance', [AssetHistoryController::class, 'pcUnitMaintenance'])->withTrashed();
                     Route::get('/pc-units/{pc_unit:uuid}/attachments', [AssetAttachmentController::class, 'index'])->withTrashed();
                     Route::get('/pc-units/{pc_unit:uuid}/qr', [QrCodeController::class, 'index'])->withTrashed();
 

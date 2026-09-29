@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { pc } from '../test/fixtures'
 import { FloorPlanLegend } from './FloorPlanLegend'
 import { PcUnitList } from './PcUnitList'
@@ -76,5 +76,27 @@ describe("PcUnitList (the map's text alternative)", () => {
     const { container } = render(<PcUnitList roomName="Empty" pcs={[]} />)
 
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('offers no details column when the caller gives no onInspect (WP-G)', () => {
+    render(<PcUnitList roomName="Computer Lab 2" pcs={[pc(1, 'online')]} />)
+
+    expect(screen.queryByRole('columnheader', { name: 'Details' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /View details/ })).not.toBeInTheDocument()
+  })
+
+  it('offers a details button per row that reports which unit was chosen (WP-G)', () => {
+    const onInspect = vi.fn()
+    render(
+      <PcUnitList
+        roomName="Computer Lab 2"
+        pcs={[pc(1, 'online'), pc(2, 'offline')]}
+        onInspect={onInspect}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'View details for PC-02' }))
+
+    expect(onInspect).toHaveBeenCalledExactlyOnceWith('pc-uuid-2')
   })
 })

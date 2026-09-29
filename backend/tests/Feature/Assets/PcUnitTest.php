@@ -9,6 +9,7 @@ use App\Models\Asset;
 use App\Models\PcSpecification;
 use App\Models\PcUnit;
 use App\Models\Room;
+use Database\Seeders\TicketLookupSeeder;
 
 beforeEach(function () {
     seedRbac();
@@ -190,4 +191,44 @@ it('shows installed components on the PC detail page', function () {
         ->assertOk()
         ->assertJsonPath('data.installations.0.asset.asset_tag', 'RAM-001')
         ->assertJsonPath('data.installations.0.current', true);
+});
+
+/**
+ * WP-G — `active_tickets` (FR-PC-006's "active ticket", added to the existing
+ * PC detail endpoint the floor-plan inspector reuses for identity). Reuses
+ * `ScannedPcAccess::scopeRelevantTickets`, which for an Administrator already
+ * reduces to "every open ticket against this machine" — proven rather than
+ * assumed, below.
+ */
+it('lists this PC\'s open tickets as active_tickets, and excludes closed ones', function () {
+    $this->seed(TicketLookupSeeder::class);
+    $pcUnit = PcUnit::factory()->create();
+    $reporter = userWithRole('teacher');
+
+    // 'resolved' is deliberately still is_open=true in this schema (DD-40:
+    // a reporter confirms before a ticket is genuinely done) — only 'closed'
+    // and 'cancelled' are terminal, so those are what this test excludes.
+    $open = ticketFor($reporter, 'open', ['pc_unit_id' => $pcUnit->id, 'title' => 'Projector will not start']);
+    ticketFor($reporter, 'closed', ['pc_unit_id' => $pcUnit->id, 'title' => 'Already fixed']);
+    ticketFor($reporter, 'open', ['pc_unit_id' => PcUnit::factory()->create()->id, 'title' => 'A different machine']);
+
+    $response = $this->actingAs($this->admin)
+        ->getJson("/api/admin/pc-units/{$pcUnit->uuid}")
+        ->assertOk();
+
+    $active = $response->json('data.active_tickets');
+    expect($active)->toHaveCount(1)
+        ->and($active[0]['id'])->toBe($open->uuid)
+        ->and($active[0]['title'])->toBe('Projector will not start');
+
+    expect($response->getContent())->not->toContain('Already fixed')->not->toContain('A different machine');
+});
+
+it('answers an empty active_tickets list for a machine with no open ticket', function () {
+    $pcUnit = PcUnit::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->getJson("/api/admin/pc-units/{$pcUnit->uuid}")
+        ->assertOk()
+        ->assertJsonPath('data.active_tickets', []);
 });

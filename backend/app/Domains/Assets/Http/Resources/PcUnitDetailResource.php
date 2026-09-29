@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Assets\Http\Resources;
 
 use App\Models\PcUnit;
+use App\Models\Ticket;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,10 +13,13 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * The consolidated PC info view (SRS FR-PC-006): identity, network, specs,
  * installed hardware, QR, and warranty in one payload.
  *
- * FR-PC-006 also names ticket history and AI predictions. Tickets arrive on the
- * PC timeline (`AssetHistory::forPcUnit`) rather than here, so the detail
- * payload stays bounded; AI predictions are a Phase 3 concern and are absent by
- * design rather than stubbed.
+ * FR-PC-006 also names ticket history and AI predictions. Full ticket
+ * *history* arrives on the PC timeline (`AssetHistory::forPcUnit`) rather than
+ * here, so the detail payload stays bounded; AI predictions are a Phase 3
+ * concern and are absent by design rather than stubbed. `active_tickets`
+ * (WP-G) is the one exception, added for the floor-plan PC inspector's "active
+ * ticket" field: a bounded, *current-state* fact (is this machine's problem
+ * still open right now?), unlike the unbounded history the timeline owns.
  *
  * @mixin PcUnit
  */
@@ -93,6 +97,20 @@ class PcUnitDetailResource extends JsonResource
             ),
             'maintenance' => MaintenanceSummaryResource::collection(
                 $this->whenLoaded('maintenanceRecords')
+            ),
+            'active_tickets' => $this->whenLoaded(
+                'tickets',
+                fn () => $this->tickets
+                    ->map(static fn (Ticket $ticket): array => [
+                        'id' => $ticket->uuid,
+                        'number' => $ticket->ticket_number,
+                        'title' => $ticket->title,
+                        'status' => $ticket->status?->name,
+                        'priority' => $ticket->priority?->name,
+                    ])
+                    ->values()
+                    ->all(),
+                [],
             ),
 
             'qr_identifier' => $this->qr_identifier,

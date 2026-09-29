@@ -8,6 +8,7 @@ import ForbiddenPage from '@/pages/ForbiddenPage'
 import { FloorPlanCanvas } from '../components/FloorPlanCanvas'
 import { FloorPlanLegend } from '../components/FloorPlanLegend'
 import { FloorPlanToolbar } from '../components/FloorPlanToolbar'
+import { PcInspectorPanel } from '../components/PcInspectorPanel'
 import { PcUnitList } from '../components/PcUnitList'
 import { PlacementPanel } from '../components/PlacementPanel'
 import { UnplacedUnits } from '../components/UnplacedUnits'
@@ -62,6 +63,11 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
   const [saving, setSaving] = useState<ReadonlySet<string>>(new Set())
   const [placeError, setPlaceError] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
+  // WP-G — which unit's maintenance history is open, if any. Independent of
+  // `selectedId` (which drives move targeting in edit mode): selecting a node
+  // to move it also opens its history, but closing the inspector must never
+  // clear a move in progress, so the two are tracked separately.
+  const [inspectingId, setInspectingId] = useState<string | null>(null)
 
   const { layout } = plan
   const editable = plan.editor.can_edit && layout !== null
@@ -238,7 +244,11 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
           )}
 
           <FloorPlanLegend pcs={plan.pcs} />
-          <PcUnitList roomName={plan.room.name} pcs={plan.pcs} />
+          <PcUnitList roomName={plan.room.name} pcs={plan.pcs} onInspect={setInspectingId} />
+
+          {inspectingId && (
+            <PcInspectorPanel pcId={inspectingId} onClose={() => setInspectingId(null)} />
+          )}
         </>
       )}
     </div>
