@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Maintenance\Http\Requests;
 
+use App\Domains\Maintenance\Rules\LinkableTicket;
 use App\Models\MaintenanceRecord;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -40,7 +41,8 @@ class UpdateMaintenanceRecordRequest extends FormRequest
         return [
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'type' => ['sometimes', 'required', 'string', Rule::exists('maintenance_types', 'slug')->where('is_active', true)],
-            'ticket' => ['sometimes', 'nullable', 'uuid', Rule::exists('tickets', 'uuid')->whereNull('deleted_at')],
+            // WP-K: existence alone is not enough — see LinkableTicket.
+            'ticket' => ['sometimes', 'nullable', 'uuid', new LinkableTicket($this->user(), $this->currentTicketUuid())],
 
             'scheduled_for' => ['sometimes', 'nullable', 'date'],
             'reschedule_reason' => ['nullable', 'string', 'max:500'],
@@ -62,5 +64,13 @@ class UpdateMaintenanceRecordRequest extends FormRequest
     public function attributes(): array
     {
         return ['type' => 'maintenance type'];
+    }
+
+    /** The link the record already has, so re-sending it is not a new link. */
+    private function currentTicketUuid(): ?string
+    {
+        $record = $this->route('record');
+
+        return $record instanceof MaintenanceRecord ? $record->ticket?->uuid : null;
     }
 }

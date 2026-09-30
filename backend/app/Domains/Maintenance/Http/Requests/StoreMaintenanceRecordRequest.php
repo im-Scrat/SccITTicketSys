@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Maintenance\Http\Requests;
 
+use App\Domains\Maintenance\Rules\LinkableTicket;
 use App\Models\MaintenanceRecord;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -47,7 +48,8 @@ class StoreMaintenanceRecordRequest extends FormRequest
             'pc_unit' => ['nullable', 'uuid', Rule::exists('pc_units', 'uuid')->whereNull('deleted_at')],
             'asset' => ['nullable', 'uuid', Rule::exists('assets', 'uuid')->whereNull('deleted_at')],
 
-            'ticket' => ['nullable', 'uuid', Rule::exists('tickets', 'uuid')->whereNull('deleted_at')],
+            // WP-K: existence alone is not enough — see LinkableTicket.
+            'ticket' => ['nullable', 'uuid', new LinkableTicket($this->user())],
             'technician' => ['nullable', 'uuid', Rule::exists('users', 'uuid')->whereNull('deleted_at')],
 
             'scheduled_for' => ['nullable', 'date'],

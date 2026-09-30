@@ -6,6 +6,7 @@ import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { AssignmentActions } from '../components/AssignmentActions'
 import { TicketAttachments } from '../components/TicketAttachments'
 import { TicketComments } from '../components/TicketComments'
+import { TicketRepairRecord } from '../components/TicketRepairRecord'
 import { TicketStatusActions } from '../components/TicketStatusActions'
 import { TicketSummary } from '../components/TicketSummary'
 import { useAssignedTicket } from '../hooks/queries'
@@ -74,6 +75,10 @@ export default function AssignedTicketDetailPage() {
 
       {assignment && !readOnly && (
         <AssignmentActions ticketId={ticket.id} assignment={assignment} />
+      )}
+
+      {meta.repair && (
+        <TicketRepairRecord ticket={ticket} repair={meta.repair} readOnly={readOnly} />
       )}
 
       {!readOnly && (meta.transitions?.length ?? 0) > 0 && (

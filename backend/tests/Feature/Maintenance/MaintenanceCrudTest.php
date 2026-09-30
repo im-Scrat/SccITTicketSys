@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\ActivityAction;
+use App\Enums\AssignmentStatus;
 use App\Enums\MaintenanceStatus;
 use App\Models\ActivityLog;
 use App\Models\Asset;
@@ -94,6 +95,12 @@ it('opens a record against a standalone asset', function () {
 
 it('links a record to the ticket the work arose from', function () {
     $ticket = ticketFor($this->teacher);
+    // WP-K: the work "arose from" this ticket because the technician is
+    // assigned to it. Before WP-K the link needed no relationship at all, and
+    // this test never set one up; linking an unrelated ticket is now refused
+    // (see TechnicianRepairRecordTest), so the precondition the title
+    // describes is made explicit. The assertion below is unchanged.
+    assign($ticket, $this->technician, AssignmentStatus::InProgress);
 
     $response = $this->actingAs($this->technician)
         ->postJson('/api/maintenance', [

@@ -6,6 +6,7 @@ namespace App\Domains\Maintenance\Services;
 
 use App\Domains\FloorPlan\Events\PcStatusChanged;
 use App\Domains\Identity\Services\AuditLogger;
+use App\Domains\Maintenance\Events\MaintenanceCompleted;
 use App\Domains\Tickets\Services\TicketLifecycle;
 use App\Enums\ActivityAction;
 use App\Enums\MaintenanceStatus;
@@ -162,6 +163,20 @@ class MaintenanceLifecycle
                     ['value' => $pcUnit->status->value, 'label' => $pcUnit->status->label(), 'tone' => $pcUnit->status->tone()],
                 );
             }
+        }
+
+        /*
+         * WP-K. "After the transaction above" is NOT "after commit" when this
+         * method runs nested — SubmitProofOfWork calls it inside its own
+         * transaction, making the block above a savepoint. Both events here
+         * therefore implement ShouldDispatchAfterCommit: the dispatcher defers
+         * them to the root commit and drops them on rollback, whichever caller
+         * owns the outermost transaction. (PcStatusChanged predates this
+         * guarantee — WP-E assumed placement was enough; the nested path shows
+         * it was not.)
+         */
+        if ($target === MaintenanceStatus::Completed) {
+            MaintenanceCompleted::dispatch($updated);
         }
 
         return $updated;

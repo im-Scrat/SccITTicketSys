@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Tickets\Http\Controllers;
 
+use App\Domains\Maintenance\Services\MaintenanceVisibility;
 use App\Domains\Tickets\Actions\RespondToAssignment;
 use App\Domains\Tickets\Http\Requests\IndexTicketsRequest;
 use App\Domains\Tickets\Http\Resources\TicketDetailResource;
@@ -13,7 +14,9 @@ use App\Domains\Tickets\Services\TicketDirectoryQuery;
 use App\Domains\Tickets\Services\TicketLifecycle;
 use App\Domains\Tickets\Services\TicketVisibility;
 use App\Enums\AssignmentStatus;
+use App\Enums\MaintenanceStatus;
 use App\Http\Controllers\Controller;
+use App\Models\MaintenanceRecord;
 use App\Models\TechnicianAssignment;
 use App\Models\Ticket;
 use App\Models\User;
@@ -72,7 +75,7 @@ class TechnicianQueueController extends Controller
      * One assigned ticket, with everything needed to do the job: the fault, the
      * evidence, the equipment and where it is.
      */
-    public function show(Request $request, Ticket $ticket): JsonResponse
+    public function show(Request $request, Ticket $ticket, MaintenanceVisibility $maintenance): JsonResponse
     {
         // Refuses any ticket this technician holds no assignment for — the same
         // check the queue query applies, so a uuid is not a way around it.
@@ -111,8 +114,60 @@ class TechnicianQueueController extends Controller
                 // Read-only history keeps the ticket visible but every write
                 // ability off; the client renders the page accordingly.
                 'read_only' => ! $this->visibility->canWork($user, $ticket),
+                'repair' => $this->repairMeta($ticket, $user, $maintenance),
             ]])
             ->response();
+    }
+
+    /**
+     * WP-K — the maintenance record(s) this ticket's repair produced, and
+     * whether the technician may open one now (SRS UC-03: "(optional) create
+     * maintenance record → resolve"; the full technician flow in §7).
+     *
+     * Records come through `MaintenanceVisibility::scope()`, the Maintenance
+     * module's own row rule (FR-MNT-011), so this lists exactly what the
+     * technician could already reach there — nothing more.
+     *
+     * `can_start` is false when the ticket names no PC: a maintenance record
+     * must have a machine or asset to belong to
+     * (`maintenance_records_target_check`), so repair work on an untracked
+     * device has no equipment history to write into.
+     *
+     * @return array{records: list<array<string, mixed>>, can_start: bool}
+     */
+    private function repairMeta(Ticket $ticket, User $user, MaintenanceVisibility $maintenance): array
+    {
+        $records = $maintenance->scope(MaintenanceRecord::query(), $user)
+            ->where('ticket_id', $ticket->getKey())
+            ->orderByDesc('created_at')
+            ->get(['id', 'uuid', 'title', 'status', 'completed_at', 'created_at']);
+
+        $hasOpen = $records->contains(
+            fn (MaintenanceRecord $record): bool => ! in_array(
+                $record->status,
+                [MaintenanceStatus::Completed, MaintenanceStatus::Cancelled],
+                true,
+            ),
+        );
+
+        return [
+            'records' => $records->map(fn (MaintenanceRecord $record): array => [
+                'id' => $record->uuid,
+                'title' => $record->title,
+                // The Maintenance module's own status shape, so its badge renders it.
+                'status' => [
+                    'value' => $record->status->value,
+                    'label' => $record->status->label(),
+                    'tone' => $record->status->tone(),
+                    'is_open' => $record->isOpen(),
+                ],
+                'completed_at' => $record->completed_at?->toIso8601String(),
+            ])->values()->all(),
+            'can_start' => $ticket->pc_unit_id !== null
+                && ! $hasOpen
+                && $this->visibility->canWork($user, $ticket)
+                && $user->can('create', MaintenanceRecord::class),
+        ];
     }
 
     /* ------------------------------------------------- assignment actions */

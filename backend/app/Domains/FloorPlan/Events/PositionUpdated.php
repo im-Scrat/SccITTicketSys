@@ -7,6 +7,7 @@ namespace App\Domains\FloorPlan\Events;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
@@ -25,7 +26,7 @@ use Illuminate\Foundation\Events\Dispatchable;
  * only what every subscriber of this room's channel is already authorized to
  * see on the map itself.
  */
-class PositionUpdated implements ShouldBroadcast
+class PositionUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable, InteractsWithSockets;
 

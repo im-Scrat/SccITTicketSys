@@ -136,17 +136,11 @@ class MaintenanceListResource extends JsonResource
     }
 
     /**
-     * Presentation tone for the status badge, returned by the API so the client
-     * never hard-codes a status hue (the `AssetStatus::tone()` convention).
+     * Presentation tone for the status badge — `MaintenanceStatus::tone()`,
+     * kept as a method here so subclasses read it the way they always have.
      */
     protected function statusTone(): string
     {
-        return match ($this->status->value) {
-            'completed' => 'success',
-            'in_progress' => 'info',
-            'on_hold' => 'warning',
-            'cancelled' => 'danger',
-            default => 'neutral',
-        };
+        return $this->status->tone();
     }
 }

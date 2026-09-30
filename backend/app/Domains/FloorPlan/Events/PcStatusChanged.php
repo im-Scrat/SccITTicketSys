@@ -7,6 +7,7 @@ namespace App\Domains\FloorPlan\Events;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
@@ -23,8 +24,14 @@ use Illuminate\Foundation\Events\Dispatchable;
  * Position is deliberately absent: this event says nothing about *where* the
  * unit is, only what it now says on the map's node. A subscriber merges this
  * into whatever position (or unplaced entry) it already holds for the id.
+ *
+ * **After commit (WP-K).** `MaintenanceLifecycle` raises this from inside
+ * `SubmitProofOfWork`'s outer transaction, where "after my own transaction"
+ * is still uncommitted — so a map could have shown a status that then rolled
+ * back. `ShouldDispatchAfterCommit` defers it to the root commit and drops it
+ * on rollback, whoever the caller is.
  */
-class PcStatusChanged implements ShouldBroadcast
+class PcStatusChanged implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable, InteractsWithSockets;
 

@@ -7,6 +7,8 @@
  * card cannot render one by mistake (SDD DD-41).
  */
 
+import type { MaintenanceStatusRef } from '@/features/maintenance/types'
+
 export interface Paginated<T> {
   data: T[]
   meta: {
@@ -237,6 +239,27 @@ export interface AssignmentMeta {
 }
 
 /**
+ * One maintenance record a ticket's repair produced (WP-K). The status is the
+ * Maintenance module's own shape, tone included, so its badge renders it.
+ */
+export interface TicketRepairRecord {
+  id: string
+  title: string
+  status: MaintenanceStatusRef
+  completed_at: string | null
+}
+
+/**
+ * The technician route's repair section (WP-K). `can_start` is the server's
+ * whole answer — an active assignment, a PC to hold the history, no record
+ * already open, and `maintenance.create` — so the client never re-derives it.
+ */
+export interface TicketRepairMeta {
+  records: TicketRepairRecord[]
+  can_start: boolean
+}
+
+/**
  * What the server volunteers alongside the record. Every field is optional
  * because each surface sends only what it knows: the requester route sends
  * `can` and the reopen window, the technician route sends the assignment and
@@ -249,6 +272,7 @@ export interface TicketDetailMeta {
   sla?: SlaPosture
   assignment?: AssignmentMeta | null
   read_only?: boolean
+  repair?: TicketRepairMeta
 }
 
 export interface TicketDetailEnvelope {
