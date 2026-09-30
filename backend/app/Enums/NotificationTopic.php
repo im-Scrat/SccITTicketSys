@@ -82,6 +82,24 @@ enum NotificationTopic: string
     case AnnouncementPublished = 'announcement.published';
 
     /**
+     * WP-M — a predictive-maintenance finding is ready for an administrator to
+     * review.
+     *
+     * A topic is required, and not only a type, as a matter of what the code
+     * demands: `ProjectNotification::topic()` is abstract and returns this
+     * enum, and the topic builds the default idempotency key and the
+     * `data.topic` the notification centre groups by. No existing case says
+     * "a forecast wants a decision" — borrowing `MaintenanceDue` would file it
+     * under "a visit is overdue", which an administrator answers differently.
+     *
+     * **No schema change accompanies it.** It files under
+     * {@see NotificationType::Maintenance}, which the baselined CHECK
+     * constraint already allows, so the constraint is untouched and a user who
+     * silences `maintenance` email silences this too (FR-NOT-002).
+     */
+    case PcPredictionGenerated = 'maintenance.prediction_generated';
+
+    /**
      * The {@see NotificationType} this topic is filed under.
      *
      * The mapping is many-to-one on purpose: nine types is what the baselined
@@ -102,6 +120,7 @@ enum NotificationTopic: string
             self::MaintenanceScheduled,
             self::MaintenanceDue,
             self::MaintenanceRescheduled,
+            self::PcPredictionGenerated,
             self::WorkSupportSubmitted,
             self::WorkSupportDecided => NotificationType::Maintenance,
             self::AccountLocked => NotificationType::System,

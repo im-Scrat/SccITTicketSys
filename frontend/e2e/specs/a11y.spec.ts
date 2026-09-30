@@ -106,6 +106,9 @@ const AUTHENTICATED: Record<Role, string[]> = {
     '/app/tickets/manage',
     '/app/maintenance/manage',
     '/app/work-support/manage',
+    // WP-M: the predictive-maintenance review list. Its detail page is audited
+    // separately below because its address depends on a fixture uuid.
+    '/app/predictions',
     // WP-2.7b. Audited for all three roles rather than once, because the centre
     // renders whatever that role was actually sent — an administrator's SLA
     // warnings and a teacher's ticket updates are different rows in different
@@ -216,4 +219,25 @@ test.describe('accessibility — the floor-plan map', () => {
     // Leave the unit where it was: Escape abandons the move, nothing is sent.
     await page.keyboard.press('Escape')
   })
+})
+
+/**
+ * The predictive-maintenance finding page — WP-M.
+ *
+ * Audited on its own because the address carries a fixture uuid, and because it
+ * is the densest page this work package touched: fact grids, evidence, a repair
+ * history and a verdict dialog. Both fixture findings are audited so the one
+ * with a time window and the one without are each covered.
+ */
+test.describe('accessibility — predictive-maintenance finding', () => {
+  for (const key of ['with_window', 'without_window'] as const) {
+    test(`axe: administrator prediction (${key})`, async ({ page }) => {
+      await signIn(page, 'administrator')
+      await auditRoute(
+        page,
+        `/app/predictions/${manifest().predictions[key].uuid}`,
+        `administrator prediction (${key})`,
+      )
+    })
+  }
 })

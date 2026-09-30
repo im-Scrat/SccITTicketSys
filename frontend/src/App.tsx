@@ -8,6 +8,7 @@ import { ProtectedRoute } from '@/features/auth/guards/ProtectedRoute'
 import { RequirePermission } from '@/features/auth/guards/RequirePermission'
 import { RequireRole } from '@/features/auth/guards/RequireRole'
 import { RequireFloorPlan } from '@/features/floor-plan/guards/RequireFloorPlan'
+import { RequirePredictions } from '@/features/predictions/guards/RequirePredictions'
 import { PublicLayout } from '@/layouts/PublicLayout'
 
 // Route-level code splitting keeps the initial bundle lean (SDD §7.5).
@@ -52,6 +53,10 @@ const RoomDetailPage = lazy(() => import('@/features/locations/pages/RoomDetailP
 // Interactive Floor Plan (Phase 2.8 / WP-C) — read-only map, Administrator-only.
 const FloorPlanPage = lazy(() => import('@/features/floor-plan/pages/FloorPlanPage'))
 const FloorPlanRoomPage = lazy(() => import('@/features/floor-plan/pages/FloorPlanRoomPage'))
+
+// Predictive-maintenance findings (WP-M) — Administrator only.
+const PredictionsListPage = lazy(() => import('@/features/predictions/pages/PredictionsListPage'))
+const PredictionDetailPage = lazy(() => import('@/features/predictions/pages/PredictionDetailPage'))
 
 // Asset Management (Phase 2.5).
 const AssetDashboardPage = lazy(() => import('@/features/assets/pages/AssetDashboardPage'))
@@ -451,6 +456,27 @@ function App() {
                     <RequireFloorPlan>
                       <FloorPlanRoomPage />
                     </RequireFloorPlan>
+                  }
+                />
+                {/* Predictive-maintenance findings are Administrator-only: the
+                    guard requires the role as well as `predictions.view`,
+                    because a permission alone can be granted to an individual
+                    Technician or Teacher. The API refuses them regardless
+                    (`PcPredictionAccess`), so typing the URL gains nothing. */}
+                <Route
+                  path="predictions"
+                  element={
+                    <RequirePredictions>
+                      <PredictionsListPage />
+                    </RequirePredictions>
+                  }
+                />
+                <Route
+                  path="predictions/:id"
+                  element={
+                    <RequirePredictions>
+                      <PredictionDetailPage />
+                    </RequirePredictions>
                   }
                 />
                 <Route

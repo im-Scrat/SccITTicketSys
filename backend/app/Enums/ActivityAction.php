@@ -134,6 +134,13 @@ enum ActivityAction: string
     // level, confidence and pattern name only — never the model's prose.
     case PcPredictionGenerated = 'pc_prediction_generated';
 
+    // WP-M — an administrator's verdict on such a finding. Logged against the
+    // prediction as subject. Confirming or dismissing records the decision and
+    // nothing else: AI output is advisory (FR-AI-032), so no ticket is opened
+    // and no visit scheduled as a result.
+    case PcPredictionConfirmed = 'pc_prediction_confirmed';
+    case PcPredictionDismissed = 'pc_prediction_dismissed';
+
     // Phase 2.7 — Maintenance (SRS FR-MNT). The activity_logs subject morph
     // points at the MaintenanceRecord, so the timeline renders "Work started"
     // from the subject type plus this label. There is deliberately no
@@ -296,6 +303,8 @@ enum ActivityAction: string
             self::TicketFixedByReporter => 'Marked fixed by reporter',
             self::TicketNotFixedByReporter => 'Not fixed by reporter — escalated',
             self::PcPredictionGenerated => 'Predictive-maintenance finding generated',
+            self::PcPredictionConfirmed => 'Predictive-maintenance finding confirmed',
+            self::PcPredictionDismissed => 'Predictive-maintenance finding dismissed',
             self::MaintenanceCreated => 'Created',
             self::MaintenanceUpdated => 'Updated',
             self::MaintenanceRescheduled => 'Rescheduled',

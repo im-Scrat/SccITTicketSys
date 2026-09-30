@@ -8,6 +8,7 @@ use App\Domains\Administration\Events\AnnouncementPublished;
 use App\Domains\Administration\Listeners\NotifyOnAnnouncementPublished;
 use App\Domains\Administration\Listeners\NotifyOnMaintenanceRescheduled;
 use App\Domains\Administration\Listeners\NotifyOnMaintenanceScheduled;
+use App\Domains\Administration\Listeners\NotifyOnPcPredictionGenerated;
 use App\Domains\Administration\Listeners\NotifyOnPreventiveMaintenanceDue;
 use App\Domains\Administration\Listeners\NotifyOnTicketAssigned;
 use App\Domains\Administration\Listeners\NotifyOnTicketCommented;
@@ -18,6 +19,7 @@ use App\Domains\Administration\Listeners\NotifyOnWorkSupportRequestSubmitted;
 use App\Domains\Administration\Notifications\Channels\DatabaseChannel;
 use App\Domains\Administration\Policies\AnnouncementPolicy;
 use App\Domains\Administration\Policies\NotificationPolicy;
+use App\Domains\KnowledgeBase\Events\PcPredictionGenerated;
 use App\Domains\Maintenance\Events\MaintenanceRescheduled;
 use App\Domains\Maintenance\Events\MaintenanceScheduled;
 use App\Domains\Maintenance\Events\PreventiveMaintenanceDue;
@@ -105,6 +107,8 @@ class NotificationServiceProvider extends ServiceProvider
         WorkSupportRequestDecided::class => NotifyOnWorkSupportRequestDecided::class,
         // T12 — an announcement was published (WP-2.7c)
         AnnouncementPublished::class => NotifyOnAnnouncementPublished::class,
+        // WP-M — a predictive-maintenance finding awaits administrator review
+        PcPredictionGenerated::class => NotifyOnPcPredictionGenerated::class,
     ];
 
     public function boot(): void

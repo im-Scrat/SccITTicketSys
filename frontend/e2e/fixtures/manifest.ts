@@ -17,6 +17,15 @@ export type FixtureManifest = {
   pc_unit: { uuid: string; unit_code: string; pc_name: string }
   room: { uuid: string; name: string }
   maintenance: { uuid: string; status: string }
+  /**
+   * WP-M — two pending predictive-maintenance findings on the fixture PC. The
+   * first states a time window (40 days); the second withholds one, so the
+   * suite can assert both branches of the display rule.
+   */
+  predictions: Record<
+    'with_window' | 'without_window',
+    { uuid: string; issue: string; window: number | null }
+  >
 }
 
 export type Role = 'administrator' | 'technician' | 'teacher'

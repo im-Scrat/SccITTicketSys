@@ -7,6 +7,7 @@ import {
   HardDrive,
   Inbox,
   LayoutDashboard,
+  LineChart,
   LogOut,
   Map as MapIcon,
   Megaphone,
@@ -163,6 +164,16 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Floor plan',
     icon: MapIcon,
     permission: 'floorplan.view',
+    roles: ['administrator'],
+  },
+  {
+    // Administrator-only, on the floor-plan shape: the role sits beside the
+    // permission, so a per-user `predictions.view` grant cannot surface the item
+    // for a Technician or Teacher (the page and API refuse them regardless).
+    to: '/app/predictions',
+    label: 'Predictive maintenance',
+    icon: LineChart,
+    permission: 'predictions.view',
     roles: ['administrator'],
   },
   { to: '/app/users', label: 'Users', icon: Users, permission: 'users.view' },

@@ -5,11 +5,14 @@ declare(strict_types=1);
 use App\Console\Commands\SeedE2eFixtures;
 use App\Enums\QrStatus;
 use App\Enums\UserStatus;
+use App\Models\AiPrediction;
 use App\Models\MaintenanceRecord;
+use App\Models\Notification as NotificationRecord;
 use App\Models\PcUnit;
 use App\Models\QrCode;
 use App\Models\User;
 use Database\Seeders\MaintenanceTypeSeeder;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Hash;
 use Symfony\Component\Console\Command\Command;
 
@@ -112,12 +115,98 @@ it('emits a JSON manifest carrying every key the browser suite reads', function 
 
     // Re-run capturing the output, because assertSuccessful() consumes it.
     $exit = $this->withoutMockingConsoleOutput()->artisan('sccit:e2e-fixtures', ['--json' => true]);
-    $manifest = json_decode(app(Illuminate\Contracts\Console\Kernel::class)->output(), true);
+    $manifest = json_decode(app(Kernel::class)->output(), true);
 
     expect($exit)->toBe(Command::SUCCESS)
         ->and($manifest)->toBeArray()
-        ->and($manifest)->toHaveKeys(['password', 'users', 'qr', 'pc_unit', 'room', 'maintenance'])
+        ->and($manifest)->toHaveKeys(['password', 'users', 'qr', 'pc_unit', 'room', 'maintenance', 'predictions'])
         ->and($manifest['users'])->toHaveKeys(['administrator', 'technician', 'teacher'])
         ->and($manifest['qr']['code'])->toBe(SeedE2eFixtures::QR_CODE)
         ->and($manifest['qr']['scan_path'])->toBe('/qr/'.SeedE2eFixtures::QR_CODE);
+});
+
+/*
+ * WP-M — the predictive-maintenance fixtures.
+ *
+ * The browser suite reviews and *decides* these findings, so the two properties
+ * worth holding are that they are shaped the way the pipeline shapes them (so the
+ * page is tested against a real shape) and that the command can put them back.
+ */
+it('files two pending findings on the fixture machine, one with a time window and one without', function (): void {
+    $this->artisan('sccit:e2e-fixtures')->assertSuccessful();
+
+    $pcUnit = PcUnit::query()->where('unit_code', 'E2E-PC-001')->firstOrFail();
+    $findings = AiPrediction::query()->where('pc_unit_id', $pcUnit->id)->orderBy('id')->get();
+
+    expect($findings)->toHaveCount(2)
+        ->and($findings->every(fn (AiPrediction $finding): bool => $finding->status->value === 'pending'))->toBeTrue()
+        // No calibrated model exists, so the pipeline never writes a probability
+        // and neither may a fixture pretend it does.
+        ->and($findings->every(fn (AiPrediction $finding): bool => $finding->probability === null))->toBeTrue()
+        ->and($findings[0]->predicted_within_days)->toBe(40)
+        ->and($findings[1]->predicted_within_days)->toBeNull()
+        ->and($findings[1]->evidence['time_window']['days'])->toBeNull();
+});
+
+it('gives the findings real completed repairs to point at', function (): void {
+    $this->artisan('sccit:e2e-fixtures')->assertSuccessful();
+
+    $pcUnit = PcUnit::query()->where('unit_code', 'E2E-PC-001')->firstOrFail();
+    $repairs = MaintenanceRecord::query()
+        ->where('pc_unit_id', $pcUnit->id)
+        ->where('status', 'completed')
+        ->count();
+
+    // The frozen evidence claims three completed repairs; the live history must
+    // be able to say the same, or the two halves of the page would disagree.
+    $evidence = AiPrediction::query()->where('pc_unit_id', $pcUnit->id)->orderBy('id')->firstOrFail()->evidence;
+
+    expect($repairs)->toBe(3)
+        ->and($evidence['observed']['completed_repairs'])->toBe(3);
+});
+
+it('publishes the findings in the manifest', function (): void {
+    $this->withoutMockingConsoleOutput()->artisan('sccit:e2e-fixtures', ['--json' => true]);
+    $manifest = json_decode(app(Kernel::class)->output(), true);
+
+    expect($manifest['predictions'])->toHaveKeys(['with_window', 'without_window'])
+        ->and($manifest['predictions']['with_window'])->toHaveKeys(['uuid', 'issue', 'window'])
+        ->and($manifest['predictions']['with_window']['window'])->toBe(40)
+        ->and($manifest['predictions']['without_window']['window'])->toBeNull()
+        ->and(AiPrediction::query()->where('uuid', $manifest['predictions']['with_window']['uuid'])->exists())->toBeTrue();
+});
+
+it('puts the findings back to pending on a re-run, even after the suite decided them', function (): void {
+    $this->artisan('sccit:e2e-fixtures')->assertSuccessful();
+
+    AiPrediction::query()->update(['status' => 'confirmed']);
+
+    $this->artisan('sccit:e2e-fixtures')->assertSuccessful();
+
+    expect(AiPrediction::query()->count())->toBe(2)
+        ->and(AiPrediction::query()->where('status', 'pending')->count())->toBe(2);
+});
+
+it('does not duplicate the repair history on a re-run', function (): void {
+    $this->artisan('sccit:e2e-fixtures')->assertSuccessful();
+    $this->artisan('sccit:e2e-fixtures')->assertSuccessful();
+
+    expect(MaintenanceRecord::query()->where('title', 'like', 'E2E fixture — power supply repair%')->count())->toBe(3);
+});
+
+it('tells only the fixture administrator, not every administrator in the database', function (): void {
+    $realAdmin = userWithRole('administrator');
+
+    $this->artisan('sccit:e2e-fixtures')->assertSuccessful();
+
+    $fixtureAdmin = User::query()->where('email', SeedE2eFixtures::ADMIN_EMAIL)->firstOrFail();
+
+    $told = fn (User $user): int => NotificationRecord::query()
+        ->where('user_id', $user->id)
+        ->where('data->topic', 'maintenance.prediction_generated')
+        ->count();
+
+    // A developer's own account must not collect a notification per test run.
+    expect($told($fixtureAdmin))->toBe(1)
+        ->and($told($realAdmin))->toBe(0);
 });

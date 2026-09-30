@@ -33,6 +33,7 @@ use App\Domains\Identity\Http\Controllers\PasswordController;
 use App\Domains\Identity\Http\Controllers\PasswordResetController;
 use App\Domains\Identity\Http\Controllers\ProfileController;
 use App\Domains\Identity\Http\Controllers\RegistrationController;
+use App\Domains\KnowledgeBase\Http\Controllers\Admin\AiPredictionController;
 use App\Domains\Locations\Http\Controllers\Admin\BuildingController;
 use App\Domains\Locations\Http\Controllers\Admin\FloorController;
 use App\Domains\Locations\Http\Controllers\Admin\LocationAuditController;
@@ -64,6 +65,7 @@ use App\Domains\WorkSupport\Http\Controllers\WorkSupportRequestController;
 use App\Http\Controllers\BroadcastingConfigController;
 use App\Http\Controllers\HealthController;
 use App\Http\Middleware\AuthenticateSession;
+use App\Models\AiPrediction;
 use App\Models\FloorPlanPosition;
 use App\Models\RoomLayout;
 use Illuminate\Support\Facades\Route;
@@ -764,6 +766,40 @@ Route::middleware('auth:sanctum')->group(function () {
                     '/floor-plan/rooms/{room}/layouts/{version}/activate',
                     [RoomLayoutController::class, 'activate'],
                 )->whereNumber('version')->middleware('can:manage,'.RoomLayout::class);
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Predictive-maintenance findings (WP-M) — ADMINISTRATOR ONLY
+        |------------------------------------------------------------------
+        | SRS FR-AI-011. Gated by the **policy** abilities `viewAny` / `manage`
+        | on AiPrediction, never by `can:predictions.view` — the same reasoning,
+        | and the same trap, as the floor plan above: `Gate::before` answers any
+        | ability whose string is a permission in the user's set, so a per-user
+        | grant of `predictions.*` to a Technician would open a permission-string
+        | gate. The policy requires the Administrator role as well.
+        |
+        | `{prediction}` is a plain string, not `{prediction:uuid}`: implicit
+        | binding runs before this gate, and a bound model would answer an
+        | unauthorized caller with a 404 for an unknown uuid and a 403 for a real
+        | one — an existence oracle. The controller resolves it after
+        | authorizing. `whereUuid` keeps junk a clean 404 at the router.
+        |
+        | Confirm and dismiss are named PATCHes with no `status` in the body: the
+        | decision is the endpoint. Neither does anything but record the verdict
+        | (FR-AI-032 — AI output is advisory).
+        */
+        Route::middleware(['password.current', 'can:viewAny,'.AiPrediction::class])
+            ->prefix('admin')
+            ->whereUuid(['prediction'])
+            ->group(function () {
+                Route::get('/predictions', [AiPredictionController::class, 'index']);
+                Route::get('/predictions/{prediction}', [AiPredictionController::class, 'show']);
+
+                Route::patch('/predictions/{prediction}/confirm', [AiPredictionController::class, 'confirm'])
+                    ->middleware('can:manage,'.AiPrediction::class);
+                Route::patch('/predictions/{prediction}/dismiss', [AiPredictionController::class, 'dismiss'])
+                    ->middleware('can:manage,'.AiPrediction::class);
             });
 
         /*

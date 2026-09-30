@@ -4,15 +4,24 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domains\Administration\Services\NotificationDispatcher;
+use App\Domains\KnowledgeBase\Notifications\PcPredictionGeneratedNotification;
+use App\Enums\ComponentType;
 use App\Enums\MaintenanceStatus;
 use App\Enums\PcCondition;
 use App\Enums\PcStatus;
+use App\Enums\PredictionRiskLevel;
+use App\Enums\PredictionStatus;
 use App\Enums\QrStatus;
 use App\Enums\RoomType;
 use App\Enums\UserStatus;
+use App\Models\AiFailurePattern;
+use App\Models\AiPrediction;
 use App\Models\Building;
 use App\Models\Floor;
 use App\Models\FloorPlanPosition;
+use App\Models\HardwareComponent;
+use App\Models\HardwareReplacement;
 use App\Models\MaintenanceRecord;
 use App\Models\MaintenanceType;
 use App\Models\PcUnit;
@@ -98,6 +107,7 @@ class SeedE2eFixtures extends Command
             $qr = $this->qrCode($pcUnit, $room);
             $maintenance = $this->maintenance($pcUnit, $users['technician']);
             $this->floorPlan($room, $pcUnit);
+            $predictions = $this->predictions($pcUnit, $users['technician'], $users['administrator']);
 
             return [
                 'password' => $password,
@@ -118,6 +128,7 @@ class SeedE2eFixtures extends Command
                 ],
                 'room' => ['uuid' => $room->uuid, 'name' => $room->name],
                 'maintenance' => ['uuid' => $maintenance->uuid, 'status' => $maintenance->status->value],
+                'predictions' => $predictions,
             ];
         });
 
@@ -137,6 +148,7 @@ class SeedE2eFixtures extends Command
         $this->line('  QR code        '.$manifest['qr']['code'].'  ('.$manifest['qr']['scan_path'].')');
         $this->line('  PC unit        '.$manifest['pc_unit']['unit_code']);
         $this->line('  maintenance    '.$manifest['maintenance']['uuid'].' ('.$manifest['maintenance']['status'].')');
+        $this->line('  predictions    '.count($manifest['predictions']).' pending finding(s) on the fixture PC');
 
         return self::SUCCESS;
     }
@@ -320,5 +332,156 @@ class SeedE2eFixtures extends Command
                 'created_by' => $technician->id,
             ],
         );
+    }
+
+    /**
+     * Two pending predictive-maintenance findings on the fixture PC, with the
+     * repair history the review screen shows beside them (WP-M).
+     *
+     * Written directly rather than through `PcRiskAssessor`: that pipeline calls
+     * a model provider, and a fixture that needed a live key would be no fixture.
+     * What it must not do is invent a *shape*, so the `evidence` below is exactly
+     * what the pipeline freezes at generation (observed facts, detected pattern,
+     * the time window's basis) and the repairs it points at are real completed
+     * `maintenance_records` — so the frozen evidence and the live history agree
+     * about what happened to this machine.
+     *
+     * The two differ on purpose so the suite can assert both branches of the
+     * display rule: the first states a time window, the second withholds one and
+     * says why. Neither has a `probability`, because no calibrated model exists
+     * and the pipeline never writes one.
+     *
+     * ── Re-runnable ────────────────────────────────────────────────────────
+     * The specs *decide* findings, and a decided finding is final. So each run
+     * first removes this PC's own predictions and patterns — the PC is the
+     * suite's entity, so nothing else is touched — and files them pending again.
+     *
+     * ── Who is told ────────────────────────────────────────────────────────
+     * Only the fixture administrator. Raising the pipeline's event would notify
+     * *every* administrator in the database, and a developer's own account should
+     * not collect a notification per test run.
+     *
+     * @return array<string, array{uuid: string, issue: string, window: int|null}>
+     */
+    private function predictions(PcUnit $pcUnit, User $technician, User $administrator): array
+    {
+        $type = MaintenanceType::query()->where('slug', 'corrective')->first()
+            ?? throw new RuntimeException("The 'corrective' maintenance type is missing. Run `php artisan db:seed` first.");
+
+        AiPrediction::query()->where('pc_unit_id', $pcUnit->id)->delete();
+        AiFailurePattern::query()->where('pc_unit_id', $pcUnit->id)->delete();
+
+        $component = HardwareComponent::query()->updateOrCreate(
+            ['name' => 'E2E fixture power supply'],
+            ['component_type' => ComponentType::PowerSupply->value],
+        );
+
+        $repairDays = [140, 80, 20];
+        $intervals = [60, 60];
+
+        foreach ($repairDays as $index => $daysAgo) {
+            $completedAt = now()->subDays($daysAgo);
+
+            $record = MaintenanceRecord::query()->updateOrCreate(
+                ['title' => sprintf('E2E fixture — power supply repair %d', $index + 1)],
+                [
+                    'pc_unit_id' => $pcUnit->id,
+                    'technician_id' => $technician->id,
+                    'maintenance_type_id' => $type->id,
+                    'status' => MaintenanceStatus::Completed->value,
+                    'started_at' => $completedAt->copy()->subHour(),
+                    'completed_at' => $completedAt,
+                    'maintenance_date' => $completedAt,
+                    'created_by' => $technician->id,
+                ],
+            );
+
+            HardwareReplacement::query()->updateOrCreate(
+                ['maintenance_record_id' => $record->id, 'old_component_id' => $component->id],
+                ['pc_unit_id' => $pcUnit->id, 'new_component_id' => $component->id, 'quantity' => 1, 'replaced_at' => $completedAt],
+            );
+        }
+
+        $first = now()->subDays($repairDays[0]);
+        $last = now()->subDays(20);
+
+        $pattern = AiFailurePattern::query()->create([
+            'pc_unit_id' => $pcUnit->id,
+            'hardware_component_id' => $component->id,
+            'pattern_name' => 'Recurring Power Supply replacement',
+            'detected_problem' => 'Power Supply replaced in 3 separate repairs',
+            'occurrence_count' => 3,
+            'average_days_between_failures' => 60,
+            'confidence' => 0.72,
+            'last_detected' => now(),
+        ]);
+
+        $withWindow = AiPrediction::query()->create([
+            'pc_unit_id' => $pcUnit->id,
+            'ai_failure_pattern_id' => $pattern->id,
+            'predicted_issue' => 'E2E fixture: repeated power supply failure',
+            'risk_level' => PredictionRiskLevel::High->value,
+            'probability' => null,
+            'confidence' => 0.72,
+            'predicted_within_days' => 40,
+            'explanation' => 'Three power supply replacements at regular 60-day intervals.',
+            'recommendation' => 'Inspect ventilation and the power connections before the next interval elapses.',
+            'evidence' => [
+                'observed' => [
+                    'completed_repairs' => 3,
+                    'corrective_repairs' => 3,
+                    'preventive_visits' => 0,
+                    'first_completed_at' => $first->toIso8601String(),
+                    'last_completed_at' => $last->toIso8601String(),
+                    'components_replaced' => [['component_type' => 'power_supply', 'label' => 'Power Supply', 'count' => 3]],
+                ],
+                'patterns' => [[
+                    'kind' => 'component',
+                    'name' => 'Recurring Power Supply replacement',
+                    'detected_problem' => 'Power Supply replaced in 3 separate repairs',
+                    'occurrence_count' => 3,
+                    'intervals_days' => $intervals,
+                    'average_days_between' => 60,
+                    'first_at' => $first->toIso8601String(),
+                    'last_at' => $last->toIso8601String(),
+                    'records' => [],
+                ]],
+                'time_window' => ['days' => 40, 'basis' => "The strongest pattern's average interval, less the days since its last occurrence."],
+            ],
+            'status' => PredictionStatus::Pending->value,
+            'generated_at' => now(),
+        ]);
+
+        $withoutWindow = AiPrediction::query()->create([
+            'pc_unit_id' => $pcUnit->id,
+            'predicted_issue' => 'E2E fixture: repeated storage failure',
+            'risk_level' => PredictionRiskLevel::Medium->value,
+            'probability' => null,
+            'confidence' => 0.55,
+            'predicted_within_days' => null,
+            'explanation' => 'Two storage replacements so far; too few to say when a third might follow.',
+            'recommendation' => 'Check the drive\'s health indicators at the next visit.',
+            'evidence' => [
+                'observed' => [
+                    'completed_repairs' => 3,
+                    'corrective_repairs' => 3,
+                    'preventive_visits' => 0,
+                    'first_completed_at' => $first->toIso8601String(),
+                    'last_completed_at' => $last->toIso8601String(),
+                    'components_replaced' => [['component_type' => 'storage', 'label' => 'Storage', 'count' => 2]],
+                ],
+                'patterns' => [],
+                'time_window' => ['days' => null, 'basis' => 'Fewer than three occurrences, so no time window is stated.'],
+            ],
+            'status' => PredictionStatus::Pending->value,
+            'generated_at' => now(),
+        ]);
+
+        app(NotificationDispatcher::class)->sendTo($administrator, new PcPredictionGeneratedNotification($withWindow));
+
+        return [
+            'with_window' => ['uuid' => $withWindow->uuid, 'issue' => $withWindow->predicted_issue, 'window' => $withWindow->predicted_within_days],
+            'without_window' => ['uuid' => $withoutWindow->uuid, 'issue' => $withoutWindow->predicted_issue, 'window' => $withoutWindow->predicted_within_days],
+        ];
     }
 }

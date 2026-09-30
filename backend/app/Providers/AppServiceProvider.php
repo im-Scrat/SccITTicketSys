@@ -8,6 +8,7 @@ use App\Domains\FloorPlan\Policies\FloorPlanPositionPolicy;
 use App\Domains\FloorPlan\Policies\RoomLayoutPolicy;
 use App\Domains\Identity\Policies\UserPolicy;
 use App\Domains\Identity\Services\PermissionResolver;
+use App\Domains\KnowledgeBase\Policies\AiPredictionPolicy;
 use App\Domains\Locations\Policies\BuildingPolicy;
 use App\Domains\Locations\Policies\FloorPolicy;
 use App\Domains\Locations\Policies\RoomPolicy;
@@ -16,6 +17,7 @@ use App\Domains\Tickets\Policies\TicketAssignmentPolicy;
 use App\Domains\Tickets\Policies\TicketCommentPolicy;
 use App\Domains\Tickets\Policies\TicketPolicy;
 use App\Domains\WorkSupport\Policies\WorkSupportRequestPolicy;
+use App\Models\AiPrediction;
 use App\Models\Asset;
 use App\Models\Building;
 use App\Models\Floor;
@@ -116,6 +118,11 @@ class AppServiceProvider extends ServiceProvider
         // decides, requiring the Administrator role as well as the permission.
         Gate::policy(RoomLayout::class, RoomLayoutPolicy::class);
         Gate::policy(FloorPlanPosition::class, FloorPlanPositionPolicy::class);
+
+        // Predictive-maintenance findings (WP-M): Administrator-only, closed by the
+        // policy and never by a bare `predictions.*` permission string — see
+        // PcPredictionAccess for the `Gate::before` trap that rules out.
+        Gate::policy(AiPrediction::class, AiPredictionPolicy::class);
     }
 
     /**

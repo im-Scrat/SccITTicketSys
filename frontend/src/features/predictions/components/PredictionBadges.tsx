@@ -23,7 +23,15 @@ const toneDots: Record<PredictionTone, string> = {
  * level added later gets its colour from one place. Colour is never the only
  * signal: every pill carries its text label (NFR-ACC-004).
  */
-function Pill({ tone, label, className }: { tone: PredictionTone; label: string; className?: string }) {
+function Pill({
+  tone,
+  label,
+  className,
+}: {
+  tone: PredictionTone
+  label: string
+  className?: string
+}) {
   return (
     <span
       className={cn(
@@ -32,7 +40,10 @@ function Pill({ tone, label, className }: { tone: PredictionTone; label: string;
         className,
       )}
     >
-      <span className={cn('size-2.5 rounded-full', toneDots[tone] ?? toneDots.neutral)} aria-hidden="true" />
+      <span
+        className={cn('size-2.5 rounded-full', toneDots[tone] ?? toneDots.neutral)}
+        aria-hidden="true"
+      />
       {label}
     </span>
   )

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,11 +26,18 @@ vi.mock('../api/predictionsApi', () => ({
  * only appear when `can.decide` is true, and that the dialog, not the button
  * itself, is what triggers the mutation.
  */
-function detail(overrides: Partial<PredictionDetailEnvelope['data']> = {}): PredictionDetailEnvelope {
+function detail(
+  overrides: Partial<PredictionDetailEnvelope['data']> = {},
+): PredictionDetailEnvelope {
   return {
     data: {
       id: 'p-1',
-      pc_unit: { id: 'pc-1', label: 'Lab 3 Workstation', identifier: 'PC-WPM-01', asset_tag: 'AST-9001' },
+      pc_unit: {
+        id: 'pc-1',
+        label: 'Lab 3 Workstation',
+        identifier: 'PC-WPM-01',
+        asset_tag: 'AST-9001',
+      },
       location: { room: 'Lab 3', floor: 'Second Floor', building: 'Science Hall' },
       predicted_issue: 'Power supply failure',
       risk_level: { value: 'high', label: 'High', tone: 'danger' },
@@ -45,7 +52,9 @@ function detail(overrides: Partial<PredictionDetailEnvelope['data']> = {}): Pred
           corrective_repairs: 3,
           preventive_visits: 0,
           last_completed_at: '2026-08-20T00:00:00+00:00',
-          components_replaced: [{ component_type: 'power_supply', label: 'Power Supply', count: 3 }],
+          components_replaced: [
+            { component_type: 'power_supply', label: 'Power Supply', count: 3 },
+          ],
         },
         patterns: [
           {
@@ -61,6 +70,33 @@ function detail(overrides: Partial<PredictionDetailEnvelope['data']> = {}): Pred
           },
         ],
         time_window: { days: 50, basis: "The strongest pattern's average interval." },
+      },
+      history: {
+        completed_repairs: 4,
+        corrective_repairs: 3,
+        recent_repair: {
+          id: 'rec-3',
+          type: 'Corrective Repair',
+          completed_at: '2026-09-25T00:00:00+00:00',
+          category: 'Hardware',
+          components: ['Power Supply'],
+        },
+        previous_problems: [
+          {
+            id: 'rec-2',
+            type: 'Corrective Repair',
+            completed_at: '2026-07-01T00:00:00+00:00',
+            category: null,
+            components: ['Power Supply'],
+          },
+          {
+            id: 'rec-1',
+            type: 'Corrective Repair',
+            completed_at: '2026-05-01T00:00:00+00:00',
+            category: 'Hardware',
+            components: [],
+          },
+        ],
       },
       ai_model: { provider: 'gemini', model: 'gemini-1.5-flash' },
       failure_pattern: { id: 1, name: 'Recurring Power Supply replacement', occurrence_count: 3 },
@@ -98,7 +134,12 @@ describe('predictive-maintenance detail', () => {
 
     expect(await screen.findByText('Power supply failure')).toBeInTheDocument()
     expect(screen.getByText(/Lab 3.*Second Floor.*Science Hall/)).toBeInTheDocument()
-    expect(screen.getByText('Recurring Power Supply replacement')).toBeInTheDocument()
+    // The pattern's name is legitimately shown twice — as the finding's
+    // "Failure pattern" fact and as its card in the evidence — so the evidence
+    // is read from the evidence section, where it is the reasoning being shown.
+    const patterns = screen.getByRole('heading', { name: /detected pattern/i }).parentElement!
+
+    expect(within(patterns).getByText('Recurring Power Supply replacement')).toBeInTheDocument()
     expect(screen.getByText('Power Supply')).toBeInTheDocument()
     expect(screen.getByText('3 times')).toBeInTheDocument()
   })
@@ -118,18 +159,26 @@ describe('predictive-maintenance detail', () => {
 
     await screen.findByText('Power supply failure')
     expect(screen.queryByRole('button', { name: /confirm finding/i })).not.toBeInTheDocument()
-    expect(screen.getByText(/decisions on a predictive-maintenance finding are final/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/decisions on a predictive-maintenance finding are final/i),
+    ).toBeInTheDocument()
   })
 
   it('confirms only after the dialog is accepted, not on the first click', async () => {
     const user = userEvent.setup()
-    confirmPrediction.mockResolvedValue(detail({ status: { value: 'confirmed', label: 'Confirmed' } }))
+    confirmPrediction.mockResolvedValue(
+      detail({ status: { value: 'confirmed', label: 'Confirmed' } }),
+    )
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /confirm finding/i }))
     expect(confirmPrediction).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole('button', { name: 'Confirm finding' }))
+    // The header button and the dialog's own confirmation share a label; the
+    // second click has to be the dialog's, or this would only prove the header
+    // button can be clicked twice.
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm finding' }))
 
     await waitFor(() => expect(confirmPrediction).toHaveBeenCalledWith('p-1'))
   })
@@ -140,8 +189,74 @@ describe('predictive-maintenance detail', () => {
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /^dismiss$/i }))
-    await user.click(screen.getByRole('button', { name: 'Dismiss finding' }))
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Dismiss finding' }),
+    )
 
     expect(await screen.findByText('That decision was not recorded')).toBeInTheDocument()
+  })
+})
+
+describe('the repair history now', () => {
+  it('shows the counts and the most recent repair', async () => {
+    renderPage()
+
+    const section = (await screen.findByRole('heading', { name: 'Repair history now' })).closest(
+      'section',
+    )!
+
+    expect(within(section).getByText('Completed repairs')).toBeInTheDocument()
+    expect(within(section).getByText('Corrective repairs')).toBeInTheDocument()
+    expect(within(section).getByText('Most recent repair')).toBeInTheDocument()
+    expect(
+      within(section).getByText('Corrective Repair · Hardware · Power Supply'),
+    ).toBeInTheDocument()
+  })
+
+  it('lists the previous problems with whatever of type, category and parts is known', async () => {
+    renderPage()
+
+    const section = (await screen.findByRole('heading', { name: 'Repair history now' })).closest(
+      'section',
+    )!
+    const rows = within(section).getAllByRole('listitem')
+
+    expect(rows).toHaveLength(2)
+    // Category unknown, no parts: only the type and the part that is there.
+    expect(within(rows[0]).getByText('Corrective Repair · Power Supply')).toBeInTheDocument()
+    expect(within(rows[1]).getByText('Corrective Repair · Hardware')).toBeInTheDocument()
+  })
+
+  it('says what it is, and that the evidence above it does not change', async () => {
+    renderPage()
+
+    expect(
+      await screen.findByText(/the evidence above is what this finding was generated from/i),
+    ).toBeInTheDocument()
+  })
+
+  it('says so when there is nothing earlier to show', async () => {
+    fetchPrediction.mockResolvedValue(
+      detail({
+        history: {
+          completed_repairs: 1,
+          corrective_repairs: 1,
+          recent_repair: null,
+          previous_problems: [],
+        },
+      }),
+    )
+    renderPage()
+
+    expect(await screen.findByText(/no earlier repairs are recorded/i)).toBeInTheDocument()
+    expect(screen.getByText('None recorded')).toBeInTheDocument()
+  })
+
+  it('is absent, not empty, when the server sent no history at all', async () => {
+    fetchPrediction.mockResolvedValue(detail({ history: null }))
+    renderPage()
+
+    await screen.findByText('Power supply failure')
+    expect(screen.queryByRole('heading', { name: 'Repair history now' })).not.toBeInTheDocument()
   })
 })

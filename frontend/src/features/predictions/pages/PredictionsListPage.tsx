@@ -1,15 +1,7 @@
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Alert,
-  EmptyState,
-  Pagination,
-  Select,
-  Skeleton,
-  Surface,
-  Tabs,
-} from '@/components/ui'
+import { Alert, EmptyState, Pagination, Select, Skeleton, Surface, Tabs } from '@/components/ui'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { formatDate } from '@/lib/datetime'
 import { PredictionRiskBadge, PredictionStatusBadge } from '../components/PredictionBadges'
@@ -72,9 +64,8 @@ export default function PredictionsListPage() {
           Predictive maintenance
         </h1>
         <p className="mt-1 max-w-[70ch] text-sm text-muted">
-          Findings a model has surfaced from repair history. Nothing here is acted on
-          automatically — every finding waits for an administrator to confirm it matched
-          reality or dismiss it.
+          Findings a model has surfaced from repair history. Nothing here is acted on automatically
+          — every finding waits for an administrator to confirm it matched reality or dismiss it.
         </p>
       </div>
 

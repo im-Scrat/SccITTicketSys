@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -25,7 +25,12 @@ vi.mock('../api/predictionsApi', () => ({
 function item(overrides: Partial<PredictionListItem> = {}): PredictionListItem {
   return {
     id: 'p-1',
-    pc_unit: { id: 'pc-1', label: 'Lab 3 Workstation', identifier: 'PC-WPM-01', asset_tag: 'AST-9001' },
+    pc_unit: {
+      id: 'pc-1',
+      label: 'Lab 3 Workstation',
+      identifier: 'PC-WPM-01',
+      asset_tag: 'AST-9001',
+    },
     predicted_issue: 'Power supply failure',
     risk_level: { value: 'high', label: 'High', tone: 'danger' },
     confidence: 0.72,
@@ -69,10 +74,14 @@ describe('predictive-maintenance list', () => {
   it('shows a finding with its PC, risk and status in words', async () => {
     renderPage()
 
-    expect(await screen.findByText('Power supply failure')).toBeInTheDocument()
-    expect(screen.getByText('Lab 3 Workstation')).toBeInTheDocument()
-    expect(screen.getByText('High risk')).toBeInTheDocument()
-    expect(screen.getByText('Needs a decision')).toBeInTheDocument()
+    // Scoped to the finding's own row: "High risk" is also a filter option and
+    // "Needs a decision" is also the first tab, so an unscoped query would be
+    // matching the controls and proving nothing about the row.
+    const row = await screen.findByRole('link', { name: /power supply failure/i })
+
+    expect(within(row).getByText('Lab 3 Workstation')).toBeInTheDocument()
+    expect(within(row).getByText('High risk')).toBeInTheDocument()
+    expect(within(row).getByText('Needs a decision')).toBeInTheDocument()
   })
 
   it('defaults to the pending tab', () => {

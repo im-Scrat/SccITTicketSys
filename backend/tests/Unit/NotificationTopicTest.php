@@ -33,6 +33,7 @@ it('files each trigger under the vocabulary a user would filter by', function ()
         ->and(NotificationTopic::MaintenanceRescheduled->type())->toBe(NotificationType::Maintenance)
         ->and(NotificationTopic::WorkSupportSubmitted->type())->toBe(NotificationType::Maintenance)
         ->and(NotificationTopic::WorkSupportDecided->type())->toBe(NotificationType::Maintenance)
+        ->and(NotificationTopic::PcPredictionGenerated->type())->toBe(NotificationType::Maintenance)
         ->and(NotificationTopic::AccountLocked->type())->toBe(NotificationType::System);
 })->group('notifications');
 

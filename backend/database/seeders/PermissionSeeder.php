@@ -28,6 +28,11 @@ class PermissionSeeder extends Seeder
         'roles' => ['view', 'manage'],
         'reports' => ['view', 'export'],
         'floorplan' => ['view', 'manage'],
+        // WP-M. Administrator-only predictive-maintenance findings. Granted to the
+        // Administrator by the `$all` sync below and to nobody else; the policy
+        // additionally requires the role (see PcPredictionAccess), so a per-user
+        // grant to anyone else opens nothing.
+        'predictions' => ['view', 'manage'],
         'system' => ['settings.manage', 'backup.manage', 'audit.view', 'announcements.manage'],
     ];
 

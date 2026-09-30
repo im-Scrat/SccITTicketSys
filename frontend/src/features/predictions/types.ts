@@ -84,6 +84,28 @@ export interface PredictionEvidence {
   }
 }
 
+/** One completed repair, as the review screen shows it — structural facts only. */
+export interface PredictionHistoryRepair {
+  id: string
+  type: string
+  completed_at: string
+  /** The category of the ticket the repair answered, if it answered one. */
+  category: string | null
+  components: string[]
+}
+
+/**
+ * The machine's repair history **as it stands now**. Deliberately not part of
+ * `evidence`, which is frozen at the moment the finding was generated: a repair
+ * completed the day after appears here and, correctly, not there.
+ */
+export interface PredictionHistory {
+  completed_repairs: number
+  corrective_repairs: number
+  recent_repair: PredictionHistoryRepair | null
+  previous_problems: PredictionHistoryRepair[]
+}
+
 /** One predictive-maintenance finding, in full. */
 export interface PredictionDetail {
   id: string
@@ -98,6 +120,7 @@ export interface PredictionDetail {
   explanation: string
   recommendation: string
   evidence: PredictionEvidence
+  history: PredictionHistory | null
   ai_model: { provider: string; model: string } | null
   failure_pattern: { id: number; name: string; occurrence_count: number } | null
   status: PredictionStatusRef
@@ -106,7 +129,7 @@ export interface PredictionDetail {
   created_at: string | null
 }
 
-export interface PredictionListEnvelope extends Paginated<PredictionListItem> {}
+export type PredictionListEnvelope = Paginated<PredictionListItem>
 
 export interface PredictionDetailEnvelope {
   data: PredictionDetail

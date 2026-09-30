@@ -8,7 +8,12 @@ import { formatDateTime } from '@/lib/datetime'
 import { PredictionRiskBadge, PredictionStatusBadge } from '../components/PredictionBadges'
 import { useConfirmPrediction, useDismissPrediction } from '../hooks/mutations'
 import { usePrediction } from '../hooks/queries'
-import type { EvidenceComponentReplaced, EvidencePattern } from '../types'
+import type {
+  EvidenceComponentReplaced,
+  EvidencePattern,
+  PredictionHistory,
+  PredictionHistoryRepair,
+} from '../types'
 
 type Decision = 'confirm' | 'dismiss'
 
@@ -75,8 +80,8 @@ export default function PredictionDetailPage() {
         </Button>
 
         <Alert tone="error" title="This finding is not available">
-          It may have been superseded by a newer assessment, or you may not have permission to
-          view it.
+          It may have been superseded by a newer assessment, or you may not have permission to view
+          it.
         </Alert>
       </div>
     )
@@ -148,7 +153,7 @@ export default function PredictionDetailPage() {
         )}
       </header>
 
-      <Surface className="grid gap-6 p-6 sm:grid-cols-2 lg:grid-cols-4">
+      <Surface as="dl" className="grid gap-6 p-6 sm:grid-cols-2 lg:grid-cols-4">
         <Fact label="Confidence" value={formatPercent(data.confidence)} />
         <Fact
           label="Probability"
@@ -157,7 +162,11 @@ export default function PredictionDetailPage() {
         />
         <Fact
           label="Predicted window"
-          value={data.predicted_within_days !== null ? `${data.predicted_within_days} days` : 'Not stated'}
+          value={
+            data.predicted_within_days !== null
+              ? `${data.predicted_within_days} days`
+              : 'Not stated'
+          }
           hint={data.evidence.time_window.basis}
         />
         <Fact
@@ -173,7 +182,10 @@ export default function PredictionDetailPage() {
               : undefined
           }
         />
-        <Fact label="Generated" value={data.generated_at ? formatDateTime(data.generated_at) : '—'} />
+        <Fact
+          label="Generated"
+          value={data.generated_at ? formatDateTime(data.generated_at) : '—'}
+        />
       </Surface>
 
       <div className="flex flex-col gap-6">
@@ -187,10 +199,19 @@ export default function PredictionDetailPage() {
             model's own words.
           </p>
 
-          <Surface className="mt-3 grid gap-6 p-6 sm:grid-cols-2 lg:grid-cols-4">
-            <Fact label="Completed repairs" value={String(data.evidence.observed.completed_repairs ?? 0)} />
-            <Fact label="Corrective repairs" value={String(data.evidence.observed.corrective_repairs ?? 0)} />
-            <Fact label="Preventive visits" value={String(data.evidence.observed.preventive_visits ?? 0)} />
+          <Surface as="dl" className="mt-3 grid gap-6 p-6 sm:grid-cols-2 lg:grid-cols-4">
+            <Fact
+              label="Completed repairs"
+              value={String(data.evidence.observed.completed_repairs ?? 0)}
+            />
+            <Fact
+              label="Corrective repairs"
+              value={String(data.evidence.observed.corrective_repairs ?? 0)}
+            />
+            <Fact
+              label="Preventive visits"
+              value={String(data.evidence.observed.preventive_visits ?? 0)}
+            />
             <Fact
               label="Last repair"
               value={
@@ -226,6 +247,8 @@ export default function PredictionDetailPage() {
             </div>
           )}
         </section>
+
+        {data.history && <RepairHistory history={data.history} />}
       </div>
 
       <ConfirmDialog
@@ -235,7 +258,7 @@ export default function PredictionDetailPage() {
         title={decision === 'confirm' ? 'Confirm this finding?' : 'Dismiss this finding?'}
         description={
           decision === 'confirm'
-            ? 'This records that the finding matched what you observed. It does not schedule a repair or change the machine\'s status — that stays a separate step.'
+            ? "This records that the finding matched what you observed. It does not schedule a repair or change the machine's status — that stays a separate step."
             : 'This records that the finding did not match what you observed. Decisions here are final and cannot be reopened.'
         }
         confirmLabel={decision === 'confirm' ? 'Confirm finding' : 'Dismiss finding'}
@@ -251,12 +274,20 @@ function formatPercent(value: number | null): string {
   return `${Math.round(value * 100)}%`
 }
 
+/*
+ * A term and its description, valid inside a `<dl>`. The hint lives *inside* the
+ * `<dd>`: a `<div>` grouping a term with its description may contain only `<dt>`
+ * and `<dd>`, so a sibling `<p>` makes the list invalid — which axe reports as a
+ * serious `definition-list` violation.
+ */
 function Fact({ label, value, hint }: { label: string; value: string; hint?: string | null }) {
   return (
     <div>
       <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</dt>
-      <dd className="mt-1 text-sm font-medium text-ink-strong">{value}</dd>
-      {hint && <p className="text-xs text-muted">{hint}</p>}
+      <dd className="mt-1">
+        <span className="block text-sm font-medium text-ink-strong">{value}</span>
+        {hint && <span className="block text-xs text-muted">{hint}</span>}
+      </dd>
     </div>
   )
 }
@@ -307,4 +338,78 @@ function PatternCard({ pattern }: { pattern: EvidencePattern }) {
       </p>
     </Surface>
   )
+}
+
+/**
+ * The machine's repair history as it stands today — a different thing from the
+ * evidence above it, and labelled as one.
+ *
+ * The evidence is what the finding *was generated from* and never changes; this
+ * is what an administrator needs to see before deciding whether the finding
+ * still matters, including a repair completed after it was filed. Every field
+ * is structural (type, date, ticket category, parts replaced): what a
+ * technician wrote about a repair stays on the maintenance record.
+ */
+function RepairHistory({ history }: { history: PredictionHistory }) {
+  return (
+    <section aria-labelledby="repair-history-heading">
+      <h2 id="repair-history-heading" className="text-sm font-semibold text-ink-strong">
+        Repair history now
+      </h2>
+      <p className="mt-1 text-xs text-muted">
+        The machine as it stands today. The evidence above is what this finding was generated from
+        and does not change; this may include repairs completed since.
+      </p>
+
+      <Surface as="dl" className="mt-3 grid gap-6 p-6 sm:grid-cols-3">
+        <Fact
+          label="Completed repairs"
+          value={String(history.completed_repairs)}
+          hint="All types"
+        />
+        <Fact
+          label="Corrective repairs"
+          value={String(history.corrective_repairs)}
+          hint="Repairs, not preventive care"
+        />
+        <Fact
+          label="Most recent repair"
+          value={
+            history.recent_repair
+              ? formatDateTime(history.recent_repair.completed_at)
+              : 'None recorded'
+          }
+          hint={history.recent_repair ? describeRepair(history.recent_repair) : undefined}
+        />
+      </Surface>
+
+      <div className="mt-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+          Previous problems
+        </h3>
+        {history.previous_problems.length === 0 ? (
+          <p className="mt-2 text-sm text-muted">No earlier repairs are recorded.</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {history.previous_problems.map((repair) => (
+              <li
+                key={repair.id}
+                className="flex flex-wrap items-center justify-between gap-x-3 rounded-md border border-border px-3 py-2 text-sm"
+              >
+                <span className="text-ink">{describeRepair(repair)}</span>
+                <span className="tnum text-muted">{formatDateTime(repair.completed_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/** "Corrective Repair · Hardware · Power Supply" — whatever of it is known. */
+function describeRepair(repair: PredictionHistoryRepair): string {
+  return [repair.type, repair.category, repair.components.join(', ') || null]
+    .filter(Boolean)
+    .join(' · ')
 }

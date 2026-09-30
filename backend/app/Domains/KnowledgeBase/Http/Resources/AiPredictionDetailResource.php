@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\KnowledgeBase\Http\Resources;
 
+use App\Domains\KnowledgeBase\Services\PcHistoryReview;
 use App\Domains\KnowledgeBase\Services\PcRiskAssessor;
 use App\Models\AiPrediction;
 use Illuminate\Http\Request;
@@ -67,6 +68,10 @@ class AiPredictionDetailResource extends JsonResource
             'explanation' => $this->explanation,
             'recommendation' => $this->recommendation,
             'evidence' => $this->evidence,
+
+            // The machine as it stands *now* — deliberately a separate key from
+            // `evidence`, which stays frozen at generation. See PcHistoryReview.
+            'history' => $pcUnit !== null ? app(PcHistoryReview::class)->for($pcUnit) : null,
 
             'ai_model' => $this->aiModel !== null ? [
                 'provider' => $this->aiModel->provider,
