@@ -7,6 +7,7 @@ namespace App\Domains\KnowledgeBase\Services;
 use App\Domains\KnowledgeBase\Exceptions\AiUnavailableException;
 use App\Models\AiModel;
 use App\Models\AiSystemSetting;
+use App\Models\SystemSetting;
 
 /**
  * The single source of truth for "which AI model, and is AI on at all" —
@@ -121,5 +122,22 @@ class AiSettings
         $value = $this->settings()?->confidence_threshold;
 
         return $value !== null ? (float) $value : null;
+    }
+
+    /**
+     * Whether an administrator has left the AI assistant switched on
+     * (`system_settings.ai.assistant_enabled`, seeded true; SRS FR-AI-033).
+     *
+     * Absent means *on*: the setting exists to let an administrator **withdraw**
+     * the feature, and a database that has never had it seeded must not silently
+     * behave as if someone had.
+     */
+    public function assistantEnabled(): bool
+    {
+        // Through the model, so the jsonb cast decodes `false` / `"false"` alike
+        // — a raw column read would hand back the JSON text, quotes and all.
+        $value = SystemSetting::query()->where('key', 'ai.assistant_enabled')->first()?->value;
+
+        return $value === null || filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 }

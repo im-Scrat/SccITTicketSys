@@ -49,3 +49,19 @@ Schedule::command('maintenance:detect-due')
     ->dailyAt('06:30')
     ->withoutOverlapping()
     ->onOneServer();
+
+/**
+ * Reconcile the knowledge-article vector index with the articles (WP-P,
+ * SRS FR-AI-006) — the safety net behind the model observer, for articles that
+ * pre-date the index, edits made while the queue or provider was down, workers
+ * that died mid-run and chunker upgrades.
+ *
+ * Daily and off-hours: it reads state and hashes only and never calls the
+ * provider itself, but it may queue embedding work, and that belongs outside
+ * the school day. It is idempotent, so a missed run is simply caught up by the
+ * next one.
+ */
+Schedule::command('knowledge:index')
+    ->dailyAt('03:10')
+    ->withoutOverlapping()
+    ->onOneServer();

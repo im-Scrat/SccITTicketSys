@@ -7,6 +7,7 @@ use App\Domains\KnowledgeBase\Services\AiSettings;
 use App\Enums\AiModality;
 use App\Models\AiModel;
 use App\Models\AiSystemSetting;
+use App\Models\SystemSetting;
 
 /**
  * WP-H — AiSettings is the one place model selection is resolved from the
@@ -90,3 +91,23 @@ it('reads every toggle as off and the threshold as null when there is no setting
         ->and($settings->autoGenerateArticlesEnabled())->toBeFalse()
         ->and($settings->confidenceThreshold())->toBeNull();
 });
+
+/**
+ * WP-P — the switch an administrator uses to withdraw the assistant. Absent
+ * means *on*: the setting exists to remove the feature, and a database that has
+ * never had it seeded must not behave as if someone had.
+ */
+it('treats the assistant as on unless an administrator has switched it off', function (mixed $stored, bool $expected): void {
+    if ($stored !== 'absent') {
+        SystemSetting::factory()->create(['group' => 'ai', 'key' => 'ai.assistant_enabled', 'value' => $stored, 'type' => 'boolean']);
+    }
+
+    expect(app(AiSettings::class)->assistantEnabled())->toBe($expected);
+})->with([
+    'no row' => ['absent', true],
+    'true' => [true, true],
+    'false' => [false, false],
+    'the string "false"' => ['false', false],
+    'the string "true"' => ['true', true],
+    'null value' => [null, true],
+]);

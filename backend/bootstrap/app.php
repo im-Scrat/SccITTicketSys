@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Administration\Console\SendDailyDigest;
+use App\Domains\KnowledgeBase\Console\IndexKnowledgeArticles;
 use App\Domains\Maintenance\Console\DetectDuePreventiveMaintenance;
 use App\Domains\Tickets\Console\CloseStaleResolvedTickets;
 use App\Domains\Tickets\Console\DetectSlaBreaches;
@@ -59,6 +60,7 @@ return Application::configure(basePath: dirname(__DIR__))
         SendDailyDigest::class,
         DetectDuePreventiveMaintenance::class,
         DetectSlaBreaches::class,
+        IndexKnowledgeArticles::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         // Enable Sanctum SPA cookie auth on the API group (single-origin).

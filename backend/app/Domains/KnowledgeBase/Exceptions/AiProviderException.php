@@ -25,19 +25,41 @@ use Throwable;
  */
 class AiProviderException extends RuntimeException
 {
+    /**
+     * Whether trying the same call again could plausibly succeed. Set only by the
+     * named constructors for a failure that is weather (a timeout, a rate limit,
+     * a 5xx) rather than a fact about the model or the configuration — WP-P's
+     * queued indexing job retries the former and gives up on the latter, and
+     * must not have to infer which from the message text.
+     */
+    private bool $transient = false;
+
+    public function isTransient(): bool
+    {
+        return $this->transient;
+    }
+
+    private static function transient(string $message, ?Throwable $previous): self
+    {
+        $exception = new self($message, 0, $previous);
+        $exception->transient = true;
+
+        return $exception;
+    }
+
     public static function requestFailed(?Throwable $previous = null): self
     {
-        return new self('The AI provider could not complete this request. Please try again shortly.', 0, $previous);
+        return self::transient('The AI provider could not complete this request. Please try again shortly.', $previous);
     }
 
     public static function timedOut(?Throwable $previous = null): self
     {
-        return new self('The AI provider took too long to respond.', 0, $previous);
+        return self::transient('The AI provider took too long to respond.', $previous);
     }
 
     public static function rateLimited(?Throwable $previous = null): self
     {
-        return new self('The AI provider is temporarily rate-limiting this application. Please try again shortly.', 0, $previous);
+        return self::transient('The AI provider is temporarily rate-limiting this application. Please try again shortly.', $previous);
     }
 
     public static function malformedOutput(): self
