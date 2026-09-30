@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Domains\Administration\Notifications\ProjectNotification;
 use App\Domains\Administration\Services\NotificationDispatcher;
+use App\Domains\Administration\Services\NotificationPreferences;
+use App\Enums\NotificationChannel;
 use App\Enums\NotificationTopic;
 use App\Enums\UserStatus;
 use App\Models\Notification as NotificationRecord;
@@ -164,9 +166,9 @@ it('keeps working when the queue cannot take the job', function (): void {
 it('does not use an outage as an excuse to ignore a preference', function (): void {
     $user = userWithRole('technician');
 
-    app(App\Domains\Administration\Services\NotificationPreferences::class)->set(
+    app(NotificationPreferences::class)->set(
         $user,
-        App\Enums\NotificationChannel::InApp,
+        NotificationChannel::InApp,
         NotificationTopic::MaintenanceScheduled->type(),
         false,
     );

@@ -1,6 +1,11 @@
 import { Bell } from 'lucide-react'
 import { describe, expect, it } from 'vitest'
-import { notificationIcon, notificationTone, notificationTypeLabel, safeActionPath } from './presentation'
+import {
+  notificationIcon,
+  notificationTone,
+  notificationTypeLabel,
+  safeActionPath,
+} from './presentation'
 
 /**
  * The presentation rules, and the one security decision among them.

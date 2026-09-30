@@ -12,10 +12,12 @@ use App\Enums\QrStatus;
 use App\Models\Notification as NotificationRecord;
 use App\Models\PcUnit;
 use App\Models\QrCode;
+use App\Models\User;
 use App\Models\WorkSupportRequest;
 use Database\Seeders\MaintenanceTypeSeeder;
 use Database\Seeders\TicketLookupSeeder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
@@ -45,12 +47,12 @@ beforeEach(function (): void {
 });
 
 /** Notifications addressed to one person, newest first. */
-function inboxOf(App\Models\User $user): Illuminate\Support\Collection
+function inboxOf(User $user): Collection
 {
     return NotificationRecord::query()->where('user_id', $user->id)->orderBy('id')->get();
 }
 
-function topicsFor(App\Models\User $user): array
+function topicsFor(User $user): array
 {
     return inboxOf($user)->map(fn (NotificationRecord $n): mixed => $n->data['topic'])->all();
 }

@@ -41,7 +41,9 @@ export async function fetchManagedAnnouncements(
   const { data } = await api.get<Paginated<Announcement>>('/admin/announcements', {
     params: {
       ...(filters.audience ? { audience: filters.audience } : {}),
-      ...(filters.active === null || filters.active === undefined ? {} : { active: filters.active ? 1 : 0 }),
+      ...(filters.active === null || filters.active === undefined
+        ? {}
+        : { active: filters.active ? 1 : 0 }),
       ...(filters.page && filters.page > 1 ? { page: filters.page } : {}),
     },
   })

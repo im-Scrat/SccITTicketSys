@@ -152,7 +152,9 @@ test.describe('notification centre — administrator', () => {
       await confirmation.getByRole('button', { name: /mark all as read/i }).click()
     }
     await expect(bell(page)).toHaveAccessibleName('Notifications', { timeout: 20_000 })
-    expect(json<{ unread: number }>(await apiFetch(page, '/api/notifications/unread-count')).unread).toBe(0)
+    expect(
+      json<{ unread: number }>(await apiFetch(page, '/api/notifications/unread-count')).unread,
+    ).toBe(0)
 
     // A preference change survives a reload, because it was actually saved.
     await goto(page, '/app/account')
@@ -268,7 +270,10 @@ test.describe('notification centre — teacher', () => {
 
     // The status change reached them.
     await expect(
-      page.getByRole('listitem').filter({ hasText: `Ticket ${ticketNumber} is now` }).first(),
+      page
+        .getByRole('listitem')
+        .filter({ hasText: `Ticket ${ticketNumber} is now` })
+        .first(),
     ).toBeVisible()
 
     /*
@@ -312,7 +317,9 @@ test.describe('notification centre — teacher', () => {
     await signIn(page, 'teacher')
 
     // Absent from the list…
-    const teacherInbox = json<{ data: { id: string }[] }>(await apiFetch(page, '/api/notifications'))
+    const teacherInbox = json<{ data: { id: string }[] }>(
+      await apiFetch(page, '/api/notifications'),
+    )
     expect(teacherInbox.data.map((row) => row.id)).not.toContain(foreign)
 
     // …and equally unreachable by uuid, on both the read and the write endpoint.
@@ -334,7 +341,9 @@ test.describe('notification centre — teacher', () => {
     await expect(page.getByRole('heading', { name: 'Access denied' })).toHaveCount(0)
 
     await goto(page, '/app/account')
-    await expect(page.getByRole('checkbox', { name: /In App notifications for/ }).first()).toBeVisible()
+    await expect(
+      page.getByRole('checkbox', { name: /In App notifications for/ }).first(),
+    ).toBeVisible()
   })
 })
 

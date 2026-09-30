@@ -44,13 +44,7 @@ function principal(): AuthUser {
  * fix can produce, so the assertion is "which page rendered", not "which
  * function was called".
  */
-function renderGuard({
-  authenticated,
-  state,
-}: {
-  authenticated: boolean
-  state?: unknown
-}) {
+function renderGuard({ authenticated, state }: { authenticated: boolean; state?: unknown }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData(AUTH_USER_KEY, authenticated ? principal() : null)
 

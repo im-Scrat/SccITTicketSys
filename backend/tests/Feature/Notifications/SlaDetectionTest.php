@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\AssignmentStatus;
 use App\Models\Notification as NotificationRecord;
+use App\Models\Ticket;
 use App\Models\User;
 use Database\Seeders\TicketLookupSeeder;
 
@@ -53,7 +54,7 @@ function slaStagesFor(User $user): array
 }
 
 /** A live ticket with deadlines placed relative to now. */
-function ticketWithDeadlines(User $reporter, User $technician, array $deadlines): App\Models\Ticket
+function ticketWithDeadlines(User $reporter, User $technician, array $deadlines): Ticket
 {
     $ticket = ticketFor($reporter, 'in-progress', [
         'assigned_technician_id' => $technician->id,

@@ -7,6 +7,7 @@ use App\Enums\NotificationType;
 use App\Models\Notification as NotificationRecord;
 use App\Models\NotificationPreference;
 use App\Models\User;
+use Illuminate\Support\Str;
 
 /**
  * WP-2.7a — **who may reach a notification** (SRS FR-NOT-001/004; NFR-SEC-003).
@@ -180,7 +181,7 @@ it('answers an unknown uuid the same way it answers somebody else\'s', function 
     $theirs = notificationOwnedBy($this->teacher);
 
     $unknown = $this->actingAs($this->technician)
-        ->getJson('/api/notifications/'.Illuminate\Support\Str::uuid())->getStatusCode();
+        ->getJson('/api/notifications/'.Str::uuid())->getStatusCode();
 
     $forbidden = $this->actingAs($this->technician)
         ->getJson("/api/notifications/{$theirs->uuid}")->getStatusCode();

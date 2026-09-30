@@ -246,11 +246,7 @@ export default function AnnouncementManagementPage() {
                     </Button>
                   )}
 
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => setConfirmDelete(announcement)}
-                  >
+                  <Button variant="danger" size="sm" onClick={() => setConfirmDelete(announcement)}>
                     Delete
                   </Button>
                 </div>

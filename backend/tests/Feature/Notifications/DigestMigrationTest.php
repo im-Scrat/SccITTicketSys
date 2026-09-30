@@ -6,6 +6,7 @@ use App\Enums\NotificationChannel;
 use App\Enums\NotificationType;
 use App\Models\NotificationDigest;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -62,7 +63,7 @@ it('still refuses a channel outside the domain', function (): void {
         'is_enabled' => true,
         'created_at' => now(),
         'updated_at' => now(),
-    ]))->toThrow(Illuminate\Database\QueryException::class, 'notification_preferences_channel_check');
+    ]))->toThrow(QueryException::class, 'notification_preferences_channel_check');
 });
 
 it('builds the domain from the enum, so the two cannot drift', function (): void {
@@ -89,7 +90,7 @@ it('enforces one digest per user per day, by constraint', function (): void {
     DB::table('notification_digests')->insert($row);
 
     expect(fn () => DB::table('notification_digests')->insert($row))
-        ->toThrow(Illuminate\Database\QueryException::class, 'notification_digests_unique');
+        ->toThrow(QueryException::class, 'notification_digests_unique');
 });
 
 it('lets the same day belong to different users', function (): void {

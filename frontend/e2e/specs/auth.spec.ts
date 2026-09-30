@@ -28,7 +28,11 @@ type Boundary = { path: string; status: number; why: string }
 
 const boundaries: Record<Role, Boundary[]> = {
   administrator: [
-    { path: '/api/admin/tickets', status: 200, why: 'the administrative ticket directory is theirs' },
+    {
+      path: '/api/admin/tickets',
+      status: 200,
+      why: 'the administrative ticket directory is theirs',
+    },
     { path: '/api/maintenance', status: 200, why: 'administrators see every maintenance record' },
     { path: '/api/work-support-requests', status: 200, why: 'they decide support requests' },
   ],
@@ -47,7 +51,11 @@ const boundaries: Record<Role, Boundary[]> = {
     { path: '/api/tickets/feed', status: 200, why: 'the community feed is a teacher surface' },
     { path: '/api/admin/tickets', status: 403, why: 'no administrative directory' },
     { path: '/api/maintenance', status: 403, why: 'maintenance is not a teacher surface' },
-    { path: '/api/work-support-requests', status: 403, why: 'support requests are technician work' },
+    {
+      path: '/api/work-support-requests',
+      status: 403,
+      why: 'support requests are technician work',
+    },
   ],
 }
 

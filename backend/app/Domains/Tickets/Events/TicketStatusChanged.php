@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Tickets\Events;
 
+use App\Domains\Tickets\Services\TicketLifecycle;
 use App\Models\Ticket;
 use App\Models\TicketStatus;
 use App\Models\User;
@@ -11,7 +12,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Raised by {@see \App\Domains\Tickets\Services\TicketLifecycle} on every
+ * Raised by {@see TicketLifecycle} on every
  * accepted transition (SRS FR-TKT-005; notification matrix T2).
  *
  * `$actor` is nullable and that is meaningful rather than defensive: the

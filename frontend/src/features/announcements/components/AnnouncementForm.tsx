@@ -96,7 +96,11 @@ export function AnnouncementForm({
         <Field label="Show from" error={errors.starts_at?.message} hint="Leave empty to start now.">
           <Input type="datetime-local" {...register('starts_at')} />
         </Field>
-        <Field label="Show until" error={errors.ends_at?.message} hint="Leave empty to never expire.">
+        <Field
+          label="Show until"
+          error={errors.ends_at?.message}
+          hint="Leave empty to never expire."
+        >
           <Input type="datetime-local" {...register('ends_at')} />
         </Field>
       </div>

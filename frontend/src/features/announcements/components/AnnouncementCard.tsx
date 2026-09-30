@@ -48,7 +48,10 @@ export function AnnouncementCard({ announcement }: { announcement: Announcement 
       </p>
 
       <p className="mt-4 text-xs text-muted">
-        <time dateTime={announcement.created_at ?? undefined} title={formatDateTime(announcement.created_at)}>
+        <time
+          dateTime={announcement.created_at ?? undefined}
+          title={formatDateTime(announcement.created_at)}
+        >
           {formatRelative(announcement.created_at)}
         </time>
       </p>

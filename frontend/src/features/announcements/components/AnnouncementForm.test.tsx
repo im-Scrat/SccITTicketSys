@@ -22,9 +22,7 @@ function renderForm(announcement?: Announcement) {
   const onSubmit = vi.fn().mockResolvedValue(undefined)
   const onCancel = vi.fn()
 
-  render(
-    <AnnouncementForm announcement={announcement} onSubmit={onSubmit} onCancel={onCancel} />,
-  )
+  render(<AnnouncementForm announcement={announcement} onSubmit={onSubmit} onCancel={onCancel} />)
 
   return { onSubmit, onCancel }
 }

@@ -92,7 +92,11 @@ beforeEach(() => {
   fetchNotifications.mockResolvedValue(page([notification()]))
   fetchNotificationPreferences.mockResolvedValue({
     data: [],
-    meta: { channels: [], types: [{ value: 'assignment', label: 'Assignment' }], default_enabled: true },
+    meta: {
+      channels: [],
+      types: [{ value: 'assignment', label: 'Assignment' }],
+      default_enabled: true,
+    },
   })
 })
 

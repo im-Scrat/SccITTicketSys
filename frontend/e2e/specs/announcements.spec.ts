@@ -40,11 +40,16 @@ async function publishAnnouncement(page: Page, audience: string): Promise<Arrang
   await goto(page, '/sign-in')
   await apiLogin(page, 'administrator')
 
-  const created = await apiJson<{ data: { id: string } }>(page, '/api/admin/announcements', 'POST', {
-    title,
-    content: 'Published by the WP-2.7c browser suite.',
-    audience,
-  })
+  const created = await apiJson<{ data: { id: string } }>(
+    page,
+    '/api/admin/announcements',
+    'POST',
+    {
+      title,
+      content: 'Published by the WP-2.7c browser suite.',
+      audience,
+    },
+  )
   expect(created.status, 'creating the announcement').toBe(201)
 
   const uuid = created.data.data.id
@@ -81,9 +86,9 @@ test.describe('announcements — administrator', () => {
     // Publishing is the separate, deliberate act.
     await row.getByRole('button', { name: /^Publish$/ }).click()
     await settle(page)
-    await expect(
-      page.getByRole('listitem').filter({ hasText: title }).first(),
-    ).toContainText('Published')
+    await expect(page.getByRole('listitem').filter({ hasText: title }).first()).toContainText(
+      'Published',
+    )
   })
 
   test('does not show an administrator a teachers-only announcement on their reader', async ({

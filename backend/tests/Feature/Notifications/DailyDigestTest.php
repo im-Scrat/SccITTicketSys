@@ -13,6 +13,8 @@ use App\Models\NotificationDigest;
 use App\Models\SystemSetting;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Database\Seeders\SystemSettingSeeder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 
 /**
@@ -71,7 +73,7 @@ it('uses the school timezone the Client declared in system settings', function (
     // is loaded on every artisan call and must not query. This is the guard
     // that stops the two drifting apart silently, so it reads the Client's
     // actual declaration by running the seeder that carries it.
-    $this->seed(Database\Seeders\SystemSettingSeeder::class);
+    $this->seed(SystemSettingSeeder::class);
 
     $declared = SystemSetting::query()->where('key', 'system.timezone')->value('value');
 
@@ -232,7 +234,7 @@ it('refuses a duplicate at the database, by constraint name', function (): void 
     expect(fn () => NotificationDigest::query()->create([
         'user_id' => $user->getKey(),
         'digest_date' => $this->window->date,
-    ]))->toThrow(Illuminate\Database\UniqueConstraintViolationException::class, 'notification_digests_unique');
+    ]))->toThrow(UniqueConstraintViolationException::class, 'notification_digests_unique');
 });
 
 /* --------------------------------------------------------------- the email */

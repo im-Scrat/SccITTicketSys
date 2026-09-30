@@ -12,6 +12,7 @@ use App\Models\Notification;
 use App\Models\NotificationDigest;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 
@@ -40,7 +41,7 @@ beforeEach(function (): void {
 /** Run the command for the fixed test day. */
 function runDigest(): int
 {
-    return Illuminate\Support\Facades\Artisan::call('notifications:send-digest', ['--date' => '2026-09-07']);
+    return Artisan::call('notifications:send-digest', ['--date' => '2026-09-07']);
 }
 
 /** An unread notification for `$user`, inside the test day. */
