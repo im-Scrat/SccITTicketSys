@@ -128,6 +128,12 @@ enum ActivityAction: string
     case TicketFixedByReporter = 'ticket_fixed_by_reporter';
     case TicketNotFixedByReporter = 'ticket_not_fixed_by_reporter';
 
+    // WP-L — an advisory predictive-maintenance finding written for a PC
+    // (SRS FR-AI-011). Logged against the PC, by no actor: the system produced
+    // it, and nothing about the machine changed. Properties carry the risk
+    // level, confidence and pattern name only — never the model's prose.
+    case PcPredictionGenerated = 'pc_prediction_generated';
+
     // Phase 2.7 — Maintenance (SRS FR-MNT). The activity_logs subject morph
     // points at the MaintenanceRecord, so the timeline renders "Work started"
     // from the subject type plus this label. There is deliberately no
@@ -289,6 +295,7 @@ enum ActivityAction: string
             self::TicketAiAnalyzed => 'AI pre-screening completed',
             self::TicketFixedByReporter => 'Marked fixed by reporter',
             self::TicketNotFixedByReporter => 'Not fixed by reporter — escalated',
+            self::PcPredictionGenerated => 'Predictive-maintenance finding generated',
             self::MaintenanceCreated => 'Created',
             self::MaintenanceUpdated => 'Updated',
             self::MaintenanceRescheduled => 'Rescheduled',

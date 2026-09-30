@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\KnowledgeBase\Providers;
 
 use App\Domains\KnowledgeBase\Listeners\AnalyzeTicketOnCreated;
+use App\Domains\KnowledgeBase\Listeners\RecordMaintenanceLearningEvent;
+use App\Domains\Maintenance\Events\MaintenanceCompleted;
 use App\Domains\Tickets\Events\TicketCreated;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -15,9 +17,9 @@ use Illuminate\Support\ServiceProvider;
  * class's own docblock for why: an explicit map is a readable statement of
  * which triggers exist, which type-hint discovery cannot give a reader).
  *
- * One entry today (WP-I). Later AI work packages (ticket status change for
- * FIXED/NOT-FIXED analytics, maintenance completion for learning events, …)
- * add lines here rather than a second provider.
+ * WP-I added ticket pre-screening; WP-L adds maintenance completion for the
+ * learning loop. Later AI work packages add lines here rather than a second
+ * provider.
  */
 class AiServiceProvider extends ServiceProvider
 {
@@ -26,6 +28,7 @@ class AiServiceProvider extends ServiceProvider
      */
     private const LISTENERS = [
         TicketCreated::class => AnalyzeTicketOnCreated::class,
+        MaintenanceCompleted::class => RecordMaintenanceLearningEvent::class,
     ];
 
     public function boot(): void
