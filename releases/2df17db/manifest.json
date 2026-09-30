@@ -1,0 +1,32 @@
+{
+  "schema": "sccit.release/1",
+  "release": "2df17db",
+  "deployed_at": "2026-08-30T04:13:57Z",
+  "git": {
+    "commit": "2df17db3d1c761a7cdce0db8d4a0b31e4274e573",
+    "branch": "chore/phase-0-tooling-recovery",
+    "dirty": false
+  },
+  "images": {
+    "app_tag": "sccit/app:prod-2df17db",
+    "web_tag": "sccit/web:prod-2df17db",
+    "app_id": "sha256:de13d793201dfaa9a27ce33c36d0cfe628a42660c4955c5c5652ca06e497bf08",
+    "web_id": "sha256:b8bd04e3c42739f947dc2f5fe43dafae10dd6080c725da53af40bb8c80a6705b"
+  },
+  "database": {
+    "migration_count": "30"
+  },
+  "verification": {
+    "gates": "not recorded",
+    "smoke": "not recorded"
+  },
+  "previous_release": "",
+  "pre_deploy_snapshot": "backups/prod/20260901T044951Z-gate-verify",
+  "reconstructed": {
+    "by": "D1 rollback-target creation, 2026-09-08",
+    "why": "this release was deployed on 2026-08-30, before WP-2.7d introduced release tagging, so it had no manifest and no prod-<sha> tag",
+    "commit_evidence": "images built 23s and 26s after commit 2df17db; the images carry no commit label",
+    "snapshot_caveat": "the recorded snapshot is a later gate-verification snapshot, not a pre-deploy one; it is a valid restore point because production has not changed since it was taken",
+    "verification_caveat": "gates and smoke were not recorded for this release and are not claimed"
+  }
+}
