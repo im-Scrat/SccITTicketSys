@@ -34,6 +34,9 @@ use App\Domains\Identity\Http\Controllers\PasswordResetController;
 use App\Domains\Identity\Http\Controllers\ProfileController;
 use App\Domains\Identity\Http\Controllers\RegistrationController;
 use App\Domains\KnowledgeBase\Http\Controllers\Admin\AiPredictionController;
+use App\Domains\KnowledgeBase\Http\Controllers\Admin\AiSettingsController;
+use App\Domains\KnowledgeBase\Http\Controllers\AssistantController;
+use App\Domains\KnowledgeBase\Http\Controllers\KnowledgeArticleController;
 use App\Domains\Locations\Http\Controllers\Admin\BuildingController;
 use App\Domains\Locations\Http\Controllers\Admin\FloorController;
 use App\Domains\Locations\Http\Controllers\Admin\LocationAuditController;
@@ -66,6 +69,7 @@ use App\Http\Controllers\BroadcastingConfigController;
 use App\Http\Controllers\HealthController;
 use App\Http\Middleware\AuthenticateSession;
 use App\Models\AiPrediction;
+use App\Models\AiSystemSetting;
 use App\Models\FloorPlanPosition;
 use App\Models\RoomLayout;
 use Illuminate\Support\Facades\Route;
@@ -800,6 +804,83 @@ Route::middleware('auth:sanctum')->group(function () {
                     ->middleware('can:manage,'.AiPrediction::class);
                 Route::patch('/predictions/{prediction}/dismiss', [AiPredictionController::class, 'dismiss'])
                     ->middleware('can:manage,'.AiPrediction::class);
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Knowledge base (WP-Q) — SRS FR-AI-005, SDD §23.3
+        |------------------------------------------------------------------
+        | `knowledge.view` is the floor and every role holds it; which articles
+        | is KnowledgeVisibility's call, applied identically to the list and to a
+        | single article (published for requesters; plus their own drafts for a
+        | technician; everything for an administrator). Authoring needs
+        | `knowledge.create`, publishing `knowledge.publish`, archiving
+        | `knowledge.update`, deleting `knowledge.delete` — the seeded matrix,
+        | unchanged.
+        */
+        Route::middleware(['password.current', 'can:knowledge.view'])
+            ->prefix('knowledge')
+            ->whereUuid('article')
+            ->group(function () {
+                Route::get('/', [KnowledgeArticleController::class, 'index']);
+                Route::post('/', [KnowledgeArticleController::class, 'store'])->middleware('can:knowledge.create');
+                Route::get('/{article:uuid}', [KnowledgeArticleController::class, 'show']);
+                Route::put('/{article:uuid}', [KnowledgeArticleController::class, 'update']);
+                Route::post('/{article:uuid}/publish', [KnowledgeArticleController::class, 'publish'])->middleware('can:knowledge.publish');
+                Route::post('/{article:uuid}/archive', [KnowledgeArticleController::class, 'archive'])->middleware('can:knowledge.update');
+                Route::delete('/{article:uuid}', [KnowledgeArticleController::class, 'destroy'])->middleware('can:knowledge.delete');
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | AI assistant (WP-Q) — SRS FR-AI-004/007, SDD DD-75
+        |------------------------------------------------------------------
+        | `ai.view` is the floor and all three roles hold it; it does not
+        | separate them. What does: knowledge retrieval is Source A only (no
+        | ticket can be reached through it — DD-71), the caller's own tickets
+        | come from a lookup under the same visibility scopes as every list
+        | endpoint, and a conversation is found by (id, user), never by id alone.
+        | Throttled per account: every message is a paid provider call.
+        */
+        Route::middleware(['password.current', 'can:ai.view'])
+            ->prefix('ai/assistant')
+            ->group(function () {
+                Route::get('/status', [AssistantController::class, 'status']);
+                Route::post('/messages', [AssistantController::class, 'message'])
+                    ->middleware('throttle:ai-assistant');
+                Route::get('/conversations', [AssistantController::class, 'conversations']);
+                Route::get('/conversations/{conversation}', [AssistantController::class, 'conversation']);
+                Route::delete('/conversations/{conversation}', [AssistantController::class, 'destroyConversation']);
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | AI administration (WP-O) — ADMINISTRATOR ONLY (SRS FR-AI-014/015/033)
+        |------------------------------------------------------------------
+        | Gated by the **policy** on AiSystemSetting, never by
+        | `can:ai.configure` — the same `Gate::before` trap the floor plan and
+        | predictions document: a per-user grant of the permission string would
+        | otherwise open the provider configuration. `{model}` is a plain string
+        | so an unknown uuid cannot be told apart from a real one before the
+        | gate has refused; the controller resolves it after authorizing.
+        |
+        | The credential is not here. The API can report whether a key is
+        | present and whether its secret file is readable; it cannot set, read
+        | or return one.
+        */
+        Route::middleware(['password.current', 'can:viewAny,'.AiSystemSetting::class])
+            ->prefix('admin/ai')
+            ->whereUuid(['model'])
+            ->group(function () {
+                Route::get('/settings', [AiSettingsController::class, 'show']);
+                Route::put('/settings', [AiSettingsController::class, 'update'])
+                    ->middleware('can:manage,'.AiSystemSetting::class);
+                Route::post('/models', [AiSettingsController::class, 'storeModel'])
+                    ->middleware('can:manage,'.AiSystemSetting::class);
+                Route::put('/models/{model}', [AiSettingsController::class, 'updateModel'])
+                    ->middleware('can:manage,'.AiSystemSetting::class);
+                Route::post('/test', [AiSettingsController::class, 'test'])
+                    ->middleware(['can:manage,'.AiSystemSetting::class, 'throttle:ai-test']);
             });
 
         /*

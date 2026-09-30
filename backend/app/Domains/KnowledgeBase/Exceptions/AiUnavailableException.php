@@ -22,7 +22,7 @@ class AiUnavailableException extends RuntimeException
 {
     public static function noApiKey(): self
     {
-        return new self('The AI assistant is not configured (no Gemini API key). Set GEMINI_API_KEY on the server and restart.');
+        return new self('The AI assistant is not configured (no Gemini API key). An administrator must provide the key as a server secret.');
     }
 
     public static function noActiveModel(): self
@@ -33,6 +33,12 @@ class AiUnavailableException extends RuntimeException
     public static function noEmbeddingModel(): self
     {
         return new self('No embedding AI model is configured. An administrator must set one in AI system settings.');
+    }
+
+    /** An administrator switched the assistant off (`system_settings.ai.assistant_enabled`). */
+    public static function assistantDisabled(): self
+    {
+        return new self('The AI assistant has been switched off by an administrator.');
     }
 
     public static function noSystemSettingsRow(): self

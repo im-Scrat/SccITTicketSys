@@ -65,6 +65,14 @@ return [
          * that a client stuck in a retry loop cannot upload without bound.
          */
         'qr_proof_per_user_per_minute' => (int) env('QR_PROOF_PER_USER_PER_MINUTE', 12),
+
+        /*
+         * WP-O / WP-Q — the AI endpoints that cost a provider call, per account
+         * (a school shares one IP). A cost control as much as an abuse control:
+         * generous for a person working through a problem, hopeless for a script.
+         */
+        'ai_test_per_hour' => (int) env('AI_TEST_PER_HOUR', 10),
+        'ai_assistant_per_minute' => (int) env('AI_ASSISTANT_PER_MINUTE', 10),
     ],
 
     // File uploads (Phase 2.5 asset attachments; SRS NFR-SEC-007/008).

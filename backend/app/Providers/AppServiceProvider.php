@@ -9,6 +9,8 @@ use App\Domains\FloorPlan\Policies\RoomLayoutPolicy;
 use App\Domains\Identity\Policies\UserPolicy;
 use App\Domains\Identity\Services\PermissionResolver;
 use App\Domains\KnowledgeBase\Policies\AiPredictionPolicy;
+use App\Domains\KnowledgeBase\Policies\AiSystemSettingPolicy;
+use App\Domains\KnowledgeBase\Policies\KnowledgeArticlePolicy;
 use App\Domains\Locations\Policies\BuildingPolicy;
 use App\Domains\Locations\Policies\FloorPolicy;
 use App\Domains\Locations\Policies\RoomPolicy;
@@ -17,7 +19,9 @@ use App\Domains\Tickets\Policies\TicketAssignmentPolicy;
 use App\Domains\Tickets\Policies\TicketCommentPolicy;
 use App\Domains\Tickets\Policies\TicketPolicy;
 use App\Domains\WorkSupport\Policies\WorkSupportRequestPolicy;
+use App\Models\AiKnowledgeArticle;
 use App\Models\AiPrediction;
+use App\Models\AiSystemSetting;
 use App\Models\Asset;
 use App\Models\Building;
 use App\Models\Floor;
@@ -123,6 +127,16 @@ class AppServiceProvider extends ServiceProvider
         // policy and never by a bare `predictions.*` permission string — see
         // PcPredictionAccess for the `Gate::before` trap that rules out.
         Gate::policy(AiPrediction::class, AiPredictionPolicy::class);
+
+        // AI administration (WP-O): the same Administrator-only, policy-closed
+        // shape — see AiAdministrationAccess.
+        Gate::policy(AiSystemSetting::class, AiSystemSettingPolicy::class);
+
+        // Knowledge articles (WP-Q): `knowledge.view` is seeded to all three
+        // roles, so the permission cannot say which articles. KnowledgeVisibility
+        // does — for the list and for a single article from one predicate, so an
+        // article absent from a user's list is equally unreachable by uuid.
+        Gate::policy(AiKnowledgeArticle::class, KnowledgeArticlePolicy::class);
     }
 
     /**
@@ -190,6 +204,19 @@ class AppServiceProvider extends ServiceProvider
          * an IP ceiling would punish a school on a single NAT address. It exists
          * to bound file uploads under a retrying client, not to ration work.
          */
+        // WP-Q — the assistant: every message is a paid provider call. Per
+        // account (a school shares one IP), generous for a person working through
+        // a problem and hopeless for a script.
+        RateLimiter::for('ai-assistant', fn (Request $request): Limit => Limit::perMinute(
+            (int) config('security.rate_limits.ai_assistant_per_minute', 10),
+        )->by('ai-assistant:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        // WP-O — the administrator's "test connection" makes two paid provider
+        // calls; per account, and low, because nobody needs to run it often.
+        RateLimiter::for('ai-test', fn (Request $request): Limit => Limit::perHour(
+            (int) config('security.rate_limits.ai_test_per_hour', 10),
+        )->by('ai-test:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
         RateLimiter::for('qr-proof', fn (Request $request): Limit => Limit::perMinute(
             (int) config('security.rate_limits.qr_proof_per_user_per_minute', 12),
         )->by('qr-proof:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));

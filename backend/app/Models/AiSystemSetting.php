@@ -8,7 +8,20 @@ use Database\Factories\AiSystemSettingFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int|null $active_model_id
+ * @property int|null $embedding_model_id
+ * @property string|null $confidence_threshold
+ * @property bool $enable_predictions
+ * @property bool $enable_learning
+ * @property bool $auto_generate_articles
+ * @property int|null $updated_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 class AiSystemSetting extends Model
 {
     /** @use HasFactory<AiSystemSettingFactory> */

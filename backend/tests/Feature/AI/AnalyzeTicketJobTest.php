@@ -247,3 +247,37 @@ it('completes without writing anything when the AI returns no recommendations at
 
     assertDatabaseCount(AiAnalysisLog::class, 0);
 });
+
+/* ------------------------------------------------ FR-AI-030 data minimisation */
+
+it('sends the provider no names, emails or phone numbers from the ticket', function () {
+    $reporter = userWithRole('teacher', ['first_name' => 'Maria', 'last_name' => 'Santos']);
+    $ticket = Ticket::factory()->create([
+        'reporter_id' => $reporter->id,
+        'title' => 'Projector will not start',
+        'description' => 'Maria Santos here. Call 0917 123 4567 or write maria@school.test — the projector will not start.',
+    ]);
+
+    TicketPreScreeningAgent::fake([successfulAnalysis()]);
+
+    runAnalysis($ticket);
+
+    // One call, carrying the fault but none of the personal data. A single
+    // conjunction, so the assertion cannot pass on a prompt that merely
+    // contains *some* of the expected text.
+    TicketPreScreeningAgent::assertPrompted(function ($prompt): bool {
+        $text = (string) $prompt->prompt;
+
+        return str_contains($text, 'projector will not start')
+            && ! str_contains($text, 'Maria')
+            && ! str_contains($text, 'Santos')
+            && ! str_contains($text, 'maria@school.test')
+            && ! str_contains($text, '0917')
+            && str_contains($text, '[email]')
+            && str_contains($text, '[phone]');
+    });
+    TicketPreScreeningAgent::assertPromptedTimes(1);
+
+    // The stored ticket itself is untouched — redaction is an outbound filter.
+    expect($ticket->refresh()->description)->toContain('maria@school.test');
+});

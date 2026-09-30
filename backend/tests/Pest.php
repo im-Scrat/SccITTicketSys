@@ -1,8 +1,11 @@
 <?php
 
+use App\Domains\Identity\Services\PermissionResolver;
 use App\Enums\AssignmentStatus;
+use App\Enums\PermissionGrantType;
 use App\Models\MaintenanceRecord;
 use App\Models\MaintenanceType;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\TechnicianAssignment;
 use App\Models\Ticket;
@@ -13,6 +16,7 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /*
@@ -147,6 +151,21 @@ function maintenanceFor(User $technician, string $typeSlug = 'corrective', array
         'maintenance_type_id' => MaintenanceType::query()->where('slug', $typeSlug)->value('id'),
         ...$overrides,
     ]);
+}
+
+/**
+ * Give a user an individual permission grant or deny (FR-USER-010), and flush
+ * the resolver's cache so the next request sees it. The setup for the recurring
+ * "a per-user grant must not open an Administrator-only surface" assertion.
+ */
+function givePermission(User $user, string $name, PermissionGrantType $type = PermissionGrantType::Grant): void
+{
+    DB::table('user_permissions')->insert([
+        'user_id' => $user->id,
+        'permission_id' => Permission::query()->where('name', $name)->value('id'),
+        'grant_type' => $type->value,
+    ]);
+    app(PermissionResolver::class)->forget($user);
 }
 
 /** A seeded maintenance type by slug. */

@@ -108,7 +108,11 @@ return [
 
         'gemini' => [
             'driver' => 'gemini',
-            'key' => env('GEMINI_API_KEY'),
+            // Deliberately NOT env('GEMINI_API_KEY'): production keeps the key
+            // out of environment variables and out of `config:cache`. The real
+            // value is applied at runtime by GeminiCredential::apply() from a
+            // secret file (and, in local development only, from GEMINI_API_KEY).
+            'key' => null,
             'url' => env('GEMINI_URL', 'https://generativelanguage.googleapis.com/v1beta/'),
         ],
 
@@ -195,6 +199,25 @@ return [
         // that fails fast on an oversized or pathological input before any
         // network call, cost, or provider-side truncation happens.
         'max_input_chars' => (int) env('AI_MAX_INPUT_CHARS', 20000),
+
+        // WP-O — where the Gemini API key lives in production: the PATH of a
+        // Docker Compose secret file, never the key itself. The default is where
+        // Compose mounts a secret named `gemini_api_key`. The key is read from
+        // this file at runtime by GeminiCredential (not here), so it is never
+        // written into the `config:cache` output. See docs/OPERATIONS.md.
+        // WP-Q — the assistant's knowledge lookup. Top-k passages, and the cosine
+        // floor below which a passage is not offered as context at all (an
+        // irrelevant passage is worse than none: the model is told to rely on it).
+        // Tunable without a deploy once real Gemini embeddings are in use.
+        'assistant_top_k' => (int) env('AI_ASSISTANT_TOP_K', 4),
+        'assistant_min_similarity' => (float) env('AI_ASSISTANT_MIN_SIMILARITY', 0.55),
+
+        'gemini_key_file' => env('GEMINI_API_KEY_FILE', '/run/secrets/gemini_api_key'),
+
+        // Local-development convenience only. Null whenever APP_ENV=production,
+        // so an inline key can never be written into the production config cache
+        // (and GeminiCredential refuses to use one there anyway).
+        'gemini_inline_key' => env('APP_ENV') === 'production' ? null : env('GEMINI_API_KEY'),
     ],
 
 ];

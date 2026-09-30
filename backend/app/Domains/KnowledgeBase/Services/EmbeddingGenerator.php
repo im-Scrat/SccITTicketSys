@@ -41,7 +41,10 @@ class EmbeddingGenerator
 
     private const RETRYABLE_STATUSES = [429, 500, 502, 503, 504];
 
-    public function __construct(private readonly AiSettings $settings) {}
+    public function __construct(
+        private readonly AiSettings $settings,
+        private readonly PromptRedactor $redactor,
+    ) {}
 
     /**
      * Generate the embedding vector for a single piece of text.
@@ -53,6 +56,12 @@ class EmbeddingGenerator
      */
     public function embed(string $text): array
     {
+        // FR-AI-030: the text sent to the provider to be embedded — an article
+        // chunk at indexing time, a user's question at search time — carries no
+        // email address or phone number. The stored chunk is unchanged; only
+        // what leaves for the provider is minimised.
+        $text = $this->redactor->redact($text);
+
         PromptGuard::assertWithinLimit($text);
 
         $model = $this->settings->embeddingModel();

@@ -7,10 +7,12 @@ namespace App\Domains\KnowledgeBase\Providers;
 use App\Domains\KnowledgeBase\Listeners\AnalyzeTicketOnCreated;
 use App\Domains\KnowledgeBase\Listeners\RecordMaintenanceLearningEvent;
 use App\Domains\KnowledgeBase\Observers\AiKnowledgeArticleObserver;
+use App\Domains\KnowledgeBase\Services\GeminiCredential;
 use App\Domains\Maintenance\Events\MaintenanceCompleted;
 use App\Domains\Tickets\Events\TicketCreated;
 use App\Models\AiKnowledgeArticle;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -33,8 +35,18 @@ class AiServiceProvider extends ServiceProvider
         MaintenanceCompleted::class => RecordMaintenanceLearningEvent::class,
     ];
 
+    public function register(): void
+    {
+        // WP-O: the Gemini key from its secret file — before anything resolves a
+        // provider, and again before each queued job so a rotated secret reaches
+        // a long-lived worker. See GeminiCredential for why it is not in config.
+        GeminiCredential::apply();
+    }
+
     public function boot(): void
     {
+        Queue::before(static fn () => GeminiCredential::apply());
+
         foreach (self::LISTENERS as $event => $listener) {
             Event::listen($event, $listener);
         }

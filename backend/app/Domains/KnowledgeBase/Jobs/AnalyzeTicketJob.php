@@ -57,7 +57,12 @@ class AnalyzeTicketJob implements ShouldQueue
         try {
             $model = $settings->activeModel();
             $prompt = $context->buildPrompt($this->ticket);
-            $invocation = $invoker->invoke(new TicketPreScreeningAgent, $prompt, $model);
+            // The reporter's name is known to be in the text (teachers sign
+            // their reports); the invoker strips it, and every email/phone,
+            // before anything reaches the provider (FR-AI-030).
+            $this->ticket->loadMissing('reporter');
+            $names = array_filter([$this->ticket->reporter?->fullName()]);
+            $invocation = $invoker->invoke(new TicketPreScreeningAgent, $prompt, $model, $names);
             $result = TicketAnalysisResult::fromStructured($invocation->structured ?? []);
         } catch (AiUnavailableException|AiProviderException $e) {
             Log::warning('ai.ticket_analysis_skipped', [

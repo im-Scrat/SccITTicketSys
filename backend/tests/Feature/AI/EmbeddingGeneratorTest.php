@@ -86,3 +86,25 @@ it('refuses an oversized input before ever calling the provider', function (): v
 
     Embeddings::assertNothingGenerated();
 });
+
+it('removes emails and phone numbers from the text sent to be embedded (FR-AI-030)', function (): void {
+    seedGeminiEmbeddingModel(768);
+    config(['ai.providers.gemini.key' => 'test-key']);
+
+    $seen = [];
+    Embeddings::fake(function ($prompt) use (&$seen): array {
+        foreach ($prompt->inputs as $input) {
+            $seen[] = (string) $input;
+        }
+
+        return [array_fill(0, 768, 0.01)];
+    });
+
+    app(EmbeddingGenerator::class)->embed('Email help@school.test or call 0917 123 4567 about the projector.');
+
+    expect($seen)->toHaveCount(1)
+        ->and($seen[0])->toContain('projector')
+        ->and($seen[0])->not->toContain('help@school.test')
+        ->and($seen[0])->not->toContain('0917')
+        ->and($seen[0])->toContain('[email]')->toContain('[phone]');
+});

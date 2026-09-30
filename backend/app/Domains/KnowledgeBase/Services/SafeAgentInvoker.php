@@ -53,18 +53,31 @@ class SafeAgentInvoker
 
     private const RETRYABLE_STATUSES = [429, 500, 502, 503, 504];
 
-    public function __construct(private readonly AiSettings $settings) {}
+    public function __construct(
+        private readonly AiSettings $settings,
+        private readonly PromptRedactor $redactor,
+    ) {}
 
     /**
      * Invoke an agent with a text prompt, resolving the model to use from
      * `ai_system_settings` unless the caller supplies one explicitly (tests,
      * or a feature that intentionally targets a non-default model).
      *
+     * @param  list<string>  $names  personal names known to appear in the prompt (a reporter,
+     *                               a user), removed along with every email address and
+     *                               phone number — SRS FR-AI-030
+     *
      * @throws AiUnavailableException
      * @throws AiProviderException
      */
-    public function invoke(Agent $agent, string $prompt, ?AiModel $model = null): AiInvocationResult
+    public function invoke(Agent $agent, string $prompt, ?AiModel $model = null, array $names = []): AiInvocationResult
     {
+        // The data-minimisation boundary (FR-AI-030): whatever a caller
+        // assembled, nothing personal leaves for the provider. Applied here, at
+        // the one path every agent call takes, rather than trusted to each
+        // prompt builder — so a builder added later cannot forget it.
+        $prompt = $this->redactor->redact($prompt, $names);
+
         PromptGuard::assertWithinLimit($prompt);
 
         $model ??= $this->settings->activeModel();

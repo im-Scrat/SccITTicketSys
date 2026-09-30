@@ -141,6 +141,20 @@ enum ActivityAction: string
     case PcPredictionConfirmed = 'pc_prediction_confirmed';
     case PcPredictionDismissed = 'pc_prediction_dismissed';
 
+    /* ------------------------------------------ AI administration (WP-O) */
+
+    case AiSettingsUpdated = 'ai_settings_updated';
+    case AiModelRegistered = 'ai_model_registered';
+    case AiModelUpdated = 'ai_model_updated';
+
+    /* ----------------------------------- knowledge & assistant (WP-Q) */
+
+    case KnowledgeArticleCreated = 'knowledge_article_created';
+    case KnowledgeArticleUpdated = 'knowledge_article_updated';
+    case KnowledgeArticlePublished = 'knowledge_article_published';
+    case KnowledgeArticleArchived = 'knowledge_article_archived';
+    case KnowledgeArticleDeleted = 'knowledge_article_deleted';
+
     // Phase 2.7 — Maintenance (SRS FR-MNT). The activity_logs subject morph
     // points at the MaintenanceRecord, so the timeline renders "Work started"
     // from the subject type plus this label. There is deliberately no
@@ -305,6 +319,14 @@ enum ActivityAction: string
             self::PcPredictionGenerated => 'Predictive-maintenance finding generated',
             self::PcPredictionConfirmed => 'Predictive-maintenance finding confirmed',
             self::PcPredictionDismissed => 'Predictive-maintenance finding dismissed',
+            self::AiSettingsUpdated => 'AI settings updated',
+            self::AiModelRegistered => 'AI model registered',
+            self::AiModelUpdated => 'AI model updated',
+            self::KnowledgeArticleCreated => 'Knowledge article created',
+            self::KnowledgeArticleUpdated => 'Knowledge article updated',
+            self::KnowledgeArticlePublished => 'Knowledge article published',
+            self::KnowledgeArticleArchived => 'Knowledge article archived',
+            self::KnowledgeArticleDeleted => 'Knowledge article deleted',
             self::MaintenanceCreated => 'Created',
             self::MaintenanceUpdated => 'Updated',
             self::MaintenanceRescheduled => 'Rescheduled',
