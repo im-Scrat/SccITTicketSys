@@ -57,3 +57,6 @@ Thumbs.db
 # Note: backend/ and frontend/ get their own .gitignore from
 # the Laravel and Vite scaffolds; this file covers the repo root
 # and anything created before those scaffolds exist.
+
+# Production secret files (Docker Compose secrets) — never committed
+/secrets/*.txt

@@ -103,6 +103,8 @@ services:
     volumes:
       # Persist user uploads; shared (read-only) with Nginx so /storage serves.
       - sccit_prod_storage:/var/www/html/storage/app/public
+    secrets:
+      - gemini_api_key
     depends_on:
       postgres_prod:
         condition: service_healthy
@@ -149,6 +151,8 @@ services:
       disable: true
     volumes:
       - sccit_prod_storage:/var/www/html/storage/app/public
+    secrets:
+      - gemini_api_key
     depends_on:
       app_prod:
         condition: service_started
@@ -174,6 +178,8 @@ services:
       disable: true
     volumes:
       - sccit_prod_storage:/var/www/html/storage/app/public
+    secrets:
+      - gemini_api_key
     depends_on:
       app_prod:
         condition: service_started
@@ -227,3 +233,12 @@ volumes:
     name: sccit_prod_storage
   sccit_prod_mailpitdata:
     name: sccit_prod_mailpitdata
+
+secrets:
+  # Read by GeminiCredential at /run/secrets/gemini_api_key inside the
+  # container (WP-O; SDD DD-74). File-based, not env — never baked into
+  # config:cache, never visible to `docker inspect`. Put the raw API key,
+  # no quotes, no trailing newline needed, in the local file below; it is
+  # gitignored and never built into the image.
+  gemini_api_key:
+    file: ./secrets/gemini_api_key.txt
