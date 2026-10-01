@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test'
 import { account, ROLES, type Role } from '../fixtures/manifest'
-import { apiStatus, goto, settle, signIn, signOut } from '../fixtures/app'
+import {
+  apiStatus,
+  EMAIL_LABEL,
+  goto,
+  PASSWORD_LABEL,
+  settle,
+  signIn,
+  signOut,
+} from '../fixtures/app'
 
 /**
  * Three-role authentication and the authorization boundaries between them —
@@ -76,8 +84,8 @@ test.describe('authentication', () => {
     const { email } = account('technician')
 
     await goto(page, '/sign-in')
-    await page.getByLabel('Email').fill(email)
-    await page.getByLabel('Password', { exact: true }).fill('definitely-not-the-password')
+    await page.getByLabel(EMAIL_LABEL).fill(email)
+    await page.getByLabel(PASSWORD_LABEL).fill('definitely-not-the-password')
     await page.getByRole('button', { name: /sign in/i }).click()
     await settle(page)
 

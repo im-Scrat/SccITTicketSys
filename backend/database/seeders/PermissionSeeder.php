@@ -34,6 +34,13 @@ class PermissionSeeder extends Seeder
         // grant to anyone else opens nothing.
         'predictions' => ['view', 'manage'],
         'system' => ['settings.manage', 'backup.manage', 'audit.view', 'announcements.manage'],
+
+        // WP-L/WP-M: predictive-maintenance findings. Not folded into the `ai`
+        // module deliberately — `ai.view`/`ai.feedback` are already seeded to
+        // Technicians and Teachers (the ticket AI panel), and reusing either
+        // for this surface would not make it Administrator-only. Same shape as
+        // `floorplan`: a module nobody but the Administrator baseline holds.
+        'predictions' => ['view', 'manage'],
     ];
 
     public function run(): void

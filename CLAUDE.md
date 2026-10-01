@@ -113,6 +113,13 @@ the file confirms it.**
   scaffold with plugins, and is gitignored. Canonical documentation is `docs/`.
 - `graphify-out/graph.html` is not generated above ~5000 nodes; `graph.json` and
   `GRAPH_REPORT.md` still are.
+- **Neither graph tool resolves PHP calls made through an injected property**
+  (`$this->lifecycle->transition(...)`, `app(X::class)->y(...)`). Verified
+  2026-09-30: `trace_path` on `TicketLifecycle::transition` returned zero callers
+  and Graphify showed no call edge from `CloseStaleResolvedTickets`, while `Grep`
+  found five real callers. Bare method names are also ambiguous across the five
+  `*Lifecycle::transition` services. **For "who calls this" before changing a
+  signature, Grep is authoritative; the graphs are for orientation.**
 
 ### 3.2 Index refresh rules
 
@@ -151,7 +158,7 @@ gives you before trusting any graph answer.
 ### 3.3 Health check
 
 ```bash
-claude mcp list                                    # all three servers -> Connected
+claude mcp list                                    # 3 project servers -> Connected (a claude.ai Docs connector may also list; not project tooling)
 curl -sS http://127.0.0.1:37777/api/stats          # claude-mem worker + observation count
 bash scripts/claude-index-freshness.sh             # silence == both indexes current
 grep -m1 'Built from commit' graphify-out/GRAPH_REPORT.md
@@ -162,6 +169,22 @@ in `~/.claude.json` silently shadows it (local scope wins) and reintroduces the
 absolute-path, drive-letter-cased registration that failed before. `claude mcp
 list` reports this as a "Conflicting scopes" diagnostic — if it appears, run
 `claude mcp remove graphify -s local`.
+
+### 3.4 Session protocol
+
+1. **At session start**, run the §3.3 health check. If the freshness hook warns,
+   refresh before trusting any graph answer (§3.2).
+2. **Before changing existing code**, orient with codebase-memory-mcp / Graphify
+   (architecture, related implementations, impact), then confirm in the files —
+   callers via `Grep` (§3.1).
+3. **For UI/UX work** (layout, interaction, accessibility presentation,
+   responsive behavior, any client-facing surface), invoke `Skill(impeccable)`.
+   Not for backend-only work — the skill itself says so.
+4. **For the *why* behind earlier work**, query claude-mem and auto-memory — then
+   verify any named file, class, route, or flag still exists (§2).
+5. **Never claim a tool was used unless it was actually invoked in this session.**
+   If one is unavailable, say so and fall back to direct `Read`/`Grep`/`git`
+   inspection. Repository and Git evidence always win for current state.
 
 ---
 

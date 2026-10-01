@@ -91,9 +91,11 @@ export async function apiFetch(
   page: Page,
   path: string,
   method = 'GET',
+  /** JSON body for a write. Omitted entirely for reads, which must send none. */
+  body?: unknown,
 ): Promise<{ status: number; body: string }> {
   return page.evaluate(
-    async ({ path, method }) => {
+    async ({ path, method, body }) => {
       const xsrf = document.cookie
         .split('; ')
         .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
@@ -104,14 +106,112 @@ export async function apiFetch(
         credentials: 'include',
         headers: {
           Accept: 'application/json',
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
           ...(xsrf === undefined ? {} : { 'X-XSRF-TOKEN': decodeURIComponent(xsrf) }),
         },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       })
 
       return { status: response.status, body: (await response.text()).slice(0, 2000) }
     },
-    { path, method },
+    { path, method, body },
   )
+}
+
+/**
+ * Establish a session for `role` **without driving the sign-in form**.
+ *
+ * Used only to *arrange* state — WP-2.7b's specs need a ticket assigned, a
+ * comment posted and an internal note written by three different people before
+ * the surface under test has anything on it, and driving six form sign-ins to
+ * set that up would spend six minutes proving something `auth.spec.ts` already
+ * proves once.
+ *
+ * The act and the assertion still go through the browser: every notification
+ * test below signs in with {@link signIn} and reads the real rendered surface.
+ * This helper is for the fixture, never for the thing being verified.
+ */
+export async function apiLogin(page: Page, role: Role): Promise<void> {
+  const { email, password } = account(role)
+
+  /*
+   * End the previous session first, and do not skip this.
+   *
+   * `AuthenticateSession` stores the signed-in user's password hash in the
+   * session and logs out any request whose stored hash no longer matches the
+   * authenticated user. `session()->regenerate()` on login changes the session
+   * *id* but keeps its *data*, so signing a second person in on top of a live
+   * session leaves the first person's hash behind — and the very next guarded
+   * request is thrown out with a 401 that looks nothing like its cause.
+   *
+   * Logging out invalidates the session outright, which is also what actually
+   * happens when a person switches accounts.
+   */
+  await apiFetch(page, '/api/logout', 'POST').catch(() => undefined)
+
+  await page.evaluate(async () => {
+    await fetch('/sanctum/csrf-cookie', { credentials: 'include' })
+  })
+
+  const response = await apiFetch(page, '/api/login', 'POST', { email, password })
+
+  if (response.status !== 200) {
+    throw new Error(`apiLogin(${role}) failed with ${response.status}: ${response.body}`)
+  }
+}
+
+/**
+ * The same call as {@link apiFetch}, but parsed **inside the page**.
+ *
+ * `apiFetch` truncates the body to 2000 characters on purpose — it exists to
+ * assert status codes, and a full response in every trace would make failures
+ * harder to read, not easier. That truncation is fatal to a parser: a page of
+ * twenty notifications is comfortably past the limit, so `JSON.parse` on the
+ * returned string fails on a response that was perfectly valid.
+ *
+ * Parsing in the browser avoids the problem rather than raising the limit,
+ * which would only move it.
+ */
+export async function apiJson<T>(
+  page: Page,
+  path: string,
+  method = 'GET',
+  body?: unknown,
+): Promise<{ status: number; data: T }> {
+  const result = await page.evaluate(
+    async ({ path, method, body }) => {
+      const xsrf = document.cookie
+        .split('; ')
+        .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+        ?.split('=')[1]
+
+      const response = await fetch(path, {
+        method,
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          ...(xsrf === undefined ? {} : { 'X-XSRF-TOKEN': decodeURIComponent(xsrf) }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      })
+
+      const text = await response.text()
+
+      try {
+        return { status: response.status, data: JSON.parse(text) as unknown, raw: null }
+      } catch {
+        return { status: response.status, data: null, raw: text.slice(0, 300) }
+      }
+    },
+    { path, method, body },
+  )
+
+  if (result.raw !== null) {
+    throw new Error(`Expected JSON from ${path}, got ${result.status}: ${result.raw}`)
+  }
+
+  return { status: result.status, data: result.data as T }
 }
 
 /**

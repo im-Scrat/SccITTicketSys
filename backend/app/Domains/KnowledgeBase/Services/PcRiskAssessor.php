@@ -10,6 +10,7 @@ use App\Domains\KnowledgeBase\DTOs\DetectedPattern;
 use App\Domains\KnowledgeBase\DTOs\PcHistorySnapshot;
 use App\Domains\KnowledgeBase\DTOs\PcPredictionResult;
 use App\Domains\KnowledgeBase\DTOs\PcRiskAssessment;
+use App\Domains\KnowledgeBase\Events\PcPredictionGenerated;
 use App\Domains\KnowledgeBase\Exceptions\AiProviderException;
 use App\Domains\KnowledgeBase\Exceptions\AiUnavailableException;
 use App\Enums\ActivityAction;
@@ -34,10 +35,12 @@ use Illuminate\Support\Facades\Log;
  *       → a validated reading becomes one pending `ai_predictions` row
  *
  * **Advisory, and nothing else.** The only rows this class writes are its own:
- * `ai_failure_patterns`, `ai_predictions`, and one activity-log entry. It
- * never opens a ticket, assigns anyone, records a replacement, retires an
- * asset or changes a PC's status — a prediction is something an administrator
- * reviews (WP-M), not something the system acts on.
+ * `ai_failure_patterns`, `ai_predictions`, one activity-log entry, and — only
+ * on a genuine new prediction — one {@see PcPredictionGenerated} event that
+ * tells administrators there is something to review (WP-M). It never opens a
+ * ticket, assigns anyone, records a replacement, retires an asset or changes
+ * a PC's status — a prediction is something an administrator reviews, not
+ * something the system acts on.
  *
  * **One current finding per PC.** A finished assessment — a new prediction or
  * a considered "insufficient" — supersedes the PC's earlier *pending*
@@ -201,6 +204,13 @@ class PcRiskAssessor
                 module: 'knowledge_base',
                 description: "Predictive-maintenance finding generated for {$pcUnit->unit_code}",
             );
+
+            // WP-M: tells the administrators there is something new to review.
+            // Dispatched here, inside this same transaction — the listener's
+            // own NotificationDispatcher::send() defers delivery to the
+            // commit, the same way WorkSupportRequestSubmitted is dispatched
+            // inside its action's transaction.
+            PcPredictionGenerated::dispatch($prediction);
 
             return $prediction;
         });
