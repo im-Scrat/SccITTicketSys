@@ -100,8 +100,10 @@ export async function fetchAudit(
 export interface AssetPayload {
   asset_tag: string
   name?: string | null
-  hardware_model: number
+  hardware_model?: number
+  hardware_model_other?: string | null
   supplier?: string | null
+  supplier_other?: string | null
   room?: string | null
   technician?: string | null
   serial_number?: string | null

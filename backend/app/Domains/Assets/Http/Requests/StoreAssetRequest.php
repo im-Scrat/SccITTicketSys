@@ -36,8 +36,15 @@ class StoreAssetRequest extends FormRequest
         return [
             'asset_tag' => ['required', 'string', 'max:255', Rule::unique('assets', 'asset_tag')],
             'name' => ['nullable', 'string', 'max:255'],
-            'hardware_model' => ['required', 'integer', Rule::exists('hardware_models', 'id')->whereNull('deleted_at')],
+            // "Other" on the catalog-model/supplier selectors sends the matching
+            // `_other` free-text field instead of `hardware_model`/`supplier`; the
+            // key is simply absent otherwise (not merely empty), which is what lets
+            // `required_without` and `sometimes` tell "existing option" apart from
+            // "Other, left blank".
+            'hardware_model' => ['required_without:hardware_model_other', 'nullable', 'integer', Rule::exists('hardware_models', 'id')->whereNull('deleted_at')],
+            'hardware_model_other' => ['sometimes', 'required', 'string', 'max:255'],
             'supplier' => ['nullable', 'string', Rule::exists('suppliers', 'name')->whereNull('deleted_at')],
+            'supplier_other' => ['sometimes', 'required', 'string', 'max:255'],
             'room' => ['nullable', 'string', 'uuid', Rule::exists('rooms', 'uuid')->whereNull('deleted_at')],
             'technician' => ['nullable', 'string', 'uuid', Rule::exists('users', 'uuid')->whereNull('deleted_at')],
 

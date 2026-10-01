@@ -82,8 +82,8 @@ class UpdateAsset
             $attributes['condition'] = $condition->value;
         }
 
-        if (array_key_exists('hardware_model', $data)) {
-            $model = $this->resolveHardwareModel($data['hardware_model']);
+        if (array_key_exists('hardware_model', $data) || array_key_exists('hardware_model_other', $data)) {
+            $model = $this->resolveHardwareModel($data['hardware_model'] ?? null, $data['hardware_model_other'] ?? null);
 
             if ($model !== null && $model->getKey() !== $asset->hardware_model_id) {
                 $changes['model'] = ['from' => $asset->hardwareModel?->model_name, 'to' => $model->model_name];
@@ -91,8 +91,8 @@ class UpdateAsset
             }
         }
 
-        if (array_key_exists('supplier', $data)) {
-            $supplier = $this->resolveSupplier($data['supplier']);
+        if (array_key_exists('supplier', $data) || array_key_exists('supplier_other', $data)) {
+            $supplier = $this->resolveSupplier($data['supplier'] ?? null, $data['supplier_other'] ?? null);
 
             if ($supplier?->getKey() !== $asset->supplier_id) {
                 $changes['supplier'] = ['from' => $asset->supplier?->name, 'to' => $supplier?->name];

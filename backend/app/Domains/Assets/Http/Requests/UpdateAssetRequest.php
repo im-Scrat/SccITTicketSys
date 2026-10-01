@@ -41,8 +41,10 @@ class UpdateAssetRequest extends FormRequest
         return [
             'asset_tag' => ['sometimes', 'required', 'string', 'max:255', Rule::unique('assets', 'asset_tag')->ignore($id)],
             'name' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'hardware_model' => ['sometimes', 'required', 'integer', Rule::exists('hardware_models', 'id')->whereNull('deleted_at')],
+            'hardware_model' => ['sometimes', 'required_without:hardware_model_other', 'nullable', 'integer', Rule::exists('hardware_models', 'id')->whereNull('deleted_at')],
+            'hardware_model_other' => ['sometimes', 'required', 'string', 'max:255'],
             'supplier' => ['sometimes', 'nullable', 'string', Rule::exists('suppliers', 'name')->whereNull('deleted_at')],
+            'supplier_other' => ['sometimes', 'required', 'string', 'max:255'],
 
             'serial_number' => ['sometimes', 'nullable', 'string', 'max:255', Rule::unique('assets', 'serial_number')->ignore($id)],
             'barcode' => ['sometimes', 'nullable', 'string', 'max:255'],

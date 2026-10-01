@@ -44,8 +44,8 @@ class CreateAsset
         $status = AssetStatus::from((string) ($data['status'] ?? AssetStatus::New->value));
         $condition = PcCondition::from((string) ($data['condition'] ?? PcCondition::Working->value));
 
-        $model = $this->resolveHardwareModel($data['hardware_model'] ?? null);
-        $supplier = $this->resolveSupplier($data['supplier'] ?? null);
+        $model = $this->resolveHardwareModel($data['hardware_model'] ?? null, $data['hardware_model_other'] ?? null);
+        $supplier = $this->resolveSupplier($data['supplier'] ?? null, $data['supplier_other'] ?? null);
         $room = $this->resolveRoom($data['room'] ?? null);
         $technician = $this->resolveTechnician($data['technician'] ?? null);
 

@@ -6,7 +6,7 @@ import { applyServerErrors, getErrorMessage } from '@/features/auth/lib/serverEr
 import { useRoomLookup } from '@/hooks/useLocationLookup'
 import { useCreateAsset, useUpdateAsset } from '../hooks/mutations'
 import { useAssetCatalog } from '../hooks/queries'
-import { type AssetForm, assetSchema } from '../schemas'
+import { type AssetForm, assetSchema, OTHER_MODEL_VALUE, OTHER_SUPPLIER_VALUE } from '../schemas'
 import type { AssetDetail } from '../types'
 
 interface AssetFormDrawerProps {
@@ -46,11 +46,26 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
     handleSubmit,
     reset,
     setError,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<AssetForm>({
     resolver: zodResolver(assetSchema),
     defaultValues: blankForm(),
   })
+
+  const hardwareModel = watch('hardware_model')
+  const supplier = watch('supplier')
+  const isOtherModel = hardwareModel === OTHER_MODEL_VALUE
+  const isOtherSupplier = supplier === OTHER_SUPPLIER_VALUE
+
+  useEffect(() => {
+    if (!isOtherModel) setValue('hardware_model_other', '')
+  }, [isOtherModel, setValue])
+
+  useEffect(() => {
+    if (!isOtherSupplier) setValue('supplier_other', '')
+  }, [isOtherSupplier, setValue])
 
   useEffect(() => {
     if (!open) return
@@ -63,7 +78,9 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
         asset_tag: asset.asset_tag,
         name: asset.name ?? '',
         hardware_model: asset.model?.id ?? 0,
+        hardware_model_other: '',
         supplier: asset.supplier?.name ?? '',
+        supplier_other: '',
         room: asset.room?.id ?? '',
         technician: asset.technician?.id ?? '',
         serial_number: asset.serial_number ?? '',
@@ -89,11 +106,16 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
 
+    const isOther = values.hardware_model === OTHER_MODEL_VALUE
+    const isOtherSup = values.supplier === OTHER_SUPPLIER_VALUE
+
     const payload = {
       asset_tag: values.asset_tag,
       name: emptyToNull(values.name),
-      hardware_model: values.hardware_model,
-      supplier: emptyToNull(values.supplier),
+      hardware_model: isOther ? undefined : values.hardware_model,
+      hardware_model_other: isOther ? values.hardware_model_other : undefined,
+      supplier: isOtherSup ? undefined : emptyToNull(values.supplier),
+      supplier_other: isOtherSup ? values.supplier_other : undefined,
       serial_number: emptyToNull(values.serial_number),
       barcode: emptyToNull(values.barcode),
       condition: values.condition,
@@ -182,8 +204,22 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
                 {model.label}
               </option>
             ))}
+            <option value={OTHER_MODEL_VALUE}>Other…</option>
           </Select>
         </Field>
+
+        {isOtherModel && (
+          <Field
+            label="Catalog model (manual)"
+            error={errors.hardware_model_other?.message}
+            required
+          >
+            <Input
+              {...register('hardware_model_other')}
+              placeholder="Enter catalog model manually"
+            />
+          </Field>
+        )}
 
         <Field label="Serial number" error={errors.serial_number?.message}>
           <Input {...register('serial_number')} />
@@ -247,8 +283,15 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
                 {option.label}
               </option>
             ))}
+            <option value={OTHER_SUPPLIER_VALUE}>Other…</option>
           </Select>
         </Field>
+
+        {isOtherSupplier && (
+          <Field label="Supplier (manual)" error={errors.supplier_other?.message} required>
+            <Input {...register('supplier_other')} placeholder="Enter supplier manually" />
+          </Field>
+        )}
 
         <Field label="Purchase price" error={errors.purchase_price?.message}>
           <Input
@@ -282,7 +325,9 @@ function blankForm(): AssetForm {
     asset_tag: '',
     name: '',
     hardware_model: 0,
+    hardware_model_other: '',
     supplier: '',
+    supplier_other: '',
     room: '',
     technician: '',
     serial_number: '',

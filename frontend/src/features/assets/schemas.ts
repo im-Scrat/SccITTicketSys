@@ -38,6 +38,11 @@ export const pcStatusValues = [
   'retired',
 ] as const
 
+/** Sentinel for "Other" on the catalog-model select; real models are positive ids. */
+export const OTHER_MODEL_VALUE = -1
+/** Sentinel for "Other" on the supplier select; real suppliers are their name string. */
+export const OTHER_SUPPLIER_VALUE = '__other__'
+
 export const assetSchema = z
   .object({
     asset_tag: z
@@ -49,8 +54,10 @@ export const assetSchema = z
         'Use letters, numbers, spaces, hyphens, slashes or underscores.',
       ),
     name: optionalText(255),
-    hardware_model: z.number({ message: 'Choose a catalog model.' }).int().positive(),
+    hardware_model: z.number({ message: 'Choose a catalog model.' }).int(),
+    hardware_model_other: optionalText(255),
     supplier: optionalText(255),
+    supplier_other: optionalText(255),
     room: optionalText(64),
     technician: optionalText(64),
     serial_number: optionalText(255),
@@ -75,6 +82,19 @@ export const assetSchema = z
       !value.warranty_expiration ||
       Date.parse(value.warranty_expiration) >= Date.parse(value.purchase_date),
     { message: 'Warranty cannot expire before the purchase date.', path: ['warranty_expiration'] },
+  )
+  .refine((value) => value.hardware_model === OTHER_MODEL_VALUE || value.hardware_model > 0, {
+    message: 'Choose a catalog model.',
+    path: ['hardware_model'],
+  })
+  .refine(
+    (value) =>
+      value.hardware_model !== OTHER_MODEL_VALUE || Boolean(value.hardware_model_other?.trim()),
+    { message: 'Enter the catalog model.', path: ['hardware_model_other'] },
+  )
+  .refine(
+    (value) => value.supplier !== OTHER_SUPPLIER_VALUE || Boolean(value.supplier_other?.trim()),
+    { message: 'Enter the supplier.', path: ['supplier_other'] },
   )
 export type AssetForm = z.infer<typeof assetSchema>
 
