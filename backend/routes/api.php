@@ -67,6 +67,7 @@ use App\Domains\WorkSupport\Http\Controllers\WorkSupportAttachmentController;
 use App\Domains\WorkSupport\Http\Controllers\WorkSupportRequestController;
 use App\Http\Controllers\BroadcastingConfigController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\TabSessionController;
 use App\Http\Middleware\AuthenticateSession;
 use App\Models\AiPrediction;
 use App\Models\AiSystemSetting;
@@ -118,6 +119,18 @@ Route::post('/qr/{code}/scan', [QrScanController::class, 'scan'])
     ->middleware('throttle:qr-scan')
     ->where('code', '[A-Za-z0-9-]{1,64}');
 
+/*
+|--------------------------------------------------------------------------
+| Per-tab session teardown (see EnsureTabLeaseIsValid) — PUBLIC BY DESIGN
+|--------------------------------------------------------------------------
+| Reached via `navigator.sendBeacon` from a closing tab's `pagehide` handler,
+| which cannot send cookies-plus-auth-header the way a normal request would be
+| expected to. Authorization is the `lease` query value itself — a secret that
+| only ever lived in that tab's sessionStorage — not the session guard, so
+| this sits outside `auth:sanctum` on purpose. See TabSessionController.
+*/
+Route::post('/auth/tab-close', [TabSessionController::class, 'close']);
+
 // Authenticated endpoints.
 Route::middleware('auth:sanctum')->group(function () {
     // Logout is always available to an authenticated session (even if the
@@ -126,10 +139,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Everything else requires an active account (SDD DD-19). AuthenticateSession
     // enables "invalidate other sessions" on password change (FR-AUTH-011).
-    Route::middleware(['active', AuthenticateSession::class])->group(function () {
+    // tab.lease (EnsureTabLeaseIsValid) scopes the cookie's auth to the one
+    // browser tab that actually signed in — see that class for why.
+    Route::middleware(['active', AuthenticateSession::class, 'tab.lease'])->group(function () {
         // Reachable even under a forced password reset so the user can comply.
         Route::get('/user', [AuthController::class, 'me']);
         Route::put('/password', [PasswordController::class, 'update']);
+
+        // Keeps an idle-but-open tab's lease from going stale (see
+        // EnsureTabLeaseIsValid); frontend/src/services/tabSession.ts.
+        Route::post('/auth/heartbeat', [TabSessionController::class, 'heartbeat']);
 
         // Self-service profile (name) edit (FR-USER-008).
         Route::put('/profile', [ProfileController::class, 'update']);

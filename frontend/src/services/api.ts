@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios'
 import { queryClient } from '@/services/queryClient'
+import { getLease } from '@/services/tabLease'
 
 /**
  * Single-origin Axios client. The app is served behind Nginx on :8080,
@@ -25,6 +26,20 @@ export const api = axios.create({
 export function initCsrf() {
   return axios.get('/sanctum/csrf-cookie', { withCredentials: true })
 }
+
+/**
+ * Echoes this tab's lease back on every request (see services/tabLease.ts).
+ * A freshly opened tab has none yet — e.g. before its first login — so the
+ * header is simply omitted rather than sent empty; the backend treats a
+ * missing header on a lease-bearing session exactly like a wrong one.
+ */
+api.interceptors.request.use((config) => {
+  const lease = getLease()
+  if (lease) {
+    config.headers.set('X-Tab-Lease', lease)
+  }
+  return config
+})
 
 type RetriableConfig = AxiosRequestConfig & { _csrfRetried?: boolean }
 

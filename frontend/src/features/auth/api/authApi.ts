@@ -1,4 +1,5 @@
 import { api, initCsrf } from '@/services/api'
+import { clearLease, setLease } from '@/services/tabLease'
 import type { AuthUser, LoginPayload, RegisterPayload } from '../types'
 
 /** Fetch the authenticated principal, or null when not signed in (401). */
@@ -7,14 +8,21 @@ export async function fetchCurrentUser(): Promise<AuthUser> {
   return data.data
 }
 
+/**
+ * `lease` is this tab's half of EnsureTabLeaseIsValid — stored in
+ * sessionStorage, never the cookie jar, so a sibling tab sharing the session
+ * cookie has no way to inherit it (see services/tabLease.ts).
+ */
 export async function login(payload: LoginPayload): Promise<AuthUser> {
   await initCsrf()
-  const { data } = await api.post<{ data: AuthUser }>('/login', payload)
+  const { data } = await api.post<{ data: AuthUser; lease: string }>('/login', payload)
+  setLease(data.lease)
   return data.data
 }
 
 export async function logout(): Promise<void> {
   await api.post('/logout')
+  clearLease()
 }
 
 export async function register(

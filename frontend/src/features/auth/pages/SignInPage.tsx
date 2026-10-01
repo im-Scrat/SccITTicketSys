@@ -5,7 +5,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
-import { Checkbox } from '@/components/ui/Checkbox'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
@@ -31,7 +30,7 @@ export default function SignInPage() {
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '', remember: false },
+    defaultValues: { email: '', password: '' },
   })
 
   const onSubmit = handleSubmit(async (values) => {
@@ -40,7 +39,6 @@ export default function SignInPage() {
       await loginMutation.mutateAsync({
         email: values.email,
         password: values.password,
-        remember: Boolean(values.remember),
       })
       /*
        * Deliberately no navigation here.
@@ -96,8 +94,7 @@ export default function SignInPage() {
           <PasswordInput autoComplete="current-password" {...register('password')} />
         </Field>
 
-        <div className="flex items-center justify-between">
-          <Checkbox label="Remember me" {...register('remember')} />
+        <div className="flex items-center justify-end">
           <Link
             to="/forgot-password"
             className="text-sm font-medium text-primary-strong hover:underline"

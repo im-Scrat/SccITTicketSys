@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -23,6 +24,12 @@ use Illuminate\Validation\ValidationException;
  * account holder learns their status (SDD DD-19). Session fixation is defended
  * by regenerating the session on login and invalidating + regenerating the CSRF
  * token on logout. Lockout/throttling use the Redis-backed RateLimiter (DD-20).
+ *
+ * There is deliberately no "remember me" cookie: a persistent authenticator
+ * that outlives the session is exactly what the per-tab lease (see
+ * `EnsureTabLeaseIsValid`) exists to prevent — it would let a closed tab's
+ * session silently resurrect itself. `Auth::guard('web')->login()` is always
+ * called non-persistent.
  */
 class AuthService
 {
@@ -35,7 +42,7 @@ class AuthService
      * @throws ValidationException on bad credentials or lockout
      * @throws AccountNotActiveException on a valid credential for a non-active account
      */
-    public function login(string $email, string $password, bool $remember, Request $request): User
+    public function login(string $email, string $password, Request $request): User
     {
         $key = $this->throttleKey($email, $request);
         $maxAttempts = (int) config('security.login.max_attempts', 5);
@@ -86,8 +93,15 @@ class AuthService
 
         RateLimiter::clear($key);
 
-        Auth::guard('web')->login($user, $remember);
+        Auth::guard('web')->login($user);
         $request->session()->regenerate();
+
+        // Per-tab lease (EnsureTabLeaseIsValid): a secret the SPA keeps only in
+        // this tab's sessionStorage and echoes back as X-Tab-Lease. A sibling
+        // tab shares the session cookie but never this value, so it cannot
+        // ride on a login it didn't perform.
+        $request->session()->put('tab_lease', Str::random(40));
+        $request->session()->put('tab_lease_last_seen', now()->timestamp);
 
         $user->forceFill([
             'last_login_at' => now(),

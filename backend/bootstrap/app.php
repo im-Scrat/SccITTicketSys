@@ -9,6 +9,7 @@ use App\Domains\Tickets\Console\DetectSlaBreaches;
 use App\Http\Middleware\AuthenticateSession;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsurePasswordIsCurrent;
+use App\Http\Middleware\EnsureTabLeaseIsValid;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -84,7 +85,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'active' => EnsureAccountIsActive::class,
             'password.current' => EnsurePasswordIsCurrent::class,
+            'tab.lease' => EnsureTabLeaseIsValid::class,
         ]);
+
+        /*
+         * `POST /api/auth/tab-close` is the one CSRF exemption in the app: it
+         * is reached via `navigator.sendBeacon` on a tab's `pagehide`, which
+         * cannot attach the X-XSRF-TOKEN header a normal request would carry.
+         * See `TabSessionController::close()` for why a forged cross-site
+         * beacon cannot exploit the gap — it would need the lease token,
+         * which never leaves this tab's sessionStorage.
+         */
+        $middleware->preventRequestForgery(except: ['api/auth/tab-close']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // API clients always receive JSON (they send Accept: application/json),

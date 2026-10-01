@@ -24,13 +24,16 @@ class AuthController extends Controller
         $user = $this->auth->login(
             (string) $request->string('email'),
             (string) $request->string('password'),
-            $request->boolean('remember'),
             $request,
         );
 
-        return (new UserResource($user->load('role')))
-            ->response()
-            ->setStatusCode(200);
+        // `lease` rides the login response body, never a cookie: it belongs in
+        // sessionStorage (see EnsureTabLeaseIsValid), and only this response
+        // and this tab ever see it.
+        return response()->json([
+            'data' => (new UserResource($user->load('role')))->resolve($request),
+            'lease' => $request->session()->get('tab_lease'),
+        ]);
     }
 
     public function logout(Request $request): JsonResponse

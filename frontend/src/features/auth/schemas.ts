@@ -25,7 +25,6 @@ const password = z
 export const loginSchema = z.object({
   email: z.string().min(1, 'Email is required.').email('Enter a valid email address.'),
   password: z.string().min(1, 'Password is required.'),
-  remember: z.boolean().optional(),
 })
 export type LoginForm = z.infer<typeof loginSchema>
 

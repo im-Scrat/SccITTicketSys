@@ -32,6 +32,17 @@ return [
         'idle_hours' => (int) env('AUTH_SESSION_IDLE_HOURS', 8),
     ],
 
+    /*
+     * Per-tab session lease (EnsureTabLeaseIsValid). A tab that stops
+     * heartbeating — closed, crashed, killed, offline — has this long before
+     * its lease is treated as abandoned and the whole session is invalidated.
+     * Long enough to tolerate a backgrounded tab's throttled timers; short
+     * enough that "eventually unauthenticated" means minutes, not hours.
+     */
+    'tab_lease' => [
+        'stale_after_seconds' => (int) env('AUTH_TAB_LEASE_STALE_SECONDS', 180),
+    ],
+
     // Per-IP throttles for sensitive public endpoints (throttle:<name>).
     'rate_limits' => [
         'registration_per_hour' => (int) env('AUTH_REGISTRATION_PER_HOUR', 5),
