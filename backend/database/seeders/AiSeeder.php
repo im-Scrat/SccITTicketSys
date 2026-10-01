@@ -17,8 +17,8 @@ class AiSeeder extends Seeder
             ['name' => 'Gemini 1.5 Flash'],
             [
                 'provider' => 'gemini',
-                'model_identifier' => 'gemini-1.5-flash',
-                'version' => '1.5',
+                'model_identifier' => 'gemini-3.5-flash',
+                'version' => '3.5',
                 'modality' => AiModality::Text->value,
                 'is_active' => true,
                 'is_default' => true,
@@ -29,8 +29,8 @@ class AiSeeder extends Seeder
             ['name' => 'Gemini Text Embedding 004'],
             [
                 'provider' => 'gemini',
-                'model_identifier' => 'text-embedding-004',
-                'version' => '004',
+                'model_identifier' => 'gemini-embedding-001',
+                'version' => '001',
                 'modality' => AiModality::Embedding->value,
                 'embedding_dimensions' => 768,
                 'is_active' => true,
