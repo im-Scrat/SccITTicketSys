@@ -423,6 +423,26 @@ Route::middleware('auth:sanctum')->group(function () {
 
         /*
         |------------------------------------------------------------------
+        | Custodian self-service — the one other asset surface a
+        | non-administrator reaches outside the Admin-only module (SDD DD-38).
+        |------------------------------------------------------------------
+        | Scoped entirely to the caller's own custody (`assigned_technician_id`),
+        | never the module's `assets.view` permission: a Technician or an
+        | Administrator holding an asset as custodian can see what they are
+        | responsible for without the register at large opening up for them.
+        | `mine()` pre-filters the query; `show()` is the same admin endpoint,
+        | reused as-is because `AssetPolicy::view` already admits the custodian.
+        */
+        Route::middleware('password.current')
+            ->prefix('my')
+            ->whereUuid(['asset'])
+            ->group(function () {
+                Route::get('/assets', [AssetController::class, 'mine']);
+                Route::get('/assets/{asset:uuid}', [AssetController::class, 'show']);
+            });
+
+        /*
+        |------------------------------------------------------------------
         | Location Management (Phase 2.4) — FR-LOC-001..010 — ADMIN ONLY
         |------------------------------------------------------------------
         | The whole module — directory, tree, dashboard, detail pages and every

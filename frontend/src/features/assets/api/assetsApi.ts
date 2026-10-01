@@ -334,3 +334,21 @@ export async function fetchAttachmentObjectUrl(attachmentId: string): Promise<st
   })
   return URL.createObjectURL(data)
 }
+
+/* -------------------------------------------------------- my (custodian) */
+
+/**
+ * Assets currently in the caller's own custody. The one asset surface a
+ * Technician — or an Administrator viewing their personal custody rather than
+ * the register at large — reaches without the `assets.view` permission
+ * (SDD DD-38): the backend pre-scopes this to `assigned_technician_id = me`.
+ */
+export async function listMyAssets(page = 1): Promise<Paginated<AssetListItem>> {
+  const { data } = await api.get<Paginated<AssetListItem>>('/my/assets', { params: { page } })
+  return data
+}
+
+export async function fetchMyAsset(id: string): Promise<Detail<AssetDetail>> {
+  const { data } = await api.get<Detail<AssetDetail>>(`/my/assets/${id}`)
+  return data
+}

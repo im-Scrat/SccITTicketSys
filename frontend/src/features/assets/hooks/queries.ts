@@ -6,10 +6,12 @@ import {
   fetchAudit,
   fetchCatalog,
   fetchHistory,
+  fetchMyAsset,
   fetchPcUnit,
   fetchQrCodes,
   listAssets,
   listAttachments,
+  listMyAssets,
   listPcUnits,
 } from '../api/assetsApi'
 import type { AssetParams, PcUnitParams } from '../types'
@@ -28,6 +30,25 @@ export const assetsKeys = {
     ['assets', 'audit', kind, id, page] as const,
   qr: (kind: AssetKind, id: string) => ['assets', 'qr', kind, id] as const,
   attachments: (kind: AssetKind, id: string) => ['assets', 'attachments', kind, id] as const,
+  mine: (page: number) => ['assets', 'mine', page] as const,
+  mineDetail: (id: string) => ['assets', 'mine', 'detail', id] as const,
+}
+
+/** Assets currently in the caller's own custody (any role — not `assets.view`-gated). */
+export function useMyAssets(page = 1) {
+  return useQuery({
+    queryKey: assetsKeys.mine(page),
+    queryFn: () => listMyAssets(page),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useMyAsset(id: string | undefined) {
+  return useQuery({
+    queryKey: assetsKeys.mineDetail(id ?? ''),
+    queryFn: () => fetchMyAsset(id as string),
+    enabled: Boolean(id),
+  })
 }
 
 export function useAssetDashboard() {

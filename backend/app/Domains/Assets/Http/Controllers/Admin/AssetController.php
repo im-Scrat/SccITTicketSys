@@ -41,6 +41,28 @@ class AssetController extends Controller
         return AssetListResource::collection($directory->assets($request->validated()));
     }
 
+    /**
+     * The custodian's own view: assets currently handed to the caller, no
+     * `assets.*` permission required. The one asset listing a Technician or
+     * an Administrator-as-custodian can reach outside the Admin-only module
+     * (SDD DD-38) — pre-scoped to `assigned_technician_id = $actor->id`, so it
+     * can never become a window into the register at large.
+     */
+    public function mine(Request $request): AnonymousResourceCollection
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+
+        return AssetListResource::collection(
+            Asset::query()
+                ->with(['hardwareModel.component.manufacturer', 'supplier', 'currentRoom.floor.building', 'assignedTechnician'])
+                ->where('assigned_technician_id', $actor->getKey())
+                ->orderBy('asset_tag')
+                ->paginate(AssetDirectoryQuery::DEFAULT_PER_PAGE)
+                ->withQueryString(),
+        );
+    }
+
     public function show(
         Request $request,
         Asset $asset,

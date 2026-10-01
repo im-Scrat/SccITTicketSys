@@ -58,9 +58,19 @@ class AssetPolicy
         return $actor->hasPermissionTo('assets.view');
     }
 
+    /**
+     * The module gate (`assets.view`) opens every record. The one exception is
+     * the custodian themselves: whoever an asset is currently handed to
+     * (`assigned_technician_id`) can always read that one record, even holding
+     * no `assets.*` permission at all — they need to know what they are
+     * responsible for. This does not reach the module: {@see AssetController::mine()}
+     * is the only route that lets a non-administrator arrive here, and it is
+     * pre-scoped to the caller's own custody, so this check never has to widen
+     * into "any asset" for them.
+     */
     public function view(User $actor, Asset $asset): bool
     {
-        return $this->viewAny($actor);
+        return $this->viewAny($actor) || $asset->assigned_technician_id === $actor->getKey();
     }
 
     /** The unified asset timeline (FR-AST-005). */

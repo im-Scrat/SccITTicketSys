@@ -12,6 +12,7 @@ import {
   Map as MapIcon,
   Megaphone,
   type LucideIcon,
+  PackageCheck,
   Ticket,
   UserCheck,
   UserCog,
@@ -68,6 +69,14 @@ interface NavItem {
  */
 const NAV_ITEMS: NavItem[] = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  /*
+   * No `permission`, deliberately — same reasoning as Dashboard. Custodianship
+   * (`assigned_technician_id`) is not a permission, it is a fact about a
+   * specific asset, and `/my/assets` is scoped server-side to whichever
+   * records name the caller as custodian. Showing this to everyone costs
+   * nothing: a user who is nobody's custodian just sees an empty list.
+   */
+  { to: '/app/my-assets', label: 'My assets', icon: PackageCheck },
   {
     to: '/app/tickets',
     label: 'Tickets',

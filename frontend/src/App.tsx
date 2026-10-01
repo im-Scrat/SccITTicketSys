@@ -63,6 +63,7 @@ const AssetDashboardPage = lazy(() => import('@/features/assets/pages/AssetDashb
 const AssetsPage = lazy(() => import('@/features/assets/pages/AssetsPage'))
 const AssetDetailPage = lazy(() => import('@/features/assets/pages/AssetDetailPage'))
 const PcUnitDetailPage = lazy(() => import('@/features/assets/pages/PcUnitDetailPage'))
+const MyAssetsPage = lazy(() => import('@/features/assets/pages/MyAssetsPage'))
 
 // Ticket Management (Phase 2.6).
 const TicketFeedPage = lazy(() => import('@/features/tickets/pages/TicketFeedPage'))
@@ -202,6 +203,13 @@ function App() {
                     </RequirePermission>
                   }
                 />
+                {/* The custodian's own view: equipment handed to *this* user,
+                    regardless of role. No `RequirePermission` wrapper,
+                    deliberately — same stance as `NotificationsPage`: ownership
+                    (`assigned_technician_id = me`) is the boundary, and it is
+                    enforced server-side on `/my/assets`, not by a route guard
+                    checking a permission that a Technician does not hold. */}
+                <Route path="my-assets" element={<MyAssetsPage />} />
                 {/* Asset Management is site administration: `assets.view` is
                     seeded to Administrators only, so a Technician or Teacher who
                     types one of these URLs gets the Forbidden page — and the API
