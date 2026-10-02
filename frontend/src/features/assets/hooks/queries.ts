@@ -34,7 +34,10 @@ export const assetsKeys = {
   mineDetail: (id: string) => ['assets', 'mine', 'detail', id] as const,
 }
 
-/** Assets currently in the caller's own custody (any role — not `assets.view`-gated). */
+/**
+ * Assets currently in the caller's own custody — Technicians and Administrators
+ * only (not `assets.view`-gated; a Teacher is refused, Phase 2.9).
+ */
 export function useMyAssets(page = 1) {
   return useQuery({
     queryKey: assetsKeys.mine(page),

@@ -10,6 +10,13 @@ import { AppLayout } from './AppLayout'
 vi.mock('@/features/notifications/components/NotificationMenu', () => ({
   NotificationMenu: () => null,
 }))
+// Phase 2.9 shell additions: no socket and no assistant in a nav test.
+vi.mock('@/features/notifications/hooks/useUserChannel', () => ({
+  useUserChannel: () => undefined,
+}))
+vi.mock('@/features/assistant/components/AssistantLauncher', () => ({
+  AssistantLauncher: () => null,
+}))
 
 /**
  * Whether the navigation offers the floor plan. Hiding a link is not security

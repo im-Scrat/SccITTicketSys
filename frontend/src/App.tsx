@@ -106,6 +106,11 @@ const SupportRequestInboxPage = lazy(
   () => import('@/features/work-support/pages/SupportRequestInboxPage'),
 )
 
+// Phase 2.9 — administrator surfaces.
+const TechniciansPage = lazy(() => import('@/features/technicians/pages/TechniciansPage'))
+const TechnicianDetailPage = lazy(() => import('@/features/technicians/pages/TechnicianDetailPage'))
+const AiSettingsPage = lazy(() => import('@/features/knowledge-base/pages/AiSettingsPage'))
+
 function App() {
   return (
     <ErrorBoundary>
@@ -203,13 +208,21 @@ function App() {
                     </RequirePermission>
                   }
                 />
-                {/* The custodian's own view: equipment handed to *this* user,
-                    regardless of role. No `RequirePermission` wrapper,
-                    deliberately — same stance as `NotificationsPage`: ownership
-                    (`assigned_technician_id = me`) is the boundary, and it is
-                    enforced server-side on `/my/assets`, not by a route guard
-                    checking a permission that a Technician does not hold. */}
-                <Route path="my-assets" element={<MyAssetsPage />} />
+                {/* The custodian's own view: equipment handed to *this* user.
+                    Gated by role, not permission — custody is a fact about an
+                    asset, not a grant, and only Technicians and Administrators
+                    can ever hold it. A Teacher who types this URL gets the
+                    Forbidden page, and `/my/assets` refuses them with 403
+                    regardless (AssetPolicy::viewOwnCustody, Phase 2.9). */}
+                <Route
+                  path="my-assets"
+                  element={
+                    <RequireRole roles={['technician', 'administrator']}>
+                      <MyAssetsPage />
+                    </RequireRole>
+                  }
+                />
+
                 {/* Asset Management is site administration: `assets.view` is
                     seeded to Administrators only, so a Technician or Teacher who
                     types one of these URLs gets the Forbidden page — and the API
@@ -318,6 +331,33 @@ function App() {
                   element={
                     <RequireRole roles={['administrator']}>
                       <TicketAdminDetailPage />
+                    </RequireRole>
+                  }
+                />
+                {/* Phase 2.9 — administrator-only. The role guard is a convenience;
+                    the API refuses everyone else (TechnicianMonitoringAccess,
+                    AiAdministrationAccess). */}
+                <Route
+                  path="technicians"
+                  element={
+                    <RequireRole roles={['administrator']}>
+                      <TechniciansPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="technicians/:id"
+                  element={
+                    <RequireRole roles={['administrator']}>
+                      <TechnicianDetailPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="ai-settings"
+                  element={
+                    <RequireRole roles={['administrator']}>
+                      <AiSettingsPage />
                     </RequireRole>
                   }
                 />

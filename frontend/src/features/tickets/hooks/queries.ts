@@ -1,5 +1,6 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
+import { useRealtimeStore } from '@/stores/useRealtimeStore'
 import {
   fetchAdminTicket,
   fetchAssignedTicket,
@@ -15,6 +16,7 @@ import {
   fetchTicketDashboard,
   fetchTicketDirectory,
   fetchTicketOptions,
+  fetchTicketTimeline,
 } from '../api/ticketsApi'
 import type { TicketParams } from '../types'
 
@@ -37,6 +39,7 @@ export const ticketsKeys = {
   // Under the `tickets` namespace on purpose: every ticket write invalidates it,
   // so FIXED / NOT FIXED refresh the outcome shown here with no extra wiring.
   aiAnalysis: (id: string) => ['tickets', 'ai-analysis', id] as const,
+  timeline: (id: string) => ['tickets', 'timeline', id] as const,
 }
 
 /** Vocabularies change rarely; hold them for the session. */
@@ -177,13 +180,31 @@ export function useTicketAttachments(id: string | undefined, enabled = true) {
  * spent limit (429) will not change on a retry, so none is attempted.
  */
 export function useTicketAiAnalysis(id: string | undefined, enabled = true) {
+  // Phase 2.9: while an analysis is pending, the user channel's
+  // `ai-analysis.ready` push refreshes this query. If that channel is not live,
+  // fall back to asking every 20 seconds until it arrives or stops pending.
+  const live = useRealtimeStore((state) => state.userChannelLive)
+
   return useQuery({
     queryKey: ticketsKeys.aiAnalysis(id ?? ''),
     queryFn: () => fetchTicketAiAnalysis(id as string),
     enabled: Boolean(id) && enabled,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchInterval: (query) =>
+      !live && query.state.data?.data === null && query.state.data.meta.pending === true
+        ? 20_000
+        : false,
     retry: (count, error) =>
       count < 1 && !(isAxiosError(error) && [403, 404, 429].includes(error.response?.status ?? 0)),
+  })
+}
+
+/** Phase 2.9 — a ticket's History tab; fetched only when the tab is opened. */
+export function useTicketTimeline(id: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ticketsKeys.timeline(id ?? ''),
+    queryFn: () => fetchTicketTimeline(id!),
+    enabled: Boolean(id) && enabled,
   })
 }

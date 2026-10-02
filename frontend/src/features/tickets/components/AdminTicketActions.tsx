@@ -64,7 +64,13 @@ export function AdminTicketActions({ ticket, options, canAssign }: AdminTicketAc
 
 /* ------------------------------------------------------------------ assign */
 
-function AssignDialog({
+/**
+ * Exported (Phase 2.9) so the administrator dashboard can assign straight from
+ * its "needs an owner" queue with the same dialog, validation and 409 handling
+ * as the ticket page. It needs only the ticket's id and whether it already has
+ * an owner.
+ */
+export function AssignDialog({
   open,
   onClose,
   ticket,
@@ -72,7 +78,7 @@ function AssignDialog({
 }: {
   open: boolean
   onClose: () => void
-  ticket: TicketDetail
+  ticket: Pick<TicketDetail, 'id' | 'is_assigned'>
   options?: TicketOptions
 }) {
   const assign = useAssignTicket(ticket.id)

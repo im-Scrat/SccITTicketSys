@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios'
 import { useEffect, useId, useRef, useState } from 'react'
-import { Alert, Badge, Button, Field, Textarea } from '@/components/ui'
+import { Alert, Badge, Button, Field, Spinner, Textarea } from '@/components/ui'
 import { getErrorMessage } from '@/features/auth/lib/serverErrors'
 import { useChangeTicketStatus, useReportNotFixed } from '../hooks/mutations'
 import type { ReporterOutcome, TicketAiAnalysisEnvelope } from '../types'
@@ -83,6 +83,31 @@ export function TicketAiTroubleshooting({
             </Button>
           </div>
         )}
+      </section>
+    )
+  }
+
+  // Phase 2.9 — an analysis is on its way. Say so, rather than leaving the
+  // reporter to wonder whether anything is happening; the panel fills in by
+  // itself when it arrives (pushed on the user channel, polled otherwise).
+  if (analysis?.data === null && analysis.meta.pending === true) {
+    return (
+      <section
+        aria-labelledby={headingId}
+        aria-busy="true"
+        className="flex flex-col gap-3 rounded-lg border-2 border-border bg-surface p-6"
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 id={headingId} className="text-base font-bold text-ink-strong">
+            Things to try first
+          </h2>
+          <Badge tone="neutral">AI-generated</Badge>
+        </div>
+        <p role="status" className="flex items-center gap-3 text-sm text-ink">
+          <Spinner size={18} />
+          Analysing your report… Suggested steps appear here in a moment. Your report is already
+          with the IT team.
+        </p>
       </section>
     )
   }

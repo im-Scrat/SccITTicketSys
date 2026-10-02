@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, QrCode } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Alert, PageLoader, Button, Tabs } from '@/components/ui'
@@ -9,7 +9,9 @@ import { TicketComments } from '../components/TicketComments'
 import { TicketRepairRecord } from '../components/TicketRepairRecord'
 import { TicketStatusActions } from '../components/TicketStatusActions'
 import { TicketSummary } from '../components/TicketSummary'
+import { TicketTimeline } from '../components/TicketTimeline'
 import { useAssignedTicket } from '../hooks/queries'
+import type { TicketDetail } from '../types'
 
 /**
  * One assigned ticket, as the technician working it (SRS FR-ASN-004/005).
@@ -58,6 +60,7 @@ export default function AssignedTicketDetailPage() {
     { value: 'details', label: 'Details' },
     { value: 'comments', label: 'Comments', count: ticket.comment_count },
     { value: 'files', label: 'Photos & files', count: ticket.attachment_count },
+    { value: 'history', label: 'History' },
   ]
 
   return (
@@ -72,6 +75,8 @@ export default function AssignedTicketDetailPage() {
       )}
 
       <TicketSummary ticket={ticket} sla={meta.sla ?? null} />
+
+      {ticket.pc_unit && !readOnly && <FindTheMachine ticket={ticket} />}
 
       {assignment && !readOnly && (
         <AssignmentActions ticketId={ticket.id} assignment={assignment} />
@@ -110,7 +115,48 @@ export default function AssignedTicketDetailPage() {
       )}
 
       {tab === 'files' && <TicketAttachments ticketId={ticket.id} canManage={!readOnly} />}
+
+      {tab === 'history' && <TicketTimeline ticketId={ticket.id} />}
     </div>
+  )
+}
+
+/**
+ * Phase 2.9 (D-C) — where the machine is, and how to record work on it.
+ *
+ * There is deliberately no link to the PC's panel: proof of work and support
+ * requests start **only** from scanning the machine's own QR label, which is
+ * what ties a submission to being at that machine.
+ */
+function FindTheMachine({ ticket }: { ticket: TicketDetail }) {
+  const where = ticket.location?.room
+    ? [ticket.location.room, ticket.location.floor, ticket.location.building]
+        .filter(Boolean)
+        .join(', ')
+    : null
+
+  return (
+    <section
+      aria-labelledby="find-the-machine"
+      className="flex flex-wrap items-center gap-5 rounded-lg border-2 border-border bg-surface p-6"
+    >
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-primary-subtle text-primary-strong">
+        <QrCode size={28} aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 id="find-the-machine" className="text-base font-bold text-ink-strong">
+          Find the machine
+        </h2>
+        <p className="mt-1 text-lg font-semibold text-ink-strong">
+          <span className="tnum">{ticket.pc_unit?.identifier}</span>
+          <span className="font-normal text-muted"> · {ticket.pc_unit?.label}</span>
+        </p>
+        {where && <p className="text-sm text-ink">{where}</p>}
+        <p className="mt-2 text-sm text-muted">
+          At the PC, scan its QR label to submit proof of work or request parts and support.
+        </p>
+      </div>
+    </section>
   )
 }
 

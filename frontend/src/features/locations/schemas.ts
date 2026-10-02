@@ -59,5 +59,7 @@ export const roomSchema = z.object({
     .max(100000)
     .nullable(),
   description: optionalText(2000),
+  /** Phase 2.9 — a priority slug, or '' for no floor. Edit only. */
+  priority_floor: z.string().optional(),
 })
 export type RoomForm = z.infer<typeof roomSchema>

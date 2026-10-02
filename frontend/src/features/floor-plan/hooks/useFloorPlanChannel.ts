@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { getEcho } from '@/services/echo'
+import { usePrivateChannel } from '@/hooks/usePrivateChannel'
 import { formatCoordinate } from '../lib/placement'
 import type { PlacedPc, RoomPlan } from '../types'
 import { withPlaced, withStatusChanged } from './mutations'
@@ -61,46 +61,28 @@ export function useFloorPlanChannel(
   const optionsRef = useRef(options)
   optionsRef.current = options
 
-  useEffect(() => {
-    if (!roomId) return
+  // Phase 2.9: subscription, degradation and teardown live in the shared
+  // usePrivateChannel; this hook keeps only what is floor-plan specific.
+  usePrivateChannel(roomId ? `floor-plan.room.${roomId}` : undefined, {
+    '.floor-plan.position-updated': (payload: PositionUpdatedPayload) => {
+      if (!roomId) return
+      const { layoutVersion, isOwnPendingMove, announce } = optionsRef.current
+      if (layoutVersion !== undefined && payload.layout_version !== layoutVersion) return
+      if (isOwnPendingMove(payload.pc.id)) return
 
-    let cancelled = false
-    let subscribed: string | null = null
-
-    getEcho()
-      .then((echo) => {
-        if (cancelled) return
-        subscribed = `floor-plan.room.${roomId}`
-        const channel = echo.private(subscribed)
-
-        channel.listen('.floor-plan.position-updated', (payload: PositionUpdatedPayload) => {
-          const { layoutVersion, isOwnPendingMove, announce } = optionsRef.current
-          if (layoutVersion !== undefined && payload.layout_version !== layoutVersion) return
-          if (isOwnPendingMove(payload.pc.id)) return
-
-          queryClient.setQueryData<RoomPlan>(floorPlanKeys.room(roomId), (current) =>
-            current ? withPlaced(current, payload.pc) : current,
-          )
-          announce?.(
-            `${payload.pc.name} moved to x ${formatCoordinate(payload.pc.x)}, y ${formatCoordinate(payload.pc.y)}.`,
-          )
-        })
-
-        channel.listen('.floor-plan.pc-status-changed', (payload: PcStatusChangedPayload) => {
-          queryClient.setQueryData<RoomPlan>(floorPlanKeys.room(roomId), (current) =>
-            current ? withStatusChanged(current, payload.pc) : current,
-          )
-          optionsRef.current.announce?.(`${payload.pc.name} is now ${payload.pc.status.label}.`)
-        })
-      })
-      .catch(() => {
-        // The map still works from fetches; a socket that never connects
-        // (offline, Reverb down) degrades to "not live", not broken.
-      })
-
-    return () => {
-      cancelled = true
-      if (subscribed) void getEcho().then((echo) => echo.leave(subscribed!))
-    }
-  }, [roomId, queryClient])
+      queryClient.setQueryData<RoomPlan>(floorPlanKeys.room(roomId), (current) =>
+        current ? withPlaced(current, payload.pc) : current,
+      )
+      announce?.(
+        `${payload.pc.name} moved to x ${formatCoordinate(payload.pc.x)}, y ${formatCoordinate(payload.pc.y)}.`,
+      )
+    },
+    '.floor-plan.pc-status-changed': (payload: PcStatusChangedPayload) => {
+      if (!roomId) return
+      queryClient.setQueryData<RoomPlan>(floorPlanKeys.room(roomId), (current) =>
+        current ? withStatusChanged(current, payload.pc) : current,
+      )
+      optionsRef.current.announce?.(`${payload.pc.name} is now ${payload.pc.status.label}.`)
+    },
+  })
 }

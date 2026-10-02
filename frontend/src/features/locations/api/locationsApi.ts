@@ -147,6 +147,8 @@ export interface RoomPayload {
   room_type: RoomType
   capacity: number | null
   description?: string
+  /** Phase 2.9 — update only; absent leaves it, null clears it. */
+  priority_floor?: string | null
 }
 
 export async function createRoom(payload: RoomPayload): Promise<RoomDetail> {

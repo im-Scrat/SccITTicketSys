@@ -12,6 +12,7 @@ import type {
   TicketParams,
   TicketRow,
   TicketShowEnvelope,
+  TimelineEntry,
 } from '../types'
 
 /** Drop empty values so they never reach the query string as `?search=`. */
@@ -119,6 +120,12 @@ export async function changeTicketStatus(
  * `meta.available` is false until the background analysis has run, and stays
  * false if AI is not configured.
  */
+/** Phase 2.9 — the History tab. `viewFull` on the server, like the detail. */
+export async function fetchTicketTimeline(id: string): Promise<TimelineEntry[]> {
+  const { data } = await api.get<{ data: TimelineEntry[] }>(`/tickets/${id}/timeline`)
+  return data.data
+}
+
 export async function fetchTicketAiAnalysis(id: string): Promise<TicketAiAnalysisEnvelope> {
   const { data } = await api.get<TicketAiAnalysisEnvelope>(`/tickets/${id}/ai-analysis`)
   return data

@@ -46,3 +46,22 @@ export function titleCase(value: string | null | undefined): string {
   if (!value) return '—'
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
+
+/**
+ * A duration in minutes as a reader would say it: "45 min", "2 h 10 min",
+ * "3 d 4 h". Null (no data) renders as an em dash, never as "0 min" — no
+ * measurement is not an instant one.
+ */
+export function formatMinutes(minutes: number | null | undefined): string {
+  if (minutes === null || minutes === undefined || Number.isNaN(minutes)) return '—'
+  const total = Math.max(0, Math.round(minutes))
+  if (total < 60) return `${total} min`
+  const hours = Math.floor(total / 60)
+  if (hours < 24) {
+    const rest = total % 60
+    return rest > 0 ? `${hours} h ${rest} min` : `${hours} h`
+  }
+  const days = Math.floor(hours / 24)
+  const restHours = hours % 24
+  return restHours > 0 ? `${days} d ${restHours} h` : `${days} d`
+}

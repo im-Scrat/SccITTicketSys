@@ -12,6 +12,7 @@ import { TicketComments } from '../components/TicketComments'
 import { TicketEditDrawer } from '../components/TicketEditDrawer'
 import { TicketStatusActions } from '../components/TicketStatusActions'
 import { TicketSummary } from '../components/TicketSummary'
+import { TicketTimeline } from '../components/TicketTimeline'
 import { VoteButton } from '../components/VoteButton'
 import { useTicket, useTicketAiAnalysis } from '../hooks/queries'
 import { isFullTicket, type TicketCard } from '../types'
@@ -90,6 +91,8 @@ export default function TicketDetailPage() {
     { value: 'details', label: 'Details' },
     { value: 'comments', label: 'Comments', count: ticket.comment_count },
     { value: 'files', label: 'Photos & files', count: ticket.attachment_count },
+    // Phase 2.9 — what happened to the ticket, in the reporter's terms.
+    { value: 'history', label: 'History' },
   ]
 
   return (
@@ -172,6 +175,8 @@ export default function TicketDetailPage() {
         <TicketAttachments ticketId={ticket.id} canManage={can?.attach ?? false} />
       )}
 
+      {tab === 'history' && <TicketTimeline ticketId={ticket.id} />}
+
       <TicketEditDrawer open={editing} onClose={() => setEditing(false)} ticket={ticket} />
     </div>
   )
@@ -219,7 +224,9 @@ function CommunityView({
           <dl className="flex flex-wrap gap-x-8 gap-y-3 text-sm text-muted">
             <div className="flex gap-2">
               <dt>Reported by</dt>
-              <dd className="text-ink">{ticket.reporter.name ?? 'Someone'}</dd>
+              {/* Phase 2.9 (D-A): the server's label — "A colleague" to another
+                  requester, never their name. */}
+              <dd className="text-ink">{ticket.reporter.label}</dd>
             </div>
             <div className="flex gap-2">
               <dt>Reported</dt>

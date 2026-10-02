@@ -90,6 +90,11 @@ export interface RoomListItem {
 
 export interface RoomDetail {
   id: string
+  /**
+   * Phase 2.9 (D-B) — the lowest priority a ticket filed in this room may have;
+   * applied by the server at creation, never by the AI. Null = no floor.
+   */
+  priority_floor?: { slug: string; name: string; level: number } | null
   name: string
   code: string
   room_number: string | null

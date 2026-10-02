@@ -348,7 +348,12 @@ export async function listMyAssets(page = 1): Promise<Paginated<AssetListItem>> 
   return data
 }
 
-export async function fetchMyAsset(id: string): Promise<Detail<AssetDetail>> {
-  const { data } = await api.get<Detail<AssetDetail>>(`/my/assets/${id}`)
+/**
+ * One asset in the caller's custody — the same narrow list projection as
+ * {@link listMyAssets}, never the register's `AssetDetail` (Phase 2.9). A uuid
+ * outside the caller's custody answers 404.
+ */
+export async function fetchMyAsset(id: string): Promise<Detail<AssetListItem>> {
+  const { data } = await api.get<Detail<AssetListItem>>(`/my/assets/${id}`)
   return data
 }

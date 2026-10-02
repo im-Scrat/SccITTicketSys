@@ -82,7 +82,12 @@ export interface TicketCard {
   category: CategoryRef
   pc_unit: Pick<PcUnitRef, 'label' | 'identifier'> | null
   location: LocationRef | null
-  reporter: { name: string | null }
+  /**
+   * `label` is what to show: "You", "A colleague", or — for an Administrator
+   * only — the name. `name` is null for anyone but the reporter and an
+   * Administrator (Phase 2.9): another teacher never receives who reported it.
+   */
+  reporter: { name: string | null; label: string }
   upvote_count: number
   comment_count: number
   has_voted: boolean
@@ -217,7 +222,11 @@ export interface TicketAiAnalysis {
 export type ReporterOutcome = 'fixed' | 'not_fixed'
 
 export type TicketAiAnalysisEnvelope =
-  | { data: null; meta: { available: false } }
+  /**
+   * `pending` (Phase 2.9): AI is configured and the ticket is still inside
+   * its analysis retry window, so an analysis may yet arrive.
+   */
+  | { data: null; meta: { available: false; pending?: boolean } }
   | {
       data: TicketAiAnalysis
       meta: { available: true; reporter_outcome: ReporterOutcome | null }
@@ -315,7 +324,8 @@ export interface TicketComment {
   is_internal: boolean
   is_edited: boolean
   edited_at: string | null
-  author: { id: string; name: string | null; role: string | null } | null
+  /** `id` is sent to Administrators only (Phase 2.9); null for everyone else. */
+  author: { id: string | null; name: string | null; role: string | null } | null
   is_mine: boolean
   parent_id?: string | null
   moderated_by: string | null
@@ -418,6 +428,12 @@ export interface TicketParams {
   has_pc_unit?: boolean
   breached?: boolean
   awaiting_confirmation?: boolean
+  /**
+   * Administrative directory only (Phase 2.9): open tickets whose reporter said
+   * NOT FIXED in the current period. Sent as `1` — Laravel's `boolean` rule
+   * does not accept the string `"true"` that axios would send for `true`.
+   */
+  escalated?: 1
   include_closed?: boolean
   trashed?: 'without' | 'with' | 'only'
   sort?: TicketSortColumn | FeedSort
@@ -426,3 +442,26 @@ export interface TicketParams {
   page?: number
   cursor?: string
 }
+
+/**
+ * Phase 2.9 — one entry of a ticket's History tab (`GET /tickets/{id}/timeline`).
+ *
+ * A projection, not the raw log: a requester sees structural facts (status,
+ * priority, "assigned to a technician") and their own notes only; staff see
+ * names and every note. Comments are not here — they have their own tab.
+ */
+export type TimelineEntry = {
+  at: string | null
+  actor: string
+  note: string | null
+} & (
+  | { kind: 'created' }
+  | { kind: 'status' | 'priority'; from: string | null; to: string | null }
+  | { kind: 'outcome'; outcome: 'fixed' | 'not_fixed'; from: string | null; to: string | null }
+  | {
+      kind: 'assignment' | 'assignment_response'
+      reassigned: boolean
+      technician: string | null
+      assignment_status?: string | null
+    }
+)

@@ -1,193 +1,14 @@
-import {
-  Building2,
-  ChevronDown,
-  ClipboardList,
-  Gauge,
-  HandHelping,
-  HardDrive,
-  Inbox,
-  LayoutDashboard,
-  LineChart,
-  LogOut,
-  Map as MapIcon,
-  Megaphone,
-  type LucideIcon,
-  PackageCheck,
-  Ticket,
-  UserCheck,
-  UserCog,
-  Users,
-  Wrench,
-} from 'lucide-react'
+import { ChevronDown, LogOut, UserCog } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/cn'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useLogout } from '@/features/auth/hooks/useAuthMutations'
+import { AssistantLauncher } from '@/features/assistant/components/AssistantLauncher'
 import { NotificationMenu } from '@/features/notifications/components/NotificationMenu'
-
-interface NavItem {
-  to: string
-  label: string
-  icon: LucideIcon
-  end?: boolean
-  /** When set, the item only renders if the user holds this permission. */
-  permission?: string
-  /**
-   * The Tickets exception (SDD DD-40) — see the note below. Prefer `permission`
-   * for everything else.
-   */
-  roles?: string[]
-  /**
-   * Sub-paths that belong to a *different* nav item. "Ticket management" lives
-   * under `/app/tickets/manage`, which would otherwise light up "Tickets" as
-   * well — two highlighted items telling the reader they are in two places.
-   */
-  excludes?: string[]
-}
-
-/**
- * Nav items are gated by *permission*, never by role name, so the navigation
- * always shows exactly what the API will allow. `locations.view`, `assets.view`
- * and `users.*` are seeded to Administrators only — so Assets, Locations, Users
- * and Registrations are absent for Technicians and Teachers — while an
- * individual grant (FR-USER-004) opens both the nav item and the endpoints
- * together, with no second rule to keep in sync.
- *
- * **Tickets is the one module a permission cannot separate.** All three roles
- * hold `tickets.view` by design, and which *rows* each reaches is decided by
- * row-level visibility rather than by the grant (SDD DD-40). So "Tickets" is
- * offered to everyone who holds it and each role lands on its own surface:
- * `/app/tickets` is the community feed, and a Technician — for whom the feed is
- * refused outright — is forwarded from there to their assigned queue. Only
- * "Ticket management", the Administrator's oversight surface, is gated by role,
- * because no permission distinguishes it.
- *
- * Hiding is a convenience, never the control: typing one of these URLs lands on
- * the Forbidden page and the API refuses the calls behind it regardless.
- */
-const NAV_ITEMS: NavItem[] = [
-  { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  /*
-   * No `permission`, deliberately — same reasoning as Dashboard. Custodianship
-   * (`assigned_technician_id`) is not a permission, it is a fact about a
-   * specific asset, and `/my/assets` is scoped server-side to whichever
-   * records name the caller as custodian. Showing this to everyone costs
-   * nothing: a user who is nobody's custodian just sees an empty list.
-   */
-  { to: '/app/my-assets', label: 'My assets', icon: PackageCheck },
-  {
-    to: '/app/tickets',
-    label: 'Tickets',
-    icon: Ticket,
-    permission: 'tickets.view',
-    excludes: ['/app/tickets/manage'],
-  },
-  {
-    to: '/app/tickets/manage',
-    label: 'Ticket management',
-    icon: ClipboardList,
-    permission: 'tickets.view',
-    roles: ['administrator'],
-  },
-  {
-    to: '/app/maintenance',
-    label: 'Maintenance',
-    icon: Wrench,
-    permission: 'maintenance.view',
-    end: true,
-  },
-  {
-    to: '/app/maintenance/manage',
-    label: 'Maintenance management',
-    icon: Gauge,
-    // Same shape as Ticket management: the permission is a floor every
-    // technician clears, so the role is what keeps the estate view
-    // administrator-only (SDD DD-55).
-    permission: 'maintenance.view',
-    roles: ['administrator'],
-  },
-  {
-    // FR-WSR-009 asks for **one** dedicated navigation item covering both
-    // proof-of-work records and support requests, so this is relabelled
-    // rather than joined by a second item — two would have contradicted the
-    // sentence they were meant to satisfy.
-    //
-    // **Technician-only** (Client decision, 2026-08-30). An earlier reading
-    // let any holder of the floor open this, reasoning that the feed is
-    // scoped to the caller either way so an administrator would simply see
-    // their own. The Client has since ruled that the two roles own different
-    // surfaces outright: "My submissions" is the technician's record of what
-    // *they* submitted, and the administrator's equivalent is the request
-    // inbox below — a surface for reviewing what others sent, not a personal
-    // history. An administrator therefore has no My submissions page at all,
-    // rather than an empty one.
-    //
-    // `maintenance.view` is kept as the floor beneath the role, matching the
-    // shape used by the three management items: the permission says whether
-    // you take part in the workflow, the role says which surface is yours.
-    to: '/app/work-support',
-    label: 'My submissions',
-    icon: HandHelping,
-    permission: 'maintenance.view',
-    roles: ['technician'],
-    end: true,
-  },
-  {
-    // FR-WSR-010's own navigation item. Same shape as Ticket and Maintenance
-    // management: the permission is a floor every technician clears, so the
-    // role is what keeps the inbox administrator-only.
-    to: '/app/work-support/manage',
-    label: 'Support requests',
-    icon: Inbox,
-    permission: 'maintenance.view',
-    roles: ['administrator'],
-  },
-  {
-    // The reader is open to every authenticated role: an announcement is
-    // addressed to people because of the role they hold, and the audience
-    // scope is the server's (FR-NOT-011). No permission gates it, exactly as
-    // no permission gates the notification centre.
-    to: '/app/announcements',
-    label: 'Announcements',
-    icon: Megaphone,
-    end: true,
-    excludes: ['/app/announcements/manage'],
-  },
-  {
-    // Management is the administrator's surface, on the same
-    // permission-is-the-floor shape the other management items use.
-    to: '/app/announcements/manage',
-    label: 'Announcement management',
-    icon: Megaphone,
-    permission: 'system.announcements.manage',
-  },
-  { to: '/app/assets', label: 'Assets', icon: HardDrive, permission: 'assets.view' },
-  { to: '/app/locations', label: 'Locations', icon: Building2, permission: 'locations.view' },
-  {
-    // Administrator-only, so — like Ticket management — the role sits beside the
-    // permission: a per-user `floorplan.view` grant must not surface the item
-    // for a Technician or Teacher (the page and API refuse them regardless).
-    to: '/app/floor-plan',
-    label: 'Floor plan',
-    icon: MapIcon,
-    permission: 'floorplan.view',
-    roles: ['administrator'],
-  },
-  {
-    // Administrator-only, on the floor-plan shape: the role sits beside the
-    // permission, so a per-user `predictions.view` grant cannot surface the item
-    // for a Technician or Teacher (the page and API refuse them regardless).
-    to: '/app/predictions',
-    label: 'Predictive maintenance',
-    icon: LineChart,
-    permission: 'predictions.view',
-    roles: ['administrator'],
-  },
-  { to: '/app/users', label: 'Users', icon: Users, permission: 'users.view' },
-  { to: '/app/registrations', label: 'Registrations', icon: UserCheck, permission: 'users.update' },
-]
+import { useUserChannel } from '@/features/notifications/hooks/useUserChannel'
+import { navItemsFor } from './navConfig'
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
   return cn(
@@ -219,11 +40,12 @@ export function AppLayout() {
   const { pathname } = useLocation()
   const logout = useLogout()
 
-  const items = NAV_ITEMS.filter(
-    (item) =>
-      (!item.permission || hasPermission(item.permission)) &&
-      (!item.roles || item.roles.includes(user?.role.slug ?? '')),
-  )
+  // Phase 2.9: each role has its own navigation (layouts/navConfig.ts).
+  const items = navItemsFor(user?.role.slug, hasPermission)
+
+  // Phase 2.9: the user's own realtime channel — notifications and "your AI
+  // analysis is ready" arrive as pushes while it is live.
+  useUserChannel()
 
   const signOut = async () => {
     await logout.mutateAsync().catch(() => undefined)
@@ -322,6 +144,9 @@ export function AppLayout() {
       <main className="w-full flex-1 px-6 py-10 lg:px-10">
         <Outlet />
       </main>
+
+      {/* Phase 2.9: the AI assistant, available on every authenticated page. */}
+      <AssistantLauncher />
     </div>
   )
 }

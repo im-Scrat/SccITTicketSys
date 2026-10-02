@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useRealtimeStore } from '@/stores/useRealtimeStore'
 import {
   fetchNotificationPreferences,
   fetchNotifications,
@@ -79,10 +80,15 @@ export function useNotifications(filters: NotificationFilters = {}, enabled = tr
  * focus refetch above covers the moment it stops being one.
  */
 export function useUnreadCount() {
+  // Phase 2.9: while the user's own channel is live, a new notification
+  // arrives as a push (useUserChannel) and the poll stands down; whenever it
+  // is not live, the poll is the fallback, exactly as before.
+  const live = useRealtimeStore((state) => state.userChannelLive)
+
   return useQuery({
     queryKey: notificationKeys.unreadCount(),
     queryFn: fetchUnreadCount,
-    refetchInterval: UNREAD_POLL_INTERVAL_MS,
+    refetchInterval: live ? false : UNREAD_POLL_INTERVAL_MS,
     refetchOnWindowFocus: true,
     staleTime: UNREAD_POLL_INTERVAL_MS,
   })

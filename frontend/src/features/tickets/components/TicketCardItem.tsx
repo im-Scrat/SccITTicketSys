@@ -102,8 +102,9 @@ export function TicketCardItem({
           <div className="flex items-center gap-2">
             <dt className="sr-only">Reported</dt>
             <dd>
-              {/* A display name only — the projection carries no contact detail. */}
-              {ticket.reporter.name ?? 'Someone'} · {formatRelative(ticket.created_at)}
+              {/* The server decides what this viewer may know: "You", "A
+                  colleague", or (Administrators only) the name. */}
+              {ticket.reporter.label} · {formatRelative(ticket.created_at)}
             </dd>
           </div>
         </dl>

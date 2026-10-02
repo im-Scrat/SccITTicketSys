@@ -159,6 +159,22 @@ describe('TicketAiTroubleshooting — what it shows', () => {
 
     expect(container).toBeEmptyDOMElement()
   })
+
+  it('says it is analysing while an analysis is pending (Phase 2.9)', () => {
+    renderPanel({ envelope: { data: null, meta: { available: false, pending: true } } })
+
+    expect(screen.getByRole('status')).toHaveTextContent(/Analysing your report/)
+    expect(screen.getByRole('status')).toHaveTextContent(/already with the IT team/)
+    expect(screen.queryByRole('button', { name: 'This fixed it' })).not.toBeInTheDocument()
+  })
+
+  it('renders nothing when no analysis is coming', () => {
+    const { container } = renderPanel({
+      envelope: { data: null, meta: { available: false, pending: false } },
+    })
+
+    expect(container).toBeEmptyDOMElement()
+  })
 })
 
 describe('TicketAiTroubleshooting — FIXED', () => {

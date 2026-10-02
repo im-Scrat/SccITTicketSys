@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Alert, Button, Drawer, Field, Input, Select, Textarea } from '@/components/ui'
 import { applyServerErrors, getErrorMessage } from '@/features/auth/lib/serverErrors'
+import { useTicketOptions } from '@/features/tickets/hooks/queries'
 import { useBuildingLookup, useFloorLookup } from '@/hooks/useLocationLookup'
 import { useCreateRoom, useUpdateRoom } from '../hooks/mutations'
 import { type RoomForm, roomSchema, roomTypeValues } from '../schemas'
@@ -53,6 +54,8 @@ export function RoomFormDrawer({
 
   const create = useCreateRoom()
   const update = useUpdateRoom(room?.id ?? '')
+  // Phase 2.9 — the priority scale, from the same lookup the ticket forms use.
+  const ticketOptions = useTicketOptions(open && editing)
 
   const {
     register,
@@ -72,6 +75,7 @@ export function RoomFormDrawer({
       room_type: 'laboratory',
       capacity: null,
       description: '',
+      priority_floor: '',
     },
   })
 
@@ -87,6 +91,7 @@ export function RoomFormDrawer({
       room_type: room?.room_type ?? 'laboratory',
       capacity: room?.capacity ?? null,
       description: room?.description ?? '',
+      priority_floor: room?.priority_floor?.slug ?? '',
     })
   }, [open, room, defaultFloorId, defaultBuildingId, reset])
 
@@ -102,6 +107,8 @@ export function RoomFormDrawer({
       room_type: values.room_type,
       capacity: values.capacity,
       description: values.description || undefined,
+      // Only the update endpoint knows the floor; a new room starts without one.
+      ...(editing ? { priority_floor: values.priority_floor || null } : {}),
     }
 
     try {
@@ -208,6 +215,23 @@ export function RoomFormDrawer({
         <Field label="Description" error={errors.description?.message}>
           <Textarea rows={3} {...register('description')} />
         </Field>
+
+        {editing && (
+          <Field
+            label="Priority floor"
+            error={errors.priority_floor?.message}
+            hint="Tickets reported in this room start at no less than this priority — for example a server room or an exam lab. AI may raise it further, never lower it."
+          >
+            <Select {...register('priority_floor')}>
+              <option value="">No floor — use the category default</option>
+              {(ticketOptions.data?.priorities ?? []).map((priority) => (
+                <option key={priority.value} value={priority.value}>
+                  {priority.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
       </form>
     </Drawer>
   )

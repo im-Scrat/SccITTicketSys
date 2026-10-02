@@ -10,6 +10,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth'
 import { applyServerErrors, getErrorMessage } from '@/features/auth/lib/serverErrors'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { DuplicateSuggestions } from '../components/DuplicateSuggestions'
+import { PcAlreadyReported } from '../components/PcAlreadyReported'
 import { useCreateTicket } from '../hooks/mutations'
 import { useTicketOptions } from '../hooks/queries'
 import { type TicketForm, ticketSchema } from '../schemas'
@@ -180,6 +181,9 @@ export default function CreateTicketPage() {
               />
             )}
           />
+
+          {/* Phase 2.9 — the feed refuses technicians (DD-40), so they are not asked. */}
+          {pcUnit && !hasRole('technician') && <PcAlreadyReported pcUnit={pcUnit} />}
 
           <Controller
             control={control}
