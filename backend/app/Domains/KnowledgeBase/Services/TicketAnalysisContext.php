@@ -45,6 +45,12 @@ class TicketAnalysisContext
             PromptGuard::wrapUntrustedData('reported fault', $this->reportBlock($ticket)),
         ];
 
+        $location = $this->locationBlock($ticket);
+
+        if ($location !== null) {
+            $blocks[] = PromptGuard::wrapUntrustedData('where the fault was reported', $location);
+        }
+
         if ($ticket->pcUnit !== null) {
             $spec = $ticket->pcUnit->specification;
 
@@ -75,6 +81,35 @@ class TicketAnalysisContext
     private function reportBlock(Ticket $ticket): string
     {
         return "Title: {$ticket->title}\nDescription: {$ticket->description}";
+    }
+
+    /**
+     * Phase 2.9 (D-B) — the room the fault is in, so the recommended priority
+     * can weigh *where* it happened. Only facts about the place: its type,
+     * building and name, and the minimum priority an administrator set for it.
+     * Never who reported it. Room names are administrator-typed free text, so
+     * the block is wrapped as data like everything else.
+     */
+    private function locationBlock(Ticket $ticket): ?string
+    {
+        $room = $ticket->pcUnit !== null ? $ticket->pcUnit->room : $ticket->room;
+
+        if ($room === null) {
+            return null;
+        }
+
+        $room->loadMissing(['floor.building', 'priorityFloor']);
+
+        $lines = array_filter([
+            'Room' => $room->name,
+            'Room type' => $room->room_type->label(),
+            'Building' => $room->floor?->building?->name,
+            'Minimum priority set by the school for this room' => $room->priorityFloor->name ?? 'none',
+        ]);
+
+        return collect($lines)
+            ->map(fn (string $value, string $label): string => "{$label}: {$value}")
+            ->implode("\n");
     }
 
     private function specificationBlock(PcSpecification $spec): string

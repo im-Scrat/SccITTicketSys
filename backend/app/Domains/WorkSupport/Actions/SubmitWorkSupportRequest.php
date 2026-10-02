@@ -7,15 +7,18 @@ namespace App\Domains\WorkSupport\Actions;
 use App\Domains\Assets\Services\ScannedPcAccess;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Domains\Maintenance\Services\ScannedWorkTargets;
+use App\Domains\Tickets\Services\TicketVisibility;
 use App\Domains\WorkSupport\Events\WorkSupportRequestSubmitted;
 use App\Enums\ActivityAction;
 use App\Enums\WorkSupportStatus;
 use App\Models\HardwareModel;
 use App\Models\MaintenanceRecord;
 use App\Models\PcUnit;
+use App\Models\TechnicianAssignment;
 use App\Models\User;
 use App\Models\WorkSupportRequest;
 use App\Support\Attachments\AttachmentSecurity;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -79,15 +82,17 @@ class SubmitWorkSupportRequest
         }
 
         $record = $this->resolveMaintenance($pcUnit, $actor, $data);
+        $ticketId = $record !== null ? $record->ticket_id : $this->soleWorkableTicketId($pcUnit, $actor);
 
-        return DB::transaction(function () use ($pcUnit, $actor, $data, $files, $record, $http): WorkSupportRequest {
+        return DB::transaction(function () use ($pcUnit, $actor, $data, $files, $record, $ticketId, $http): WorkSupportRequest {
             $request = WorkSupportRequest::query()->create([
                 'pc_unit_id' => $pcUnit->getKey(),
                 'maintenance_record_id' => $record?->getKey(),
-                // Taken from the job, never from the payload: the ticket a
-                // request belongs to is the one its maintenance record already
-                // records as the origin of the work.
-                'ticket_id' => $record?->ticket_id,
+                // Never from the payload: the ticket a request belongs to is
+                // the one its maintenance record records as the origin of the
+                // work — or, with no record, the caller's one workable ticket
+                // on this machine (Phase 2.9, see soleWorkableTicketId()).
+                'ticket_id' => $ticketId,
                 'technician_id' => $actor->getKey(),
                 'explanation' => trim((string) $data['explanation']),
                 // Born `submitted`. Every later move goes through the lifecycle.
@@ -167,6 +172,29 @@ class SubmitWorkSupportRequest
         $candidates = $this->targets->candidates($pcUnit, $actor);
 
         return $candidates->count() === 1 ? $candidates->first() : null;
+    }
+
+    /**
+     * Phase 2.9 — the ticket a request with **no** maintenance record is about.
+     *
+     * Before this, such a request was never tied to a ticket, so the
+     * administrator deciding it could not see which fault it served. Resolved
+     * here, server-side, by the same "exactly one, or none" rule as
+     * resolveMaintenance(): the caller's tickets on **this** machine on which
+     * they hold a writable assignment. Several candidates is a guess this code
+     * will not make, so it stays null — as does none.
+     */
+    private function soleWorkableTicketId(PcUnit $pcUnit, User $actor): ?int
+    {
+        $ids = TechnicianAssignment::query()
+            ->where('technician_id', $actor->getKey())
+            ->whereIn('status', TicketVisibility::WRITABLE_ASSIGNMENT_STATUSES)
+            ->whereHas('ticket', fn (Builder $ticket): Builder => $ticket->where('pc_unit_id', $pcUnit->getKey()))
+            ->distinct()
+            ->limit(2)
+            ->pluck('ticket_id');
+
+        return $ids->count() === 1 ? (int) $ids->first() : null;
     }
 
     /**

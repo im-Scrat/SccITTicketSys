@@ -85,8 +85,10 @@ class AiSettingsController extends Controller
         $tracked = ['active_model_id', 'embedding_model_id', 'confidence_threshold', 'enable_predictions', 'enable_learning', 'auto_generate_articles'];
         $before = $row->exists ? $row->only($tracked) : [];
         $assistantBefore = $this->settings->assistantEnabled();
+        $autoRaiseBefore = $this->settings->priorityAutoRaiseEnabled();
+        $autoRaiseAfter = array_key_exists('priority_auto_raise', $data) ? (bool) $data['priority_auto_raise'] : $autoRaiseBefore;
 
-        DB::transaction(function () use ($row, $active, $embedding, $data, $actor): void {
+        DB::transaction(function () use ($row, $active, $embedding, $data, $actor, $autoRaiseAfter): void {
             $row->forceFill([
                 'active_model_id' => $active?->getKey(),
                 'embedding_model_id' => $embedding?->getKey(),
@@ -102,6 +104,11 @@ class AiSettingsController extends Controller
                 ['key' => 'ai.assistant_enabled'],
                 ['group' => 'ai', 'label' => 'AI Assistant Enabled', 'value' => (bool) $data['assistant_enabled'], 'type' => 'boolean', 'is_public' => true, 'updated_by' => $actor->getKey()],
             );
+
+            SystemSetting::query()->updateOrCreate(
+                ['key' => 'ai.priority_auto_raise'],
+                ['group' => 'ai', 'label' => 'AI May Raise Ticket Priority', 'value' => $autoRaiseAfter, 'type' => 'boolean', 'is_public' => false, 'updated_by' => $actor->getKey()],
+            );
         });
 
         $this->audit->activity(
@@ -109,8 +116,8 @@ class AiSettingsController extends Controller
             actor: $actor,
             subject: $row,
             properties: [
-                'before' => [...$before, 'assistant_enabled' => $assistantBefore],
-                'after' => [...$row->only($tracked), 'assistant_enabled' => (bool) $data['assistant_enabled']],
+                'before' => [...$before, 'assistant_enabled' => $assistantBefore, 'priority_auto_raise' => $autoRaiseBefore],
+                'after' => [...$row->only($tracked), 'assistant_enabled' => (bool) $data['assistant_enabled'], 'priority_auto_raise' => $autoRaiseAfter],
             ],
             request: $request,
             module: 'ai',
@@ -246,6 +253,7 @@ class AiSettingsController extends Controller
                 'enable_learning' => (bool) $row?->enable_learning,
                 'auto_generate_articles' => (bool) $row?->auto_generate_articles,
                 'assistant_enabled' => $this->settings->assistantEnabled(),
+                'priority_auto_raise' => $this->settings->priorityAutoRaiseEnabled(),
             ],
             'models' => AiModel::query()->orderBy('modality')->orderBy('name')->get()->map(fn (AiModel $model): array => [
                 'id' => $model->uuid,
@@ -270,7 +278,7 @@ class AiSettingsController extends Controller
             // read out to a governing body.
             'data_sent_to_provider' => [
                 'Ticket title and description, with names, email addresses and phone numbers removed.',
-                'The equipment specification and recent maintenance and ticket history of the machine concerned.',
+                'The equipment specification and recent maintenance and ticket history of the machine concerned, and the room it is in (name, type, building, and any minimum priority set for it).',
                 'Published knowledge-article text, and questions asked of the assistant (with personal data removed).',
             ],
             'data_never_sent' => [

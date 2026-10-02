@@ -7,6 +7,7 @@ namespace App\Domains\Tickets\Actions;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Domains\Tickets\Services\SlaCalculator;
 use App\Enums\ActivityAction;
+use App\Enums\TicketPrioritySource;
 use App\Enums\TicketUpdateType;
 use App\Models\Tag;
 use App\Models\Ticket;
@@ -124,6 +125,9 @@ class UpdateTicket
         DB::transaction(function () use ($ticket, $priority, $deadlines, $actor, $previous, $reason): void {
             $ticket->forceFill([
                 'priority_id' => $priority->getKey(),
+                // Phase 2.9: a human's explicit choice locks the priority
+                // against the AI, which only ever raises non-manual ones.
+                'priority_source' => TicketPrioritySource::Manual->value,
                 ...$deadlines,
                 'updated_by' => $actor->getKey(),
             ])->save();

@@ -7,6 +7,7 @@ namespace App\Domains\KnowledgeBase\DTOs;
 use App\Domains\KnowledgeBase\Agents\TicketPreScreeningAgent;
 use App\Domains\KnowledgeBase\Exceptions\AiProviderException;
 use App\Domains\KnowledgeBase\Jobs\AnalyzeTicketJob;
+use App\Domains\KnowledgeBase\Services\PriorityRecommendationPolicy;
 use App\Domains\KnowledgeBase\Services\SafeAgentInvoker;
 use App\Enums\AiSeverity;
 
@@ -37,6 +38,8 @@ final readonly class TicketAnalysisResult
         public float $confidence,
         public string $summary,
         public array $recommendations,
+        public ?string $recommendedPriority = null,
+        public ?string $priorityRationale = null,
     ) {}
 
     /**
@@ -67,6 +70,8 @@ final readonly class TicketAnalysisResult
             throw AiProviderException::malformedOutput();
         }
 
+        $priority = self::priorityRecommendation($structured);
+
         return new self(
             problemCategory: $category,
             severity: AiSeverity::from($severityValue),
@@ -75,7 +80,33 @@ final readonly class TicketAnalysisResult
             confidence: (float) $confidence,
             summary: $summary,
             recommendations: array_values($recommendations),
+            recommendedPriority: $priority['recommendedPriority'],
+            priorityRationale: $priority['priorityRationale'],
         );
+    }
+
+    /**
+     * Phase 2.9 — the priority recommendation is validated *apart* from the
+     * rest. It is optional advice on top of the pre-screening, so a missing or
+     * invented level yields "no recommendation" rather than discarding a
+     * well-formed analysis the teacher's AI panel can still use.
+     *
+     * @param  array<string, mixed>  $structured
+     * @return array{recommendedPriority: string|null, priorityRationale: string|null}
+     */
+    private static function priorityRecommendation(array $structured): array
+    {
+        $slug = $structured['recommended_priority'] ?? null;
+        $rationale = $structured['priority_rationale'] ?? null;
+
+        if (! is_string($slug) || ! in_array($slug, PriorityRecommendationPolicy::SLUGS, true)) {
+            return ['recommendedPriority' => null, 'priorityRationale' => null];
+        }
+
+        return [
+            'recommendedPriority' => $slug,
+            'priorityRationale' => is_string($rationale) && trim($rationale) !== '' ? trim($rationale) : null,
+        ];
     }
 
     /**

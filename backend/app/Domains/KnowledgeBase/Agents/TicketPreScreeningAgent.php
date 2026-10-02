@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Domains\KnowledgeBase\Agents;
 
 use App\Domains\KnowledgeBase\Jobs\AnalyzeTicketJob;
+use App\Domains\KnowledgeBase\Services\PriorityRecommendationPolicy;
 use App\Domains\KnowledgeBase\Services\PromptGuard;
 use App\Domains\KnowledgeBase\Services\SafeAgentInvoker;
 use App\Domains\KnowledgeBase\Services\TicketAnalysisContext;
 use App\Enums\AiSeverity;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Laravel\Ai\Attributes\Timeout;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Promptable;
@@ -31,13 +31,15 @@ use Laravel\Ai\Promptable;
  * as clearly labeled data — this agent's own instructions say so explicitly,
  * a second layer beside the wrapping itself.
  *
- * The timeout is fixed here (an agent-level concern — how long *this specific
- * kind* of call may reasonably take) rather than read from
- * `config('ai.sccit.agent_timeout_seconds')`, which
- * {@see SafeAgentInvoker} applies as the
- * cross-cutting default for callers that do not name one.
+ * Phase 2.9 — it also *recommends* a priority. Whether that recommendation is
+ * ever applied is decided by deterministic code
+ * ({@see PriorityRecommendationPolicy}), never by this model.
+ *
+ * No `#[Timeout]` attribute: {@see SafeAgentInvoker} always passes an explicit
+ * timeout (`ai.sccit.agent_timeout_seconds`), which wins over the attribute,
+ * so the `#[Timeout(45)]` this class used to carry was never in effect and
+ * only misstated the real limit.
  */
-#[Timeout(45)]
 final class TicketPreScreeningAgent implements Agent, HasStructuredOutput
 {
     use Promptable;
@@ -81,6 +83,16 @@ final class TicketPreScreeningAgent implements Agent, HasStructuredOutput
             - recommendations: two to five short, concrete, ordered
               troubleshooting or triage steps. The first step is the one to
               try first.
+            - recommended_priority: low, medium, high or critical — how soon
+              the IT team should act, weighing the fault itself AND where it
+              happened (a location block may describe the room, its type and
+              any minimum priority the school has set for it). A fault that
+              stops a whole lab, a server room or an exam is more urgent than
+              the same fault on one spare machine. This is a recommendation
+              only: people decide, and the school's minimum for a room is
+              never lowered.
+            - priority_rationale: one sentence explaining that recommendation
+              from the evidence you were given.
 
             Never state anything as a fact you were not given evidence for.
             If the description is vague, say so in the summary rather than
@@ -121,6 +133,13 @@ final class TicketPreScreeningAgent implements Agent, HasStructuredOutput
                 ->min(1)
                 ->max(5)
                 ->description('Two to five short, ordered troubleshooting/triage steps.')
+                ->required(),
+            'recommended_priority' => $schema->string()
+                ->enum(PriorityRecommendationPolicy::SLUGS)
+                ->description('How soon the IT team should act, considering the fault and its location.')
+                ->required(),
+            'priority_rationale' => $schema->string()
+                ->description('One sentence explaining the recommended priority.')
                 ->required(),
         ];
     }

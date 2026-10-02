@@ -12,6 +12,7 @@ use App\Domains\Administration\Listeners\NotifyOnPcPredictionGenerated;
 use App\Domains\Administration\Listeners\NotifyOnPreventiveMaintenanceDue;
 use App\Domains\Administration\Listeners\NotifyOnTicketAssigned;
 use App\Domains\Administration\Listeners\NotifyOnTicketCommented;
+use App\Domains\Administration\Listeners\NotifyOnTicketEscalated;
 use App\Domains\Administration\Listeners\NotifyOnTicketSlaThreshold;
 use App\Domains\Administration\Listeners\NotifyOnTicketStatusChanged;
 use App\Domains\Administration\Listeners\NotifyOnWorkSupportRequestDecided;
@@ -25,6 +26,7 @@ use App\Domains\Maintenance\Events\MaintenanceScheduled;
 use App\Domains\Maintenance\Events\PreventiveMaintenanceDue;
 use App\Domains\Tickets\Events\TicketAssigned;
 use App\Domains\Tickets\Events\TicketCommented;
+use App\Domains\Tickets\Events\TicketEscalatedByReporter;
 use App\Domains\Tickets\Events\TicketSlaThresholdCrossed;
 use App\Domains\Tickets\Events\TicketStatusChanged;
 use App\Domains\WorkSupport\Events\WorkSupportRequestDecided;
@@ -109,6 +111,8 @@ class NotificationServiceProvider extends ServiceProvider
         AnnouncementPublished::class => NotifyOnAnnouncementPublished::class,
         // WP-M — a predictive-maintenance finding awaits administrator review
         PcPredictionGenerated::class => NotifyOnPcPredictionGenerated::class,
+        // Phase 2.9 — a reporter's NOT FIXED needs an administrator to assign it
+        TicketEscalatedByReporter::class => NotifyOnTicketEscalated::class,
     ];
 
     public function boot(): void

@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Enums\AiModality;
 use App\Enums\AssignmentStatus;
 use App\Models\AiAnalysisLog;
+use App\Models\AiModel;
 use App\Models\AiRecommendation;
 use App\Models\AiSystemSetting;
 use Database\Seeders\SystemSettingSeeder;
@@ -109,7 +111,52 @@ it('reports unavailable rather than a broken shape before any analysis has run',
     $this->actingAs($this->teacher)
         ->getJson("/api/tickets/{$ticket->uuid}/ai-analysis")
         ->assertOk()
-        ->assertExactJson(['data' => null, 'meta' => ['available' => false]]);
+        ->assertExactJson(['data' => null, 'meta' => ['available' => false, 'pending' => false]]);
+});
+
+/* Phase 2.9 — "still being analysed" vs "no analysis is coming". */
+
+function configureAiForEndpoint(): void
+{
+    $model = AiModel::factory()->create([
+        'provider' => 'gemini',
+        'model_identifier' => 'gemini-1.5-flash',
+        'modality' => AiModality::Text->value,
+    ]);
+    AiSystemSetting::query()->delete();
+    AiSystemSetting::factory()->create(['active_model_id' => $model->id]);
+    config(['ai.providers.gemini.key' => 'test-key']);
+}
+
+it('says an analysis is pending for a fresh ticket while AI is configured', function () {
+    configureAiForEndpoint();
+    $ticket = ticketFor($this->teacher);
+
+    $this->actingAs($this->teacher)
+        ->getJson("/api/tickets/{$ticket->uuid}/ai-analysis")
+        ->assertOk()
+        ->assertJsonPath('meta.pending', true);
+});
+
+it('says no analysis is coming once the retry window has passed', function () {
+    configureAiForEndpoint();
+    $ticket = ticketFor($this->teacher);
+    $ticket->forceFill(['created_at' => now()->subMinutes(31)])->save();
+
+    $this->actingAs($this->teacher)
+        ->getJson("/api/tickets/{$ticket->uuid}/ai-analysis")
+        ->assertOk()
+        ->assertJsonPath('meta.pending', false);
+});
+
+it('says no analysis is coming when AI is not configured', function () {
+    config(['ai.providers.gemini.key' => null]);
+    $ticket = ticketFor($this->teacher);
+
+    $this->actingAs($this->teacher)
+        ->getJson("/api/tickets/{$ticket->uuid}/ai-analysis")
+        ->assertOk()
+        ->assertJsonPath('meta.pending', false);
 });
 
 it('returns advisory, confidence-aware fields once an analysis exists', function () {
@@ -156,8 +203,8 @@ it('flags an analysis below the configured confidence threshold, without hiding 
         ->assertJsonPath('data.meets_confidence_threshold', false);
 });
 
-it('applies the existing 20/hour ticket rate limiter to this route', function () {
-    config(['security.rate_limits.tickets_per_hour' => 2]);
+it('applies its own per-user rate limiter to this route', function () {
+    config(['security.rate_limits.ticket_ai_analysis_per_hour' => 2]);
     $ticket = ticketFor($this->teacher);
 
     $this->actingAs($this->teacher)->getJson("/api/tickets/{$ticket->uuid}/ai-analysis")->assertOk();

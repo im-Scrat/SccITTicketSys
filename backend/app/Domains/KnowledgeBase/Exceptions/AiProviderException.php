@@ -34,9 +34,31 @@ class AiProviderException extends RuntimeException
      */
     private bool $transient = false;
 
+    /** Phase 2.9 — set with {@see $transient} for "no capacity" failures only. */
+    private bool $capacity = false;
+
     public function isTransient(): bool
     {
         return $this->transient;
+    }
+
+    /**
+     * Phase 2.9 — the narrower case of a transient failure: there was simply no
+     * capacity (this application's governor was full, or the provider said
+     * 429). An interactive caller answers "busy, try again shortly" for these,
+     * and "unavailable" for every other failure.
+     */
+    public function isCapacityLimit(): bool
+    {
+        return $this->capacity;
+    }
+
+    private static function capacityLimit(string $message, ?Throwable $previous): self
+    {
+        $exception = self::transient($message, $previous);
+        $exception->capacity = true;
+
+        return $exception;
     }
 
     private static function transient(string $message, ?Throwable $previous): self
@@ -59,7 +81,18 @@ class AiProviderException extends RuntimeException
 
     public static function rateLimited(?Throwable $previous = null): self
     {
-        return self::transient('The AI provider is temporarily rate-limiting this application. Please try again shortly.', $previous);
+        return self::capacityLimit('The AI provider is temporarily rate-limiting this application. Please try again shortly.', $previous);
+    }
+
+    /**
+     * Phase 2.9 — this application's own Gemini governor had no capacity: every
+     * concurrent slot is in use, or the per-minute budget is spent. Nothing was
+     * sent. Transient by definition: a queued job releases itself and tries
+     * again later; an interactive caller says "busy, try shortly".
+     */
+    public static function busy(): self
+    {
+        return self::capacityLimit('The AI service is busy right now. Please try again shortly.', null);
     }
 
     public static function malformedOutput(): self

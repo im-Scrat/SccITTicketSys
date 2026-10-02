@@ -59,18 +59,32 @@ class AssetPolicy
     }
 
     /**
-     * The module gate (`assets.view`) opens every record. The one exception is
-     * the custodian themselves: whoever an asset is currently handed to
-     * (`assigned_technician_id`) can always read that one record, even holding
-     * no `assets.*` permission at all — they need to know what they are
-     * responsible for. This does not reach the module: {@see AssetController::mine()}
-     * is the only route that lets a non-administrator arrive here, and it is
-     * pre-scoped to the caller's own custody, so this check never has to widen
-     * into "any asset" for them.
+     * The module gate (`assets.view`) opens every record — and nothing else
+     * does. Custodians reach their own equipment through {@see viewOwnCustody()}
+     * and the `/my/assets` routes, which serve the narrow list projection, never
+     * the register's full detail record (attachments, QR codes, transfers,
+     * audit). Keeping custody out of this ability is what keeps the detail
+     * endpoint Administrator-only (SDD DD-38).
      */
     public function view(User $actor, Asset $asset): bool
     {
-        return $this->viewAny($actor) || $asset->assigned_technician_id === $actor->getKey();
+        return $this->viewAny($actor);
+    }
+
+    /**
+     * May this user use the custodian self-service view (`/my/assets`)?
+     *
+     * Custody is only ever handed to a Technician or an Administrator
+     * (AssignTechnicianRequest), so those are the only roles for whom the view
+     * means anything. A Teacher can never be a custodian; refusing them with a
+     * 403 — rather than serving an always-empty list — keeps the asset surface
+     * closed to them outright, in the API and not just the navigation (Phase
+     * 2.9). Role-based on purpose, like the floor plan: custody is not a
+     * permission, so no per-user grant can widen this to another role.
+     */
+    public function viewOwnCustody(User $actor): bool
+    {
+        return $actor->isAdministrator() || $actor->isTechnician();
     }
 
     /** The unified asset timeline (FR-AST-005). */

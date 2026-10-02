@@ -42,6 +42,10 @@ class UpdateRoomRequest extends FormRequest
             'room_type' => ['required', 'string', Rule::in(RoomType::values())],
             'capacity' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'description' => ['nullable', 'string', 'max:2000'],
+            // Phase 2.9 (D-B): the lowest priority a ticket filed here may have.
+            // `sometimes` so a client that never sends it leaves it untouched;
+            // an explicit null clears it.
+            'priority_floor' => ['sometimes', 'nullable', 'string', Rule::exists('ticket_priorities', 'slug')->where('is_active', true)],
         ];
     }
 

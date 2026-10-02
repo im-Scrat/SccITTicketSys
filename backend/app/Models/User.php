@@ -94,6 +94,12 @@ class User extends Authenticatable
         return $this->role?->slug === 'administrator';
     }
 
+    /** Whether the user holds the (system) Technician role. */
+    public function isTechnician(): bool
+    {
+        return $this->role?->slug === 'technician';
+    }
+
     /**
      * The user's effective permission slugs (role ∪ grants − denies),
      * resolved and cached by the PermissionResolver (SDD DD-05).
@@ -180,6 +186,18 @@ class User extends Authenticatable
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class)->latest('created_at');
+    }
+
+    /**
+     * Phase 2.9 — the one private channel a broadcast notification for this
+     * user goes out on: `users.{uuid}`, authorized in routes/channels.php to
+     * this user alone. Replaces the framework default `App.Models.User.{id}`,
+     * which would put an enumerable bigint in a browser-visible channel name
+     * (NFR-SEC-001).
+     */
+    public function receivesBroadcastNotificationsOn(): string
+    {
+        return 'users.'.$this->uuid;
     }
 
     /**

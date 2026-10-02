@@ -63,6 +63,9 @@ class TicketDetailResource extends JsonResource
                 'label' => $this->priority?->name,
                 'level' => $this->priority !== null ? (int) $this->priority->level : null,
                 'color' => $this->priority?->color,
+                // Phase 2.9 — which rule set it (category / location / ai /
+                // manual); null for tickets older than the column.
+                'source' => $this->priority_source?->value,
             ],
             'category' => [
                 'slug' => $this->category?->slug,

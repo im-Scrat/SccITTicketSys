@@ -13,12 +13,14 @@ use App\Domains\Assets\Http\Requests\StoreAssetRequest;
 use App\Domains\Assets\Http\Requests\UpdateAssetRequest;
 use App\Domains\Assets\Http\Resources\AssetDetailResource;
 use App\Domains\Assets\Http\Resources\AssetListResource;
+use App\Domains\Assets\Policies\AssetPolicy;
 use App\Domains\Assets\Services\AssetDirectoryQuery;
 use App\Domains\Assets\Services\AssetGuard;
 use App\Domains\Assets\Services\AssetLifecycle;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -46,21 +48,54 @@ class AssetController extends Controller
      * `assets.*` permission required. The one asset listing a Technician or
      * an Administrator-as-custodian can reach outside the Admin-only module
      * (SDD DD-38) — pre-scoped to `assigned_technician_id = $actor->id`, so it
-     * can never become a window into the register at large.
+     * can never become a window into the register at large. Teachers, who can
+     * never hold custody, are refused outright ({@see AssetPolicy::viewOwnCustody()}).
      */
     public function mine(Request $request): AnonymousResourceCollection
     {
+        $this->authorize('viewOwnCustody', Asset::class);
+
         /** @var User $actor */
         $actor = $request->user();
 
         return AssetListResource::collection(
-            Asset::query()
-                ->with(['hardwareModel.component.manufacturer', 'supplier', 'currentRoom.floor.building', 'assignedTechnician'])
-                ->where('assigned_technician_id', $actor->getKey())
+            $this->custodyOf($actor)
                 ->orderBy('asset_tag')
                 ->paginate(AssetDirectoryQuery::DEFAULT_PER_PAGE)
                 ->withQueryString(),
         );
+    }
+
+    /**
+     * One asset in the caller's custody, in the same narrow projection as the
+     * list — never {@see AssetDetailResource}, whose attachments, QR codes,
+     * transfers and audit belong to the register, not to the custodian.
+     *
+     * `$asset` is an unbound uuid string, resolved *inside* the custody scope:
+     * an asset that is not the caller's answers 404 exactly like one that does
+     * not exist, so this route cannot be used to probe the register (a record
+     * absent from the list is equally unreachable by uuid).
+     */
+    public function mineShow(Request $request, string $asset): AssetListResource
+    {
+        $this->authorize('viewOwnCustody', Asset::class);
+
+        /** @var User $actor */
+        $actor = $request->user();
+
+        return new AssetListResource(
+            $this->custodyOf($actor)->where('uuid', $asset)->firstOrFail(),
+        );
+    }
+
+    /**
+     * @return Builder<Asset>
+     */
+    private function custodyOf(User $actor): Builder
+    {
+        return Asset::query()
+            ->with(['hardwareModel.component.manufacturer', 'supplier', 'currentRoom.floor.building', 'assignedTechnician'])
+            ->where('assigned_technician_id', $actor->getKey());
     }
 
     public function show(

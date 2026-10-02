@@ -11,6 +11,7 @@ use App\Enums\NotificationTopic;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Str;
@@ -88,6 +89,10 @@ abstract class ProjectNotification extends Notification implements ShouldQueue
      * {@see stamp()} filling it in rather than to a fatal on first access.
      */
     protected ?string $dispatchId = null;
+
+    public const NOTIFICATIONS_QUEUE = 'notifications';
+
+    public const REALTIME_QUEUE = 'realtime';
 
     public function __construct()
     {
@@ -244,7 +249,56 @@ abstract class ProjectNotification extends Notification implements ShouldQueue
             $channels[] = $driver;
         }
 
+        // Phase 2.9 — the realtime signal rides on in-app delivery and never
+        // stands alone: it is sent exactly when the in-app row is written for
+        // this recipient, so every rule above (exclusion > forced > preference)
+        // governs it too, and a recipient who opted out of in-app gets no
+        // signal either. It goes out only on the recipient's own private
+        // channel (User::receivesBroadcastNotificationsOn()).
+        if (in_array(NotificationChannel::InApp->driver(), $channels, true)) {
+            $channels[] = 'broadcast';
+        }
+
         return $channels;
+    }
+
+    /**
+     * Phase 2.9 — the socket carries a *signal*, not the notification: which
+     * topic, and nothing a user wrote. The client answers it by refetching
+     * `/notifications`, which is already owner-scoped, so the content still
+     * reaches the browser only through the authorized HTTP read.
+     */
+    public function toBroadcast(User $notifiable): BroadcastMessage
+    {
+        // Not `type`: the framework's BroadcastNotificationCreated overwrites
+        // that key with broadcastType() below.
+        return (new BroadcastMessage([
+            'topic' => $this->topic()->value,
+            'notification_type' => $this->topic()->type()->value,
+        ]))->onQueue(self::REALTIME_QUEUE);
+    }
+
+    /** A neutral event type, rather than this class's PHP name on the wire. */
+    public function broadcastType(): string
+    {
+        return 'notification.created';
+    }
+
+    /**
+     * Phase 2.9 — queue per channel: the socket signal on `realtime`, the
+     * row and the email on `notifications`. The general worker drains
+     * `realtime,notifications,default` in that order, so a signal is never
+     * stuck behind a slow mail send, and none of it behind AI work (`ai`).
+     *
+     * @return array<string, string>
+     */
+    public function viaQueues(): array
+    {
+        return [
+            'database' => self::NOTIFICATIONS_QUEUE,
+            'mail' => self::NOTIFICATIONS_QUEUE,
+            'broadcast' => self::REALTIME_QUEUE,
+        ];
     }
 
     /**

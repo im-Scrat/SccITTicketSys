@@ -42,6 +42,10 @@ return [
         'tickets_per_hour' => (int) env('TICKETS_PER_HOUR', 20),
         'ticket_comments_per_hour' => (int) env('TICKET_COMMENTS_PER_HOUR', 60),
 
+        // Phase 2.9 — reading a stored AI analysis (no provider call). Its own
+        // budget, so viewing the panel can never spend ticket-creation quota.
+        'ticket_ai_analysis_per_hour' => (int) env('TICKET_AI_ANALYSIS_PER_HOUR', 120),
+
         /*
          * WP-2.6b — the QR scan endpoint (FR-QR-013, NFR-SEC-009).
          *

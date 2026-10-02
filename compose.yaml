@@ -134,9 +134,35 @@ services:
     container_name: sccit_queue
     restart: unless-stopped
     working_dir: /var/www/html
-    command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=5", "--max-time=3600", "--sleep=3"]
+    command: ["php", "artisan", "queue:work", "--queue=realtime,notifications,default", "--tries=3", "--backoff=5", "--timeout=90", "--max-time=3600", "--sleep=3"]
     # This role runs a worker, not php-fpm, so the image's baked
     # FPM healthcheck doesn't apply — disable it.
+    healthcheck:
+      disable: true
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      app:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sccit_network
+
+  # ---------- AI worker pool (reuses the app image) ----------
+  # Phase 2.9 — mirrors queue_ai_prod in compose.prod.yaml (see the rationale
+  # there): works only the `ai` queue, so Gemini latency never delays
+  # notifications on `queue`. The GeminiGovernor caps real provider
+  # concurrency; replicas above the cap wait for a slot.
+  queue_ai:
+    image: sccit/app:dev
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "queue:work", "--queue=ai", "--timeout=170", "--max-time=3600", "--sleep=1"]
+    deploy:
+      replicas: ${AI_WORKERS:-3}
     healthcheck:
       disable: true
     volumes:

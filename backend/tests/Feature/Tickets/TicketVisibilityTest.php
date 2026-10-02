@@ -246,15 +246,17 @@ it('withdraws assignment and export from the technician baseline', function () {
         ->and($this->admin->hasPermissionTo('tickets.assign'))->toBeTrue();
 });
 
-it('still allows a deputized technician to assign', function () {
+it('still allows a deputized technician to assign a ticket they can see', function () {
     // FR-ASN-001's "(and permitted Technicians)" — the narrow, documented
-    // exception. A per-user grant opens it without widening the role.
+    // exception. A per-user grant opens it without widening the role, and
+    // since Phase 2.9 only on a ticket the lead can already see in full.
     $lead = userWithRole('technician');
     $permission = Permission::query()->where('name', 'tickets.assign')->firstOrFail();
     $lead->directPermissions()->attach($permission->id, ['grant_type' => 'grant']);
     app(PermissionResolver::class)->forget($lead);
 
     $ticket = ticketFor($this->teacher);
+    assign($ticket, $lead, AssignmentStatus::Accepted);
 
     expect($lead->can('assign', $ticket))->toBeTrue()
         ->and($this->technician->can('assign', $ticket))->toBeFalse();

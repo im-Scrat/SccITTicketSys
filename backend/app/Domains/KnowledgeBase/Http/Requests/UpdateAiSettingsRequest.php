@@ -31,6 +31,9 @@ class UpdateAiSettingsRequest extends FormRequest
             'enable_learning' => ['required', 'boolean'],
             'auto_generate_articles' => ['required', 'boolean'],
             'assistant_enabled' => ['required', 'boolean'],
+            // Phase 2.9 — optional so an older client that never sends it
+            // leaves the switch where it is.
+            'priority_auto_raise' => ['sometimes', 'boolean'],
         ];
     }
 }

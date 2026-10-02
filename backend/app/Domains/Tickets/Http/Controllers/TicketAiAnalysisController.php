@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domains\Tickets\Http\Controllers;
 
+use App\Domains\KnowledgeBase\Exceptions\AiUnavailableException;
 use App\Domains\KnowledgeBase\Http\Resources\TicketAiAnalysisResource;
+use App\Domains\KnowledgeBase\Jobs\AnalyzeTicketJob;
+use App\Domains\KnowledgeBase\Services\AiSettings;
 use App\Domains\Tickets\Services\ReporterOutcome;
 use App\Http\Controllers\Controller;
 use App\Models\AiAnalysisLog;
@@ -29,7 +32,7 @@ use Illuminate\Http\JsonResponse;
  */
 class TicketAiAnalysisController extends Controller
 {
-    public function show(Ticket $ticket, ReporterOutcome $outcome): JsonResponse
+    public function show(Ticket $ticket, ReporterOutcome $outcome, AiSettings $settings): JsonResponse
     {
         $this->authorize('viewFull', $ticket);
 
@@ -42,7 +45,14 @@ class TicketAiAnalysisController extends Controller
         if ($log === null) {
             return response()->json([
                 'data' => null,
-                'meta' => ['available' => false],
+                'meta' => [
+                    'available' => false,
+                    // Phase 2.9 — "still being analysed", so the panel can say
+                    // so instead of showing nothing: AI is configured and the
+                    // ticket is young enough that its job is still within its
+                    // retry window. False means no analysis is coming.
+                    'pending' => $this->analysisMayStillArrive($ticket, $settings),
+                ],
             ]);
         }
 
@@ -55,5 +65,20 @@ class TicketAiAnalysisController extends Controller
                 'reporter_outcome' => $outcome->current($ticket),
             ],
         ]);
+    }
+
+    private function analysisMayStillArrive(Ticket $ticket, AiSettings $settings): bool
+    {
+        if ($ticket->created_at === null || $ticket->created_at->lt(now()->subMinutes(AnalyzeTicketJob::RETRY_WINDOW_MINUTES))) {
+            return false;
+        }
+
+        try {
+            $settings->activeModel();
+        } catch (AiUnavailableException) {
+            return false;
+        }
+
+        return $settings->hasProviderKey('gemini');
     }
 }

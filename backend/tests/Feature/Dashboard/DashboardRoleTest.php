@@ -52,10 +52,12 @@ it('gives a technician the work-queue layout and no administrative figures', fun
 
     expect($keys)->toContain('my-work')
         ->and($keys)->toContain('my-assignments')
-        ->and($keys)->toContain('unassigned-queue')
         ->and($keys)->toContain('my-maintenance')
         ->and($keys)->toContain('maintenance-schedule')
         ->and($keys)->toContain('low-stock')
+        // Unassigned tickets are outside a technician's visibility (SDD DD-40);
+        // the dashboard must not list them either (Phase 2.9).
+        ->and($keys)->not->toContain('unassigned-queue')
         // Administrator-only surfaces must never appear.
         ->and($keys)->not->toContain('people')
         ->and($keys)->not->toContain('recent-activity')

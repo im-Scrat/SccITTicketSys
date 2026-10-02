@@ -148,7 +148,7 @@ it('reports the technician queue from that technician’s own perspective', func
 
     $mine = makeTicket(['current_status_id' => $open->id, 'assigned_technician_id' => $technician->id]);
     makeTicket(['current_status_id' => $open->id, 'assigned_technician_id' => $other->id]);
-    makeTicket(['current_status_id' => $open->id]);
+    $unowned = makeTicket(['current_status_id' => $open->id, 'title' => 'Unowned projector fault']);
 
     TechnicianAssignment::factory()->create([
         'ticket_id' => $mine->id,
@@ -167,8 +167,10 @@ it('reports the technician queue from that technician’s own perspective', func
     expect($values['open_tickets'])->toBe(1)
         ->and($values['active_assignments'])->toBe(1);
 
-    // The unassigned queue is shared, and shows the one ticket nobody owns.
-    expect(widget($widgets, 'unassigned-queue')['rows'])->toHaveCount(1);
+    // The unassigned ticket exists, but is not this technician's to see: no
+    // dashboard widget lists it, and its title appears nowhere in the payload.
+    expect(collect($widgets)->pluck('key'))->not->toContain('unassigned-queue')
+        ->and(json_encode($widgets))->not->toContain($unowned->title);
 });
 
 it('shows a reporter their own posture including awaiting-confirmation', function () {

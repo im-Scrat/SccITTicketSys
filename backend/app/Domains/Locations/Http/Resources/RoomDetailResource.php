@@ -38,6 +38,13 @@ class RoomDetailResource extends JsonResource
             'room_type_label' => $this->room_type->label(),
             'capacity' => $this->capacity !== null ? (int) $this->capacity : null,
             'description' => $this->description,
+            // Phase 2.9 — administrator-only resource (locations.*), so the
+            // floor is shown in full. Lazy-loaded: one row, one small lookup.
+            'priority_floor' => $this->priorityFloor !== null ? [
+                'slug' => $this->priorityFloor->slug,
+                'name' => $this->priorityFloor->name,
+                'level' => $this->priorityFloor->level,
+            ] : null,
             'is_active' => $this->is_active,
             'pc_units_count' => (int) ($this->pc_units_count ?? 0),
             'assets_count' => (int) ($this->assets_count ?? 0),

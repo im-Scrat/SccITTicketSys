@@ -38,8 +38,13 @@ class TicketCommentResource extends JsonResource
             'is_edited' => (bool) $this->is_edited,
             'edited_at' => $this->edited_at?->toIso8601String(),
 
+            // Posting a comment is a public act, so the author's name and role
+            // are shown. Their account uuid is not (Phase 2.9): no teacher-facing
+            // screen needs it, and handing every reader a stable identifier for
+            // every commenter is a correlation key for nothing in return. Only an
+            // Administrator, who moderates, receives it.
             'author' => $this->user !== null ? [
-                'id' => $this->user->uuid,
+                'id' => $request->user()?->isAdministrator() ? $this->user->uuid : null,
                 'name' => $this->user->fullName(),
                 'role' => $this->user->role?->slug,
             ] : null,

@@ -107,7 +107,7 @@ it('answers the whole matrix, gaps filled in as enabled', function (): void {
 
 it('routes a notification to both channels by default', function (): void {
     expect(notificationFor(NotificationTopic::TicketAssigned)->via($this->user))
-        ->toBe(['database', 'mail']);
+        ->toBe(['database', 'mail', 'broadcast']);
 });
 
 it('drops the in-app channel when the user has switched that type off', function (): void {

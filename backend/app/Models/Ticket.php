@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\TicketPrioritySource;
 use App\Enums\TicketSource;
 use App\Support\Concerns\HasUuidRouteKey;
 use Database\Factories\TicketFactory;
@@ -25,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $pc_unit_id
  * @property int $category_id
  * @property int $priority_id
+ * @property TicketPrioritySource|null $priority_source
  * @property int $current_status_id
  * @property int|null $duplicate_of_id
  * @property string $title
@@ -69,6 +71,7 @@ class Ticket extends Model
     {
         return [
             'source' => TicketSource::class,
+            'priority_source' => TicketPrioritySource::class,
             'ai_confidence' => 'decimal:4',
             'technician_required' => 'boolean',
             'first_response_at' => 'datetime',

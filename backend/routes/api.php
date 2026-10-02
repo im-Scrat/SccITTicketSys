@@ -3,6 +3,7 @@
 use App\Domains\Administration\Http\Controllers\AnnouncementController;
 use App\Domains\Administration\Http\Controllers\NotificationController;
 use App\Domains\Administration\Http\Controllers\NotificationPreferenceController;
+use App\Domains\Analytics\Http\Controllers\Admin\TechnicianMonitoringController;
 use App\Domains\Analytics\Http\Controllers\DashboardController;
 use App\Domains\Assets\Http\Controllers\Admin\AssetActionController;
 use App\Domains\Assets\Http\Controllers\Admin\AssetAttachmentController;
@@ -61,6 +62,7 @@ use App\Domains\Tickets\Http\Controllers\TicketController;
 use App\Domains\Tickets\Http\Controllers\TicketFeedController;
 use App\Domains\Tickets\Http\Controllers\TicketOptionsController;
 use App\Domains\Tickets\Http\Controllers\TicketParticipationController;
+use App\Domains\Tickets\Http\Controllers\TicketTimelineController;
 use App\Domains\WorkSupport\Http\Controllers\Admin\WorkSupportRequestDecisionController;
 use App\Domains\WorkSupport\Http\Controllers\TechnicianSubmissionController;
 use App\Domains\WorkSupport\Http\Controllers\WorkSupportAttachmentController;
@@ -430,15 +432,17 @@ Route::middleware('auth:sanctum')->group(function () {
         | never the module's `assets.view` permission: a Technician or an
         | Administrator holding an asset as custodian can see what they are
         | responsible for without the register at large opening up for them.
-        | `mine()` pre-filters the query; `show()` is the same admin endpoint,
-        | reused as-is because `AssetPolicy::view` already admits the custodian.
+        | Teachers are refused (403) by AssetPolicy::viewOwnCustody — custody is
+        | never theirs (Phase 2.9). Both routes serve the narrow list
+        | projection; `{asset}` is deliberately unbound and resolved inside the
+        | custody scope, so a foreign uuid is a 404, not an existence oracle.
         */
         Route::middleware('password.current')
             ->prefix('my')
             ->whereUuid(['asset'])
             ->group(function () {
                 Route::get('/assets', [AssetController::class, 'mine']);
-                Route::get('/assets/{asset:uuid}', [AssetController::class, 'show']);
+                Route::get('/assets/{asset}', [AssetController::class, 'mineShow']);
             });
 
         /*
@@ -662,9 +666,11 @@ Route::middleware('auth:sanctum')->group(function () {
                     Route::post('/tickets/assigned/{ticket:uuid}/complete', [TechnicianQueueController::class, 'complete']);
                 });
 
-                // Report a fault.
+                // Report a fault. Throttled per user (Phase 2.9): every new
+                // ticket queues a Gemini analysis, so unbounded creation would
+                // be unbounded provider spend, not just unbounded rows.
                 Route::post('/tickets', [TicketController::class, 'store'])
-                    ->middleware('can:tickets.create');
+                    ->middleware(['can:tickets.create', 'throttle:tickets']);
 
                 // One ticket — the projection depends on the caller (see
                 // TicketController::show).
@@ -683,6 +689,10 @@ Route::middleware('auth:sanctum')->group(function () {
                     // open → resolved move through /status above.
                     Route::post('/tickets/{ticket:uuid}/not-fixed', [TicketController::class, 'reportNotFixed']);
 
+                    // Phase 2.9 — the History tab. `viewFull` in the controller;
+                    // what each viewer reads is TicketTimeline's projection.
+                    Route::get('/tickets/{ticket:uuid}/timeline', [TicketTimelineController::class, 'index']);
+
                     Route::get('/tickets/{ticket:uuid}/attachments', [TicketParticipationController::class, 'attachments']);
                     Route::get('/tickets/attachments/{attachment:uuid}', [TicketParticipationController::class, 'downloadAttachment']);
 
@@ -692,12 +702,12 @@ Route::middleware('auth:sanctum')->group(function () {
                      * own `viewFull` check (TicketVisibility::canSeeFull()) is
                      * the actual gate, because this group's floor alone would
                      * let a Teacher reach another Teacher's full AI analysis
-                     * through the community-card scope. `throttle:tickets`
-                     * reuses the existing 20/hour/user ticket-creation limiter
-                     * rather than defining a second one for the same actor.
+                     * through the community-card scope. It has its own limiter
+                     * (`ticket-ai-analysis`, Phase 2.9): sharing `tickets` would
+                     * make panel views and ticket creation spend one budget.
                      */
                     Route::get('/tickets/{ticket:uuid}/ai-analysis', [TicketAiAnalysisController::class, 'show'])
-                        ->middleware('throttle:tickets');
+                        ->middleware('throttle:ticket-ai-analysis');
                 });
 
                 // Participation.
@@ -1098,6 +1108,21 @@ Route::middleware('auth:sanctum')->group(function () {
         */
         Route::middleware('password.current')->group(function () {
             Route::get('/dashboard/widgets', DashboardController::class);
+        });
+
+        /*
+        |------------------------------------------------------------------
+        | Technician monitoring (Phase 2.9) — ADMINISTRATOR ONLY
+        |------------------------------------------------------------------
+        | Recorded and calculated figures per technician. Authorized inside the
+        | controller by TechnicianMonitoringAccess (role + users.view), not by
+        | a `can:` string a per-user grant could open. `{technician}` is a
+        | plain string so a non-technician uuid answers 404, like a missing one.
+        */
+        Route::middleware('password.current')->prefix('admin')->group(function () {
+            Route::get('/technicians/overview', [TechnicianMonitoringController::class, 'index']);
+            Route::get('/technicians/{technician}', [TechnicianMonitoringController::class, 'show'])
+                ->whereUuid('technician');
         });
     });
 });

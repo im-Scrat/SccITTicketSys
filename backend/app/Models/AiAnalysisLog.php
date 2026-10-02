@@ -29,6 +29,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $prompt_tokens
  * @property int|null $completion_tokens
  * @property int|null $latency_ms
+ * @property string|null $analysis_key
+ * @property int|null $recommended_priority_id
  * @property Carbon|null $created_at
  */
 class AiAnalysisLog extends Model
@@ -63,6 +65,17 @@ class AiAnalysisLog extends Model
     public function aiModel(): BelongsTo
     {
         return $this->belongsTo(AiModel::class, 'ai_model_id');
+    }
+
+    /**
+     * Phase 2.9 — the priority the AI recommended, kept whether or not it was
+     * applied (PriorityRecommendationPolicy decides that, not the model).
+     *
+     * @return BelongsTo<TicketPriority, $this>
+     */
+    public function recommendedPriority(): BelongsTo
+    {
+        return $this->belongsTo(TicketPriority::class, 'recommended_priority_id');
     }
 
     /** @return HasMany<AiRecommendation, $this> */

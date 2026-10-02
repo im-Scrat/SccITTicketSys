@@ -51,11 +51,21 @@ class SafeAgentInvoker
 {
     private const MAX_ATTEMPTS = 3;
 
-    private const RETRYABLE_STATUSES = [429, 500, 502, 503, 504];
+    /**
+     * Server-side failures worth a quick second try inside one invocation.
+     *
+     * 429 is deliberately absent (Phase 2.9). A rate limit does not clear in
+     * 200 ms, so retrying it here only spent more of the very quota that was
+     * exhausted. It now fails fast as a transient {@see AiProviderException},
+     * and the caller backs off on its own timescale — a queued job releases
+     * itself for seconds to minutes, an interactive caller says "busy".
+     */
+    private const RETRYABLE_STATUSES = [500, 502, 503, 504];
 
     public function __construct(
         private readonly AiSettings $settings,
         private readonly PromptRedactor $redactor,
+        private readonly GeminiGovernor $governor,
     ) {}
 
     /**
@@ -90,9 +100,17 @@ class SafeAgentInvoker
         $identifier = $this->settings->modelIdentifierFor($model);
         $timeout = (int) config('ai.sccit.agent_timeout_seconds', 30);
 
-        $startedAt = microtime(true);
-        $response = $this->promptWithRetry($agent, $prompt, $provider, $identifier, $timeout);
-        $latencyMs = (int) round((microtime(true) - $startedAt) * 1000);
+        // Phase 2.9 — every chat call holds a governor slot for its whole
+        // attempt cycle, so concurrency and the per-minute budget are enforced
+        // across all workers and web processes, not per process. Latency is
+        // measured inside the slot: time spent waiting for capacity is not the
+        // provider's latency.
+        [$response, $latencyMs] = $this->governor->run(function () use ($agent, $prompt, $provider, $identifier, $timeout): array {
+            $startedAt = microtime(true);
+            $response = $this->promptWithRetry($agent, $prompt, $provider, $identifier, $timeout);
+
+            return [$response, (int) round((microtime(true) - $startedAt) * 1000)];
+        });
 
         $structured = $this->extractStructuredOutput($agent, $response);
 

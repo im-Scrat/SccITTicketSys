@@ -103,7 +103,9 @@ if [ "$SKIP_GATES" -eq 1 ]; then
     warn "--skip-gates: the gates were NOT run for this release"
     GATES_RESULT='skipped'
 else
-    if sh "$REPO_ROOT/scripts/gates.sh" --stack dev; then
+    # Isolated, not the dev stack: the owner retired :8080 on 2026-10-02, and
+    # the gate must never share data with a running environment.
+    if sh "$REPO_ROOT/scripts/gates.sh" --stack isolated; then
         GATES_RESULT='passed'
     else
         die "quality gates failed — deployment stopped before anything was changed."
@@ -143,7 +145,10 @@ done
 # 5. Deploy
 # =========================================================================
 step "5/8  Deploy"
-dc up -d --force-recreate app_prod nginx_prod queue_prod scheduler_prod
+# Every service that runs the app image is recreated, or it keeps serving the
+# previous release: reverb_prod was missing from this list until Phase 2.9, and
+# queue_ai_prod (the AI worker pool) is new in it.
+dc up -d --force-recreate app_prod nginx_prod queue_prod queue_ai_prod scheduler_prod reverb_prod
 ok "services recreated"
 
 # The FPM healthcheck has a 20s start period; migrating before it settles gives

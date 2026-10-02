@@ -47,6 +47,8 @@ class IndexTicketsRequest extends FormRequest
             'has_pc_unit' => ['nullable', 'boolean'],
             'breached' => ['nullable', 'boolean'],
             'awaiting_confirmation' => ['nullable', 'boolean'],
+            // Phase 2.9 — administrative directory only (NOT FIXED, awaiting an owner).
+            'escalated' => ['nullable', 'boolean'],
             'include_closed' => ['nullable', 'boolean'],
             'trashed' => ['nullable', 'string', Rule::in(['without', 'with', 'only'])],
             'sort' => ['nullable', 'string', Rule::in([

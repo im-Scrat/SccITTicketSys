@@ -80,16 +80,34 @@ class AssistantController extends Controller
                 $request->validated('conversation_id'),
                 $ticket,
             );
-        } catch (AiUnavailableException|AiProviderException) {
-            // Both carry only this codebase's static messages. The client gets
-            // one sentence it can show, and the way forward that never depended
-            // on AI: report the problem as a ticket.
-            return response()->json([
-                'message' => 'The AI assistant is not available right now. You can still report the problem as a ticket.',
-            ], 503);
+        } catch (AiProviderException $e) {
+            // Phase 2.9 — a capacity limit means "not now", not "not at all":
+            // the shared Gemini governor had no slot, or the provider
+            // rate-limited. 429 + Retry-After tells the client to try again
+            // shortly instead of presenting the assistant as down. Any other
+            // failure stays a 503.
+            if ($e->isCapacityLimit()) {
+                return response()->json([
+                    'message' => 'The AI assistant is busy right now. Please try again in a moment.',
+                ], 429, ['Retry-After' => '15']);
+            }
+
+            return $this->unavailable();
+        } catch (AiUnavailableException) {
+            return $this->unavailable();
         }
 
         return response()->json(['data' => $reply]);
+    }
+
+    private function unavailable(): JsonResponse
+    {
+        // Both exception types carry only this codebase's static messages. The
+        // client gets one sentence it can show, and the way forward that never
+        // depended on AI: report the problem as a ticket.
+        return response()->json([
+            'message' => 'The AI assistant is not available right now. You can still report the problem as a ticket.',
+        ], 503);
     }
 
     /** The caller's conversations, newest first, one row each. */

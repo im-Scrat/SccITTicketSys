@@ -37,7 +37,12 @@ class AnalyzePcHistoryJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 
     public bool $deleteWhenMissingModels = true;
 
-    public function __construct(public readonly PcUnit $pcUnit) {}
+    public function __construct(public readonly PcUnit $pcUnit)
+    {
+        // Phase 2.9 — provider work runs on the dedicated `ai` queue, so a slow
+        // Gemini call never sits in front of notifications and broadcasts.
+        $this->onQueue(AnalyzeTicketJob::QUEUE);
+    }
 
     public function uniqueId(): string
     {

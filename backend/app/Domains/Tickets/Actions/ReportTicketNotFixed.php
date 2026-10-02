@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Tickets\Actions;
 
 use App\Domains\Identity\Services\AuditLogger;
+use App\Domains\Tickets\Events\TicketEscalatedByReporter;
 use App\Domains\Tickets\Services\ReporterOutcome;
 use App\Enums\ActivityAction;
 use App\Enums\TicketUpdateType;
@@ -106,6 +107,11 @@ class ReportTicketNotFixed
             description: "Ticket {$ticket->ticket_number}: not fixed by reporter after AI troubleshooting",
         );
 
-        return $ticket->refresh();
+        // Phase 2.9 — tell the administrators. Dispatched after the transaction
+        // above has committed, so a refused or rolled-back report notifies no
+        // one; delivery itself is deferred again by the dispatcher.
+        TicketEscalatedByReporter::dispatch($ticket->refresh(), $actor);
+
+        return $ticket;
     }
 }

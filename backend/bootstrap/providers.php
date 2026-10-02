@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Administration\Providers\NotificationServiceProvider;
+use App\Domains\Analytics\Providers\AnalyticsServiceProvider;
 use App\Domains\KnowledgeBase\Providers\AiServiceProvider;
 use App\Providers\AppServiceProvider;
 
@@ -17,4 +18,7 @@ return [
 
     // WP-I. The AI domain's event map — see the provider's own docblock.
     AiServiceProvider::class,
+
+    // Phase 2.9. Which domain events move the live administrator dashboard.
+    AnalyticsServiceProvider::class,
 ];

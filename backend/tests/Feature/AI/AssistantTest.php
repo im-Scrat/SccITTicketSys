@@ -276,6 +276,18 @@ it('answers 503 with a way forward when the provider fails, and never leaks the 
     expect(AiConversationLog::query()->count())->toBe(0);
 });
 
+it('answers 429 "busy" rather than 503 when the shared Gemini budget is spent', function () {
+    // Phase 2.9 — transient capacity is "try again shortly", not "unavailable".
+    config(['ai.sccit.gemini_rpm' => 1, 'ai.sccit.gemini_concurrency' => 0]);
+    AssistantAgent::fake(['ok']);
+    assistantAsk($this, $this->teacher, 'first question')->assertOk();
+
+    assistantAsk($this, $this->teacher, 'second question')
+        ->assertStatus(429)
+        ->assertHeader('Retry-After', '15')
+        ->assertJsonPath('message', 'The AI assistant is busy right now. Please try again in a moment.');
+});
+
 it('answers 503 when no key is configured or no model is selected', function () {
     config(['ai.providers.gemini.key' => null]);
     assistantAsk($this, $this->teacher, 'anything at all')->assertStatus(503);

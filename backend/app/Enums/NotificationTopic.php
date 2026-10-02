@@ -100,6 +100,21 @@ enum NotificationTopic: string
     case PcPredictionGenerated = 'maintenance.prediction_generated';
 
     /**
+     * Phase 2.9 — a reporter tried the AI's troubleshooting steps and said the
+     * fault is NOT fixed (WP-J), so the ticket needs an administrator to assign
+     * someone.
+     *
+     * Before this, NOT FIXED cleared the assignee and audited, but told nobody:
+     * the ticket only surfaced when an administrator happened to filter for
+     * unassigned work. Its own topic, not `TicketStatusChanged`, because the
+     * status does not change — the ticket stays `open` — and an administrator
+     * answers "please assign this" differently from "this moved". Files under
+     * {@see NotificationType::TicketUpdate}, which the baselined CHECK already
+     * allows: no schema change.
+     */
+    case TicketEscalated = 'ticket.escalated';
+
+    /**
      * The {@see NotificationType} this topic is filed under.
      *
      * The mapping is many-to-one on purpose: nine types is what the baselined
@@ -112,7 +127,7 @@ enum NotificationTopic: string
     {
         return match ($this) {
             self::TicketAssigned, self::TicketReassigned => NotificationType::Assignment,
-            self::TicketStatusChanged, self::TicketCommented => NotificationType::TicketUpdate,
+            self::TicketStatusChanged, self::TicketCommented, self::TicketEscalated => NotificationType::TicketUpdate,
             // Warning rather than Error: a breach is a fact about a deadline,
             // not a fault in the system, and `error` is what the UI will colour
             // for something that actually went wrong.

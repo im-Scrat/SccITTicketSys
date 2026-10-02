@@ -141,7 +141,11 @@ docker tag "sccit/app:prod-$TARGET" sccit/app:prod
 docker tag "sccit/web:prod-$TARGET" sccit/web:prod
 ok "sccit/app:prod and sccit/web:prod now point at $TARGET"
 
-dc up -d --force-recreate app_prod nginx_prod queue_prod scheduler_prod
+# Same list as deploy-prod.sh: every service running the app image, or it keeps
+# the release being rolled back from (reverb_prod was missing before Phase 2.9).
+# Rolling back to a release that predates queue_ai_prod is harmless: that code
+# never queues onto `ai`, so the pool simply idles.
+dc up -d --force-recreate app_prod nginx_prod queue_prod queue_ai_prod scheduler_prod reverb_prod
 ok "services recreated"
 
 if [ -n "$RESTORE_DB" ]; then

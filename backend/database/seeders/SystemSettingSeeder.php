@@ -32,6 +32,8 @@ class SystemSettingSeeder extends Seeder
             ['maintenance', 'maintenance.reminder_days', 'Maintenance Reminder (days before)', 7, 'integer', false, false],
             ['qr', 'qr.default_size', 'QR Default Size (px)', 256, 'integer', false, false],
             ['qr', 'qr.error_correction', 'QR Error Correction Level', 'M', 'string', false, false],
+            // Phase 2.9: how long a scan may back a proof-of-work submission.
+            ['qr', 'qr.scan_session_ttl_minutes', 'Scan Valid For Proof Of Work (minutes)', 120, 'integer', false, false],
             // Ticketing windows (Phase 2.6). All three are deliberately settings
             // rather than constants: FR-TKT-016 calls the reopen period
             // "configurable", and a site that resolves tickets slowly needs to
@@ -44,6 +46,9 @@ class SystemSettingSeeder extends Seeder
             ['notifications', 'notifications.default_channel', 'Default Notification Channel', 'in_app', 'string', false, false],
             ['notifications', 'notifications.digest_enabled', 'Daily Digest Enabled', false, 'boolean', false, false],
             ['ai', 'ai.assistant_enabled', 'AI Assistant Enabled', true, 'boolean', true, false],
+            // Phase 2.9 (D-B): off until AI recommendations have been reviewed
+            // against real tickets; recommendations are recorded either way.
+            ['ai', 'ai.priority_auto_raise', 'AI May Raise Ticket Priority', false, 'boolean', false, false],
             ['system', 'system.timezone', 'System Timezone', 'Asia/Manila', 'string', false, true],
             ['system', 'system.date_format', 'Date Format', 'Y-m-d', 'string', true, false],
         ];

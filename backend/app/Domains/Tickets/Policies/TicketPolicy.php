@@ -128,10 +128,18 @@ class TicketPolicy
      * Technicians)"* is the SRS's own narrow exception for a lead technician who
      * distributes workload. A deputized technician passes this check; an
      * ordinary one does not, so there is no broad self-claim.
+     *
+     * Holding the permission is not enough on its own (Phase 2.9): the actor
+     * must also be able to see the whole ticket. Without that, a deputized
+     * technician could act on any ticket by uuid — including ones TicketVisibility
+     * refuses to show them — which is the IDOR the row-level model exists to
+     * prevent. An Administrator sees every ticket, so this changes nothing for
+     * them.
      */
     public function assign(User $actor, Ticket $ticket): bool
     {
-        return $actor->hasPermissionTo('tickets.assign');
+        return $actor->hasPermissionTo('tickets.assign')
+            && $this->visibility->canSeeFull($actor, $ticket);
     }
 
     /** Mark this ticket a duplicate of another (FR-TKT-011). */

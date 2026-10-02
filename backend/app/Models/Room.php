@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property string $code
  * @property string|null $room_number
  * @property int|null $capacity
+ * @property int|null $priority_floor_id
  * @property string|null $description
  * @property bool $is_active
  * @property int|null $created_by
@@ -55,6 +56,17 @@ class Room extends Model
     public function floor(): BelongsTo
     {
         return $this->belongsTo(Floor::class);
+    }
+
+    /**
+     * Phase 2.9 — the lowest priority a ticket filed in this room may have;
+     * null = no floor. Applied by CreateTicket, never by the AI.
+     *
+     * @return BelongsTo<TicketPriority, $this>
+     */
+    public function priorityFloor(): BelongsTo
+    {
+        return $this->belongsTo(TicketPriority::class, 'priority_floor_id');
     }
 
     /** @return HasMany<RoomLayout, $this> */

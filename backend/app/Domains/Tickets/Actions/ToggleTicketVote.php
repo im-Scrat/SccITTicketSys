@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Tickets\Actions;
 
+use App\Domains\Analytics\Services\AdminDashboardSignal;
 use App\Models\Ticket;
 use App\Models\TicketVote;
 use App\Models\User;
@@ -28,6 +29,8 @@ use Illuminate\Database\QueryException;
  */
 class ToggleTicketVote
 {
+    public function __construct(private readonly AdminDashboardSignal $dashboard) {}
+
     /**
      * @return array{voted: bool, upvote_count: int}
      */
@@ -71,6 +74,10 @@ class ToggleTicketVote
      */
     private function result(Ticket $ticket, bool $voted): array
     {
+        // Phase 2.9 — votes have no domain event; the live admin dashboard
+        // hears about them here. A signal only: the count is refetched.
+        $this->dashboard->send('ticket.voted', $ticket->uuid);
+
         return [
             'voted' => $voted,
             'upvote_count' => (int) $ticket->refresh()->upvote_count,

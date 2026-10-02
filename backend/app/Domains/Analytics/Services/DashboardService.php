@@ -39,6 +39,7 @@ class DashboardService
     public const CACHE_TTL_SECONDS = 30;
 
     public function __construct(
+        private readonly AdminDashboardSignal $signal,
         private readonly TicketMetrics $tickets,
         private readonly AssetMetrics $assets,
         private readonly UserMetrics $users,
@@ -57,10 +58,17 @@ class DashboardService
         );
     }
 
-    /** Cache key for one user's dashboard payload. */
+    /**
+     * Cache key for one user's dashboard payload.
+     *
+     * Phase 2.9 — versioned: every realtime dashboard signal bumps the version
+     * ({@see AdminDashboardSignal}), so the refetch the signal triggers is
+     * built fresh rather than served from a payload cached before the change.
+     * Superseded keys simply age out with their 30-second TTL.
+     */
     public function cacheKey(User $user): string
     {
-        return 'dashboard:widgets:'.$user->getKey();
+        return 'dashboard:widgets:v'.$this->signal->version().':'.$user->getKey();
     }
 
     /**
@@ -416,23 +424,12 @@ class DashboardService
                 ], $this->tickets->activeAssignments($user)),
             ];
 
-            $widgets[] = [
-                'key' => 'unassigned-queue',
-                'type' => 'list',
-                'title' => 'Unassigned queue',
-                'description' => 'Open requests waiting for an owner.',
-                'empty' => 'Every open request has an owner.',
-                'columns' => ['Ticket', 'Priority', 'Reported'],
-                'rows' => array_map(static fn (array $row): array => [
-                    'id' => $row['id'],
-                    'cells' => [
-                        ($row['number'] ?? '—').' · '.($row['title'] ?? ''),
-                        $row['priority'] ?? '—',
-                        $row['created_at'],
-                    ],
-                    'timestamp_cell' => 2,
-                ], $this->tickets->recentTickets('unassigned')),
-            ];
+            // No "unassigned queue" here (removed in Phase 2.9). It listed the
+            // number, title and priority of tickets the technician has no
+            // assignment to — rows TicketVisibility (SDD DD-40) refuses them
+            // everywhere else, by list and by uuid alike. Unassigned work is the
+            // Administrator's triage; a technician's dashboard shows only work
+            // that is theirs.
         }
 
         // Phase 2.5 — a technician's *own charges*, never the estate.

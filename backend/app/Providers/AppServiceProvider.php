@@ -172,6 +172,17 @@ class AppServiceProvider extends ServiceProvider
         )->by((string) ($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
 
         /*
+         * Phase 2.9. The teacher AI panel used to borrow `tickets`, but a named
+         * limiter's bucket is (name + key): once `tickets` was finally applied
+         * to ticket *creation*, every panel view would have spent the same
+         * user's creation budget, and vice versa. Reading a stored analysis
+         * makes no provider call, so its ceiling is higher and its own.
+         */
+        RateLimiter::for('ticket-ai-analysis', fn (Request $request): Limit => Limit::perHour(
+            (int) config('security.rate_limits.ticket_ai_analysis_per_hour', 120),
+        )->by((string) ($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        /*
          * WP-2.6b — the QR scan endpoint (FR-QR-013).
          *
          * The only limiter in this application that returns **two** limits, and

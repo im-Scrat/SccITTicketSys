@@ -144,7 +144,7 @@ services:
     container_name: sccit_prod_queue
     restart: unless-stopped
     working_dir: /var/www/html
-    command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=5", "--max-time=3600", "--sleep=3"]
+    command: ["php", "artisan", "queue:work", "--queue=realtime,notifications,default", "--tries=3", "--backoff=5", "--timeout=90", "--max-time=3600", "--sleep=3"]
     env_file:
       - ./backend/.env.production
     healthcheck:
@@ -162,6 +162,41 @@ services:
         condition: service_healthy
       mailpit_prod:
         condition: service_started
+    networks:
+      - sccit_prod_network
+
+  # ---------- AI worker pool (reuses the prod app image) -------
+  # Phase 2.9. Works ONLY the `ai` queue (ticket pre-screening, PC-history
+  # predictions, knowledge embeddings), so a slow Gemini call never sits in
+  # front of notifications on queue_prod, and several tickets are analysed at
+  # once — one job per ticket, one ticket per worker. How many may talk to
+  # Gemini simultaneously is capped separately by the app's GeminiGovernor
+  # (AI_GEMINI_CONCURRENCY / AI_GEMINI_RPM in .env.production): replicas above
+  # that cap simply wait for a slot. No container_name, so it can scale.
+  # --timeout stays above AnalyzeTicketJob::$timeout (150 s); the connection's
+  # retry_after (240 s) stays above both.
+  queue_ai_prod:
+    image: sccit/app:prod
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "queue:work", "--queue=ai", "--timeout=170", "--max-time=3600", "--sleep=1"]
+    deploy:
+      replicas: ${AI_WORKERS:-3}
+    env_file:
+      - ./backend/.env.production
+    healthcheck:
+      disable: true
+    volumes:
+      - sccit_prod_storage:/var/www/html/storage/app/public
+    secrets:
+      - gemini_api_key
+    depends_on:
+      app_prod:
+        condition: service_started
+      postgres_prod:
+        condition: service_healthy
+      redis_prod:
+        condition: service_healthy
     networks:
       - sccit_prod_network
 

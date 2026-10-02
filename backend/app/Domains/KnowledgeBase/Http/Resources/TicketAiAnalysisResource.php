@@ -64,6 +64,22 @@ class TicketAiAnalysisResource extends JsonResource
                     ]),
             ),
 
+            // Phase 2.9 (D-B) — the priority the AI recommended and why, shown
+            // to Administrators only: it is triage advice for the people who set
+            // priority, whether or not the deterministic rule applied it. The
+            // rationale is read from the stored structured answer rather than a
+            // column of its own.
+            'priority_recommendation' => $this->when(
+                $request->user()?->isAdministrator() === true && $this->recommended_priority_id !== null,
+                fn (): array => [
+                    'priority' => $this->recommendedPriority?->slug,
+                    'priority_label' => $this->recommendedPriority?->name,
+                    'rationale' => is_string($this->raw_response['priority_rationale'] ?? null)
+                        ? $this->raw_response['priority_rationale']
+                        : null,
+                ],
+            ),
+
             'analyzed_at' => $this->analyzed_at?->toIso8601String(),
         ];
     }

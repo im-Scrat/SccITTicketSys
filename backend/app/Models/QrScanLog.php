@@ -10,6 +10,7 @@ use Database\Factories\QrScanLogFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * One scan attempt (SRS FR-QR-005/006).
@@ -22,6 +23,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * the write idempotent on the scan rather than on the HTTP request
  * ([FR-MNT-012](#), DD-50). `maintenance_record_id` is the single nullable FK
  * that binding fills, so one scan can never end up describing two jobs.
+ *
+ * @property Carbon|null $scanned_at
  */
 class QrScanLog extends Model
 {

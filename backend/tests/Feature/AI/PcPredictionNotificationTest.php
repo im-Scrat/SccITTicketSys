@@ -119,7 +119,7 @@ it('honours an administrator who turned in-app maintenance notifications off', f
 it('routes by the maintenance preference, in-app and email, with nothing forced', function (): void {
     $notification = new PcPredictionGeneratedNotification($this->prediction);
 
-    expect($notification->via($this->admin))->toBe(['database', 'mail'])
+    expect($notification->via($this->admin))->toBe(['database', 'mail', 'broadcast'])
         ->and($notification->forcedChannels())->toBe([])
         ->and($notification->excludedChannels())->toBe([]);
 
@@ -130,7 +130,7 @@ it('routes by the maintenance preference, in-app and email, with nothing forced'
         'is_enabled' => false,
     ]);
 
-    expect($notification->via($this->admin->refresh()))->toBe(['database']);
+    expect($notification->via($this->admin->refresh()))->toBe(['database', 'broadcast']);
 });
 
 it('links to a destination the system built, inside the application', function (): void {

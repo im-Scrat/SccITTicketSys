@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Tickets\Services;
 
 use App\Domains\Assets\Services\AssetDirectoryQuery;
+use App\Enums\TicketUpdateType;
 use App\Models\Building;
 use App\Models\Floor;
 use App\Models\PcUnit;
@@ -327,6 +328,39 @@ class TicketDirectoryQuery
         if (($params['awaiting_confirmation'] ?? null) === true || ($params['awaiting_confirmation'] ?? null) === '1') {
             $query->whereHas('status', fn (Builder $q) => $q->where('slug', 'resolved'));
         }
+
+        if (($params['escalated'] ?? null) === true || ($params['escalated'] ?? null) === '1') {
+            $this->onlyEscalated($query);
+        }
+    }
+
+    /**
+     * Phase 2.9 — open tickets whose reporter said NOT FIXED after the AI's
+     * suggestions and that still wait for an owner (WP-J → admin triage).
+     *
+     * The same rule as {@see ReporterOutcome::current()}, expressed as SQL so it
+     * can filter and paginate: the reporter's own `ai_analysis` row with outcome
+     * `not_fixed`, newer than the latest move *into* `open` (a reopen starts a
+     * new period and forgets the old answer). No column stores this — the
+     * timeline is the record — so nothing can drift out of step with it.
+     *
+     * @param  Builder<Ticket>  $query
+     */
+    private function onlyEscalated(Builder $query): void
+    {
+        $query->whereHas('status', fn (Builder $q) => $q->where('slug', 'open'))
+            ->whereExists(function ($sub): void {
+                $sub->selectRaw('1')
+                    ->from('ticket_updates as tu')
+                    ->whereColumn('tu.ticket_id', 'tickets.id')
+                    ->whereColumn('tu.user_id', 'tickets.reporter_id')
+                    ->where('tu.update_type', TicketUpdateType::AiAnalysis->value)
+                    ->whereRaw("tu.metadata->>'outcome' = ?", [ReporterOutcome::NOT_FIXED])
+                    ->whereRaw(
+                        "tu.id > COALESCE((SELECT max(su.id) FROM ticket_updates su WHERE su.ticket_id = tickets.id AND su.update_type = ? AND su.metadata->>'to' = 'open'), 0)",
+                        [TicketUpdateType::StatusChange->value],
+                    );
+            });
     }
 
     /**

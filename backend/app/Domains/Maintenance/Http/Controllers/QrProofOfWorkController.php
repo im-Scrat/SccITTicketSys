@@ -16,6 +16,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MaintenanceRecord;
 use App\Models\PcUnit;
 use App\Models\QrScanLog;
+use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -189,7 +190,11 @@ class QrProofOfWorkController extends Controller
      *   - it is for **this machine**, so a scan of unit A cannot carry a
      *     submission against unit B;
      *   - it resolved successfully, so a revoked or unknown label's log entry
-     *     cannot be used as a handle.
+     *     cannot be used as a handle;
+     *   - Phase 2.9: it is **recent** — within `qr.scan_session_ttl_minutes`
+     *     (default 120; 0 switches the window off). The QR stays an identifier,
+     *     not a photo check (owner decision D-C), but a scan id kept from
+     *     yesterday no longer stands in for being at the machine today.
      *
      * @throws ValidationException
      */
@@ -202,13 +207,26 @@ class QrProofOfWorkController extends Controller
             ->where('scan_result', ScanResult::Success->value)
             ->first();
 
-        if ($scan === null) {
+        if ($scan === null || ! $this->isFresh($scan)) {
             throw ValidationException::withMessages([
                 'scan_id' => 'That scan is no longer valid. Scan the label again to continue.',
             ])->status(422);
         }
 
         return $scan;
+    }
+
+    private function isFresh(QrScanLog $scan): bool
+    {
+        // Absent setting -> the default; an explicit 0 disables the window.
+        $setting = SystemSetting::query()->where('key', 'qr.scan_session_ttl_minutes')->value('value');
+        $minutes = $setting === null ? 120 : (int) $setting;
+
+        if ($minutes <= 0) {
+            return true;
+        }
+
+        return $scan->scanned_at !== null && $scan->scanned_at->gte(now()->subMinutes($minutes));
     }
 
     /**

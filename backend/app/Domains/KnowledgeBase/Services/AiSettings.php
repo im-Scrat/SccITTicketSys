@@ -140,4 +140,19 @@ class AiSettings
 
         return $value === null || filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
+
+    /**
+     * Phase 2.9 (D-B) — whether an AI priority recommendation may be *applied*
+     * (`system_settings.ai.priority_auto_raise`, seeded false).
+     *
+     * The opposite default to {@see assistantEnabled()} on purpose: that switch
+     * withdraws a read-only feature, this one lets the AI change ticket data,
+     * so a database that has never had it seeded must behave as *off*.
+     */
+    public function priorityAutoRaiseEnabled(): bool
+    {
+        $value = SystemSetting::query()->where('key', 'ai.priority_auto_raise')->first()?->value;
+
+        return $value !== null && filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
 }

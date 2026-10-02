@@ -193,6 +193,17 @@ return [
         // instead of tying up a request or queue worker.
         'agent_timeout_seconds' => (int) env('AI_AGENT_TIMEOUT_SECONDS', 30),
 
+        // Phase 2.9 — the Gemini governor (GeminiGovernor), shared by every
+        // worker and web process through Redis. Concurrency: chat calls in
+        // flight at once. RPM: calls started per minute — set it to what the
+        // Gemini tier in use actually grants; the default is conservative on
+        // purpose because this code cannot know the tier. Slot wait: how long a
+        // caller waits for capacity before being told "busy" (a queued job then
+        // releases itself and retries later). 0 for both ceilings disables it.
+        'gemini_concurrency' => (int) env('AI_GEMINI_CONCURRENCY', 3),
+        'gemini_rpm' => (int) env('AI_GEMINI_RPM', 10),
+        'gemini_slot_wait_seconds' => (int) env('AI_GEMINI_SLOT_WAIT_SECONDS', 10),
+
         // Upper bound on the untrusted text SccIT will ever send to a
         // provider in one call (ticket bodies, knowledge-article content,
         // etc.). Not a token count — a cheap, pre-request character guard

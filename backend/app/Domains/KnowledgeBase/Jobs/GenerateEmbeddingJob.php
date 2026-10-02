@@ -81,7 +81,12 @@ class GenerateEmbeddingJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
     public int $timeout = 180;
 
     /** @param int $articleId the `ai_knowledge_articles.id`; an id, not a model, so a deleted article is handled rather than fatal */
-    public function __construct(public readonly int $articleId) {}
+    public function __construct(public readonly int $articleId)
+    {
+        // Phase 2.9 — provider work runs on the dedicated `ai` queue, so a slow
+        // Gemini call never sits in front of notifications and broadcasts.
+        $this->onQueue(AnalyzeTicketJob::QUEUE);
+    }
 
     /**
      * Back off between attempts: long enough for a rate limit to clear, short

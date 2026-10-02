@@ -10,6 +10,7 @@ use App\Domains\Tickets\Services\SlaCalculator;
 use App\Domains\Tickets\Services\TicketLifecycle;
 use App\Domains\Tickets\Services\TicketNumberGenerator;
 use App\Enums\ActivityAction;
+use App\Enums\TicketPrioritySource;
 use App\Enums\TicketSource;
 use App\Enums\TicketUpdateType;
 use App\Models\PcUnit;
@@ -32,7 +33,10 @@ use Illuminate\Support\Facades\DB;
  *
  *  - the **status** is the seeded default (`Open`), never client-supplied;
  *  - the **priority** falls back to the category's `default_priority_id`, so a
- *    teacher who does not know what "P2" means still gets a sensible clock;
+ *    teacher who does not know what "P2" means still gets a sensible clock —
+ *    then is raised to the room's administrator-configured **priority floor**
+ *    when the room has one (Phase 2.9, D-B), and `priority_source` records
+ *    which rule decided it;
  *  - the **SLA deadlines** come from that priority (FR-TKT-004);
  *  - the **room** is inherited from the chosen PC unit when the reporter did not
  *    name one, because a machine already knows where it lives.
@@ -62,11 +66,12 @@ class CreateTicket
             ->where('slug', (string) $data['category'])
             ->firstOrFail();
 
-        $priority = $this->resolvePriority($data['priority'] ?? null, $category);
         $status = TicketStatus::query()->where('is_default', true)->firstOrFail();
 
         $pcUnit = $this->resolvePcUnit($data['pc_unit'] ?? null);
         $room = $this->resolveRoom($data['room'] ?? null) ?? $pcUnit?->room;
+
+        [$priority, $prioritySource] = $this->resolvePriority($data['priority'] ?? null, $category, $room);
 
         // Technicians and administrators may file on behalf of a reporter
         // (FR-TKT-003); a teacher may only ever report as themselves, which the
@@ -76,7 +81,7 @@ class CreateTicket
         $deadlines = $this->sla->deadlinesFor($priority);
 
         $ticket = DB::transaction(function () use (
-            $data, $category, $priority, $status, $pcUnit, $room, $reporter, $actor, $deadlines
+            $data, $category, $priority, $prioritySource, $status, $pcUnit, $room, $reporter, $actor, $deadlines
         ): Ticket {
             $ticket = Ticket::create([
                 'ticket_number' => $this->numbers->next(),
@@ -85,6 +90,7 @@ class CreateTicket
                 'pc_unit_id' => $pcUnit?->getKey(),
                 'category_id' => $category->getKey(),
                 'priority_id' => $priority->getKey(),
+                'priority_source' => $prioritySource->value,
                 'current_status_id' => $status->getKey(),
                 'title' => $data['title'],
                 'description' => $data['description'],
@@ -119,6 +125,7 @@ class CreateTicket
                 'title' => $ticket->title,
                 'category' => $category->slug,
                 'priority' => $priority->slug,
+                'priority_source' => $prioritySource->value,
                 'pc_unit' => $pcUnit?->unit_code,
                 'room' => $room?->name,
                 'on_behalf_of' => $reporter->getKey() !== $actor->getKey() ? $reporter->fullName() : null,
@@ -137,13 +144,32 @@ class CreateTicket
     /**
      * A requester rarely knows what priority a fault deserves, so the category's
      * default carries it. An administrator may still state one explicitly.
+     *
+     * Phase 2.9 (D-B): a derived priority is then raised — never lowered — to
+     * the room's priority floor. An explicit staff choice is left exactly as
+     * chosen and recorded as `manual`: the person filing can see the room, and
+     * a human decision outranks every automatic rule, the floor included.
+     *
+     * @return array{TicketPriority, TicketPrioritySource}
      */
-    private function resolvePriority(mixed $slug, TicketCategory $category): TicketPriority
+    private function resolvePriority(mixed $slug, TicketCategory $category, ?Room $room): array
     {
         if (is_string($slug) && $slug !== '') {
-            return TicketPriority::query()->where('slug', $slug)->firstOrFail();
+            return [TicketPriority::query()->where('slug', $slug)->firstOrFail(), TicketPrioritySource::Manual];
         }
 
+        $derived = $this->categoryPriority($category);
+        $floor = $room?->priorityFloor;
+
+        if ($floor !== null && $floor->level > $derived->level) {
+            return [$floor, TicketPrioritySource::Location];
+        }
+
+        return [$derived, TicketPrioritySource::Category];
+    }
+
+    private function categoryPriority(TicketCategory $category): TicketPriority
+    {
         if ($category->default_priority_id !== null) {
             $default = TicketPriority::query()->find($category->default_priority_id);
 

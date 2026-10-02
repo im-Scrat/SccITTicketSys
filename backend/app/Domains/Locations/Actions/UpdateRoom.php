@@ -9,6 +9,7 @@ use App\Enums\ActivityAction;
 use App\Enums\RoomType;
 use App\Models\Floor;
 use App\Models\Room;
+use App\Models\TicketPriority;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -62,7 +63,24 @@ class UpdateRoom
             }
         }
 
-        DB::transaction(function () use ($room, $data, $actor, $floor): void {
+        // Phase 2.9 — absent key: leave the floor alone; null: clear it.
+        $priorityFloorId = $room->priority_floor_id;
+
+        if (array_key_exists('priority_floor', $data)) {
+            $priorityFloor = is_string($data['priority_floor'])
+                ? TicketPriority::query()->where('slug', $data['priority_floor'])->firstOrFail()
+                : null;
+            $priorityFloorId = $priorityFloor?->getKey();
+
+            if ($priorityFloorId !== $room->priority_floor_id) {
+                $changes['priority_floor'] = [
+                    'from' => $room->priorityFloor?->slug,
+                    'to' => $priorityFloor?->slug,
+                ];
+            }
+        }
+
+        DB::transaction(function () use ($room, $data, $actor, $floor, $priorityFloorId): void {
             $room->fill([
                 'floor_id' => $floor?->getKey() ?? $room->floor_id,
                 'room_type' => isset($data['room_type'])
@@ -75,6 +93,7 @@ class UpdateRoom
                     ? (int) $data['capacity']
                     : null,
                 'description' => $data['description'] ?? null,
+                'priority_floor_id' => $priorityFloorId,
                 'updated_by' => $actor->getKey(),
             ]);
 
