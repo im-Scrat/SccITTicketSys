@@ -3,7 +3,12 @@
 #  SccIT — the quality gate (WP-2.7d).
 #
 #      scripts/gates.sh [--only backend|frontend] [--skip-build]
-#                       [--with-e2e] [--with-a11y]
+#                       [--with-e2e] [--with-a11y] [--stack dev|isolated]
+#
+#  --stack isolated runs every gate in a disposable environment with its own
+#  PostgreSQL and Redis (scripts/lib/isolated-gate.sh) instead of the dev
+#  stack's containers — the mode in use since the owner retired :8080 on
+#  2026-10-02. It tests the working tree (tracked + new, never ignored files).
 #
 #  One command for the gate CLAUDE.md §6 describes, so "did you run the gates?"
 #  has a single answer instead of nine remembered commands. Every gate runs
@@ -30,6 +35,7 @@ set -u
 . "$(dirname "$0")/lib/stack.sh"
 
 ONLY=''
+GATE_STACK='dev'
 SKIP_BUILD=0
 WITH_E2E=0
 WITH_A11Y=0
@@ -41,17 +47,30 @@ while [ $# -gt 0 ]; do
         --with-e2e) WITH_E2E=1; shift ;;
         --with-a11y) WITH_A11Y=1; shift ;;
         --stack)
-            [ "${2:-dev}" = 'dev' ] || die "the gates run against the dev stack only:
+            GATE_STACK="${2:-dev}"
+            case "$GATE_STACK" in
+                dev|isolated) ;;
+                *) die "the gates run on the dev stack or in an isolated environment:
        the production image installs with --no-dev, so Pint, PHPStan, Pest and
-       the entire frontend toolchain are absent from it by design."
+       the entire frontend toolchain are absent from it by design." ;;
+            esac
             shift 2 ;;
-        -h|--help) sed -n '2,27p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
         *) die "unknown argument: $1" ;;
     esac
 done
 
-stack_select dev
-require_stack_running || exit 1
+if [ "$GATE_STACK" = 'isolated' ]; then
+    # The browser suites drive a running stack; the isolated mode has none.
+    [ "$WITH_E2E" -eq 0 ] && [ "$WITH_A11Y" -eq 0 ] \
+        || die "--with-e2e/--with-a11y need a running stack; run them against the target separately."
+    . "$(dirname "$0")/lib/isolated-gate.sh"
+    trap iso_cleanup EXIT INT TERM
+    iso_prepare || die "could not prepare the isolated gate environment."
+else
+    stack_select dev
+    require_stack_running || exit 1
+fi
 
 PASSED=0
 FAILED=0
@@ -71,8 +90,13 @@ run_gate() { # run_gate <label> <command...>
     fi
 }
 
-be() { dc exec -T app "$@"; }
-fe() { dc exec -T node sh -lc "cd /app && $1"; }
+if [ "$GATE_STACK" = 'isolated' ]; then
+    be() { iso_be "$@"; }
+    fe() { iso_fe "$1"; }
+else
+    be() { dc exec -T app "$@"; }
+    fe() { dc exec -T node sh -lc "cd /app && $1"; }
+fi
 
 say "=============================================================="
 say " SccIT quality gate"
@@ -86,13 +110,19 @@ if [ "$ONLY" != 'frontend' ]; then
     # `migrate:status` exits 0 even when migrations are pending, so the gate has
     # to read its output. A deployment whose schema is behind its code is the
     # exact failure this catches, and no other gate would notice it.
-    printf '\n-- backend: migration status\n'
-    if be php artisan migrate:status | tee /dev/stderr | grep -q 'Pending'; then
-        FAILED=$((FAILED + 1)); RESULTS="$RESULTS
+    #
+    # Skipped in isolated mode: that database is created fresh by the test run,
+    # so it can never have pending migrations and the check could only pass.
+    # Production's own migration state is checked by deploy-prod.sh instead.
+    if [ "$GATE_STACK" != 'isolated' ]; then
+        printf '\n-- backend: migration status\n'
+        if be php artisan migrate:status | tee /dev/stderr | grep -q 'Pending'; then
+            FAILED=$((FAILED + 1)); RESULTS="$RESULTS
   FAIL  backend: migration status (pending migrations)"
-    else
-        PASSED=$((PASSED + 1)); RESULTS="$RESULTS
+        else
+            PASSED=$((PASSED + 1)); RESULTS="$RESULTS
   PASS  backend: migration status"
+        fi
     fi
 fi
 
