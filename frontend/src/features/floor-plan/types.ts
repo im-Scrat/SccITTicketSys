@@ -7,7 +7,7 @@
  */
 
 /** Presentation tone the server decides, so the client never picks a status colour. */
-export type Tone = 'neutral' | 'success' | 'warning' | 'danger'
+export type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'info'
 
 /** Mirrors the backend `PcStatus` enum. */
 export type PcStatusValue =
@@ -35,6 +35,8 @@ export interface PlacedPc {
    * with 409 when it no longer matches what is actually stored.
    */
   updated_at: string
+  /** The newest open ticket on this machine, if any — the map's "alert" and tooltip detail. */
+  open_ticket: { id: string; reference: string } | null
 }
 
 /** A unit of the room with no position on this layout yet. */
@@ -77,6 +79,18 @@ export interface RoomPlan {
   /** Live PC units in the room that have no position on this layout. */
   unplaced_count: number
   editor: PlanEditor
+}
+
+/** What an editor asks for when starting a layout version. The server applies the grid default when omitted. */
+export interface LayoutCreateRequest {
+  width: number
+  height: number
+  grid_size?: number | null
+}
+
+/** A layout version as the create/activate endpoints return it. */
+export interface PlanLayoutRecord extends PlanLayout {
+  is_active: boolean
 }
 
 /** Where a unit was aimed. The server snaps (unless `snap` is false), clamps and stores. */

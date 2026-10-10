@@ -27,6 +27,7 @@ const PendingApprovalPage = lazy(() => import('@/features/auth/pages/PendingAppr
 const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'))
 const AccountPage = lazy(() => import('@/features/auth/pages/WorkspaceHomePage'))
+const ForcePasswordChangePage = lazy(() => import('@/features/auth/pages/ForcePasswordChangePage'))
 
 // Notification centre (Phase 2.7 / WP-2.7b).
 const NotificationsPage = lazy(() => import('@/features/notifications/pages/NotificationsPage'))
@@ -152,6 +153,8 @@ function App() {
 
             {/* Authenticated application. */}
             <Route element={<ProtectedRoute />}>
+              {/* Outside AppLayout on purpose — see ForcePasswordChangePage. */}
+              <Route path="/change-password" element={<ForcePasswordChangePage />} />
               <Route path="/app" element={<AppLayout />}>
                 {/* The role-aware dashboard is the landing surface (FR-DSH-001);
                     profile and password moved to /app/account. */}

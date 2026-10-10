@@ -10,7 +10,9 @@ use App\Models\PcUnit;
 use App\Models\Permission;
 use App\Models\Room;
 use App\Models\RoomLayout;
+use App\Models\TicketStatus;
 use App\Models\User;
+use Database\Seeders\TicketLookupSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -315,7 +317,7 @@ it('exposes a narrow payload with no numeric ids and no register data', function
     expect(array_keys($data))->toBe(['room', 'layout', 'pcs', 'unplaced', 'unplaced_count', 'editor'])
         ->and(array_keys($data['room']))->toBe(['id', 'name', 'code', 'floor', 'building'])
         ->and(array_keys($data['layout']))->toBe(['version', 'width', 'height', 'grid_size'])
-        ->and(array_keys($data['pcs'][0]))->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index', 'updated_at'])
+        ->and(array_keys($data['pcs'][0]))->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index', 'updated_at', 'open_ticket'])
         ->and(array_keys($data['editor']))->toBe(['can_edit', 'snap_to_grid']);
 
     $encoded = (string) $response->getContent();
@@ -324,4 +326,29 @@ it('exposes a narrow payload with no numeric ids and no register data', function
         expect($encoded)->not->toContain($field);
     }
     expect($encoded)->not->toContain($this->pc->serial_number);
+});
+
+// ── The open-ticket reference (fix pass 2) ──────────────────────────────────
+
+it('carries the newest open ticket on a unit as a reference only, and null once it is closed', function (): void {
+    $this->seed(TicketLookupSeeder::class);
+    $admin = userWithRole('administrator');
+    $reporter = userWithRole('teacher', ['first_name' => 'Reporter', 'last_name' => 'Secretname', 'email' => 'reporter.secret@school.test']);
+
+    ticketFor($reporter, 'closed', ['pc_unit_id' => $this->pc->id, 'title' => 'Old closed fault']);
+    $open = ticketFor($reporter, 'open', ['pc_unit_id' => $this->pc->id, 'title' => 'Fan grinding noise']);
+
+    $response = $this->actingAs($admin)->getJson(($this->url)($this->room->uuid))->assertOk();
+
+    expect($response->json('data.pcs.0.open_ticket'))->toBe(['id' => $open->uuid, 'reference' => $open->ticket_number]);
+
+    // Reference and uuid only — never the title, the description or the reporter.
+    $encoded = (string) $response->getContent();
+    foreach (['Fan grinding noise', 'Old closed fault', 'Secretname', 'reporter.secret'] as $leak) {
+        expect($encoded)->not->toContain($leak);
+    }
+
+    $open->forceFill(['current_status_id' => TicketStatus::query()->where('slug', 'closed')->value('id')])->save();
+
+    expect($this->actingAs($admin)->getJson(($this->url)($this->room->uuid))->json('data.pcs.0.open_ticket'))->toBeNull();
 });

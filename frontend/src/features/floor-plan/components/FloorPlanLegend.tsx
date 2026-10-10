@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import type { PcStatus, PlacedPc } from '../types'
-import { PcMarker } from './PcMarker'
 import { PcStatusBadge } from './PcStatusBadge'
+import { PcTile } from './PcTile'
 
 interface Entry {
   status: PcStatus
@@ -9,12 +9,10 @@ interface Entry {
 }
 
 /**
- * Which statuses appear on this map, each with the shape that draws it, its
- * written label, and how many units carry it.
- *
- * Built from the units actually on the plan, so the wording is the server's and
- * there is no second list of statuses here to fall out of step with the
- * backend enum. The shape swatch is decorative; the label is the content.
+ * Every status present on the map, as a swatch (the very tile the map draws),
+ * the server's label as a pill, and a count — in the map card's footer, like
+ * the product visual. Nothing is listed that is not on the plan; a legend for
+ * absent states is noise.
  */
 export function FloorPlanLegend({ pcs }: { pcs: PlacedPc[] }) {
   const headingId = useId()
@@ -32,15 +30,15 @@ export function FloorPlanLegend({ pcs }: { pcs: PlacedPc[] }) {
   if (entries.length === 0) return null
 
   return (
-    <section aria-labelledby={headingId} className="rounded-md border border-border bg-surface p-4">
-      <h2 id={headingId} className="text-sm font-semibold text-ink-strong">
+    <section aria-labelledby={headingId} className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+      <h2 id={headingId} className="text-xs font-semibold uppercase tracking-wide text-muted">
         Legend
       </h2>
-      <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-3">
+      <ul className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
         {entries.map(({ status, count }) => (
-          <li key={status.value} className="flex items-center gap-2.5">
-            <svg viewBox="-14 -14 28 28" width="28" height="28" aria-hidden="true">
-              <PcMarker status={status.value} tone={status.tone} radius={11} />
+          <li key={status.value} className="flex items-center gap-2">
+            <svg viewBox="-14 -14 28 28" width="24" height="24" aria-hidden="true">
+              <PcTile status={status.value} tone={status.tone} radius={12} />
             </svg>
             <PcStatusBadge status={status} />
             <span className="tnum text-sm text-muted">

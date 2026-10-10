@@ -1,8 +1,38 @@
 import { isAxiosError } from 'axios'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { placePcUnit } from '../api/floorPlanApi'
-import type { PlacedPc, PlacementRequest, RoomPlan, StaleWriteConflict, UnplacedPc } from '../types'
+import { activateRoomLayout, createRoomLayout, placePcUnit } from '../api/floorPlanApi'
+import type {
+  LayoutCreateRequest,
+  PlacedPc,
+  PlacementRequest,
+  PlanLayoutRecord,
+  RoomPlan,
+  StaleWriteConflict,
+  UnplacedPc,
+} from '../types'
 import { floorPlanKeys } from './queries'
+
+/**
+ * Create a layout version and make it the room's active one, as one action.
+ *
+ * Two requests on purpose — the server keeps creation and activation apart so
+ * a version can be prepared without disturbing the live map. From the editor's
+ * seat, though, "create a floor plan" means "and show it", so the hook does
+ * both and only then refetches the plan. If activation fails after creation,
+ * an inactive version is left behind; that is harmless (it is invisible and
+ * the next attempt simply makes another) and the error is surfaced as-is.
+ */
+export function useCreateLayout(roomId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation<PlanLayoutRecord, unknown, LayoutCreateRequest>({
+    mutationFn: async (request) => {
+      const created = await createRoomLayout(roomId, request)
+      return activateRoomLayout(roomId, created.version)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: floorPlanKeys.room(roomId) }),
+  })
+}
 
 export interface PlaceVariables {
   version: number
@@ -64,6 +94,8 @@ export function usePlacePcUnit(roomId: string) {
               rotation: 0,
               z_index: 0,
               updated_at: new Date().toISOString(),
+              // Unknown until the server answers; the real value arrives in onSuccess.
+              open_ticket: null,
             }
           : undefined
 

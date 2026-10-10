@@ -72,6 +72,8 @@ it('dispatches PositionUpdated on the room\'s private channel after a successful
                 'y' => 100,
                 'rotation' => 0,
                 'z_index' => 0,
+                // Fix pass 2: the newest open ticket's reference, or null.
+                'open_ticket' => null,
             ],
         ]);
 

@@ -58,3 +58,54 @@ it('is case-insensitive about names and leaves an empty name list untouched', fu
     expect((new PromptRedactor)->redact('ask MARIA', ['maria']))->toBe('ask [person]');
     expect((new PromptRedactor)->redact('nothing to see', []))->toBe('nothing to see');
 });
+
+/* ---------------------------------------- credentials (pre-commit fix pass) */
+
+it('removes credentials a user types or pastes', function (string $input, string $secret) {
+    $out = (new PromptRedactor)->redact($input);
+
+    expect($out)->not->toContain($secret)->toContain('[secret]');
+})->with([
+    'password label' => ['my password: Hunter2-Galaxy!', 'Hunter2-Galaxy!'],
+    'password is' => ['my password is Hunter2-Galaxy!', 'Hunter2-Galaxy!'],
+    'quoted pwd' => ['pwd="Hunter2 Galaxy"', 'Hunter2 Galaxy'],
+    'api key label' => ['api key = sk_live_abc123', 'sk_live_abc123'],
+    'bearer' => ['Authorization: Bearer abc.def.ghi-jkl_mno', 'abc.def.ghi-jkl_mno'],
+    'sanctum token' => ['token 7|AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcd', 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcd'],
+    'jwt' => ['jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl', 'eyJhbGciOiJIUzI1NiJ9'],
+    'laravel cookie' => ['cookie value eyJpdiI6IkFCQ0QiLCJ2YWx1ZSI6Inh5eiJ9', 'eyJpdiI6IkFCQ0Qi'],
+    'google key' => ['key AIzaSyA1234567890abcdefghijklmnopqrstu', 'AIzaSyA1234567890'],
+    'app key' => ['APP_KEY base64:c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0MTIzNA==', 'c2VjcmV0c2VjcmV0'],
+    'bcrypt hash' => ['hash $2y$12$abcdefghijklmnopqrstuuJxQZ0n1Hq8m3b1p8vH0e2tM6YfGQyW2', '$2y$12$abcdefghijklmnop'],
+    'argon hash' => ['$argon2id$v=19$m=65536,t=4,p=1$c29tZXNhbHQ$aGFzaA', '$argon2id$'],
+    'long hex' => ['sha 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', '9f86d081884c7d659a2f'],
+]);
+
+it('removes this deployment\'s configured secrets by value, whatever their shape', function () {
+    config(['ai.providers.gemini.key' => 'plain-words-key-value', 'database.connections.pgsql.password' => 'correct horse battery']);
+
+    $out = (new PromptRedactor)->redact('tried plain-words-key-value then correct horse battery');
+
+    expect($out)->not->toContain('plain-words-key-value')->not->toContain('correct horse battery');
+});
+
+it('leaves fault descriptions that merely mention credentials alone', function (string $input) {
+    expect((new PromptRedactor)->redact($input))->toBe($input);
+})->with([
+    'pin is bent' => 'One CPU pin is bent on the socket',
+    'token expired' => 'The login token is expired again',
+    'forgot password' => 'I forgot my password for the lab PC',
+    'uuid' => 'Ticket 436785c7-927b-4fc1-afcc-2d3d008f638c',
+    'url path' => 'See https://support.example.com/kb/how-to-reset-the-projector-lamp-timer-2024',
+    'mac address' => 'MAC 00:1A:2B:3C:4D:5E on port 12',
+]);
+
+it('leaves role and generic words alone even when an account is named after them', function () {
+    $out = (new PromptRedactor)->redact('Open tickets per technician. All tickets in the system. System Administrator approved it.', ['System Administrator', 'technician ko']);
+
+    expect($out)->toContain('per technician')->toContain('in the system')->toContain('[person] approved')->not->toContain('System Administrator');
+});
+
+it('does not read a page label as a credential', function () {
+    expect((new PromptRedactor)->redact('Account settings (name, password change): /app/account'))->toContain('/app/account');
+});

@@ -12,7 +12,7 @@ import {
 import { toViewBox, visibleSize } from '../lib/viewport'
 import { useViewportStore } from '../stores/useViewportStore'
 import type { PlacedPc, PlanLayout } from '../types'
-import { PcMarker } from './PcMarker'
+import { PcTile } from './PcTile'
 
 /**
  * The floor-plan map, drawn as SVG.
@@ -57,6 +57,14 @@ const KEY_PAN: Record<string, [number, number]> = {
 /** Screen pixels a pointer must travel before a press on a unit becomes a drag. */
 const DRAG_THRESHOLD = 4
 
+/** "Under Maintenance · Ticket TKT-2026-00042" — the second line of a unit's detail card and its native tooltip. */
+function detailLine(pc: PlacedPc, withName: boolean): string {
+  const status = pc.open_ticket
+    ? `${pc.status.label} · Ticket ${pc.open_ticket.reference}`
+    : pc.status.label
+  return withName ? `${pc.name} — ${status}` : status
+}
+
 type Gesture =
   | { kind: 'keyboard'; id: string; origin: Point; point: Point; fine: boolean }
   | {
@@ -87,6 +95,8 @@ interface FloorPlanCanvasProps {
   savingIds?: ReadonlySet<string>
   /** Say something in the page's polite live region. */
   announce?: (message: string) => void
+  /** Draw the map's own border. Off when the page already frames it in a card. */
+  framed?: boolean
 }
 
 export function FloorPlanCanvas({
@@ -100,6 +110,7 @@ export function FloorPlanCanvas({
   onPlace,
   savingIds,
   announce,
+  framed = true,
 }: FloorPlanCanvasProps) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const gridId = `fp-grid-${uid}`
@@ -116,6 +127,9 @@ export function FloorPlanCanvas({
   const svgRef = useRef<SVGSVGElement>(null)
   const pan = useRef<{ pointerId: number; x: number; y: number } | null>(null)
   const [panning, setPanning] = useState(false)
+  // The unit whose detail card is shown: hovered, or focused by keyboard. The
+  // selected unit (edit mode) is the fallback so a keyboard user sees it too.
+  const [hoverId, setHoverId] = useState<string | null>(null)
 
   // The in-progress move, if any. Mirrored in a ref so pointer handlers that
   // fire in quick succession always see the latest value.
@@ -404,6 +418,21 @@ export function FloorPlanCanvas({
   const liftedId =
     gesture && (gesture.kind === 'keyboard' || gesture.moved) ? nodeId(gesture.id) : null
 
+  const tip = (() => {
+    if (gesture) return null
+    const pc = pcs.find((p) => p.id === (hoverId ?? selectedId))
+    if (!pc) return null
+    // Sized from the longer line; kept inside the plan, flipped below the
+    // tile when there is no room above it.
+    const chars = Math.max(pc.unit_code.length, detailLine(pc, false).length)
+    const width = chars * nameSize * 0.6 + nameSize * 1.6
+    const height = nameSize * 3.5
+    const x = Math.min(Math.max(pc.x - width / 2, 0), Math.max(layout.width - width, 0))
+    const above = pc.y - radius - height - nameSize * 0.5
+    const y = above >= 0 ? above : pc.y + radius + statusSize * 2.6 + nameSize * 1.6
+    return { pc, x, y, width, height }
+  })()
+
   return (
     <div>
       <div
@@ -413,7 +442,10 @@ export function FloorPlanCanvas({
         aria-label={`Floor plan of ${roomName}, ${pcs.length} ${pcs.length === 1 ? 'unit' : 'units'} placed`}
         aria-describedby={helpId}
         onKeyDown={onKeyDown}
-        className="overflow-hidden rounded-md border border-border bg-surface-sunken"
+        className={cn(
+          'overflow-hidden bg-surface-sunken',
+          framed && 'rounded-md border border-border',
+        )}
       >
         <svg
           ref={svgRef}
@@ -505,11 +537,17 @@ export function FloorPlanCanvas({
                 onPointerCancel={onNodePointerCancel}
                 onLostPointerCapture={onNodePointerCancel}
                 onKeyDown={(event) => onNodeKeyDown(pc, event)}
-                onBlur={() => onNodeBlur(pc)}
+                onPointerEnter={() => setHoverId(pc.id)}
+                onPointerLeave={() => setHoverId((current) => (current === pc.id ? null : current))}
+                onFocus={() => setHoverId(pc.id)}
+                onBlur={() => {
+                  setHoverId((current) => (current === pc.id ? null : current))
+                  onNodeBlur(pc)
+                }}
               >
-                <title>{`${pc.name} — ${pc.status.label}`}</title>
+                <title>{detailLine(pc, true)}</title>
                 <g transform={pc.rotation ? `rotate(${pc.rotation})` : undefined}>
-                  <PcMarker status={pc.status.value} tone={pc.status.tone} radius={radius} />
+                  <PcTile status={pc.status.value} tone={pc.status.tone} radius={radius} />
                 </g>
                 {/* Written labels sit outside the rotation so they stay upright. */}
                 <text
@@ -578,6 +616,44 @@ export function FloorPlanCanvas({
               pointerEvents="none"
               data-testid="floor-plan-lift-overlay"
             />
+          )}
+
+          {/* The detail card for the hovered/focused unit: code, status and
+              the open ticket, like the product visual. Painted last, inert,
+              and hidden while a move is in progress (the unit is elsewhere). */}
+          {tip && (
+            <g
+              transform={`translate(${tip.x} ${tip.y})`}
+              pointerEvents="none"
+              aria-hidden="true"
+              data-testid="floor-plan-tooltip"
+            >
+              <rect
+                width={tip.width}
+                height={tip.height}
+                rx={nameSize * 0.4}
+                className="fill-surface stroke-border"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+              <text
+                x={nameSize * 0.8}
+                y={nameSize * 1.35}
+                fontSize={nameSize * 0.95}
+                fontWeight={600}
+                className="fill-ink-strong font-mono"
+              >
+                {tip.pc.unit_code}
+              </text>
+              <text
+                x={nameSize * 0.8}
+                y={nameSize * 2.7}
+                fontSize={nameSize * 0.85}
+                className={tip.pc.open_ticket ? 'fill-warning-strong' : 'fill-muted'}
+              >
+                {detailLine(tip.pc, false)}
+              </text>
+            </g>
           )}
         </svg>
       </div>

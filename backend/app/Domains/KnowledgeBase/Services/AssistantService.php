@@ -41,6 +41,13 @@ use Illuminate\Support\Str;
  * and `advisory` so the client labels it (FR-AI-031). Personal data is removed
  * from the prompt by the invoker on the way out (FR-AI-030).
  *
+ * ── What it is told ────────────────────────────────────────────────────────
+ *
+ * Only what {@see AssistantContext} allowlists: the caller's role and
+ * capabilities (never who they are), and named fields of tickets the caller is
+ * already authorized to see. The user is always `$request->user()` — the
+ * request carries no user id, role or reporter field that could widen it.
+ *
  * If retrieval fails the assistant still answers — from the question, the
  * attached ticket and its own tickets — and says when it has nothing to go on.
  */
@@ -54,6 +61,10 @@ class AssistantService
         private readonly AiSettings $settings,
         private readonly KnowledgeRetriever $retriever,
         private readonly AssistantTicketLookup $tickets,
+        private readonly AssistantContext $context,
+        private readonly PromptRedactor $redactor,
+        private readonly AssistantToolbox $toolbox,
+        private readonly AssistantAccountOverview $overview,
     ) {}
 
     /**
@@ -71,20 +82,30 @@ class AssistantService
         $model = $this->settings->activeModel();
         $conversationId ??= (string) Str::uuid();
 
-        $matches = $this->knowledge($message);
+        // A credential typed into the question is removed before anything else
+        // sees it — not only on the way to the provider, but before it is
+        // stored in ai_conversation_logs and replayed as history on every
+        // later turn. Names and contact details stay in the user's own record
+        // and are removed on the way out, by the invoker.
+        $message = $this->redactor->redactSecrets($message);
+
+        $matches = $this->context->mayUseKnowledge($user) ? $this->knowledge($message) : [];
         $tickets = $this->tickets->relevantTo($user, $message);
 
-        $isStaff = $user->isAdministrator() || $user->role?->slug === 'technician';
-
+        // The lookups this user may make — chosen by role and permission here,
+        // re-authorized inside each tool when the model calls it.
         $agent = new AssistantAgent(
-            $isStaff
-                ? 'The user is IT staff: you may suggest more technical checks, but still nothing destructive.'
-                : 'The user is a teacher, not a technician: suggest only simple, safe steps. Never tell them to open the computer, change firmware settings, run commands or install software.',
+            $this->context->audienceRule($user),
+            $this->context->userBlock($user),
+            $this->toolbox->for($user),
         );
 
-        $prompt = $this->prompt($message, $this->history($user, $conversationId), $matches, $tickets, $attached);
+        $prompt = $this->prompt($user, $message, $this->history($user, $conversationId), $matches, $tickets, $attached);
 
-        $names = array_values(array_filter([$user->fullName(), $attached?->reporter?->fullName()]));
+        $names = [
+            ...$this->context->namesToRedact($user, $attached, $tickets),
+            ...$this->context->counterpartNames($user),
+        ];
         $invocation = $this->invoker->invoke($agent, $prompt, $model, $names);
 
         $citations = $this->citations($matches, $tickets, $attached);
@@ -167,28 +188,26 @@ class AssistantService
      * @param  list<KnowledgeMatch>  $matches
      * @param  iterable<Ticket>  $tickets
      */
-    private function prompt(string $question, string $history, array $matches, iterable $tickets, ?Ticket $attached): string
+    private function prompt(User $user, string $question, string $history, array $matches, iterable $tickets, ?Ticket $attached): string
     {
-        $blocks = [];
+        // Who is asking (role and capabilities) is in the agent's instructions,
+        // not here — see AssistantAgent. The prompt carries only data, and the
+        // first datum is the account summary: counts and the newest tickets in
+        // the user's own scope, so "how many have I reported" needs no tool
+        // call. Untrusted because ticket titles in it were typed by people.
+        $blocks = [
+            PromptGuard::wrapUntrustedData('the user\'s account summary', $this->overview->text($user)),
+        ];
 
         if ($attached !== null) {
-            $attached->loadMissing(['status', 'category']);
-
-            $blocks[] = PromptGuard::wrapUntrustedData('ticket the user is asking about', implode("\n", array_filter([
-                "Reference: {$attached->ticket_number}",
-                "Title: {$attached->title}",
-                'Status: '.($attached->statusRow()->name ?? 'unknown'),
-                $attached->category !== null ? "Category: {$attached->category->name}" : null,
-                "Description: {$attached->description}",
-                $attached->ai_summary !== null ? "Earlier AI summary: {$attached->ai_summary}" : null,
-            ])));
+            $blocks[] = PromptGuard::wrapUntrustedData('ticket the user is asking about', $this->context->attachedTicket($user, $attached));
         }
 
         $others = collect($tickets)->reject(fn (Ticket $t): bool => $attached !== null && $t->is($attached));
 
         if ($others->isNotEmpty()) {
             $blocks[] = PromptGuard::wrapUntrustedData('tickets the user may be referring to', $others
-                ->map(fn (Ticket $t): string => sprintf('- %s (%s, %s): %s', $t->ticket_number, $t->statusRow()->name ?? 'unknown status', $t->created_at?->toDateString() ?? 'unknown date', $t->title))
+                ->map(fn (Ticket $t): string => $this->context->ticketLine($t))
                 ->implode("\n"));
         }
 

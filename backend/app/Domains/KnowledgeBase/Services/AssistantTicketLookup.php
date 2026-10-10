@@ -56,8 +56,10 @@ class AssistantTicketLookup
         }
 
         $query = Ticket::query()
-            ->with(['status:id,name', 'category:id,name'])
-            ->select(['tickets.id', 'tickets.uuid', 'tickets.ticket_number', 'tickets.title', 'tickets.current_status_id', 'tickets.category_id', 'tickets.created_at']);
+            // The reporter is loaded for its *name only*, so the redactor can
+            // remove it from titles ("Ms Cruz's PC") — it never enters the prompt.
+            ->with(['status:id,name', 'category:id,name', 'reporter:id,first_name,middle_name,last_name'])
+            ->select(['tickets.id', 'tickets.uuid', 'tickets.ticket_number', 'tickets.title', 'tickets.current_status_id', 'tickets.category_id', 'tickets.reporter_id', 'tickets.created_at']);
 
         if ($user->isAdministrator()) {
             $this->visibility->scope($query, $user);

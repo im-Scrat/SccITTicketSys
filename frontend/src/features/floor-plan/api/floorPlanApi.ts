@@ -1,5 +1,11 @@
 import { api } from '@/services/api'
-import type { PlacedPc, PlacementRequest, RoomPlan } from '../types'
+import type {
+  LayoutCreateRequest,
+  PlacedPc,
+  PlacementRequest,
+  PlanLayoutRecord,
+  RoomPlan,
+} from '../types'
 
 /**
  * One room's active layout and the PC units placed on it.
@@ -27,6 +33,33 @@ export async function placePcUnit(
   const { data } = await api.patch<{ data: PlacedPc }>(
     `/admin/floor-plan/rooms/${roomId}/layouts/${version}/positions/${pcId}`,
     request,
+  )
+  return data.data
+}
+
+/**
+ * Start a new layout version for a room (FR-FP-001/008). The server numbers it
+ * and returns it **inactive**; nothing is shown on the map until it is
+ * activated.
+ */
+export async function createRoomLayout(
+  roomId: string,
+  request: LayoutCreateRequest,
+): Promise<PlanLayoutRecord> {
+  const { data } = await api.post<{ data: PlanLayoutRecord }>(
+    `/admin/floor-plan/rooms/${roomId}/layouts`,
+    request,
+  )
+  return data.data
+}
+
+/** Make one version the room's active layout. Positions of the previous version stay with it. */
+export async function activateRoomLayout(
+  roomId: string,
+  version: number,
+): Promise<PlanLayoutRecord> {
+  const { data } = await api.post<{ data: PlanLayoutRecord }>(
+    `/admin/floor-plan/rooms/${roomId}/layouts/${version}/activate`,
   )
   return data.data
 }

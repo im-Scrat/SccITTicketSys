@@ -56,7 +56,14 @@ class FloorPlanService
         $positions = FloorPlanPosition::query()
             ->where('room_layout_id', $layout->getKey())
             ->whereHas('pcUnit', fn ($units) => $units->where('room_id', $layout->room_id))
-            ->with('pcUnit')
+            // The newest *open* ticket per unit rides along for the map's
+            // "alert" state and tooltip (fix pass 2). Loaded here, once, so
+            // the resource never queries per node; the resource falls back to
+            // one query only for the single-unit placement response.
+            ->with(['pcUnit', 'pcUnit.tickets' => fn ($tickets) => $tickets
+                ->select(['tickets.id', 'tickets.uuid', 'tickets.ticket_number', 'tickets.pc_unit_id'])
+                ->whereHas('status', fn ($status) => $status->where('is_open', true))
+                ->latest('tickets.id')])
             ->orderBy('z_index')
             ->orderBy('id')
             ->get();

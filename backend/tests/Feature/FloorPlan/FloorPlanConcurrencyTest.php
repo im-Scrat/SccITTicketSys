@@ -241,7 +241,7 @@ it('the stale-write refusal exposes no register data beyond the standard narrow 
     $response = ($this->move)(500, 500, $seenByClient)->assertStatus(409);
 
     expect(array_keys($response->json('current')))
-        ->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index', 'updated_at']);
+        ->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index', 'updated_at', 'open_ticket']);
 
     $encoded = (string) $response->getContent();
     foreach (['serial_number', 'ip_address', 'mac_address', 'room_id', 'pc_unit_id'] as $field) {

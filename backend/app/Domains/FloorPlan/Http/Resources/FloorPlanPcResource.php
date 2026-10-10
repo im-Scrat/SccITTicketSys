@@ -48,6 +48,13 @@ class FloorPlanPcResource extends JsonResource
         $position = $this->resource;
         $pcUnit = $position->pcUnit;
 
+        // Reference only — enough for "Under maintenance · Ticket TKT-…" on the
+        // map. Nothing else about the ticket leaves through this resource; the
+        // route is already administrator-only, so this widens no audience.
+        $open = $pcUnit->relationLoaded('tickets')
+            ? $pcUnit->tickets->first()
+            : $pcUnit->tickets()->whereHas('status', fn ($status) => $status->where('is_open', true))->latest('id')->first(['id', 'uuid', 'ticket_number', 'pc_unit_id']);
+
         return [
             'id' => $pcUnit->uuid,
             'name' => $pcUnit->pc_name,
@@ -62,6 +69,7 @@ class FloorPlanPcResource extends JsonResource
             'rotation' => (float) $position->rotation,
             'z_index' => $position->z_index,
             'updated_at' => $position->updated_at?->format(self::UPDATED_AT_FORMAT),
+            'open_ticket' => $open === null ? null : ['id' => $open->uuid, 'reference' => $open->ticket_number],
         ];
     }
 }

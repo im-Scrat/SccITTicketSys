@@ -55,7 +55,11 @@ enum PcStatus: string
             self::Online => 'success',
             self::UnderMaintenance => 'warning',
             self::Offline => 'danger',
-            self::Available, self::Assigned, self::Retired => 'neutral',
+            // Assigned is a *claimed* machine, not a fault and not spare stock:
+            // the map draws it in the primary hue (fix pass 2), and the tone is
+            // decided here so the client never maps a status to a colour.
+            self::Assigned => 'info',
+            self::Available, self::Retired => 'neutral',
         };
     }
 }

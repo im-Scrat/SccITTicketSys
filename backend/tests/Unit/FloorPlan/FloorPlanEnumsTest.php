@@ -11,7 +11,7 @@ use App\Enums\PcStatus;
 it('gives every PC status a label and one of the four API tones', function (): void {
     foreach (PcStatus::cases() as $status) {
         expect($status->label())->toBeString()->not->toBe('')
-            ->and($status->tone())->toBeIn(['neutral', 'success', 'warning', 'danger']);
+            ->and($status->tone())->toBeIn(['neutral', 'success', 'warning', 'danger', 'info']);
     }
 });
 
@@ -20,7 +20,7 @@ it('pins the label and tone of each PC status', function (PcStatus $status, stri
         ->and($status->tone())->toBe($tone);
 })->with([
     'available' => [PcStatus::Available, 'Available', 'neutral'],
-    'assigned' => [PcStatus::Assigned, 'Assigned', 'neutral'],
+    'assigned' => [PcStatus::Assigned, 'Assigned', 'info'],
     'online' => [PcStatus::Online, 'Online', 'success'],
     'offline' => [PcStatus::Offline, 'Offline', 'danger'],
     'under maintenance' => [PcStatus::UnderMaintenance, 'Under Maintenance', 'warning'],

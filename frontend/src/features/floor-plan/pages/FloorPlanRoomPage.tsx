@@ -1,10 +1,13 @@
 import { isAxiosError } from 'axios'
-import { ArrowLeft, LayoutGrid } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowLeft, LayoutGrid, LayoutTemplate, Rows3 } from 'lucide-react'
+import { useId, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Alert, EmptyState, PageLoader } from '@/components/ui'
+import { Alert, EmptyState, PageLoader, Surface } from '@/components/ui'
+import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import ForbiddenPage from '@/pages/ForbiddenPage'
+import { CreateLayoutForm } from '../components/CreateLayoutForm'
 import { FloorPlanCanvas } from '../components/FloorPlanCanvas'
 import { FloorPlanLegend } from '../components/FloorPlanLegend'
 import { FloorPlanToolbar } from '../components/FloorPlanToolbar'
@@ -12,19 +15,20 @@ import { PcInspectorPanel } from '../components/PcInspectorPanel'
 import { PcUnitList } from '../components/PcUnitList'
 import { PlacementPanel } from '../components/PlacementPanel'
 import { UnplacedUnits } from '../components/UnplacedUnits'
-import { usePlacePcUnit } from '../hooks/mutations'
+import { useCreateLayout, usePlacePcUnit } from '../hooks/mutations'
 import { useFloorPlanChannel } from '../hooks/useFloorPlanChannel'
 import { useRoomPlan } from '../hooks/queries'
 import { placementErrorMessage } from '../lib/errors'
 import { describePoint, freeSpot, nodeMetrics, previewPoint, type Point } from '../lib/placement'
-import type { PlacedPc, RoomPlan } from '../types'
+import { ALERT_STATUSES } from '../lib/presentation'
+import type { LayoutCreateRequest, PlacedPc, RoomPlan } from '../types'
 
 /** Invisible, but makes a repeated announcement a different string. */
 const NBSP = String.fromCharCode(0xa0)
 
 /**
  * One room's floor plan — the map and, for an Administrator who may edit it,
- * placement (WP-D).
+ * placement (WP-D) and, since fix pass 2, creating the plan itself.
  *
  * **Fails closed on the server's answer.** The route guard has already checked
  * the role and permission, but that is only a courtesy: the backend refuses
@@ -59,10 +63,14 @@ export default function FloorPlanRoomPage() {
 
 function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
   const place = usePlacePcUnit(roomId)
+  const createLayout = useCreateLayout(roomId)
+  const cardTitleId = useId()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [saving, setSaving] = useState<ReadonlySet<string>>(new Set())
   const [placeError, setPlaceError] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
+  const [arranging, setArranging] = useState(false)
+  const [newVersionOpen, setNewVersionOpen] = useState(false)
   // WP-G — which unit's maintenance history is open, if any. Independent of
   // `selectedId` (which drives move targeting in edit mode): selecting a node
   // to move it also opens its history, but closing the inspector must never
@@ -72,6 +80,9 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
   const { layout } = plan
   const editable = plan.editor.can_edit && layout !== null
   const where = [plan.room.building?.name, plan.room.floor?.name].filter(Boolean).join(' · ')
+  const alerts = plan.pcs.filter(
+    (pc) => pc.open_ticket !== null || ALERT_STATUSES.has(pc.status.value),
+  ).length
 
   /**
    * Polite, never assertive: a committed move is news, not an interruption. A
@@ -98,7 +109,7 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
     announce,
   })
 
-  /** The one write path — drag, keyboard move, numeric form and "Place on plan" all end here. */
+  /** The one write path — drag, keyboard move, numeric form, "Place on plan" and "Arrange" all end here. */
   const placeUnit = async (pcId: string, point: Point, snap: boolean): Promise<PlacedPc> => {
     if (!layout) throw new Error('No active layout.')
     const placed = plan.pcs.find((pc) => pc.id === pcId)
@@ -138,14 +149,52 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
     placeUnit(pc.id, point, snap).catch(() => undefined)
   }
 
+  const spotFor = (placed: PlacedPc[]): Point => {
+    if (!layout) return { x: 0, y: 0 }
+    return (
+      freeSpot(placed, layout, nodeMetrics(layout).radius * 3) ?? {
+        x: Math.round(layout.width / 2),
+        y: Math.round(layout.height / 2),
+      }
+    )
+  }
+
   const placeUnplaced = (pcId: string) => {
     if (!layout) return
-    const spot = freeSpot(plan.pcs, layout, nodeMetrics(layout).radius * 3) ?? {
-      x: Math.round(layout.width / 2),
-      y: Math.round(layout.height / 2),
-    }
     setSelectedId(pcId)
-    placeUnit(pcId, spot, true).catch(() => undefined)
+    placeUnit(pcId, spotFor(plan.pcs), true).catch(() => undefined)
+  }
+
+  /**
+   * Put every unplaced unit on the grid, in rows, one write at a time. Each
+   * placement goes through the same authorized, versioned call as a drag, and
+   * each next spot is chosen against the units placed so far (including the
+   * server's answer for the previous one), so nothing lands on top of
+   * anything. Stops at the first refusal — it is already shown.
+   */
+  const arrangeUnplaced = async () => {
+    if (!layout || arranging) return
+    setArranging(true)
+    try {
+      let placed = [...plan.pcs]
+      for (const unit of plan.unplaced) {
+        const stored = await placeUnit(unit.id, spotFor(placed), true)
+        placed = [...placed, stored]
+      }
+      announce(
+        `${plan.unplaced.length} ${plan.unplaced.length === 1 ? 'unit' : 'units'} arranged on the plan.`,
+      )
+    } catch {
+      // Announced and shown by placeUnit.
+    } finally {
+      setArranging(false)
+    }
+  }
+
+  const startLayout = async (request: LayoutCreateRequest) => {
+    await createLayout.mutateAsync(request)
+    setNewVersionOpen(false)
+    announce('A new layout is active. Units can now be placed on it.')
   }
 
   return (
@@ -160,21 +209,50 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
         </Link>
       </div>
 
-      <header>
-        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink-strong">
-          {plan.room.name}
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          {where || plan.room.code}
-          {layout && (
-            <>
-              {' · '}
-              <span className="tnum">
-                Layout v{layout.version}, {layout.width} × {layout.height}
-              </span>
-            </>
-          )}
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink-strong">
+            {plan.room.name}
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            {where || plan.room.code}
+            {layout && (
+              <>
+                {' · '}
+                <span className="tnum">
+                  Layout v{layout.version}, {layout.width} × {layout.height}
+                </span>
+              </>
+            )}
+          </p>
+        </div>
+
+        {editable && (
+          <div className="flex flex-wrap items-center gap-2">
+            {plan.unplaced.length > 0 && (
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Rows3 size={16} aria-hidden="true" />}
+                onClick={() => void arrangeUnplaced()}
+                loading={arranging}
+              >
+                Arrange{' '}
+                {plan.unplaced.length === 1
+                  ? 'the unplaced unit'
+                  : `${plan.unplaced.length} unplaced units`}
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<LayoutTemplate size={16} aria-hidden="true" />}
+              onClick={() => setNewVersionOpen(true)}
+            >
+              New layout version
+            </Button>
+          </div>
+        )}
       </header>
 
       {/* Movement is announced here (NFR-ACC-004). Always rendered, so the
@@ -184,15 +262,31 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
       </p>
 
       {layout === null ? (
-        <EmptyState
-          icon={<LayoutGrid size={22} />}
-          title="No floor plan for this room yet"
-          description={
-            plan.unplaced_count > 0
-              ? `${plan.unplaced_count} ${plan.unplaced_count === 1 ? 'unit is' : 'units are'} in this room, but the room has no active layout to place them on.`
-              : 'This room has no active layout and no units.'
-          }
-        />
+        plan.editor.can_edit ? (
+          <Surface className="max-w-2xl p-6">
+            <h2 className="text-base font-semibold text-ink-strong">
+              Create this room’s floor plan
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              {plan.unplaced_count > 0
+                ? `${plan.unplaced_count} ${plan.unplaced_count === 1 ? 'unit is' : 'units are'} in this room and will be ready to place as soon as the plan exists.`
+                : 'Choose the room’s size. Units can be placed once they are registered to this room.'}
+            </p>
+            <div className="mt-5">
+              <CreateLayoutForm onSubmit={startLayout} />
+            </div>
+          </Surface>
+        ) : (
+          <EmptyState
+            icon={<LayoutGrid size={22} />}
+            title="No floor plan for this room yet"
+            description={
+              plan.unplaced_count > 0
+                ? `${plan.unplaced_count} ${plan.unplaced_count === 1 ? 'unit is' : 'units are'} in this room, but the room has no active layout to place them on.`
+                : 'This room has no active layout and no units.'
+            }
+          />
+        )
       ) : (
         <>
           {!editable && plan.unplaced_count > 0 && (
@@ -210,19 +304,46 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
           )}
 
           <FloorPlanToolbar />
-          <FloorPlanCanvas
-            key={`${plan.room.id}:${layout.version}`}
-            roomName={plan.room.name}
-            layout={layout}
-            pcs={plan.pcs}
-            editable={editable}
-            snapToGrid={plan.editor.snap_to_grid}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onPlace={placeFromMap}
-            savingIds={saving}
-            announce={announce}
-          />
+
+          <section
+            aria-labelledby={cardTitleId}
+            className="overflow-hidden rounded-lg border border-border bg-surface"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border px-4 py-2.5">
+              <h2 id={cardTitleId} className="text-sm font-semibold text-ink-strong">
+                {plan.room.name}
+                {plan.room.floor ? ` — ${plan.room.floor.name}` : ''}
+              </h2>
+              <span
+                className="slashed-zero font-mono text-[11px] text-muted"
+                data-testid="floor-plan-summary"
+              >
+                {plan.pcs.length} {plan.pcs.length === 1 ? 'unit' : 'units'} · {alerts}{' '}
+                {alerts === 1 ? 'alert' : 'alerts'}
+              </span>
+            </div>
+
+            <FloorPlanCanvas
+              key={`${plan.room.id}:${layout.version}`}
+              roomName={plan.room.name}
+              layout={layout}
+              pcs={plan.pcs}
+              editable={editable}
+              snapToGrid={plan.editor.snap_to_grid}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onPlace={placeFromMap}
+              savingIds={saving}
+              announce={announce}
+              framed={false}
+            />
+
+            {plan.pcs.length > 0 && (
+              <div className="border-t border-border px-4 py-3">
+                <FloorPlanLegend pcs={plan.pcs} />
+              </div>
+            )}
+          </section>
 
           {editable && (
             <>
@@ -243,12 +364,27 @@ function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
             </>
           )}
 
-          <FloorPlanLegend pcs={plan.pcs} />
           <PcUnitList roomName={plan.room.name} pcs={plan.pcs} onInspect={setInspectingId} />
 
           {inspectingId && (
             <PcInspectorPanel pcId={inspectingId} onClose={() => setInspectingId(null)} />
           )}
+
+          <ConfirmDialog
+            open={newVersionOpen}
+            onClose={() => setNewVersionOpen(false)}
+            onConfirm={() =>
+              (
+                document.getElementById('new-layout-version') as HTMLFormElement | null
+              )?.requestSubmit()
+            }
+            title="Start a new layout version"
+            description="The new version becomes the active plan with no units on it — positions never carry over between versions, so the current arrangement stays with the current version. You can arrange the units again afterwards."
+            confirmLabel="Create and activate"
+            loading={createLayout.isPending}
+          >
+            <CreateLayoutForm id="new-layout-version" onSubmit={startLayout} hideSubmit />
+          </ConfirmDialog>
         </>
       )}
     </div>

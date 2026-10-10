@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Domains\KnowledgeBase\Agents\AssistantAgent;
+use App\Domains\KnowledgeBase\Assistant\ReadOnlyAssistantTool;
+use App\Domains\KnowledgeBase\Services\AssistantToolbox;
 use App\Domains\KnowledgeBase\Services\KnowledgeRetriever;
 use App\Enums\AiModality;
 use App\Enums\AssignmentStatus;
@@ -14,8 +16,10 @@ use App\Models\SystemSetting;
 use Database\Factories\AiKnowledgeArticleFactory;
 use Database\Seeders\SystemSettingSeeder;
 use Database\Seeders\TicketLookupSeeder;
-use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Embeddings;
+use Laravel\Ai\Exceptions\ProviderConnectionException;
+use Laravel\Ai\Exceptions\ProviderOverloadedException;
+use Laravel\Ai\Exceptions\RateLimitedException;
 use Tests\Support\KnowledgeIndexFixtures as Fx;
 
 /**
@@ -207,9 +211,17 @@ it('fences the user question and every retrieved block as untrusted data', funct
     expect(substr_count($sent, '</sccit-untrusted-data>'))->toBe(substr_count($sent, '<sccit-untrusted-data label='));
 });
 
-it('has no tools, so nothing the model says can change anything', function () {
+it('holds only read-only lookups, so nothing the model says can change anything', function () {
     expect((new AssistantAgent)->instructions())->toContain('You can only advise');
-    expect(in_array(HasTools::class, class_implements(AssistantAgent::class), true))->toBeFalse();
+
+    // Fix pass 2 gave the agent tools; the guarantee moved from "no tools" to
+    // "no tool can write" — every one the toolbox hands out is marked read-only,
+    // and AssistantToolsTest checks the sources for write paths.
+    $tools = app(AssistantToolbox::class)->for($this->admin);
+    expect($tools)->not->toBeEmpty();
+    foreach ($tools as $tool) {
+        expect($tool)->toBeInstanceOf(ReadOnlyAssistantTool::class);
+    }
 });
 
 /* ------------------------------------------------ conversations & logs */
@@ -331,4 +343,48 @@ it('validates the message', function () {
     assistantAsk($this, $this->teacher, str_repeat('x', 2001))->assertUnprocessable();
     assistantAsk($this, $this->teacher, 'hello', ['conversation_id' => 'not-a-uuid'])->assertUnprocessable();
     assistantAsk($this, $this->teacher, 'hello', ['ticket' => 'not-a-uuid'])->assertUnprocessable();
+});
+
+/* ------------------------------------ provider errors as laravel/ai raises them */
+
+it('retries a transiently overloaded provider, then degrades to 503 without leaking', function () {
+    // laravel/ai 1.0 maps 502/503/504 to ProviderOverloadedException before
+    // SafeAgentInvoker sees them (found live on 2026-10-02: Gemini answered 503
+    // and the call was given up at once). The invoker's own policy is a quick
+    // second and third try for exactly this failure.
+    $calls = 0;
+    AssistantAgent::fake(function () use (&$calls) {
+        $calls++;
+        throw ProviderOverloadedException::forProvider('gemini', 503);
+    });
+
+    $response = assistantAsk($this, $this->teacher, 'anything at all')->assertStatus(503);
+
+    expect($calls)->toBe(3)
+        ->and($response->json('message'))->toContain('report the problem as a ticket')
+        ->and($response->getContent())->not->toContain('overloaded');
+});
+
+it('answers 429 "busy" when the provider itself rate-limits, without retrying', function () {
+    $calls = 0;
+    AssistantAgent::fake(function () use (&$calls) {
+        $calls++;
+        throw RateLimitedException::forProvider('gemini', 429);
+    });
+
+    assistantAsk($this, $this->teacher, 'anything at all')->assertStatus(429)->assertHeader('Retry-After');
+
+    expect($calls)->toBe(1);
+});
+
+it('retries a dropped connection as the SDK reports it', function () {
+    $calls = 0;
+    AssistantAgent::fake(function () use (&$calls) {
+        $calls++;
+        throw ProviderConnectionException::forProvider('gemini', 0);
+    });
+
+    assistantAsk($this, $this->teacher, 'anything at all')->assertStatus(503);
+
+    expect($calls)->toBe(3);
 });

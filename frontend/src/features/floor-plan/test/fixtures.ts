@@ -7,7 +7,7 @@ import type { PcStatus, PcStatusValue, PlacedPc, RoomPlan, Tone, UnplacedPc } fr
  */
 const STATUSES: Record<PcStatusValue, PcStatus> = {
   available: { value: 'available', label: 'Available', tone: 'neutral' },
-  assigned: { value: 'assigned', label: 'Assigned', tone: 'neutral' },
+  assigned: { value: 'assigned', label: 'Assigned', tone: 'info' },
   online: { value: 'online', label: 'Online', tone: 'success' },
   offline: { value: 'offline', label: 'Offline', tone: 'danger' },
   under_maintenance: { value: 'under_maintenance', label: 'Under Maintenance', tone: 'warning' },
@@ -38,6 +38,7 @@ export function pc(
     // a test that forgets to override it on a second unit doesn't accidentally
     // share one.
     updated_at: `2026-01-01T00:00:${String(index).padStart(2, '0')}Z`,
+    open_ticket: null,
     ...overrides,
   }
 }

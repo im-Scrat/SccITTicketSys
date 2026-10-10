@@ -89,9 +89,19 @@ export function useResetPassword() {
   })
 }
 
+/**
+ * A successful change clears `force_password_reset` server-side
+ * (ChangeUserPassword). The cached principal still carries the old flag, and
+ * ProtectedRoute reads the cache — so the principal is re-fetched before the
+ * mutation settles, or a forced user would be bounced straight back to the
+ * change screen they just completed.
+ */
 export function useChangePassword() {
+  const queryClient = useQueryClient()
+
   return useMutation({
     mutationFn: (payload: ChangePasswordPayload) => changePassword(payload),
+    onSuccess: () => queryClient.refetchQueries({ queryKey: AUTH_USER_KEY }),
   })
 }
 

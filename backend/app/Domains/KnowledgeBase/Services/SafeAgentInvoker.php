@@ -13,6 +13,9 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasStructuredOutput;
+use Laravel\Ai\Exceptions\ProviderConnectionException;
+use Laravel\Ai\Exceptions\ProviderOverloadedException;
+use Laravel\Ai\Exceptions\RateLimitedException;
 use Laravel\Ai\Gateway\Concerns\CreatesClient;
 use Laravel\Ai\Gateway\Concerns\DecodesStructuredOutput;
 use Laravel\Ai\Responses\AgentResponse;
@@ -85,7 +88,11 @@ class SafeAgentInvoker
         // The data-minimisation boundary (FR-AI-030): whatever a caller
         // assembled, nothing personal leaves for the provider. Applied here, at
         // the one path every agent call takes, rather than trusted to each
-        // prompt builder — so a builder added later cannot forget it.
+        // prompt builder — so a builder added later cannot forget it. This is
+        // the redaction point rather than a `laravel/ai` agent middleware
+        // because every agent already passes through here and nowhere else:
+        // one boundary, before the provider, with credentials included
+        // (PromptRedactor::redactSecrets).
         $prompt = $this->redactor->redact($prompt, $names);
 
         PromptGuard::assertWithinLimit($prompt);
@@ -145,12 +152,35 @@ class SafeAgentInvoker
 
             try {
                 return $agent->prompt($prompt, provider: $provider, model: $model, timeout: $timeout);
-            } catch (ConnectionException $e) {
+            } catch (ConnectionException|ProviderConnectionException $e) {
                 // Network-level timeout/DNS/refused-connection — always transient.
+                // laravel/ai 1.0 wraps the HTTP client's ConnectionException as
+                // ProviderConnectionException before it reaches here; both mean
+                // the same thing and get the same quick second try.
                 if ($isLastAttempt) {
                     $this->logFailure($e, $agent, $attempt);
 
                     throw AiProviderException::timedOut($e);
+                }
+
+                $this->logFailure($e, $agent, $attempt, willRetry: true);
+                $this->backoff($attempt);
+            } catch (RateLimitedException $e) {
+                // The SDK's name for a 429 (HandlesFailoverErrors). Not retried,
+                // for the reason RETRYABLE_STATUSES omits 429: the caller backs
+                // off on its own timescale and the controller answers "busy".
+                $this->logFailure($e, $agent, $attempt);
+
+                throw AiProviderException::rateLimited($e);
+            } catch (ProviderOverloadedException $e) {
+                // The SDK's name for 502/503/504 (and Cloudflare's 520/522/524):
+                // the provider is transiently unavailable, the one failure a
+                // short retry does fix. Found on 2026-10-02 when Gemini answered
+                // 503 and this path went to the generic branch below unretried.
+                if ($isLastAttempt) {
+                    $this->logFailure($e, $agent, $attempt);
+
+                    throw AiProviderException::requestFailed($e);
                 }
 
                 $this->logFailure($e, $agent, $attempt, willRetry: true);
