@@ -223,9 +223,15 @@ deployed release and the one it would roll back to are never pruned**, whatever
 `--keep` says — pruning the rollback target to save disk is how a retention
 policy quietly becomes a single point of failure.
 
-`releases/` is gitignored: the manifests name local Docker image ids, so they
-describe this machine's images and cannot be shared. The retained *images* are
-the real artifact.
+**`releases/` is not gitignored.** `releases/current` and
+`releases/2df17db/manifest.json` are tracked; later manifests (such as
+`releases/1b37ae9/manifest.json`) are not. A manifest names this machine's
+Docker image ids and local snapshot path, so it describes this machine rather
+than anything another checkout can use — the retained *images* are the real
+artifact. Review each deployment record individually and commit it only as a
+deliberate decision, never in passing with other work, and never with secrets or
+other sensitive data in it — the same rule as
+[PRODUCTION_DEVELOPER_FILE_MAP.md](PRODUCTION_DEVELOPER_FILE_MAP.md) §0.
 
 ---
 
