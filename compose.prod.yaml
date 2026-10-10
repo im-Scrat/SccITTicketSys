@@ -103,6 +103,13 @@ services:
     volumes:
       # Persist user uploads; shared (read-only) with Nginx so /storage serves.
       - sccit_prod_storage:/var/www/html/storage/app/public
+      # Private attachments — the `local` disk: ticket attachments, repair
+      # photos, work-support and asset files. Before this volume they lived in
+      # the container's own layer and were lost on every recreate (deploy,
+      # rollback). Mounted on every PHP service that may read them, and never
+      # on nginx_prod: these are served only through the controllers that
+      # authorize each download.
+      - sccit_prod_private:/var/www/html/storage/app/private
     secrets:
       - gemini_api_key
     depends_on:
@@ -151,6 +158,7 @@ services:
       disable: true
     volumes:
       - sccit_prod_storage:/var/www/html/storage/app/public
+      - sccit_prod_private:/var/www/html/storage/app/private
     secrets:
       - gemini_api_key
     depends_on:
@@ -188,6 +196,7 @@ services:
       disable: true
     volumes:
       - sccit_prod_storage:/var/www/html/storage/app/public
+      - sccit_prod_private:/var/www/html/storage/app/private
     secrets:
       - gemini_api_key
     depends_on:
@@ -213,6 +222,7 @@ services:
       disable: true
     volumes:
       - sccit_prod_storage:/var/www/html/storage/app/public
+      - sccit_prod_private:/var/www/html/storage/app/private
     secrets:
       - gemini_api_key
     depends_on:
@@ -266,6 +276,10 @@ volumes:
     name: sccit_prod_redisdata
   sccit_prod_storage:
     name: sccit_prod_storage
+  # Created empty on first `up`; Docker seeds it from the image's
+  # storage/app/private (appuser:appuser 755), which is what php-fpm runs as.
+  sccit_prod_private:
+    name: sccit_prod_private
   sccit_prod_mailpitdata:
     name: sccit_prod_mailpitdata
 
