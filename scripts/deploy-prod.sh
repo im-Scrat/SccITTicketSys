@@ -120,8 +120,13 @@ SNAPSHOT=''
 if [ "$SKIP_BACKUP" -eq 1 ]; then
     warn "--skip-backup: there is NO restore point for this deployment"
 elif dc ps --status running --services 2>/dev/null | grep -qx "$DB_SVC"; then
-    SNAPSHOT="$(sh "$REPO_ROOT/scripts/backup.sh" --stack prod --label "predeploy-$SHA" | tail -1)"
-    ok "snapshot $SNAPSHOT"
+    # backup.sh prints the snapshot path only on success, so an empty or missing
+    # path means there is no restore point. Stop here: nothing is changed yet.
+    # (Before 2026-10-10 a failed backup still reported "ok snapshot ...".)
+    SNAPSHOT="$(sh "$REPO_ROOT/scripts/backup.sh" --stack prod --label "predeploy-$SHA" --verify | tail -1)"
+    { [ -n "$SNAPSHOT" ] && [ -d "$REPO_ROOT/$SNAPSHOT" ]; } \
+        || die "pre-deploy snapshot failed — deployment stopped before anything was changed."
+    ok "snapshot $SNAPSHOT (restore-verified in a disposable database)"
 else
     warn "production database is not running — nothing to snapshot"
 fi
