@@ -3,12 +3,13 @@
 #  SccIT — the quality gate (WP-2.7d).
 #
 #      scripts/gates.sh [--only backend|frontend] [--skip-build]
-#                       [--with-e2e] [--with-a11y] [--stack dev|isolated]
+#                       [--with-e2e] [--with-a11y] [--stack isolated]
 #
-#  --stack isolated runs every gate in a disposable environment with its own
-#  PostgreSQL and Redis (scripts/lib/isolated-gate.sh) instead of the dev
-#  stack's containers — the mode in use since the owner retired :8080 on
-#  2026-10-02. It tests the working tree (tracked + new, never ignored files).
+#  Every gate runs in a disposable environment with its own PostgreSQL and
+#  Redis (scripts/lib/isolated-gate.sh) — the default and, since the
+#  development stack was retired on 2026-10-10, the only mode: `--stack dev`
+#  now stops with that explanation (scripts/lib/stack.sh). It tests the working
+#  tree (tracked + new, never ignored files).
 #
 #  One command for the gate CLAUDE.md §6 describes, so "did you run the gates?"
 #  has a single answer instead of nine remembered commands. Every gate runs
@@ -35,7 +36,7 @@ set -u
 . "$(dirname "$0")/lib/stack.sh"
 
 ONLY=''
-GATE_STACK='dev'
+GATE_STACK='isolated'
 SKIP_BUILD=0
 WITH_E2E=0
 WITH_A11Y=0
@@ -47,7 +48,7 @@ while [ $# -gt 0 ]; do
         --with-e2e) WITH_E2E=1; shift ;;
         --with-a11y) WITH_A11Y=1; shift ;;
         --stack)
-            GATE_STACK="${2:-dev}"
+            GATE_STACK="${2:?--stack needs isolated}"
             case "$GATE_STACK" in
                 dev|isolated) ;;
                 *) die "the gates run on the dev stack or in an isolated environment:
@@ -68,6 +69,7 @@ if [ "$GATE_STACK" = 'isolated' ]; then
     trap iso_cleanup EXIT INT TERM
     iso_prepare || die "could not prepare the isolated gate environment."
 else
+    # --stack dev: retired on 2026-10-10 — stack_select stops with the reason.
     stack_select dev
     require_stack_running || exit 1
 fi

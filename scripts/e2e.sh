@@ -4,6 +4,15 @@
 #
 #      scripts/e2e.sh [--project e2e|a11y|smoke|all] [--grep PATTERN] [--no-seed]
 #
+#  ── RETIRED LOCALLY on 2026-10-10, with the development stack ─────────────
+#  Every project ran Playwright inside dev's `node` container — the prod
+#  `smoke` project included — and the e2e/a11y fixtures can only be seeded
+#  into a non-production stack. Locally it now stops at `stack_select dev`
+#  with that explanation. It still runs in CI's opt-in browser job
+#  (.github/workflows/ci.yml), which builds a disposable stack on the runner
+#  with COMPOSE_PROFILES=dev and SCCIT_ALLOW_DEV_STACK=1. The specs in
+#  frontend/e2e/ are kept.
+#
 #  Seeds the deterministic fixtures, then runs Playwright inside the `node`
 #  container. Both halves matter: the suite reads its accounts and its QR code
 #  from the manifest this script writes, so running `npx playwright test` by
@@ -31,7 +40,7 @@ while [ $# -gt 0 ]; do
         --project) PROJECT="${2:?--project needs e2e|a11y|smoke|all}"; shift 2 ;;
         --grep) GREP="${2:?--grep needs a pattern}"; shift 2 ;;
         --no-seed) SEED=0; shift ;;
-        -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
         *) die "unknown argument: $1" ;;
     esac
 done

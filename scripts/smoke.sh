@@ -2,7 +2,8 @@
 # =============================================================
 #  SccIT — deployment smoke test (WP-2.7d).
 #
-#      scripts/smoke.sh [--stack dev|prod] [--url URL] [--email E --password P]
+#      scripts/smoke.sh [--stack prod] [--url URL] [--email E --password P]
+#      (--stack dev was retired with the development stack on 2026-10-10)
 #
 #  Answers one question against a RUNNING target: "is this deployment actually
 #  serving the application, or merely up?" Containers report healthy long before
@@ -40,7 +41,7 @@ while [ $# -gt 0 ]; do
         --url) URL_OVERRIDE="${2:?}"; shift 2 ;;
         --email) EMAIL="${2:?}"; shift 2 ;;
         --password) PASSWORD="${2:?}"; shift 2 ;;
-        -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,27p' "$0"; exit 0 ;;
         *) die "unknown argument: $1" ;;
     esac
 done

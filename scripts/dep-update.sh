@@ -2,6 +2,14 @@
 # =============================================================
 #  SccIT — dependency-update procedure (dev stack only).
 #
+#  ── RETIRED on 2026-10-10, with the development stack ─────────────────────
+#  It ran composer/npm inside dev's bind-mounted containers and then load-
+#  tested them; with no dev stack it stops at `stack_select dev`. Production
+#  installs dependencies at image build time from composer.lock and
+#  package-lock.json, so a dependency change is a lock-file change that needs
+#  an owner-approved way to regenerate those files. Kept for its root-cause
+#  record below.
+#
 #      scripts/dep-update.sh -- composer update guzzlehttp/guzzle --with-dependencies
 #      scripts/dep-update.sh -- composer require some/package
 #      scripts/dep-update.sh --npm -- npm install some-package

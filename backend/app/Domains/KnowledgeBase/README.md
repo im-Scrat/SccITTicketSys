@@ -60,9 +60,11 @@ institutional contacts, escalation policies or official rules.
 ## Working on it
 
 ```bash
-docker compose exec -T app ./vendor/bin/pest tests/Feature/AI tests/Unit/KnowledgeChunkerTest.php
-docker compose exec -T app php artisan knowledge:index            # reconcile now
-docker compose exec -T app php artisan knowledge:index --retry-failed
+# Tests run in the disposable gate environment (the production image has no Pest)
+sh scripts/gates.sh --only backend
+# Reindex on production (:8081) — the dev stack these used to target is retired
+docker compose -p sccit_prod -f compose.prod.yaml exec -T app_prod php artisan knowledge:index
+docker compose -p sccit_prod -f compose.prod.yaml exec -T app_prod php artisan knowledge:index --retry-failed
 ```
 
 Tests never need a provider key: `Tests\Support\KnowledgeIndexFixtures` installs a

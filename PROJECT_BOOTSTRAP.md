@@ -464,6 +464,11 @@ When finished I should be able to run:
 
 docker compose up -d
 
+[Historical — this was the bootstrap goal. The development stack it started was
+retired on 2026-10-10 and compose.yaml now sits behind the `dev` profile, so this
+command starts nothing. Production: docker compose -p sccit_prod -f compose.prod.yaml ps
+— see docs/PRODUCTION_DEVELOPER_FILE_MAP.md.]
+
 and have:
 
 ✓ Laravel running

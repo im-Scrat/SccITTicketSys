@@ -21,8 +21,9 @@ register, locations, maintenance, and role dashboards for three roles
 ### Architecture
 
 - `backend/app/Domains/<Domain>/` — the unit of organisation. Domains present:
-  `Analytics`, `Assets`, `FloorPlan`, `Identity`, `KnowledgeBase`, `Locations`,
-  `Maintenance`, `Tickets`. Inside a domain: `Actions/`,
+  `Administration`, `Analytics`, `Assets`, `FloorPlan`, `Identity`,
+  `KnowledgeBase`, `Locations`, `Maintenance`, `Tickets`, `WorkSupport`.
+  Inside a domain: `Actions/`,
   `Http/{Controllers,Requests,Resources}/`, `Policies/`, `Services/`, plus
   `Console/`, `Events/`, `Exceptions/` as needed.
 - **Eloquent models are flat** in `backend/app/Models/` — they are *not* inside
@@ -205,74 +206,69 @@ list` reports this as a "Conflicting scopes" diagnostic — if it appears, run
 
 ---
 
-## 5. Development vs production parity
+## 5. The production stack — the only stack
 
-Two Compose stacks run locally and **both must be kept in step**.
+The development stack (`compose.yaml`, `:8080`) was **retired on 2026-10-10**
+at the owner's request: its containers, network and images were removed, and
+its volumes (`sccit_pgdata`, `sccit_redisdata`, `sccit_mailpitdata`,
+`sccit_node_modules`) were deliberately kept. `compose.yaml` stays for
+reference and for CI's opt-in browser job, behind a `dev` profile, so a bare
+`docker compose up` starts nothing. Do not recreate it unless the owner asks.
 
-| | Dev | Production |
-|---|---|---|
-| File | `compose.yaml` | `compose.prod.yaml` |
-| Project name | default | **`-p sccit_prod` (required)** |
-| App | `http://localhost:8080` | `http://localhost:8081` |
-| Mailpit | `:8025` | `:8026` |
-| Code | bind-mounted, live | **baked into the image** |
+| | Production |
+|---|---|
+| File | `compose.prod.yaml` |
+| Project name | **`-p sccit_prod` (required)** |
+| App | `http://localhost:8081` |
+| Mailpit | `:8026` |
+| Code | **baked into the image** |
 
 ```bash
-# dev
-docker compose exec -T app <cmd>
-# production
 docker compose -p sccit_prod -f compose.prod.yaml exec -T app_prod <cmd>
 ```
 
-**Omitting `-p sccit_prod` silently targets the wrong stack.** This has bitten
-this project before; it is not optional.
+**Omitting `-p sccit_prod` targets the wrong Compose project** — the root
+`.env` sets `COMPOSE_PROJECT_NAME=sccit`. This has bitten this project before;
+it is not optional. Scripts get the flags from `scripts/lib/stack.sh`.
 
-**Parity rule:** production bakes code plus config/route/event caches into the
-image, so *source changes do not reach production until the image is rebuilt*. A
-phase is not verified until the production image has been rebuilt and the same
-behaviour confirmed on `:8081`. Check parity by comparing migration count and
-domain contents inside the prod container against the repo — never by assuming.
+**Source changes reach `:8081` only through an image rebuild:** production bakes
+the code into the image and builds its config/route/event caches when the
+container starts (`docker/php/prod-entrypoint.sh`). Ship with
+`sh scripts/deploy-prod.sh` (gates → restore-verified snapshot → build and tag →
+deploy → migrate → smoke test). It builds from the working tree, uncommitted
+changes included. A phase is not verified until the same behaviour is confirmed
+on `:8081`. Check parity by comparing migration count and domain contents inside
+the prod container against the repo — never by assuming.
 
-**Dependency changes in dev go through `scripts/dep-update.sh`, never a bare
-`composer`/`npm` command.** `backend/` is bind-mounted, so a live `composer
-update` rewrites real class-definition source under the *running* app/queue/
-scheduler/reverb containers. Dev's OPcache revalidates every request with
-tracing JIT on, and the compiled-code cache and JIT buffer are shared memory
-across the whole worker pool — a worker executing JIT-native code from the old
-definition can run against memory another worker's invalidation reallocates
-mid-request once the new class differs structurally. This caused 592 SIGSEGV
-php-fpm crashes during OD-1 (2026-09-28), invisible to Pest/Pint/PHPStan
-(`opcache.enable_cli=0`) and only visible on the served stack. Confirmed by
-controlled reproduction: `composer dump-autoload` under 600 concurrent requests
-(a real vendor/ rewrite, but data only, not code) — zero crashes. **Not a
-production risk by architecture**: prod installs during `docker build` into an
-immutable layer, never into a running container, and its
-`opcache.validate_timestamps=0` means a live prod worker never revalidates at
-all. `scripts/dep-update.sh` runs the command, restarts every affected dev
-service, and verifies 0 crashes under load before returning — do not disable
-JIT or hand-restart instead of using it.
+**Backups:** `sh scripts/backup.sh --stack prod --verify` writes
+`backups/prod/<ts>/` and proves it restores in a disposable database.
+`scripts/restore.sh` overwrites production — never run it to "test" anything;
+use `--dry-run` or `scripts/verify-backup.sh`.
+
+**Dependency changes** used to go through `scripts/dep-update.sh`, which needed
+the dev stack and is retired with it. Production installs from `composer.lock`
+and `package-lock.json` at image build time, so a dependency change is a
+lock-file change; how to regenerate lock files without a dev stack is an open
+owner decision. (dep-update.sh records why it existed: rewriting `vendor/` under
+dev's live JIT-enabled workers caused 592 SIGSEGV php-fpm crashes during OD-1,
+2026-09-28. Production is not exposed — it installs during `docker build` and
+runs with `opcache.validate_timestamps=0`.)
 
 ---
 
 ## 6. Testing and verification
 
-A change is done only when the full gate passes. Run in Docker, not on the host.
+A change is done only when the full gate passes. It runs in a disposable,
+isolated environment (its own PostgreSQL and Redis, removed afterwards) —
+never on the host, and never in production, whose image has no dev tooling.
 
 ```bash
-# Backend
-docker compose exec -T app ./vendor/bin/pest
-docker compose exec -T app ./vendor/bin/pint --test
-docker compose exec -T app ./vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+# Pint, PHPStan, Pest, tsc, ESLint, Prettier, Vitest, production build
+sh scripts/gates.sh
+sh scripts/gates.sh --only backend       # or: --only frontend
 
-# Frontend
-docker compose exec -T node sh -lc "cd /app && npx tsc -b"
-docker compose exec -T node sh -lc "cd /app && npm run lint"
-docker compose exec -T node sh -lc "cd /app && npm run format:check"
-docker compose exec -T node sh -lc "cd /app && npm run test"
-docker compose exec -T node sh -lc "cd /app && npm run build"
-
-# Migrations — check both stacks
-docker compose exec -T app php artisan migrate:status
+# Production state (read-only)
+docker compose -p sccit_prod -f compose.prod.yaml exec -T app_prod php artisan migrate:status
 ```
 
 Requirements:

@@ -1,13 +1,12 @@
 # Installation Guide
 
-Get the entire stack running locally with Docker.
+First-time setup of the **production stack** on `http://localhost:8081` — the
+only stack since the development stack (`:8080`) was retired on 2026-10-10.
 
 ## Prerequisites
 
 - **Docker Desktop** (running, Linux containers)
-- **Git**
-- Windows host: see [ENVIRONMENT.md](ENVIRONMENT.md) for the one-time
-  PostgreSQL port note.
+- **Git**, and on Windows **Git Bash** (the `scripts/` are POSIX `sh`)
 
 > Host PHP / Composer / Node are **not required** — everything runs in
 > containers. They're only handy for editor tooling.
@@ -18,54 +17,51 @@ Get the entire stack running locally with Docker.
 git clone <repo-url> SccITTicketSys
 cd SccITTicketSys
 
-# Root (Docker) environment
+# Compose-level variables (POSTGRES_*, project name, ports)
 cp .env.example .env
 
-# Backend (Laravel) environment
-cp backend/.env.example backend/.env
+# Laravel, production
+cp backend/.env.production.example backend/.env.production
 ```
 
-## 2. Free host port 5432 (Windows only, one-time)
+In `backend/.env.production`, replace `APP_KEY=base64:GENERATE_A_REAL_KEY` with
+a real key — for example the output of
+`echo "base64:$(head -c 32 /dev/urandom | base64)"` in Git Bash — and review
+the rest of the template ([ENVIRONMENT.md](ENVIRONMENT.md)).
 
-This project's PostgreSQL container binds host port **5432**. If you have a
-local Windows PostgreSQL service, stop it so the port is free — see
-[ENVIRONMENT.md → Windows PostgreSQL](ENVIRONMENT.md#windows-postgresql-service).
+Put the Gemini API key in `secrets/gemini_api_key.txt` (gitignored; see
+`secrets/README.md`). It is mounted as a Compose secret, never baked into an
+image or a config cache.
 
-## 3. Start the stack
+## 2. Build and start
 
 ```bash
-docker compose up -d --build
+docker compose -p sccit_prod -f compose.prod.yaml up -d --build
+docker compose -p sccit_prod -f compose.prod.yaml exec app_prod php artisan migrate --force
+docker compose -p sccit_prod -f compose.prod.yaml exec app_prod php artisan db:seed --force   # first install only
 ```
 
-First run builds the PHP and Node images and pulls Postgres/Redis/Mailpit.
+`-p sccit_prod` is required on every command (the root `.env` sets
+`COMPOSE_PROJECT_NAME=sccit`). After the first install, ship changes with
+`sh scripts/deploy-prod.sh` instead — see [DEVELOPMENT.md](DEVELOPMENT.md).
 
-## 4. Generate the app key & migrate
-
-```bash
-docker compose exec app php artisan key:generate
-docker compose exec app php artisan migrate
-docker compose exec app php artisan storage:link
-```
-
-## 5. Verify
+## 3. Verify
 
 | What | URL / command |
 | ---- | ------------- |
-| App (frontend) | http://localhost:8080 |
-| Backend health | http://localhost:8080/up → `200` |
-| API smoke test | http://localhost:8080/api/health → `{"status":"healthy",...}` |
-| Mailpit UI | http://localhost:8025 |
-| PostgreSQL (pgAdmin) | `localhost:5432`, db `school_it_service_management`, user `postgres` |
+| App | http://localhost:8081 |
+| Backend health | http://localhost:8081/up → `200` |
+| API health | http://localhost:8081/api/health → `{"status":"healthy",...}` (app, database, redis) |
+| Mailpit UI | http://localhost:8026 |
 
 ```bash
-docker compose ps        # all services Up / healthy
+docker compose -p sccit_prod -f compose.prod.yaml ps   # all services Up / healthy
+sh scripts/smoke.sh --stack prod                        # HTTP smoke test
 ```
 
-## Common follow-ups
+PostgreSQL is not published to the host; use
+`docker compose -p sccit_prod -f compose.prod.yaml exec postgres_prod psql -U postgres -d school_it_service_management`.
 
-```bash
-make help                # list developer shortcuts (or see scripts/)
-docker compose logs -f   # tail logs
-```
-
-See [DEVELOPMENT.md](DEVELOPMENT.md) for the day-to-day workflow.
+See [PRODUCTION_DEVELOPER_FILE_MAP.md](PRODUCTION_DEVELOPER_FILE_MAP.md) for
+where everything lives, and [DEVELOPMENT.md](DEVELOPMENT.md) for the
+day-to-day workflow.

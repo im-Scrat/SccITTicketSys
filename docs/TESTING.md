@@ -4,34 +4,41 @@ What must pass before a change is done, and how to run it. The browser and
 accessibility harnesses were introduced by **WP-2.7d**; the Pest and Vitest
 suites predate it.
 
-Everything runs **inside the containers**. The host has neither the PHP
+Everything runs **inside containers**. The host has neither the PHP
 extensions nor the Linux-native `node_modules`, and a gate that only works on
 one machine is not a gate.
+
+> **2026-10-10:** the development stack was retired. `scripts/gates.sh` now runs
+> every gate in a disposable, isolated environment (its own PostgreSQL and Redis,
+> removed afterwards) — the default and only mode. The browser suites (§2) needed
+> a running non-production stack and now run only in CI's opt-in browser job.
 
 ---
 
 ## 1. The gate
 
 ```sh
-sh scripts/gates.sh                     # everything
+sh scripts/gates.sh                     # everything, isolated
 sh scripts/gates.sh --only backend
 sh scripts/gates.sh --only frontend --skip-build
-sh scripts/gates.sh --with-e2e --with-a11y
 ```
+
+(`--with-e2e` / `--with-a11y` need a running stack; with the development stack
+retired they are refused locally.)
 
 | # | Gate | Command it runs |
 |---|---|---|
 | 1 | Pint (format) | `./vendor/bin/pint --test` |
 | 2 | PHPStan (Larastan, level 6) | `./vendor/bin/phpstan analyse` |
 | 3 | Pest | `./vendor/bin/pest` |
-| 4 | Migration status | `php artisan migrate:status`, asserting no `Pending` |
+| 4 | Migration status *(retired dev-stack mode only)* | `php artisan migrate:status`, asserting no `Pending` — check production with `docker compose -p sccit_prod -f compose.prod.yaml exec -T app_prod php artisan migrate:status` |
 | 5 | TypeScript | `npx tsc -b` |
 | 6 | ESLint | `npm run lint` |
 | 7 | Prettier | `npm run format:check` |
 | 8 | Vitest | `npm run test` |
 | 9 | Production build | `npm run build` |
-| 10 | Browser E2E *(opt-in)* | `scripts/e2e.sh --project e2e` |
-| 11 | Accessibility *(opt-in)* | `scripts/e2e.sh --project a11y` |
+| 10 | Browser E2E *(CI only, opt-in)* | `scripts/e2e.sh --project e2e` |
+| 11 | Accessibility *(CI only, opt-in)* | `scripts/e2e.sh --project a11y` |
 
 Cheapest and most localising first: a Pint failure is a diff you fix in a
 second, and type-checking before the suites means a broken signature is reported
@@ -65,6 +72,14 @@ Re-run the file before investigating. Fixing them is not in WP-2.7d's scope.
 ---
 
 ## 2. Browser suite (Playwright)
+
+> **Retired locally on 2026-10-10.** `scripts/e2e.sh` ran Playwright inside the
+> development stack's `node` container and seeded fixtures into that stack;
+> locally it now stops with that explanation. The suites still run in CI's
+> opt-in browser job (`.github/workflows/ci.yml`, `workflow_dispatch` with
+> `run_browser_suite`), which builds a disposable stack on the runner with
+> `COMPOSE_PROFILES=dev` and `SCCIT_ALLOW_DEV_STACK=1`. The commands below
+> describe that job; the specs live in `frontend/e2e/`.
 
 ```sh
 sh scripts/e2e.sh                          # --project e2e (default)

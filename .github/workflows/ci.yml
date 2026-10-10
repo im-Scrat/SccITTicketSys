@@ -117,13 +117,21 @@ jobs:
   #  Runs the committed Playwright suites against a real Compose stack, which
   #  is the only way they can run: they need nginx, php-fpm, PostgreSQL, Redis
   #  and the seeded fixtures. That costs several minutes, so it is triggered
-  #  deliberately rather than on every push. The same command runs locally, so
-  #  this job is a convenience, not the only place the suite exists.
+  #  deliberately rather than on every push.
+  #
+  #  Since the local development stack was retired (2026-10-10) this job is the
+  #  only place the e2e/a11y suites still run. compose.yaml's services sit
+  #  behind the `dev` profile so a bare local `docker compose up` cannot
+  #  recreate that stack; here, on a disposable runner, the profile and
+  #  scripts/lib/stack.sh's dev path are enabled on purpose.
   # ---------------------------------------------------------------
   e2e:
     name: Browser E2E + accessibility
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && inputs.run_browser_suite
+    env:
+      COMPOSE_PROFILES: dev
+      SCCIT_ALLOW_DEV_STACK: '1'
     steps:
       - uses: actions/checkout@v4
 
@@ -132,7 +140,7 @@ jobs:
           cp .env.example .env
           cp backend/.env.example backend/.env
 
-      - name: Start the development stack
+      - name: Start a disposable stack (compose.yaml, dev profile)
         run: |
           docker compose up -d --build
           docker compose exec -T app php artisan key:generate

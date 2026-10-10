@@ -1,6 +1,21 @@
 # =============================================================
-#  SccIT — Development stack (Docker Compose)
+#  SccIT — Development stack (Docker Compose)   ** RETIRED 2026-10-10 **
 #  Project: AI-Powered School IT Asset & Service Management
+#
+#  The owner retired this stack: its containers, network and images were
+#  removed; its volumes (sccit_pgdata, sccit_redisdata, sccit_mailpitdata,
+#  sccit_node_modules) were deliberately kept. Every service below carries
+#  `profiles: ["dev"]`, so a bare `docker compose up` / `build` in the
+#  repository root starts nothing instead of silently recreating this stack
+#  on those kept volumes. (Naming a service explicitly still starts it —
+#  Compose's rule for profiled services — so do not.)
+#
+#  The definition stays for reference and for CI's opt-in browser job, which
+#  builds a disposable copy on the runner with COMPOSE_PROFILES=dev.
+#
+#  The only local stack is compose.prod.yaml — always with -p sccit_prod:
+#      docker compose -p sccit_prod -f compose.prod.yaml ps
+#  See docs/PRODUCTION_DEVELOPER_FILE_MAP.md.
 #
 #  Conventions:
 #    - All resources are prefixed "sccit_" to avoid collisions
@@ -13,6 +28,7 @@ name: sccit
 services:
   # ---------- PostgreSQL 17 (+ pgvector for future RAG) --------
   postgres:
+    profiles: ["dev"]
     image: pgvector/pgvector:pg17
     container_name: sccit_postgres
     restart: unless-stopped
@@ -38,6 +54,7 @@ services:
 
   # ---------- Redis (cache, sessions, queues) -----------------
   redis:
+    profiles: ["dev"]
     image: redis:7-alpine
     container_name: sccit_redis
     restart: unless-stopped
@@ -58,6 +75,7 @@ services:
 
   # ---------- Mailpit (local mail catcher) --------------------
   mailpit:
+    profiles: ["dev"]
     image: axllent/mailpit:latest
     container_name: sccit_mailpit
     restart: unless-stopped
@@ -78,6 +96,7 @@ services:
 
   # ---------- PHP-FPM application (Laravel) -------------------
   app:
+    profiles: ["dev"]
     build:
       context: .
       dockerfile: docker/php/Dockerfile
@@ -107,6 +126,7 @@ services:
 
   # ---------- Nginx (single-origin entrypoint) ---------------
   nginx:
+    profiles: ["dev"]
     image: nginx:1.27-alpine
     container_name: sccit_nginx
     restart: unless-stopped
@@ -130,6 +150,7 @@ services:
 
   # ---------- Queue worker (reuses the app image) ------------
   queue:
+    profiles: ["dev"]
     image: sccit/app:dev
     container_name: sccit_queue
     restart: unless-stopped
@@ -157,6 +178,7 @@ services:
   # notifications on `queue`. The GeminiGovernor caps real provider
   # concurrency; replicas above the cap wait for a slot.
   queue_ai:
+    profiles: ["dev"]
     image: sccit/app:dev
     restart: unless-stopped
     working_dir: /var/www/html
@@ -179,6 +201,7 @@ services:
 
   # ---------- Scheduler (reuses the app image) ---------------
   scheduler:
+    profiles: ["dev"]
     image: sccit/app:dev
     container_name: sccit_scheduler
     restart: unless-stopped
@@ -206,6 +229,7 @@ services:
   # 6001 is fixed here beside the nginx upstream that must match it, and is
   # deliberately not 8080 — that is the host-facing nginx port.
   reverb:
+    profiles: ["dev"]
     image: sccit/app:dev
     container_name: sccit_reverb
     restart: unless-stopped
@@ -231,6 +255,7 @@ services:
 
   # ---------- Node (Vite dev server, HMR) --------------------
   node:
+    profiles: ["dev"]
     build:
       context: .
       dockerfile: docker/node/Dockerfile

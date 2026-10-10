@@ -1,12 +1,21 @@
 # Environment Setup Guide
 
+> **2026-10-10 — production is the only stack.** The development stack
+> (`compose.yaml`, `:8080`) was retired. Production reads the root `.env`
+> (Compose: `POSTGRES_*`, project name) and `backend/.env.production` (Laravel);
+> its Gemini key is the file `secrets/gemini_api_key.txt`. Passages below about
+> `backend/.env`, `localhost:8080` and host port 5432 describe the retired stack.
+
 ## Environment files
 
 | File | Purpose | Tracked? |
 | ---- | ------- | -------- |
 | `.env` | Docker Compose variables (DB creds, ports, project name) | No (gitignored) |
 | `.env.example` | Template for the above | Yes |
-| `backend/.env` | Laravel app config | No (gitignored) |
+| `backend/.env.production` | Laravel config of the production stack (`:8081`) | No (gitignored) |
+| `backend/.env.production.example` | Template for the above | Yes |
+| `secrets/gemini_api_key.txt` | Gemini API key, mounted as a Compose secret | No (gitignored) |
+| `backend/.env` | Laravel config of the retired dev stack | No (gitignored) |
 | `backend/.env.example` | Template for the above | Yes |
 
 Copy each `*.example` to its real file before first run.
@@ -30,7 +39,8 @@ Copy each `*.example` to its real file before first run.
 - `CACHE_STORE=redis`, `SESSION_DRIVER=redis`, `QUEUE_CONNECTION=redis` —
   scale-ready (all shared state in Redis).
 - `SANCTUM_STATEFUL_DOMAINS=localhost:8080,...` + `SESSION_DOMAIN=localhost`
-  — required for single-origin Sanctum cookie auth.
+  — required for single-origin Sanctum cookie auth. (Production's
+  `backend/.env.production` uses `localhost:8081,localhost,127.0.0.1:8081`.)
 - Reverb placeholders are present (commented) for future real-time.
 
 ## <a name="windows-postgresql-service"></a>Windows PostgreSQL service
