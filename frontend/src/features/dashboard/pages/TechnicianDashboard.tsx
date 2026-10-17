@@ -16,7 +16,9 @@ const PRIMARY = ['my-assignments', 'my-maintenance', 'maintenance-schedule']
 /**
  * Phase 2.9 — the technician's dashboard: **their assigned work**, ordered the
  * way a shift runs. What is waiting on me, what is overdue, what is scheduled —
- * and, beside it, how to record work at the machine (by its QR label, D-C).
+ * and, beside it, how to record work at the machine (by its QR label, D-C). Below
+ * "My work" the page is two equal columns, so the panels beside each other share
+ * a width and a heading line.
  *
  * **Everything on it opens something.** Each figure is a link to the list it
  * counts, and each row opens its ticket or maintenance record (SDD DD-81); where
@@ -71,7 +73,7 @@ export default function TechnicianDashboard() {
             <ServerWidget key={widget.key} widget={widget} variant="section" />
           ))}
 
-          <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+          <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
             <div className="flex min-w-0 flex-col gap-6">
               {primary.map((widget) => (
                 <ServerWidget key={widget.key} widget={widget} variant="section" />
@@ -108,7 +110,7 @@ function DashboardSkeleton() {
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
         <div className="flex flex-col gap-6">
           <Skeleton className="h-64 rounded-lg" />
           <Skeleton className="h-40 rounded-lg" />

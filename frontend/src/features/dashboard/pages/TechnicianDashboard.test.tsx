@@ -248,6 +248,20 @@ describe('TechnicianDashboard — wording and content', () => {
   it('leaves the QR guidance as it was', () => {
     renderPage()
 
-    expect(screen.getByText('At the machine')).toBeInTheDocument()
+    expect(screen.getByText(/Scan the QR label on the PC with your phone/)).toBeInTheDocument()
+    expect(screen.getByText(/Each assigned ticket shows the PC/)).toBeInTheDocument()
+  })
+
+  it('lays the panels out in two equal columns, the QR guide headed like the rest', () => {
+    const { container } = renderPage()
+
+    const grid = container.querySelector('.xl\\:grid-cols-2')
+    expect(grid).not.toBeNull()
+    // No fixed-width side track any more.
+    expect(container.innerHTML).not.toContain('24rem')
+
+    // "At the machine" is a level-2 heading above its frame, like every panel.
+    expect(screen.getByRole('heading', { level: 2, name: 'At the machine' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'At the machine' })).toBeInTheDocument()
   })
 })
