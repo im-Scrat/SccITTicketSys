@@ -33,6 +33,8 @@ export interface AnnouncementRow {
   content: string
   pinned: boolean
   at: string | null
+  /** Where this announcement opens; the page supplies it (see `technicianLinks`). */
+  href?: string
 }
 
 export interface ActionItem {

@@ -85,7 +85,13 @@ export function ServerWidget({
 
     case 'announcements':
       return (
-        <WidgetCard title={widget.title} description={widget.description} variant={variant}>
+        <WidgetCard
+          title={widget.title}
+          description={widget.description}
+          href={widget.href}
+          linkLabel={widget.linkLabel}
+          variant={variant}
+        >
           <AnnouncementList rows={widget.rows} />
         </WidgetCard>
       )

@@ -88,6 +88,20 @@ const PAYLOAD: DashboardPayload = {
         },
       ],
     },
+    {
+      key: 'announcements',
+      type: 'announcements',
+      title: 'Announcements',
+      rows: [
+        {
+          id: 'ann-uuid',
+          title: 'Network maintenance Friday',
+          content: 'Wi-Fi is down from 6 pm.',
+          pinned: false,
+          at: '2026-10-17T02:00:00Z',
+        },
+      ],
+    },
   ],
 }
 
@@ -160,6 +174,23 @@ describe('TechnicianDashboard — every figure and row opens something', () => {
     expect(within(schedule).getByRole('link', { name: /View all/ })).toHaveAttribute(
       'href',
       '/app/maintenance/scheduled',
+    )
+  })
+})
+
+describe('TechnicianDashboard — announcements', () => {
+  it('opens an announcement from its title, and the list from View all', () => {
+    renderPage()
+
+    expect(screen.getByRole('link', { name: 'Network maintenance Friday' })).toHaveAttribute(
+      'href',
+      '/app/announcements/ann-uuid',
+    )
+
+    const panel = screen.getByRole('region', { name: 'Announcements' })
+    expect(within(panel).getByRole('link', { name: /View all/ })).toHaveAttribute(
+      'href',
+      '/app/announcements',
     )
   })
 })

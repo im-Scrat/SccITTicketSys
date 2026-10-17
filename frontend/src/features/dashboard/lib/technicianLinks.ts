@@ -97,5 +97,19 @@ export function decorateTechnicianWidget(widget: DashboardWidget): DashboardWidg
     }
   }
 
+  if (widget.type === 'announcements') {
+    return {
+      ...widget,
+      // The reader list, and each announcement's own page — open to every role,
+      // audience-checked by the server (FR-NOT-011).
+      href: widget.href ?? '/app/announcements',
+      linkLabel: widget.linkLabel ?? 'View all',
+      rows: widget.rows.map((row) => ({
+        ...row,
+        href: row.href ?? `/app/announcements/${row.id}`,
+      })),
+    }
+  }
+
   return widget
 }
