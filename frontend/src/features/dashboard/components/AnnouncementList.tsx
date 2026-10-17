@@ -43,7 +43,7 @@ export function AnnouncementList({ rows }: { rows: AnnouncementRow[] }) {
                   item it floated, detached, beside a wrapped title. */}
               <p className="text-sm font-medium text-ink-strong">
                 {href ? (
-                  <Link to={href} className="rounded-sm hover:underline">
+                  <Link to={href} className="rounded-sm">
                     {row.title}
                   </Link>
                 ) : (

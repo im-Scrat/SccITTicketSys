@@ -36,6 +36,14 @@ describe('AnnouncementList', () => {
     )
   })
 
+  it('does not underline the title, hovered or not — the row highlight is the cue', () => {
+    renderList([ROW])
+
+    expect(screen.getByRole('link', { name: 'Network maintenance Friday' }).className).not.toMatch(
+      /underline/,
+    )
+  })
+
   it('opens the announcement when the rest of the row is clicked', async () => {
     renderList([ROW])
 
