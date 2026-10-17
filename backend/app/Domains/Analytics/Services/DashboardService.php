@@ -116,12 +116,16 @@ class DashboardService
                 'items' => [
                     ['key' => 'backlog', 'label' => 'Open backlog', 'value' => $this->tickets->openBacklog()],
                     ['key' => 'unassigned', 'label' => 'Unassigned', 'value' => $this->tickets->unassignedOpen(), 'tone' => 'warning'],
-                    ['key' => 'breached', 'label' => 'SLA breached', 'value' => $sla['breached'], 'tone' => 'danger'],
+                    // "Overdue" is the plain-language label for the FR-TKT-017 breach
+                    // rule (a missed response or fix-by deadline); the key and the
+                    // count are unchanged. A tone means "needs attention", so a
+                    // zero carries none.
+                    ['key' => 'breached', 'label' => 'Overdue', 'value' => $sla['breached'], 'tone' => $sla['breached'] > 0 ? 'danger' : null],
                     [
                         'key' => 'at_risk',
                         'label' => 'Due within '.$sla['lead_hours'].' h',
                         'value' => $sla['at_risk'],
-                        'tone' => 'warning',
+                        'tone' => $sla['at_risk'] > 0 ? 'warning' : null,
                     ],
                 ],
             ];
@@ -401,9 +405,10 @@ class DashboardService
                         'key' => 'at_risk',
                         'label' => 'Due within '.$sla['lead_hours'].' h',
                         'value' => $sla['at_risk'],
-                        'tone' => 'warning',
+                        'tone' => $sla['at_risk'] > 0 ? 'warning' : null,
                     ],
-                    ['key' => 'breached', 'label' => 'SLA breached', 'value' => $sla['breached'], 'tone' => 'danger'],
+                    // Relabelled from "SLA breached"; same FR-TKT-017 rule and key.
+                    ['key' => 'breached', 'label' => 'Overdue', 'value' => $sla['breached'], 'tone' => $sla['breached'] > 0 ? 'danger' : null],
                 ],
             ];
 
@@ -499,12 +504,12 @@ class DashboardService
                 'type' => 'kpi',
                 'title' => 'My maintenance',
                 'items' => [
-                    ['key' => 'overdue', 'label' => 'Overdue', 'value' => $posture['overdue'], 'tone' => 'danger'],
+                    ['key' => 'overdue', 'label' => 'Overdue', 'value' => $posture['overdue'], 'tone' => $posture['overdue'] > 0 ? 'danger' : null],
                     [
                         'key' => 'due_soon',
                         'label' => 'Due in '.$posture['lead_days'].' days',
                         'value' => $posture['due_soon'],
-                        'tone' => 'warning',
+                        'tone' => $posture['due_soon'] > 0 ? 'warning' : null,
                     ],
                     ['key' => 'in_progress', 'label' => 'In progress', 'value' => $posture['in_progress']],
                 ],

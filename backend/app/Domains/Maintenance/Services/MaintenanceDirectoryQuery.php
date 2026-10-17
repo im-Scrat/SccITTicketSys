@@ -312,6 +312,18 @@ class MaintenanceDirectoryQuery
                 ->whereNotNull('maintenance_records.scheduled_for')
                 ->where('maintenance_records.scheduled_for', '<', now());
         }
+
+        // "Due in N days" — open work scheduled from now until N days ahead,
+        // inclusive at both ends. The predicate `AssetMetrics::maintenancePosture()`
+        // counts as `due_soon`, so the dashboard card and the list it opens are
+        // one definition; overdue work (already past) is the other card's.
+        if ($this->filled($params['due_within'] ?? null)) {
+            $now = now();
+
+            $query->whereIn('maintenance_records.status', $this->openStatusValues())
+                ->whereNotNull('maintenance_records.scheduled_for')
+                ->whereBetween('maintenance_records.scheduled_for', [$now, $now->copy()->addDays((int) $params['due_within'])]);
+        }
     }
 
     /**

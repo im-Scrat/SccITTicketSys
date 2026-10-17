@@ -45,8 +45,9 @@ export default function TicketManagementPage() {
       priority: params.get('priority') ?? undefined,
       category: params.get('category') ?? undefined,
       technician: params.get('technician') ?? undefined,
-      breached: params.get('breached') === '1' ? true : undefined,
-      awaiting_confirmation: params.get('awaiting_confirmation') === '1' ? true : undefined,
+      // Sent as `1`, never `true` — the API's `boolean` rule refuses the string.
+      breached: params.get('breached') === '1' ? 1 : undefined,
+      awaiting_confirmation: params.get('awaiting_confirmation') === '1' ? 1 : undefined,
       // Phase 2.9: reached from the admin dashboard's "Escalated" queue.
       escalated: params.get('escalated') === '1' ? 1 : undefined,
       trashed: (params.get('trashed') as TicketParams['trashed']) ?? 'without',

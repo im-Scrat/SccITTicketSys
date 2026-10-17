@@ -1,4 +1,15 @@
-import { Badge, SortableTh, TBody, Table, Td, THead, Th, Tr } from '@/components/ui'
+import { Link } from 'react-router-dom'
+import {
+  Badge,
+  isInteractiveTarget,
+  SortableTh,
+  TBody,
+  Table,
+  Td,
+  THead,
+  Th,
+  Tr,
+} from '@/components/ui'
 import { formatDate, formatRelative } from '@/lib/datetime'
 import type { MaintenanceListItem } from '../types'
 import { MaintenanceStatusBadge, MaintenanceTypeBadge, OverdueBadge } from './MaintenanceBadges'
@@ -13,6 +24,8 @@ interface MaintenanceTableProps {
   showTechnician?: boolean
   /** Only the administrator directory sorts; the queue's order is the point. */
   sortable?: boolean
+  /** Where a row opens. Makes the title a real link; see `TicketsTable`. */
+  hrefFor?: (id: string) => string
 }
 
 /**
@@ -34,6 +47,7 @@ export function MaintenanceTable({
   onOpen,
   showTechnician = true,
   sortable = true,
+  hrefFor,
 }: MaintenanceTableProps) {
   /**
    * The queue's order is deliberate — overdue first, then soonest due — so it is
@@ -72,11 +86,26 @@ export function MaintenanceTable({
 
       <TBody>
         {records.map((record) => (
-          <Tr key={record.id} onClick={() => onOpen(record.id)}>
+          <Tr
+            key={record.id}
+            onClick={(event) => {
+              if (hrefFor && isInteractiveTarget(event)) return
+              onOpen(record.id)
+            }}
+          >
             <Td>
-              <span className="block max-w-md truncate font-medium text-ink-strong">
-                {record.title}
-              </span>
+              {hrefFor ? (
+                <Link
+                  to={hrefFor(record.id)}
+                  className="block max-w-md truncate rounded-sm font-medium text-ink-strong hover:underline"
+                >
+                  {record.title}
+                </Link>
+              ) : (
+                <span className="block max-w-md truncate font-medium text-ink-strong">
+                  {record.title}
+                </span>
+              )}
               {record.ticket && (
                 <span className="block text-xs text-muted">From {record.ticket.number}</span>
               )}

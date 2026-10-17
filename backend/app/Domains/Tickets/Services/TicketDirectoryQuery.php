@@ -150,10 +150,31 @@ class TicketDirectoryQuery
     public function queue(array $params, User $user): LengthAwarePaginator
     {
         $query = $this->base($user);
-        $this->visibility->scopeAssigned($query, $user, TicketVisibility::WRITABLE_ASSIGNMENT_STATUSES);
+
+        if (($params['scope'] ?? 'active') === 'assigned') {
+            /*
+             * `scope=assigned` — every ticket whose current owner is this
+             * technician, whatever its status or assignment state. This is the
+             * population the dashboard's "Open tickets", "Due within 4 h" and
+             * "Overdue" figures count (`assigned_technician_id`), so the lists
+             * those cards open have to start from the same set. The default
+             * (`active`) is the work queue proper: tickets with a live assignment
+             * row. The two differ on, for example, a resolved ticket awaiting
+             * confirmation, whose assignment can already be completed.
+             *
+             * `base()` has already applied `TicketVisibility`, so this narrows
+             * what the technician may read and can never widen it: a ticket they
+             * hold no readable assignment on is absent from every view, and a
+             * guessed uuid is refused by `TicketPolicy` for the same reason.
+             */
+            $query->where('tickets.assigned_technician_id', $user->getKey());
+        } else {
+            $this->visibility->scopeAssigned($query, $user, TicketVisibility::WRITABLE_ASSIGNMENT_STATUSES);
+        }
 
         $this->applySearch($query, $this->term($params));
         $this->applyCommonFilters($query, $params);
+        $this->applyPostureFilters($query, $params, dueSoon: true);
 
         $query->leftJoin('ticket_priorities', 'ticket_priorities.id', '=', 'tickets.priority_id')
             ->select('tickets.*')
@@ -335,6 +356,37 @@ class TicketDirectoryQuery
     }
 
     /**
+     * `breached` (shown as **Overdue**) and `due_soon` — the SLA lists behind the
+     * dashboard cards and the Ticket Management tiles.
+     *
+     * Both are `SlaCalculator`'s predicates, the same ones `TicketMetrics` counts
+     * with, so a tile's figure and the list it opens cannot disagree. (The
+     * directory's `breached` used to test the resolution deadline alone while its
+     * tile counted response misses too.) Offered by the administrator directory
+     * (`breached`) and the technician queue (both); a requester has no business
+     * filtering by SLA posture.
+     *
+     * @param  Builder<Ticket>  $query
+     * @param  array<string, mixed>  $params
+     */
+    private function applyPostureFilters(Builder $query, array $params, bool $dueSoon): void
+    {
+        if ($this->flag($params['breached'] ?? null)) {
+            SlaCalculator::constrainBreached(SlaCalculator::constrainLive($query));
+        }
+
+        if ($dueSoon && $this->flag($params['due_soon'] ?? null)) {
+            SlaCalculator::constrainDueWithin(SlaCalculator::constrainLive($query));
+        }
+    }
+
+    /** A validated boolean query flag: `true` or `'1'` (the only truthy forms the request lets through). */
+    private function flag(mixed $value): bool
+    {
+        return $value === true || $value === '1' || $value === 1;
+    }
+
+    /**
      * Filters only the administrative directory offers — a requester has no
      * business filtering by technician or SLA posture.
      *
@@ -354,11 +406,7 @@ class TicketDirectoryQuery
             );
         }
 
-        if (($params['breached'] ?? null) === true || ($params['breached'] ?? null) === '1') {
-            $query->whereHas('status', fn (Builder $q) => $q->where('is_terminal', false))
-                ->whereNotNull('tickets.resolution_due_at')
-                ->where('tickets.resolution_due_at', '<', now());
-        }
+        $this->applyPostureFilters($query, $params, dueSoon: false);
 
         if (($params['awaiting_confirmation'] ?? null) === true || ($params['awaiting_confirmation'] ?? null) === '1') {
             $query->whereHas('status', fn (Builder $q) => $q->where('slug', 'resolved'));

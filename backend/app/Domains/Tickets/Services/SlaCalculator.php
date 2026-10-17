@@ -6,6 +6,7 @@ namespace App\Domains\Tickets\Services;
 
 use App\Models\Ticket;
 use App\Models\TicketPriority;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 /**
@@ -28,6 +29,81 @@ use Illuminate\Support\Carbon;
  */
 class SlaCalculator
 {
+    /**
+     * How far ahead "due soon" looks. The dashboard's "Due within 4 h" card and
+     * the list it opens read the same constant, so the label cannot drift from
+     * the window.
+     */
+    public const AT_RISK_LEAD_HOURS = 4;
+
+    /*
+     * The three SQL predicates below are the single definition of "live",
+     * "overdue" and "due soon" for every *aggregate* and *list* in the system:
+     * the dashboards' counts (`TicketMetrics::slaPosture()`), the technician
+     * queue's `breached` / `due_soon` filters and the administrator directory's
+     * `breached` filter. A figure and the list it opens are only the same set if
+     * they are written once — which is why they live here rather than being
+     * copied beside each query. `posture()` below is the same rule evaluated on
+     * one loaded ticket.
+     */
+
+    /**
+     * Tickets not in a terminal status — the population an SLA can still bind.
+     *
+     * @param  Builder<Ticket>  $query
+     * @return Builder<Ticket>
+     */
+    public static function constrainLive(Builder $query): Builder
+    {
+        return $query->whereHas('status', fn (Builder $q): Builder => $q->where('is_terminal', false));
+    }
+
+    /**
+     * Tickets that have missed a deadline (FR-TKT-017): a response deadline
+     * nobody answered, or a fix-by deadline the ticket has not been resolved
+     * against. Shown to people as **Overdue**.
+     *
+     * The OR pair is wrapped so it cannot escape whatever scope the caller has
+     * already applied. Does not itself restrict to live tickets — combine with
+     * {@see constrainLive()}.
+     *
+     * @param  Builder<Ticket>  $query
+     * @return Builder<Ticket>
+     */
+    public static function constrainBreached(Builder $query, ?Carbon $now = null): Builder
+    {
+        $now ??= now();
+
+        return $query->where(function (Builder $either) use ($now): void {
+            $either->where(function (Builder $response) use ($now): void {
+                $response->where('tickets.response_due_at', '<', $now)
+                    ->whereNull('tickets.first_response_at');
+            })->orWhere(function (Builder $resolution) use ($now): void {
+                $resolution->where('tickets.resolution_due_at', '<', $now)
+                    ->whereNull('tickets.resolved_at');
+            });
+        });
+    }
+
+    /**
+     * Unresolved tickets whose fix-by deadline falls inside the next
+     * `$leadHours` — inclusive at both ends, as the dashboard has always counted.
+     *
+     * @param  Builder<Ticket>  $query
+     * @return Builder<Ticket>
+     */
+    public static function constrainDueWithin(
+        Builder $query,
+        int $leadHours = self::AT_RISK_LEAD_HOURS,
+        ?Carbon $now = null,
+    ): Builder {
+        $now ??= now();
+
+        return $query->whereNull('tickets.resolved_at')
+            ->whereNotNull('tickets.resolution_due_at')
+            ->whereBetween('tickets.resolution_due_at', [$now, $now->copy()->addHours($leadHours)]);
+    }
+
     /**
      * The deadlines a ticket should carry, measured from its report time.
      *
@@ -75,7 +151,7 @@ class SlaCalculator
      *     minutes_to_resolution: int|null
      * }
      */
-    public function posture(Ticket $ticket, int $atRiskLeadHours = 4): array
+    public function posture(Ticket $ticket, int $atRiskLeadHours = self::AT_RISK_LEAD_HOURS): array
     {
         $ticket->loadMissing('status');
 

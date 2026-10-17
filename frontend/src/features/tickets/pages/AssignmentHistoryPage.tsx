@@ -114,6 +114,7 @@ export default function AssignmentHistoryPage() {
               direction="desc"
               onSort={() => undefined}
               onOpen={(id) => navigate(`/app/tickets/assigned/${id}`)}
+              hrefFor={(id) => `/app/tickets/assigned/${id}`}
               showTechnician={false}
             />
             {history.data && (

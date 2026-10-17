@@ -47,6 +47,11 @@ class IndexTicketsRequest extends FormRequest
             'has_pc_unit' => ['nullable', 'boolean'],
             'breached' => ['nullable', 'boolean'],
             'awaiting_confirmation' => ['nullable', 'boolean'],
+            // The technician queue only. `assigned` = every ticket owned by the
+            // caller (what the dashboard counts); `active` (default) = tickets
+            // with a live assignment row. Row scoping is still `TicketVisibility`.
+            'scope' => ['nullable', 'string', Rule::in(['active', 'assigned'])],
+            'due_soon' => ['nullable', 'boolean'],
             // Phase 2.9 — the requester's own list only (`/tickets/mine`): "resolved
             // in the last N days", the exact list behind the dashboard's
             // "Resolved (30 days)" figure. Bounded, so a crafted value cannot ask

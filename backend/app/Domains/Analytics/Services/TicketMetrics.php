@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Analytics\Services;
 
+use App\Domains\Tickets\Services\SlaCalculator;
 use App\Enums\AssignmentStatus;
 use App\Models\TechnicianAssignment;
 use App\Models\Ticket;
@@ -95,31 +96,17 @@ class TicketMetrics
      *
      * @return array{breached: int, at_risk: int, lead_hours: int}
      */
-    public function slaPosture(int $leadHours = 4, ?User $technician = null): array
+    public function slaPosture(int $leadHours = SlaCalculator::AT_RISK_LEAD_HOURS, ?User $technician = null): array
     {
         $now = now();
-        $threshold = $now->copy()->addHours($leadHours);
 
         $base = fn (): Builder => $this->nonTerminalTickets($technician);
 
+        // The predicates are `SlaCalculator`'s, shared with the lists these
+        // figures open, so a count and its list are one definition.
         return [
-            // The OR pair is wrapped so it cannot escape the non-terminal scope.
-            'breached' => $base()
-                ->where(function (Builder $query) use ($now): void {
-                    $query->where(function (Builder $response) use ($now): void {
-                        $response->where('response_due_at', '<', $now)
-                            ->whereNull('first_response_at');
-                    })->orWhere(function (Builder $resolution) use ($now): void {
-                        $resolution->where('resolution_due_at', '<', $now)
-                            ->whereNull('resolved_at');
-                    });
-                })
-                ->count(),
-            'at_risk' => $base()
-                ->whereNull('resolved_at')
-                ->whereNotNull('resolution_due_at')
-                ->whereBetween('resolution_due_at', [$now, $threshold])
-                ->count(),
+            'breached' => SlaCalculator::constrainBreached($base(), $now)->count(),
+            'at_risk' => SlaCalculator::constrainDueWithin($base(), $leadHours, $now)->count(),
             'lead_hours' => $leadHours,
         ];
     }
@@ -315,8 +302,7 @@ class TicketMetrics
      */
     private function nonTerminalTickets(?User $technician = null): Builder
     {
-        $query = Ticket::query()
-            ->whereHas('status', fn (Builder $q): Builder => $q->where('is_terminal', false));
+        $query = SlaCalculator::constrainLive(Ticket::query());
 
         if ($technician !== null) {
             $query->where('assigned_technician_id', $technician->getKey());

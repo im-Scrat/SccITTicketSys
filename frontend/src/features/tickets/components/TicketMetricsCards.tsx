@@ -50,7 +50,7 @@ export function TicketMetricsCards({ dashboard, onFilter, activeParams }: Ticket
         value={summary.breached}
         tone={summary.breached > 0 ? 'danger' : 'success'}
         icon={<AlertTriangle size={32} aria-hidden="true" />}
-        hint="Past the resolution deadline"
+        hint="Missed a response or fix-by deadline"
         active={isActive('breached', '1')}
         onClick={() => onFilter({ breached: '1', page: null })}
       />

@@ -6,6 +6,7 @@ use App\Domains\KnowledgeBase\Console\IndexKnowledgeArticles;
 use App\Domains\Maintenance\Console\DetectDuePreventiveMaintenance;
 use App\Domains\Tickets\Console\CloseStaleResolvedTickets;
 use App\Domains\Tickets\Console\DetectSlaBreaches;
+use App\Domains\Tickets\Console\EndStaleAssignments;
 use App\Http\Middleware\AuthenticateSession;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsurePasswordIsCurrent;
@@ -58,6 +59,7 @@ return Application::configure(basePath: dirname(__DIR__))
      */
     ->withCommands([
         CloseStaleResolvedTickets::class,
+        EndStaleAssignments::class,
         SendDailyDigest::class,
         DetectDuePreventiveMaintenance::class,
         DetectSlaBreaches::class,

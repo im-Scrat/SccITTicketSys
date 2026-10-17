@@ -1,9 +1,6 @@
 import { PackageCheck } from 'lucide-react'
 import { useState } from 'react'
-import { Badge } from '@/components/ui/Badge'
-import { Pagination } from '@/components/ui/Pagination'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { Surface } from '@/components/ui/Surface'
+import { Alert, Badge, EmptyState, Pagination, Skeleton, Surface } from '@/components/ui'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { useMyAssets } from '../hooks/queries'
 
@@ -24,16 +21,18 @@ export default function MyAssetsPage() {
   const assets = data?.data ?? []
 
   return (
-    <div className="flex flex-col gap-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink-strong">My assets</h1>
-        <p className="mt-1 text-sm text-muted">Equipment currently assigned to you as custodian.</p>
+    <div className="flex flex-col gap-8">
+      <header className="measure">
+        <h1 className="text-2xl font-bold text-ink-strong">My assets</h1>
+        <p className="mt-2 text-base text-muted">
+          Equipment currently assigned to you as custodian.
+        </p>
       </header>
 
       {isError && (
-        <Surface className="p-6 text-sm text-danger">
-          We couldn’t load your assets. Please retry.
-        </Surface>
+        <Alert tone="error" title="Your assets could not be loaded">
+          Refresh the page to try again.
+        </Alert>
       )}
 
       {isLoading ? (
@@ -42,11 +41,12 @@ export default function MyAssetsPage() {
           <Skeleton className="h-20" />
           <Skeleton className="h-20" />
         </div>
-      ) : assets.length === 0 ? (
-        <Surface className="flex flex-col items-center gap-2 p-10 text-center text-sm text-muted">
-          <PackageCheck size={28} className="text-muted" />
-          No equipment is currently assigned to you.
-        </Surface>
+      ) : isError ? null : assets.length === 0 ? (
+        <EmptyState
+          icon={<PackageCheck className="size-6" aria-hidden="true" />}
+          title="No equipment is assigned to you"
+          description="Equipment an administrator puts in your care appears here, with its tag and where it is."
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {assets.map((asset) => (

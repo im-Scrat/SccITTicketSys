@@ -128,6 +128,7 @@ export default function MaintenanceHistoryPage() {
             onSort={onSort}
             showTechnician={false}
             onOpen={(id) => navigate(`/app/maintenance/${id}`)}
+            hrefFor={(id) => `/app/maintenance/${id}`}
           />
 
           {history.data && (

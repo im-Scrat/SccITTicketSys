@@ -489,8 +489,21 @@ export interface TicketParams {
   technician?: string
   mine?: boolean
   has_pc_unit?: boolean
-  breached?: boolean
-  awaiting_confirmation?: boolean
+  /**
+   * SLA and confirmation filters are sent as `1`. Laravel's `boolean` rule accepts
+   * the number but not the string `"true"` that axios sends for `true`, so a
+   * `true` here is a 422 — which is what the Ticket Management tiles used to cause.
+   */
+  breached?: 1
+  awaiting_confirmation?: 1
+  /**
+   * The technician queue only (`GET /tickets/assigned`). `assigned` = every ticket
+   * the caller owns, whatever its status — the set the dashboard's figures count;
+   * `active` (the default, omitted) = tickets with a live assignment.
+   */
+  scope?: 'active' | 'assigned'
+  /** The technician queue only: unresolved tickets due within the next four hours. */
+  due_soon?: 1
   /**
    * The requester's own list only (Phase 2.9): tickets whose `resolved_at` falls
    * inside the last N days — the list behind the dashboard's "Resolved (30 days)".

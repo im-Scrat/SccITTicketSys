@@ -125,6 +125,7 @@ export default function ScheduledMaintenancePage() {
             sortable={false}
             showTechnician={scope === 'all'}
             onOpen={(id) => navigate(`/app/maintenance/${id}`)}
+            hrefFor={(id) => `/app/maintenance/${id}`}
           />
 
           {scheduled.data && (

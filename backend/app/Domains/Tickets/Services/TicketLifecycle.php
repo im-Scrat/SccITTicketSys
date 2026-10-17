@@ -7,14 +7,17 @@ namespace App\Domains\Tickets\Services;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Domains\Tickets\Events\TicketStatusChanged;
 use App\Enums\ActivityAction;
+use App\Enums\AssignmentStatus;
 use App\Enums\TicketUpdateType;
 use App\Models\SystemSetting;
+use App\Models\TechnicianAssignment;
 use App\Models\Ticket;
 use App\Models\TicketStatus;
 use App\Models\TicketStatusHistory;
 use App\Models\TicketUpdate;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -156,7 +159,7 @@ class TicketLifecycle
 
         $this->assertTransitionAllowed($ticket, $from, $target, $actor);
 
-        DB::transaction(function () use ($ticket, $from, $target, $actor, $remarks, $updateType): void {
+        DB::transaction(function () use ($ticket, $from, $target, $actor, $remarks, $updateType, $request): void {
             $ticket->forceFill([
                 'current_status_id' => $target->getKey(),
                 'updated_by' => $actor?->getKey(),
@@ -185,6 +188,10 @@ class TicketLifecycle
                 ],
                 'created_at' => now(),
             ]);
+
+            // Inside the same transaction: a ticket must never reach a terminal
+            // state while its assignment still reads as live work.
+            $this->endActiveAssignment($ticket, $target, $actor, $request);
         });
 
         $this->audit->activity(
@@ -239,6 +246,162 @@ class TicketLifecycle
             'remarks' => 'Ticket reported',
             'created_at' => now(),
         ]);
+    }
+
+    /**
+     * End the ticket's active assignment because the ticket has reached a
+     * terminal status (SDD DD-83).
+     *
+     * `canWork`, the technician's queue and every "active assignments" figure
+     * read the *assignment's* status, but the generic "Move this ticket" control
+     * moves only the ticket — only `RespondToAssignment` moves both. So a job
+     * resolved through the generic control and then confirmed by the reporter
+     * closed with its assignment still `pending`: it stayed in the technician's
+     * active queue and kept the write access `canWork` grants.
+     *
+     * The mapping (D1):
+     *
+     *  - **cancelled** → the assignment is `cancelled`.
+     *  - **closed** → `completed` only when the ticket was `resolved` and the
+     *    latest move into `resolved` was made by *this assignment's technician*,
+     *    with `completed_at` set to that move. Anyone else's resolution, or a
+     *    close that skipped `resolved`, did not complete this technician's work,
+     *    so it is `cancelled` — an honest record beats crediting the wrong person
+     *    in the monitoring figures.
+     *
+     * Two deliberate omissions:
+     *
+     *  - **`updated_at` is left alone** (a query-builder write). Admin monitoring
+     *    reads it as the technician's last activity, and closing a ticket is not
+     *    one of their actions. The same reason the 2026-10-14 repair used.
+     *  - **Non-terminal moves do nothing.** A `resolved` ticket keeps its
+     *    assignment until it closes; the reporter may still send it back.
+     *
+     * It is public so `tickets:end-stale-assignments` repairs tickets stranded
+     * before this existed with exactly the same rule. Callers wanting atomicity
+     * with a status move call it inside that move's transaction.
+     *
+     * @return AssignmentStatus|null what the assignment became, null if there was
+     *                               nothing to end
+     */
+    public function endActiveAssignment(
+        Ticket $ticket,
+        TicketStatus $terminal,
+        ?User $actor = null,
+        ?Request $request = null,
+    ): ?AssignmentStatus {
+        if (! $terminal->is_terminal) {
+            return null;
+        }
+
+        /** @var TechnicianAssignment|null $assignment */
+        $assignment = TechnicianAssignment::query()
+            ->where('ticket_id', $ticket->getKey())
+            ->whereIn('status', AssignmentStatus::activeValues())
+            ->with('technician')
+            ->lockForUpdate()
+            ->first();
+
+        if ($assignment === null) {
+            return null;
+        }
+
+        [$status, $completedAt] = $this->assignmentOutcome($ticket, $terminal, $assignment);
+
+        TechnicianAssignment::query()
+            ->whereKey($assignment->getKey())
+            ->toBase()
+            ->update($completedAt !== null
+                ? ['status' => $status->value, 'completed_at' => $completedAt]
+                : ['status' => $status->value]);
+
+        $reason = match (true) {
+            $terminal->slug === 'cancelled' => 'The ticket was cancelled, so the assignment ended.',
+            $status === AssignmentStatus::Completed => 'The ticket was closed with this technician’s resolution, so the assignment was recorded as completed.',
+            default => 'The ticket was closed without this technician’s resolution, so the assignment ended.',
+        };
+
+        // `user_id` null reads as "System" in the staff timeline; the reporter's
+        // projection already omits assignment-response rows (TicketTimeline).
+        TicketUpdate::query()->create([
+            'ticket_id' => $ticket->getKey(),
+            'user_id' => null,
+            'update_type' => TicketUpdateType::Assignment->value,
+            'body' => $reason,
+            'metadata' => [
+                'assignment_status' => $status->value,
+                'technician' => $assignment->technician?->fullName(),
+                'phrase' => 'assignment ended',
+                'automated' => true,
+                'reason' => $reason,
+            ],
+            'created_at' => now(),
+        ]);
+
+        $this->audit->activity(
+            ActivityAction::TicketAssignmentEnded,
+            actor: $actor,
+            subject: $ticket,
+            properties: [
+                'ticket_number' => $ticket->ticket_number,
+                'assignment_status' => $status->value,
+                'ticket_status' => $terminal->slug,
+                'reason' => $reason,
+                'automated' => true,
+            ],
+            request: $request,
+            module: 'tickets',
+            description: sprintf('Assignment on %s ended: %s', $ticket->ticket_number, $status->value),
+        );
+
+        return $status;
+    }
+
+    /**
+     * What an active assignment becomes when its ticket reaches `$terminal`
+     * (D1) — a pure read, so `tickets:end-stale-assignments --dry-run` can
+     * report the outcome without writing anything.
+     *
+     * Read from `ticket_status_history`, the one record of who moved what: the
+     * latest move into `closed` must have come from `resolved`, and the latest
+     * move into `resolved` before it must have been made by the assignee.
+     *
+     * @return array{0: AssignmentStatus, 1: Carbon|null} the new status and, for
+     *                                                    `completed`, the time of the resolution move
+     */
+    public function assignmentOutcome(
+        Ticket $ticket,
+        TicketStatus $terminal,
+        TechnicianAssignment $assignment,
+    ): array {
+        $cancelled = [AssignmentStatus::Cancelled, null];
+
+        if ($terminal->slug !== 'closed') {
+            return $cancelled;
+        }
+
+        $resolvedId = TicketStatus::query()->where('slug', 'resolved')->value('id');
+
+        $closing = TicketStatusHistory::query()
+            ->where('ticket_id', $ticket->getKey())
+            ->where('to_status_id', $terminal->getKey())
+            ->latest('id')
+            ->first();
+
+        if ($resolvedId === null || $closing === null || $closing->from_status_id !== $resolvedId) {
+            return $cancelled;
+        }
+
+        $resolution = TicketStatusHistory::query()
+            ->where('ticket_id', $ticket->getKey())
+            ->where('to_status_id', $resolvedId)
+            ->where('id', '<', $closing->getKey())
+            ->latest('id')
+            ->first();
+
+        return $resolution !== null && $resolution->changed_by === $assignment->technician_id
+            ? [AssignmentStatus::Completed, $resolution->created_at]
+            : $cancelled;
     }
 
     /**

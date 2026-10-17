@@ -105,6 +105,7 @@ enum ActivityAction: string
     case TicketReopened = 'ticket_reopened';
     case TicketCancelled = 'ticket_cancelled';
     case TicketAutoClosed = 'ticket_auto_closed';
+    case TicketAssignmentEnded = 'ticket_assignment_ended';
     case TicketMarkedDuplicate = 'ticket_marked_duplicate';
     case TicketArchived = 'ticket_archived';
     case TicketRestored = 'ticket_restored';
@@ -307,6 +308,7 @@ enum ActivityAction: string
             self::TicketReopened => 'Reopened',
             self::TicketCancelled => 'Cancelled',
             self::TicketAutoClosed => 'Closed automatically',
+            self::TicketAssignmentEnded => 'Assignment ended',
             self::TicketMarkedDuplicate => 'Marked as duplicate',
             self::TicketArchived => 'Archived',
             self::TicketRestored => 'Restored',

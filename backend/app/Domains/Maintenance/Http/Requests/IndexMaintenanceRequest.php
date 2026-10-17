@@ -53,6 +53,10 @@ class IndexMaintenanceRequest extends FormRequest
             'scheduled_from' => ['nullable', 'date'],
             'scheduled_to' => ['nullable', 'date', 'after_or_equal:scheduled_from'],
             'overdue' => ['nullable', 'boolean'],
+            // Open work scheduled within the next N days — the list behind the
+            // dashboard's "Due in 7 days". Bounded so a crafted value cannot ask
+            // for an absurd date range.
+            'due_within' => ['nullable', 'integer', 'min:1', 'max:90'],
             'scope' => ['nullable', 'string', Rule::in(['own', 'all'])],
             'trashed' => ['nullable', 'string', Rule::in(['without', 'with', 'only'])],
             'sort' => ['nullable', 'string', Rule::in([

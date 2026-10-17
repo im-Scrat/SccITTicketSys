@@ -42,6 +42,7 @@ export default function MaintenanceQueuePage() {
       type: params.get('type') ?? undefined,
       preventive: params.get('preventive') ?? undefined,
       overdue: params.get('overdue') ?? undefined,
+      due_within: params.get('due_within') ?? undefined,
       page: params.get('page') ? Number(params.get('page')) : 1,
       per_page: PER_PAGE,
     }),
@@ -74,6 +75,7 @@ export default function MaintenanceQueuePage() {
   }
 
   const records = queue.data?.data ?? []
+  const empty = emptyCopy(params)
 
   return (
     <div className="flex flex-col gap-8">
@@ -101,7 +103,7 @@ export default function MaintenanceQueuePage() {
         params={params}
         patch={patch}
         options={options.data}
-        show={['status', 'type', 'preventive', 'overdue']}
+        show={['status', 'type', 'preventive', 'overdue', 'due_within']}
         onClear={() => setParams(new URLSearchParams(), { replace: true })}
       />
 
@@ -120,10 +122,20 @@ export default function MaintenanceQueuePage() {
       ) : records.length === 0 ? (
         <EmptyState
           icon={<Wrench className="size-6" aria-hidden="true" />}
-          title="No open maintenance"
-          description="Work assigned to you appears here."
+          title={empty.title}
+          description={empty.description}
           action={
-            canCreate ? (
+            empty.filtered ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setSearch('')
+                  setParams(new URLSearchParams(), { replace: true })
+                }}
+              >
+                Show all my maintenance
+              </Button>
+            ) : canCreate ? (
               <Button variant="secondary" onClick={() => navigate('/app/maintenance/new')}>
                 Schedule maintenance
               </Button>
@@ -140,6 +152,7 @@ export default function MaintenanceQueuePage() {
             sortable={false}
             showTechnician={false}
             onOpen={(id) => navigate(`/app/maintenance/${id}`)}
+            hrefFor={(id) => `/app/maintenance/${id}`}
           />
 
           {queue.data && (
@@ -156,4 +169,56 @@ export default function MaintenanceQueuePage() {
       )}
     </div>
   )
+}
+
+/**
+ * What an empty queue says. The dashboard's maintenance figures link here with a
+ * filter already applied, and "No open maintenance" under "Overdue" would claim
+ * the opposite of what was asked — so the copy names the filter that produced the
+ * empty list, and offers the way back to the whole queue.
+ */
+function emptyCopy(params: URLSearchParams): {
+  title: string
+  description: string
+  filtered: boolean
+} {
+  const dueWithin = params.get('due_within')
+
+  if (params.get('overdue') === '1') {
+    return {
+      title: 'Nothing is overdue',
+      description: 'None of your open maintenance is past its scheduled date.',
+      filtered: true,
+    }
+  }
+
+  if (dueWithin) {
+    return {
+      title: `Nothing due in the next ${dueWithin} days`,
+      description: 'None of your open maintenance is scheduled in that window.',
+      filtered: true,
+    }
+  }
+
+  if (params.get('status') === 'in_progress') {
+    return {
+      title: 'Nothing in progress',
+      description: 'You have no maintenance under way right now.',
+      filtered: true,
+    }
+  }
+
+  const filtered = ['search', 'status', 'type', 'preventive'].some((key) => params.get(key))
+
+  return filtered
+    ? {
+        title: 'No maintenance matches these filters',
+        description: 'Adjust the search or filters above, or show everything.',
+        filtered: true,
+      }
+    : {
+        title: 'No open maintenance',
+        description: 'Work assigned to you appears here.',
+        filtered: false,
+      }
 }

@@ -92,7 +92,7 @@ export default function TechnicianDetailPage() {
                   label="Assigned → completed"
                   value={formatMinutes(person.calculated.median_minutes_to_complete)}
                 />
-                <Figure label="Open tickets past SLA" value={person.calculated.sla_breached} />
+                <Figure label="Overdue tickets" value={person.calculated.sla_breached} />
                 <Figure label="Open tickets at risk" value={person.calculated.sla_at_risk} />
               </dl>
             </Surface>

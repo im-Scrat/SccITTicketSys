@@ -27,18 +27,29 @@ export function formatDateTime(iso: string | null | undefined): string {
   })
 }
 
-/** Compact relative time ("just now", "3d ago", or a date past a week). */
+/**
+ * Compact relative time: "just now", "3d ago" or "in 3d", or a date past a week.
+ *
+ * Both directions, because dashboards show deadlines and scheduled visits as well
+ * as things that happened. A time ahead of now used to fall into the "just now"
+ * branch, so a ticket due tomorrow read as if it had just been touched.
+ */
 export function formatRelative(iso: string | null | undefined): string {
   if (!iso) return '—'
   const then = new Date(iso).getTime()
   const diff = Date.now() - then
-  const mins = Math.round(diff / 60_000)
+  const future = diff < 0
+  const mins = Math.round(Math.abs(diff) / 60_000)
   if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
+
+  const phrase = (amount: number, unit: string) =>
+    future ? `in ${amount}${unit}` : `${amount}${unit} ago`
+
+  if (mins < 60) return phrase(mins, 'm')
   const hours = Math.round(mins / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return phrase(hours, 'h')
   const days = Math.round(hours / 24)
-  if (days < 7) return `${days}d ago`
+  if (days < 7) return phrase(days, 'd')
   return formatDate(iso)
 }
 

@@ -23,6 +23,20 @@ export function TBody({ children }: { children: ReactNode }) {
   return <tbody className="divide-y divide-border">{children}</tbody>
 }
 
+/**
+ * Did this click start on something that has its own behaviour — a link, a
+ * button, a form control? A clickable row uses it to leave those alone: a link
+ * in the row navigates by itself (and middle-click / Ctrl-click must keep
+ * working), and a button's click is not also "open the row".
+ */
+export function isInteractiveTarget(event: MouseEvent<HTMLElement>): boolean {
+  const target = event.target
+  return (
+    target instanceof Element &&
+    target.closest('a, button, input, select, textarea, label, [role="button"]') !== null
+  )
+}
+
 export function Tr({
   children,
   className,
@@ -30,7 +44,8 @@ export function Tr({
 }: {
   children: ReactNode
   className?: string
-  onClick?: () => void
+  /** Receives the click so a handler can ignore clicks that began on a nested control. */
+  onClick?: (event: MouseEvent<HTMLTableRowElement>) => void
 }) {
   return (
     <tr

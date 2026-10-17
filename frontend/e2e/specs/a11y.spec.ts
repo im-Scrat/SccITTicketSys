@@ -125,7 +125,14 @@ const AUTHENTICATED: Record<Role, string[]> = {
   technician: [
     '/app',
     '/app/tickets/assigned',
+    // The dashboard's figures open filtered views of the same page, a different
+    // render from the plain queue (view toggle, summary, per-view empty state).
+    '/app/tickets/assigned?view=overdue',
+    '/app/tickets/history',
+    '/app/my-assets',
     '/app/maintenance',
+    '/app/maintenance?due_within=7',
+    '/app/maintenance/scheduled',
     '/app/work-support',
     '/app/notifications',
     '/app/announcements',

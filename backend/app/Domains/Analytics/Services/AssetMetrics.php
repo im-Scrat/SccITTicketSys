@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Analytics\Services;
 
+use App\Domains\Maintenance\Services\MaintenanceVisibility;
 use App\Enums\AssetStatus;
 use App\Enums\ComponentType;
 use App\Enums\MaintenanceStatus;
@@ -25,6 +26,8 @@ use Illuminate\Support\Facades\DB;
  */
 class AssetMetrics
 {
+    public function __construct(private readonly MaintenanceVisibility $maintenance) {}
+
     /**
      * Serialized asset counts per status, zero-filled across the enum so the
      * distribution is stable, plus the live total.
@@ -100,8 +103,11 @@ class AssetMetrics
         $base = function () use ($technician) {
             $query = MaintenanceRecord::query();
 
+            // "Mine" means what the Maintenance module's own pages mean by it
+            // (FR-MNT-011, `scopeOwn`: assigned to me *or* opened by me), so each
+            // figure equals the total on the list it opens.
             if ($technician !== null) {
-                $query->where('technician_id', $technician->getKey());
+                $this->maintenance->scopeOwn($query, $technician);
             }
 
             return $query;
@@ -146,12 +152,15 @@ class AssetMetrics
             ])
             ->whereNotNull('scheduled_for');
 
+        // The same rule as the figures above, and as `/maintenance/scheduled`,
+        // which this panel's "View all" opens.
         if ($technician !== null) {
-            $query->where('technician_id', $technician->getKey());
+            $this->maintenance->scopeOwn($query, $technician);
         }
 
         return $query
             ->orderBy('scheduled_for')
+            ->orderByDesc('id')
             ->limit($limit)
             ->get()
             ->map(fn (MaintenanceRecord $record): array => [

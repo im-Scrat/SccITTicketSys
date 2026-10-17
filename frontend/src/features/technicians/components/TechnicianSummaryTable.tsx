@@ -65,7 +65,7 @@ export function TechnicianSummaryTable({
             </Th>
           )}
           <Th scope="col" className="text-right">
-            SLA breached
+            Overdue
           </Th>
         </Tr>
       </THead>

@@ -69,6 +69,7 @@ export function ServerWidget({
           title={widget.title}
           description={widget.description}
           href={widget.href}
+          linkLabel={widget.linkLabel}
           variant={variant}
         >
           <WidgetList columns={widget.columns} rows={widget.rows} emptyLabel={widget.empty} />

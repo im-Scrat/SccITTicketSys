@@ -20,6 +20,11 @@ export interface ListRow {
   cells: Array<string | number | null>
   /** Index of a cell holding an ISO timestamp, so it can be humanised. */
   timestamp_cell?: number
+  /**
+   * Where this row opens. The first cell becomes a real link to it. A value the
+   * server sends wins; otherwise the page may supply one (see `technicianLinks`).
+   */
+  href?: string
 }
 
 export interface AnnouncementRow {
@@ -46,6 +51,8 @@ interface BaseWidget {
   description?: string
   /** Optional link to the module this widget summarises. */
   href?: string
+  /** Text for that link when "Open" is too vague ("View all"). Client-supplied. */
+  linkLabel?: string
 }
 
 export interface KpiWidget extends BaseWidget {

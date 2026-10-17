@@ -262,6 +262,8 @@ export interface MaintenanceParams {
   scheduled_from?: string
   scheduled_to?: string
   overdue?: string
+  /** Open work scheduled within the next N days (1–90) — "Due in 7 days". */
+  due_within?: string
   scope?: 'own' | 'all'
   trashed?: 'without' | 'with' | 'only'
   sort?: string

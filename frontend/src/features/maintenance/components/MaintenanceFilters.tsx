@@ -1,7 +1,8 @@
 import { Button, SearchInput, Select } from '@/components/ui'
 import type { MaintenanceOptions } from '../types'
 
-export type FilterKey = 'status' | 'type' | 'preventive' | 'technician' | 'overdue' | 'trashed'
+export type FilterKey =
+  'status' | 'type' | 'preventive' | 'technician' | 'overdue' | 'due_within' | 'trashed'
 
 interface MaintenanceFiltersProps {
   search: string
@@ -108,6 +109,16 @@ export function MaintenanceFilters({
           />
         )}
 
+        {has('due_within') && (
+          <FilterSelect
+            label="Coming up"
+            value={params.get('due_within') ?? ''}
+            options={dueWithinOptions(params.get('due_within'))}
+            emptyLabel="Any time"
+            onChange={(value) => patch({ due_within: value || null, page: null })}
+          />
+        )}
+
         {has('trashed') && (
           <FilterSelect
             label="Archived"
@@ -164,9 +175,23 @@ function FilterSelect({
   )
 }
 
+/**
+ * The windows offered for "Coming up". A link can carry any whole number of days
+ * (the dashboard's is 7), so a value outside this list is added rather than
+ * leaving the select blank under a filter that is plainly applied.
+ */
+function dueWithinOptions(current: string | null): Array<{ value: string; label: string }> {
+  const days = [7, 14, 30].map(String)
+  if (current && !days.includes(current)) days.push(current)
+
+  return days
+    .sort((a, b) => Number(a) - Number(b))
+    .map((value) => ({ value, label: `Next ${value} days` }))
+}
+
 /** Everything except the search box and paging counts as a filter. */
 function countActiveFilters(params: URLSearchParams): number {
-  const keys = ['status', 'type', 'preventive', 'technician', 'overdue']
+  const keys = ['status', 'type', 'preventive', 'technician', 'overdue', 'due_within']
   let count = keys.filter((key) => (params.get(key) ?? '') !== '').length
 
   const trashed = params.get('trashed')

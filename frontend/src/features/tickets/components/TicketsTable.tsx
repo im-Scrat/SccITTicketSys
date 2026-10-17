@@ -1,4 +1,15 @@
-import { Badge, SortableTh, TBody, Table, Td, THead, Th, Tr } from '@/components/ui'
+import { Link } from 'react-router-dom'
+import {
+  Badge,
+  isInteractiveTarget,
+  SortableTh,
+  TBody,
+  Table,
+  Td,
+  THead,
+  Th,
+  Tr,
+} from '@/components/ui'
 import { formatDateTime, formatRelative } from '@/lib/datetime'
 import type { TicketRow, TicketSortColumn } from '../types'
 import {
@@ -16,6 +27,14 @@ interface TicketsTableProps {
   onOpen: (id: string) => void
   /** The technician queue omits the assignee column — it is always them. */
   showTechnician?: boolean
+  /**
+   * Where a row opens, as a path. When given, the title becomes a real link —
+   * keyboard-focusable, announced as a link, middle-click opens a new tab — and
+   * the rest of the row stays a pointer target for the same place. A click that
+   * began on a nested link or control is left to it. Omitted, the row is
+   * mouse-only through `onOpen`, exactly as before; the technician pages opt in.
+   */
+  hrefFor?: (id: string) => string
 }
 
 /**
@@ -42,6 +61,7 @@ export function TicketsTable({
   onSort,
   onOpen,
   showTechnician = true,
+  hrefFor,
 }: TicketsTableProps) {
   return (
     <Table>
@@ -119,7 +139,13 @@ export function TicketsTable({
 
       <TBody>
         {tickets.map((ticket) => (
-          <Tr key={ticket.id} onClick={() => onOpen(ticket.id)}>
+          <Tr
+            key={ticket.id}
+            onClick={(event) => {
+              if (hrefFor && isInteractiveTarget(event)) return
+              onOpen(ticket.id)
+            }}
+          >
             <Td className="whitespace-nowrap font-semibold tnum text-ink-strong">
               {ticket.ticket_number}
               {ticket.archived && (
@@ -130,9 +156,18 @@ export function TicketsTable({
             </Td>
 
             <Td>
-              <span className="block max-w-md truncate font-medium text-ink-strong">
-                {ticket.title}
-              </span>
+              {hrefFor ? (
+                <Link
+                  to={hrefFor(ticket.id)}
+                  className="block max-w-md truncate rounded-sm font-medium text-ink-strong hover:underline"
+                >
+                  {ticket.title}
+                </Link>
+              ) : (
+                <span className="block max-w-md truncate font-medium text-ink-strong">
+                  {ticket.title}
+                </span>
+              )}
               {ticket.category.label && (
                 <span className="block max-w-md truncate text-xs text-muted">
                   {ticket.category.label}
