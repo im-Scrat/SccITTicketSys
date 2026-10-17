@@ -1,0 +1,25 @@
+{
+  "schema": "sccit.release/1",
+  "release": "1b37ae9",
+  "deployed_at": "2026-10-02T05:39:43Z",
+  "git": {
+    "commit": "1b37ae95a587275a40d8290f32627d36f6b719b2",
+    "branch": "phase-2.9/role-distinct-experience",
+    "dirty": false
+  },
+  "images": {
+    "app_tag": "sccit/app:prod-1b37ae9",
+    "web_tag": "sccit/web:prod-1b37ae9",
+    "app_id": "sha256:c61f8d58fdfd57a9f5cf9b1bbf77cb203693db1585994e2f4a40909c8db876b8",
+    "web_id": "sha256:d06e2a892c767b09a07f1d6ce78acd50899f21838bae6cd54b1e06a83914e3d9"
+  },
+  "database": {
+    "migration_count": "38"
+  },
+  "verification": {
+    "gates": "passed",
+    "smoke": "passed"
+  },
+  "previous_release": "2df17db",
+  "pre_deploy_snapshot": ""
+}
