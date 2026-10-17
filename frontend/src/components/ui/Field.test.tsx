@@ -29,6 +29,31 @@ describe('Field', () => {
     expect(input.getAttribute('aria-describedby')).toBe(error.id)
   })
 
+  it('tells assistive technology a required field is required, without the native attribute', () => {
+    render(
+      <Field label="Describe the kind of problem" required>
+        <Input />
+      </Field>,
+    )
+
+    const input = screen.getByRole('textbox', { name: /describe the kind of problem/i })
+    expect(input).toHaveAttribute('aria-required', 'true')
+    // The browser's own validation bubble would pre-empt the form's message.
+    expect(input).not.toHaveAttribute('required')
+    // The asterisk is for the eye only.
+    expect(screen.getByText('*')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('leaves an optional field unmarked', () => {
+    render(
+      <Field label="Employee number">
+        <Input />
+      </Field>,
+    )
+
+    expect(screen.getByLabelText('Employee number')).not.toHaveAttribute('aria-required')
+  })
+
   it('shows a hint when there is no error', () => {
     render(
       <Field label="Employee number" hint="Optional">

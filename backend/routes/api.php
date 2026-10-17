@@ -421,6 +421,18 @@ Route::middleware('auth:sanctum')->group(function () {
                  */
                 Route::get('/assets', [AssetLookupController::class, 'assets']);
                 Route::get('/pc-units', [AssetLookupController::class, 'pcUnits']);
+
+                /*
+                 * Phase 2.9 — the report form's "which item has the problem?"
+                 * step (SDD DD-78): one selectable room's in-service PCs and
+                 * other equipment, as two label-only lists. Needs both
+                 * `selectPcUnit` and `selectAsset`; an unknown or unselectable
+                 * room is two empty lists, not a 404. Throttled per account
+                 * (`lookup-equipment`), because walking every room is the one
+                 * way to turn it into a located inventory.
+                 */
+                Route::get('/equipment', [AssetLookupController::class, 'roomEquipment'])
+                    ->middleware('throttle:lookup-equipment');
             });
 
         /*
@@ -733,9 +745,16 @@ Route::middleware('auth:sanctum')->group(function () {
                  * exactly the person whose evidence the record needs.
                  * `StoreTicketAttachmentRequest` and the destroy method both
                  * re-check `manageAttachments`, so the narrower rule still holds.
+                 *
+                 * Uploads are throttled per account (`ticket-attachments`,
+                 * Phase 2.9, NFR-SEC-009): the report form now uploads each
+                 * photo here right after creating the ticket, which makes
+                 * bulk sequential uploads the normal path rather than the odd
+                 * one.
                  */
                 Route::middleware('can:tickets.view')->group(function () {
-                    Route::post('/tickets/{ticket:uuid}/attachments', [TicketParticipationController::class, 'storeAttachment']);
+                    Route::post('/tickets/{ticket:uuid}/attachments', [TicketParticipationController::class, 'storeAttachment'])
+                        ->middleware('throttle:ticket-attachments');
                     Route::delete('/tickets/attachments/{attachment:uuid}', [TicketParticipationController::class, 'destroyAttachment']);
                 });
             });

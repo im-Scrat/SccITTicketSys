@@ -61,6 +61,10 @@ class DuplicateFinder
                 'pcUnit.room:id,uuid,name,floor_id',
                 'pcUnit.room.floor:id,uuid,name,building_id',
                 'pcUnit.room.floor.building:id,uuid,name',
+                'asset:id,uuid,asset_tag,name,hardware_model_id',
+                // With trashed, as every ticket projection reads it
+                // (`TicketDirectoryQuery::base()`).
+                'asset.hardwareModel' => fn ($query) => $query->withTrashed()->select(['id', 'model_name']),
             ])
             ->whereHas('status', fn (Builder $q): Builder => $q->where('is_open', true))
             // A ticket already flagged as a duplicate is not the canonical one
@@ -81,13 +85,19 @@ class DuplicateFinder
             }
         });
 
-        // Same machine first, then text relevance, then most recent. The
-        // `ts_rank` expression is only meaningful when there is a query to rank
-        // against, so it degrades to zero for a pure PC-unit lookup.
-        $query->orderByRaw(
-            'CASE WHEN tickets.pc_unit_id IS NOT DISTINCT FROM ? THEN 0 ELSE 1 END',
-            [$pcUnit?->getKey()],
-        );
+        // Same machine first, then text relevance, then most recent. Each step
+        // applies only when it has something to compare against: the `ts_rank`
+        // expression needs a query to rank, and the same-machine boost needs a
+        // machine. Without that guard the boost compared `pc_unit_id` against
+        // NULL — and, written null-safe, it put *every* ticket with no PC
+        // (room-only reports and, since Phase 2.9, every asset report) ahead of
+        // a better-matching PC report whenever no computer was chosen.
+        if ($pcUnit !== null) {
+            $query->orderByRaw(
+                'CASE WHEN tickets.pc_unit_id = ? THEN 0 ELSE 1 END',
+                [$pcUnit->getKey()],
+            );
+        }
 
         if ($text !== '') {
             $query->orderByRaw("ts_rank(search_vector, plainto_tsquery('english', ?)) DESC", [$text]);

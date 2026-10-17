@@ -80,7 +80,7 @@ it('sets the SLA clock from the floor, not from the category default', function 
 
     $ticket = reportIn($this, $this->room);
 
-    // Critical resolves in 480 minutes (seeded), low in 4320.
+    // Urgent (slug `critical`) resolves in 480 minutes (seeded), low in 4320.
     expect((int) round($ticket->created_at->diffInMinutes($ticket->resolution_due_at)))->toBe(480);
 });
 

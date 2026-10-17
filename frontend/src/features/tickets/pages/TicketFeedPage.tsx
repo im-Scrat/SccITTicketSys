@@ -124,8 +124,14 @@ export default function TicketFeedPage() {
         params={params}
         patch={patch}
         options={options.data}
+        /*
+          The priority filter is for administrators. This used to be inferred
+          from the options holding priorities, which a requester never received;
+          every role receives them now (SDD DD-75), so it is asked directly.
+          Technicians never reach this page (they are forwarded above).
+        */
         show={
-          (options.data?.priorities.length ?? 0) > 0
+          hasRole('administrator')
             ? ['status', 'priority', 'category', 'include_closed']
             : ['status', 'category', 'include_closed']
         }

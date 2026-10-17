@@ -214,6 +214,9 @@ class TicketMetrics
                 ->whereNull('closed_at')
                 ->whereHas('status', fn (Builder $q): Builder => $q->where('is_terminal', false))
                 ->count(),
+            // The list this figure links to (`/tickets/mine?resolved_within=`) applies
+            // the same predicate in TicketDirectoryQuery::applyResolvedWithin() —
+            // change one and the other, or the number stops matching its list.
             'resolved_recently' => $mine()
                 ->where('resolved_at', '>=', now()->subDays($recentDays))
                 ->count(),

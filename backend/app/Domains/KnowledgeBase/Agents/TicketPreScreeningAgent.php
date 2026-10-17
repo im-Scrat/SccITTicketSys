@@ -90,7 +90,9 @@ final class TicketPreScreeningAgent implements Agent, HasStructuredOutput
               stops a whole lab, a server room or an exam is more urgent than
               the same fault on one spare machine. This is a recommendation
               only: people decide, and the school's minimum for a room is
-              never lowered.
+              never lowered. The school shows the `critical` level to people
+              as "Urgent" (so a room's minimum may read "Urgent"); always
+              answer with the slug — low, medium, high or critical.
             - priority_rationale: one sentence explaining that recommendation
               from the evidence you were given.
 

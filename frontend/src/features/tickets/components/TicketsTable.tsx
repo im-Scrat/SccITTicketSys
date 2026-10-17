@@ -1,7 +1,12 @@
 import { Badge, SortableTh, TBody, Table, Td, THead, Th, Tr } from '@/components/ui'
 import { formatDateTime, formatRelative } from '@/lib/datetime'
 import type { TicketRow, TicketSortColumn } from '../types'
-import { SlaBadge, TicketPriorityBadge, TicketStatusBadge } from './TicketBadges'
+import {
+  ReporterChoiceMarker,
+  SlaBadge,
+  TicketPriorityBadge,
+  TicketStatusBadge,
+} from './TicketBadges'
 
 interface TicketsTableProps {
   tickets: TicketRow[]
@@ -24,6 +29,11 @@ interface TicketsTableProps {
  *
  * Counts are right-aligned with tabular figures (the Tabular-Truth rule) so the
  * eye can compare them down the column instead of reading each one.
+ *
+ * Two Phase 2.9 additions are staff-only for the same reason: the reporter's
+ * "Other" description beside the category, and a "Reporter's choice" marker
+ * under a priority the reporter picked, so self-declared priorities can be
+ * found and reviewed (SDD DD-75, DD-77).
  */
 export function TicketsTable({
   tickets,
@@ -124,7 +134,10 @@ export function TicketsTable({
                 {ticket.title}
               </span>
               {ticket.category.label && (
-                <span className="block text-xs text-muted">{ticket.category.label}</span>
+                <span className="block max-w-md truncate text-xs text-muted">
+                  {ticket.category.label}
+                  {ticket.category.detail ? ` — ${ticket.category.detail}` : ''}
+                </span>
               )}
             </Td>
 
@@ -133,7 +146,10 @@ export function TicketsTable({
             </Td>
 
             <Td>
-              <TicketPriorityBadge priority={ticket.priority} />
+              <span className="flex flex-col items-start gap-1.5">
+                <TicketPriorityBadge priority={ticket.priority} />
+                <ReporterChoiceMarker priority={ticket.priority} />
+              </span>
             </Td>
 
             <Td className="text-sm">{ticket.reporter.name ?? '—'}</Td>
@@ -145,9 +161,12 @@ export function TicketsTable({
             )}
 
             <Td className="text-sm">
-              {ticket.pc_unit ? (
-                <span className="block font-medium text-ink">{ticket.pc_unit.identifier}</span>
-              ) : null}
+              {/* At most one of the two is set (SDD DD-79). */}
+              {(ticket.pc_unit ?? ticket.asset) && (
+                <span className="block font-medium text-ink">
+                  {(ticket.pc_unit ?? ticket.asset)?.identifier}
+                </span>
+              )}
               <span className="block text-muted">
                 {ticket.location?.room
                   ? `${ticket.location.room}${ticket.location.building ? `, ${ticket.location.building}` : ''}`

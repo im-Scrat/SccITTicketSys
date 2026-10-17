@@ -3,7 +3,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Alert, Button, Skeleton } from '@/components/ui'
 import { AssignDialog } from '@/features/tickets/components/AdminTicketActions'
-import { TicketPriorityBadge, TicketStatusBadge } from '@/features/tickets/components/TicketBadges'
+import {
+  ReporterChoiceMarker,
+  TicketPriorityBadge,
+  TicketStatusBadge,
+} from '@/features/tickets/components/TicketBadges'
 import { useTicketDirectory, useTicketOptions } from '@/features/tickets/hooks/queries'
 import type { TicketParams, TicketRow } from '@/features/tickets/types'
 import { formatRelative } from '@/lib/datetime'
@@ -26,6 +30,8 @@ interface AdminTicketQueueProps {
  * the management page would — and each row carries the same Assign dialog as
  * the ticket page, so the commonest administrator action needs no navigation.
  * Kept live by the admin dashboard channel, which invalidates the directory.
+ * A priority the reporter chose carries a "Reporter's choice" marker, so an
+ * administrator triaging here can see which urgencies were self-declared.
  */
 export function AdminTicketQueue({
   title,
@@ -70,6 +76,7 @@ export function AdminTicketQueue({
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted">
                   <TicketStatusBadge status={row.status} />
                   <TicketPriorityBadge priority={row.priority} />
+                  <ReporterChoiceMarker priority={row.priority} />
                   {row.location?.room && <span>{row.location.room}</span>}
                   <span>· {formatRelative(row.created_at)}</span>
                 </div>

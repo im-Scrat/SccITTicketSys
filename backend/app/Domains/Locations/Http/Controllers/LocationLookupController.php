@@ -39,7 +39,10 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  */
 class LocationLookupController extends Controller
 {
-    /** Selectable rooms, ordered building → floor → room. */
+    /**
+     * Selectable rooms, ordered building → floor → room — or laboratories,
+     * then offices, then the rest with `sort=type` (the report form's list).
+     */
     public function rooms(LocationLookupRequest $request, LocationOptions $options): AnonymousResourceCollection
     {
         return LocationOptionResource::collection($options->rooms($request->validated()));

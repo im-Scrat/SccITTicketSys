@@ -17,7 +17,7 @@ use Illuminate\Support\Carbon;
  * rather than a deployment. Two consequences follow, and both are deliberate:
  *
  *  1. **Deadlines are recomputed when the priority changes.** A ticket raised as
- *     Low and escalated to Critical must inherit Critical's clock, measured from
+ *     Low and escalated to Urgent must inherit Urgent's clock, measured from
  *     when it was *reported* — not from when someone got round to escalating it,
  *     which would reward slow triage with a longer deadline.
  *  2. **Breach is computed on read, never stored.** A stored `is_breached` flag

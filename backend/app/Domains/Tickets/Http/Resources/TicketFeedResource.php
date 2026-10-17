@@ -24,7 +24,11 @@ use Illuminate\Support\Str;
  * escalation timestamps, the AI snapshot columns, blame columns, or the
  * reporter's email, employee number or contact details — and, since Phase 2.9,
  * no reporter *name* for anyone but the reporter and an Administrator
- * ({@see reporterFor()}).
+ * ({@see reporterFor()}), no priority *source* (requesters are not told which
+ * rule set a level; SDD DD-75 — a room-floor raise still shows in the level
+ * itself, which is not treated as confidential), no "Other" category
+ * description (the reporter's own words, like the description itself), and no
+ * equipment uuid — a PC or other asset appears as a label and identifier only.
  *
  * That omission is the **security control**, not a filter applied on the way
  * out. As with {@see AssetOptionResource}, the class cannot express the
@@ -48,6 +52,7 @@ class TicketFeedResource extends JsonResource
     public function toArray(Request $request): array
     {
         $pcUnit = $this->pcUnit;
+        $asset = $this->asset;
         $room = $this->locationRoom();
         $status = $this->statusRow();
         $building = $room?->floor?->building;
@@ -82,6 +87,11 @@ class TicketFeedResource extends JsonResource
             'pc_unit' => $pcUnit !== null ? [
                 'label' => $pcUnit->pc_name,
                 'identifier' => $pcUnit->unit_code,
+            ] : null,
+            // Phase 2.9 (SDD DD-79): another piece of equipment, the same way.
+            'asset' => $asset !== null ? [
+                'label' => $asset->displayName(),
+                'identifier' => $asset->asset_tag,
             ] : null,
             'location' => $room !== null ? [
                 'room' => $room->name,

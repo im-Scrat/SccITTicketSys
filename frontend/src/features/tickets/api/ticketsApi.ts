@@ -78,10 +78,21 @@ export interface TicketPayload {
   title: string
   description: string
   category: string
+  /**
+   * The reporter's own words for an "Other" category (3–120 characters). Sent
+   * only when the category asks for it; the server refuses it on any other.
+   */
+  category_detail?: string | null
+  /** At most one item: a PC or another asset, never both (SDD DD-79). */
   pc_unit?: string | null
+  asset?: string | null
   room?: string | null
   tags?: string[]
-  /** Staff only — the API prohibits it for a requester. */
+  /**
+   * Any reporter may choose one (SDD DD-75); omitted, the category's default
+   * applies. A reporter's choice can still be raised by a room's minimum or the
+   * AI. Only IT staff's choice is final.
+   */
   priority?: string
 }
 
@@ -92,7 +103,9 @@ export async function createTicket(payload: TicketPayload): Promise<TicketDetail
 
 export async function updateTicket(
   id: string,
-  payload: Partial<Pick<TicketPayload, 'title' | 'description' | 'category' | 'tags'>>,
+  payload: Partial<
+    Pick<TicketPayload, 'title' | 'description' | 'category' | 'category_detail' | 'tags'>
+  >,
 ): Promise<TicketDetailEnvelope> {
   const { data } = await api.put<TicketDetailEnvelope>(`/tickets/${id}`, payload)
   return data
@@ -306,7 +319,10 @@ export async function markDuplicate(
 
 /* ----------------------------------------------------------------- shared */
 
-/** Role-shaped: a requester receives empty `priorities` and `technicians`. */
+/**
+ * Role-shaped: a requester receives an empty `technicians`, and priorities
+ * without their SLA minutes.
+ */
 export async function fetchTicketOptions(): Promise<TicketOptions> {
   const { data } = await api.get<{ data: TicketOptions }>('/tickets/options')
   return data.data

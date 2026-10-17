@@ -1,7 +1,15 @@
 import { X } from 'lucide-react'
-import { type ReactNode, useEffect, useId } from 'react'
+import { type ReactNode, useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/cn'
+
+/**
+ * The modals open right now, innermost last. Escape is a document-level key, so
+ * without this every open modal would hear the same press: dismissing a
+ * confirmation raised from inside a dialog would close the dialog behind it too.
+ * Only the topmost entry answers.
+ */
+const openModals: symbol[] = []
 
 interface ModalProps {
   open: boolean
@@ -27,6 +35,11 @@ const sizes = {
  * Rule). Closes on Escape or backdrop click, locks body scroll while open, and
  * wires role="dialog" + aria-modal with a labelled title. The scrim is a fixed
  * dark wash that reads correctly in both themes.
+ *
+ * Focus moves into the dialog when it opens and returns to whatever opened it
+ * when it closes — otherwise a keyboard user who dismisses it is dropped at the
+ * top of the document, far from the control they were using. When modals stack,
+ * Escape closes only the topmost (see `openModals`).
  */
 export function Modal({
   open,
@@ -40,11 +53,29 @@ export function Modal({
 }: ModalProps) {
   const titleId = useId()
   const descId = useId()
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // `onClose` is read through a ref so a parent that passes a fresh arrow
+  // function each render does not re-run the effect below — re-running it would
+  // re-stack this modal and steal focus back from inside the dialog.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
 
   useEffect(() => {
     if (!open) return
+    const token = Symbol('modal')
+    openModals.push(token)
+
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    // Content that already took focus (an autoFocus field) keeps it.
+    if (!dialogRef.current?.contains(document.activeElement)) dialogRef.current?.focus()
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape' && openModals[openModals.length - 1] === token) {
+        onCloseRef.current()
+      }
     }
     document.addEventListener('keydown', onKey)
     const previousOverflow = document.body.style.overflow
@@ -52,8 +83,12 @@ export function Modal({
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = previousOverflow
+      openModals.splice(openModals.indexOf(token), 1)
+      // Only if the opener is still on the page: a modal that deleted the row
+      // it was opened from has nothing to return to.
+      if (opener?.isConnected) opener.focus()
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 
@@ -65,12 +100,17 @@ export function Modal({
         aria-hidden="true"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         aria-describedby={description ? descId : undefined}
+        // Focusable by script only, so it can receive focus on open without
+        // becoming a Tab stop; the ring is suppressed because the dialog's own
+        // edge already shows where focus is.
+        tabIndex={-1}
         className={cn(
-          'relative w-full rounded-t-lg border border-border bg-surface shadow-[var(--shadow-overlay-md)] animate-sheet-in sm:rounded-lg',
+          'relative w-full rounded-t-lg border border-border bg-surface shadow-[var(--shadow-overlay-md)] outline-none animate-sheet-in focus-visible:outline-none sm:rounded-lg',
           sizes[size],
         )}
       >

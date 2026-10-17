@@ -413,6 +413,18 @@ class TicketLifecycle
             $stamps['closed_at'] = $now;
         }
 
+        // Sent back to work. `resolved → in-progress` is a legal move for an
+        // administrator or the assigned technician, and a ticket that leaves
+        // `resolved` for anything but `closed` is no longer resolved. Leaving the
+        // stamp makes every `resolved_at` reader disagree with the ticket's own
+        // status: the dashboard's "awaiting confirmation" and "resolved in 30
+        // days" count it while the status-based lists they link to do not, and
+        // the SLA clock treats a ticket being re-worked as finished. Resolving it
+        // again stamps a fresh time; the earlier resolution stays in the history.
+        if ($ticket->status?->slug === 'resolved' && ! in_array($target->slug, ['resolved', 'closed'], true)) {
+            $stamps['resolved_at'] = null;
+        }
+
         // Reopening clears the terminal stamps: a ticket that is open again has
         // not been resolved, and leaving `resolved_at` set would make the
         // auto-close sweep pick it up a second time.

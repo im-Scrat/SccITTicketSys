@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\RoomType;
 use App\Models\Building;
 use App\Models\Floor;
 use App\Models\Room;
@@ -84,6 +85,57 @@ it('searches and scopes the picker, and caps the result size', function () {
 
     $this->actingAs($teacher)->getJson('/api/lookups/rooms?limit=9999')
         ->assertStatus(422)->assertJsonValidationErrors(['limit']);
+});
+
+it('does not match the building’s own name inside a building-scoped search', function () {
+    // Phase 2.9 (SDD DD-78): within one building every room shares its name,
+    // so matching it would turn a search into "show everything".
+    $teacher = userWithRole('teacher');
+    $building = Building::factory()->create(['name' => 'Buena Hall']);
+    $floor = Floor::factory()->create(['building_id' => $building->id]);
+    Room::factory()->create(['floor_id' => $floor->id, 'name' => 'Lab A', 'is_active' => true]);
+    Room::factory()->create(['floor_id' => $floor->id, 'name' => 'Office room', 'is_active' => true]);
+
+    $this->actingAs($teacher)->getJson("/api/lookups/rooms?building={$building->uuid}&search=buena")
+        ->assertOk()->assertJsonCount(0, 'data');
+
+    $this->actingAs($teacher)->getJson("/api/lookups/rooms?building={$building->uuid}&search=lab")
+        ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.name', 'Lab A');
+
+    // Unscoped, reporters still find rooms by building name.
+    $this->actingAs($teacher)->getJson('/api/lookups/rooms?search=buena')
+        ->assertOk()->assertJsonCount(2, 'data');
+});
+
+it('lists laboratories first, then offices, then every other type, with sort=type', function () {
+    $teacher = userWithRole('teacher');
+    // One floor, so the floor order cannot interleave the groups.
+    $floor = Floor::factory()->create();
+    foreach ([
+        ['Archive', RoomType::Storage],
+        ['Bursar', RoomType::Office],
+        ['Chemistry', RoomType::Laboratory],
+        ['Data centre', RoomType::ServerRoom],
+        ['Electronics', RoomType::Laboratory],
+    ] as [$name, $type]) {
+        Room::factory()->create(['floor_id' => $floor->id, 'name' => $name, 'room_type' => $type->value, 'is_active' => true]);
+    }
+
+    $names = collect($this->actingAs($teacher)->getJson("/api/lookups/rooms?building={$floor->building->uuid}&sort=type")
+        ->assertOk()->json('data'))->pluck('name')->all();
+
+    expect($names)->toBe(['Chemistry', 'Electronics', 'Bursar', 'Archive', 'Data centre']);
+
+    // Without it, the order is unchanged: alphabetical within the floor.
+    $plain = collect($this->actingAs($teacher)->getJson("/api/lookups/rooms?building={$floor->building->uuid}")
+        ->assertOk()->json('data'))->pluck('name')->all();
+
+    expect($plain)->toBe(['Archive', 'Bursar', 'Chemistry', 'Data centre', 'Electronics']);
+});
+
+it('refuses a sort order it does not know', function () {
+    $this->actingAs(userWithRole('teacher'))->getJson('/api/lookups/rooms?sort=bogus')
+        ->assertStatus(422)->assertJsonValidationErrors(['sort']);
 });
 
 it('offers cascading building and floor lookups', function () {

@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
  * never hard-deleted).
  *
  * The guard is consulted first: an asset still installed inside a PC, or with
- * open tickets against its host, is refused with a **422 blocker report** naming
+ * open tickets against it or its host PC, is refused with a **422 blocker report** naming
  * what is in the way. This repeats the Policy's check on purpose — authorization
  * and the write path each enforce their own invariant (defense in depth, as in
  * Phases 2.3 and 2.4).

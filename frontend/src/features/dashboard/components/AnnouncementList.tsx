@@ -12,9 +12,18 @@ export function AnnouncementList({ rows }: { rows: AnnouncementRow[] }) {
       {rows.map((row) => (
         <li key={row.id} className="py-2.5 first:pt-0 last:pb-0">
           <div className="flex items-baseline justify-between gap-3">
-            <p className="flex items-center gap-1.5 text-sm font-medium text-ink-strong">
-              {row.pinned && <Pin size={13} className="shrink-0 text-muted" aria-label="Pinned" />}
+            {/* The pin is an inline glyph after the title's last word. Leading it
+                pushed a pinned title right of its unpinned neighbours; as a flex
+                item it floated, detached, beside a wrapped title. */}
+            <p className="text-sm font-medium text-ink-strong">
               {row.title}
+              {row.pinned && (
+                <Pin
+                  size={13}
+                  className="ml-1.5 inline align-[-1px] text-muted"
+                  aria-label="Pinned"
+                />
+              )}
             </p>
             <time className="shrink-0 text-xs text-muted tnum">{formatRelative(row.at)}</time>
           </div>

@@ -46,17 +46,33 @@ class TicketParticipationController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $comments = $ticket->comments()
-            ->with(['user.role', 'editedBy', 'deletedBy'])
+        $seesInternal = $this->visibility->canSeeInternal($user, $ticket);
+
+        // Internal notes never enter a requester's result set at all — and the
+        // same constraint is applied to the replies, so the rule cannot be
+        // bypassed one level down.
+        $visible = fn ($query) => $query
             ->withTrashed()
-            // Internal notes never enter a requester's result set at all.
-            ->when(
-                ! $this->visibility->canSeeInternal($user, $ticket),
-                fn ($query) => $query->where('is_internal', false),
-            )
+            ->with(['user.role', 'editedBy', 'deletedBy'])
+            ->when(! $seesInternal, fn ($inner) => $inner->where('is_internal', false))
             // Oldest first: a conversation reads forward.
             ->orderBy('created_at')
-            ->orderBy('id')
+            ->orderBy('id');
+
+        /*
+         * Threads, one level deep (SDD DD-74): the page is made of top-level
+         * comments, each carrying all of its replies. Paginating the flat list
+         * instead would split a thread across pages, leaving a reply on page 2
+         * answering a comment the reader is not looking at. The parent is loaded
+         * (trashed included — a removed root still heads its thread) so each
+         * reply names its root in the payload.
+         */
+        $comments = $ticket->comments()
+            ->whereNull('parent_comment_id')
+            ->tap($visible)
+            ->with(['replies' => fn ($query) => $visible($query)->with([
+                'parent' => fn ($parent) => $parent->withTrashed()->select(['id', 'uuid']),
+            ])])
             ->paginate(25);
 
         return TicketCommentResource::collection($comments);

@@ -34,6 +34,10 @@ class LocationLookupRequest extends FormRequest
             'floor' => ['nullable', 'string', 'uuid'],
             'room_type' => ['nullable', 'string', Rule::in([...RoomType::values(), 'all'])],
             'limit' => ['nullable', 'integer', 'min:1', 'max:200'],
+            // Phase 2.9 (SDD DD-78): the report form lists a building's rooms
+            // laboratories first. A named order, not a free column — this is a
+            // form helper, not a sortable directory.
+            'sort' => ['nullable', 'string', Rule::in(['type'])],
         ];
     }
 }

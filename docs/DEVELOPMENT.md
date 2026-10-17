@@ -2,8 +2,13 @@
 
 Day-to-day workflow. **Since 2026-10-10 there is one stack: production, on
 `http://localhost:8081`.** The bind-mounted development stack (`:8080`, Vite
-HMR) was retired, so there is no hot reload — a change reaches the browser
-through the quality gate and a rebuild of the production images.
+HMR) was retired, so there is no hot reload on `:8081` — a change reaches the
+site through the quality gate and a rebuild of the production images. To see
+frontend edits live before that, run `npm run dev:live` in `frontend/` and open
+`http://localhost:5173`: Vite on this PC, forwarding to production's API and
+data ([PRODUCTION_DEVELOPER_FILE_MAP.md](PRODUCTION_DEVELOPER_FILE_MAP.md) §1).
+Teammates can use the same preview over Tailscale Serve (tailnet-only), as
+described in that section under "Sharing the preview with the team".
 
 Where each feature lives, how the layers connect and which files to open:
 [PRODUCTION_DEVELOPER_FILE_MAP.md](PRODUCTION_DEVELOPER_FILE_MAP.md).

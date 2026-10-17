@@ -51,6 +51,7 @@ Enum scan_result { success; invalid; expired; mismatch }
 
 Enum ticket_source { web; mobile; email; phone; walk_in; ai }
 Enum ticket_update_type { comment; status_change; priority_change; assignment; ai_analysis; system }
+Enum ticket_priority_source { category; reporter; location; ai; manual }   // Phase 2.9, SDD DD-75 — weakest first
 
 Enum assignment_status { pending; accepted; in_progress; on_hold; completed; declined; reassigned; cancelled }
 Enum maintenance_status { scheduled; in_progress; on_hold; completed; cancelled }
@@ -444,6 +445,7 @@ Table ticket_categories {
   description text
   default_priority_id bigint
   is_active boolean [not null, default: true]
+  requires_detail boolean [not null, default: false, note: 'Phase 2.9 (SDD DD-77, migration 2026_10_16_120000): a catch-all ("Other") category whose reports must describe the kind of problem in tickets.category_detail. Set for other; also kept on other-common and other-advanced, which 2026_10_16_150000 retired (is_active = false, Client decision 2026-10-16) so the form offers a single Other.']
   sort_order int [not null, default: 0]
   created_at timestamptz
   updated_at timestamptz
@@ -497,8 +499,11 @@ Table tickets {
   assigned_technician_id bigint
   room_id bigint
   pc_unit_id bigint
+  asset_id bigint [note: 'Phase 2.9 (SDD DD-79): a non-PC item (printer, projector, monitor). At most one of pc_unit_id / asset_id.']
   category_id bigint [not null]
+  category_detail varchar(120) [note: 'Phase 2.9 (SDD DD-77): a short description of the kind of problem, given by the reporter under a requires_detail category only.']
   priority_id bigint [not null]
+  priority_source ticket_priority_source [note: 'Phase 2.9 (SDD DD-75): which rule set the priority. varchar(16) + CHECK; NULL = predates the column.']
   current_status_id bigint [not null]
   duplicate_of_id bigint
 
@@ -533,6 +538,7 @@ Table tickets {
     assigned_technician_id
     room_id
     pc_unit_id
+    asset_id [name: 'tickets_asset_id_index']
     category_id
     priority_id
     current_status_id
@@ -548,6 +554,21 @@ Table tickets {
   ai_analysis_logs row. Counter caches maintained by triggers/observers.
   Full-text search: generated tsvector(title, description) + GIN index.
   CHECK (duplicate_of_id <> id). CHECK (ai_confidence BETWEEN 0 AND 1).
+  Phase 2.9 additions (report-a-problem form, SDD DD-75/77/79):
+  • tickets_priority_source_check: priority_source IS NULL OR IN
+    ('category','reporter','location','ai','manual') — the order of
+    authority, weakest first (DD-75). Each widening is its own migration with
+    frozen lists (2026_10_16_100000 added 'reporter'); never rebuild it from
+    the PHP enum.
+  • tickets_equipment_target_check: num_nonnulls(pc_unit_id, asset_id) <= 1 —
+    a ticket names at most one item; <= 1 because location-only tickets are
+    legal. Both columns are ON DELETE SET NULL, and a cascade can only lower
+    the count, so this CHECK never blocks it (2026_10_16_140000).
+  • tickets_category_detail_check: category_detail IS NULL OR
+    category_detail !~ '^[[:space:]]*$' — not blank (POSIX class, not btrim).
+    3–120 characters and "required exactly when the category requires_detail"
+    are enforced by the FormRequests; not part of the full-text search vector
+    (2026_10_16_130000).
   '''
 }
 
@@ -1587,6 +1608,7 @@ Ref: tickets.reporter_id > users.id [delete: restrict, update: no action]
 Ref: tickets.assigned_technician_id > users.id [delete: set null, update: no action]
 Ref: tickets.room_id > rooms.id [delete: set null, update: no action]
 Ref: tickets.pc_unit_id > pc_units.id [delete: set null, update: no action]
+Ref: tickets.asset_id > assets.id [delete: set null, update: no action]
 Ref: tickets.category_id > ticket_categories.id [delete: restrict, update: no action]
 Ref: tickets.priority_id > ticket_priorities.id [delete: restrict, update: no action]
 Ref: tickets.current_status_id > ticket_statuses.id [delete: restrict, update: no action]

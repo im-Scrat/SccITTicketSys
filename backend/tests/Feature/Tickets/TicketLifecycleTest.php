@@ -11,6 +11,7 @@ use App\Models\SystemSetting;
 use App\Models\TicketPriority;
 use App\Models\TicketStatusHistory;
 use App\Models\TicketUpdate;
+use Carbon\CarbonImmutable;
 use Database\Seeders\SystemSettingSeeder;
 use Database\Seeders\TicketLookupSeeder;
 use Illuminate\Validation\ValidationException;
@@ -145,6 +146,62 @@ it('lets the reporter reopen and clears the terminal stamps', function () {
         // Cleared, so the auto-close sweep cannot pick the ticket up again.
         ->and($ticket->resolved_at)->toBeNull()
         ->and($ticket->closed_at)->toBeNull();
+});
+
+/* --------------------------------------------- sent back to work (FR-TKT-006) */
+
+it('clears resolved_at when a resolved ticket is sent back to work', function () {
+    $ticket = ticketFor($this->teacher, 'resolved', ['resolved_at' => now()->subDay()]);
+
+    $this->lifecycle->transition($ticket, ticketStatus('in-progress'), $this->admin);
+
+    $ticket->refresh();
+    // Being re-worked, it is neither resolved nor closed — and leaving the stamp
+    // would make the dashboard figures count a ticket their lists do not show.
+    expect($ticket->status->slug)->toBe('in-progress')
+        ->and($ticket->resolved_at)->toBeNull()
+        ->and($ticket->closed_at)->toBeNull();
+});
+
+it('stamps a fresh resolved_at when a re-worked ticket is resolved again', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-10-14 09:00:00'));
+    $ticket = ticketFor($this->teacher, 'in-progress');
+
+    $this->lifecycle->transition($ticket, ticketStatus('resolved'), $this->admin);
+    $this->lifecycle->transition($ticket->refresh(), ticketStatus('in-progress'), $this->admin);
+    expect($ticket->refresh()->resolved_at)->toBeNull();
+
+    $this->travelTo(CarbonImmutable::parse('2026-10-15 09:00:00'));
+    $this->lifecycle->transition($ticket->refresh(), ticketStatus('resolved'), $this->admin);
+
+    expect($ticket->refresh()->resolved_at?->timestamp)
+        ->toBe(CarbonImmutable::parse('2026-10-15 09:00:00')->timestamp);
+});
+
+it('keeps resolved_at through closing, which finishes a resolution rather than reworking it', function () {
+    $ticket = ticketFor($this->teacher, 'resolved', ['resolved_at' => now()->subDays(2)]);
+
+    $this->lifecycle->transition($ticket, ticketStatus('closed'), $this->admin);
+
+    $ticket->refresh();
+    expect($ticket->resolved_at)->not->toBeNull()
+        ->and($ticket->closed_at)->not->toBeNull();
+});
+
+it('puts a re-worked ticket back on the SLA clock without resetting its deadline', function () {
+    $sla = app(SlaCalculator::class);
+    $ticket = ticketFor($this->teacher, 'resolved', [
+        'resolved_at' => now()->subHours(2),
+        'resolution_due_at' => now()->subHour(),
+    ]);
+
+    // While it is resolved the clock is stopped…
+    expect($sla->posture($ticket)['resolution_breached'])->toBeFalse();
+
+    $this->lifecycle->transition($ticket, ticketStatus('in-progress'), $this->admin);
+
+    // …and sending it back to work starts it again, against the original deadline.
+    expect($sla->posture($ticket->refresh())['resolution_breached'])->toBeTrue();
 });
 
 it('refuses a reporter reopen once the window has closed', function () {

@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import {
   lookupBuildings,
   lookupFloors,
   lookupRooms,
+  type RoomLookupOption,
   type RoomLookupParams,
 } from '@/services/lookups'
 
@@ -14,18 +15,38 @@ export const lookupKeys = {
 }
 
 /**
+ * Optional extras for {@link useRoomLookup}. `placeholderData:
+ * keepPreviousData` keeps a searched list on screen while the next term's
+ * results load, instead of emptying it on every debounced keystroke.
+ */
+type RoomLookupQueryOptions = Pick<
+  UseQueryOptions<
+    RoomLookupOption[],
+    Error,
+    RoomLookupOption[],
+    ReturnType<typeof lookupKeys.rooms>
+  >,
+  'placeholderData'
+>
+
+/**
  * Selectable rooms for a form's location field (FR-LOC-011). Cached for a minute
  * — the estate changes rarely, and a picker should feel instant.
  *
  * Keyed separately from the Administrator-only `locations` query namespace, so an
  * admin mutation and a reporter's picker never share a cache entry.
  */
-export function useRoomLookup(params: RoomLookupParams = {}, enabled = true) {
+export function useRoomLookup(
+  params: RoomLookupParams = {},
+  enabled = true,
+  options: RoomLookupQueryOptions = {},
+) {
   return useQuery({
     queryKey: lookupKeys.rooms(params),
     queryFn: () => lookupRooms(params),
     staleTime: 60_000,
     enabled,
+    ...options,
   })
 }
 

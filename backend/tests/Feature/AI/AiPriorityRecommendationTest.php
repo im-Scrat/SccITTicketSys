@@ -182,6 +182,19 @@ it('never overrides a priority a human chose', function () {
         ->and($ticket->priority_source)->toBe(TicketPrioritySource::Manual);
 });
 
+it('raises a priority the reporter chose — only IT staff’s choice locks it', function () {
+    // Phase 2.9 (SDD DD-75): a reporter's own choice is the second-weakest
+    // claim, not a human override.
+    autoRaise(true);
+    $ticket = lowTicket($this, ['priority_source' => TicketPrioritySource::Reporter->value]);
+    TicketPreScreeningAgent::fake([recommending('high')]);
+
+    prescreen($ticket);
+
+    expect($ticket->refresh()->priority_id)->toBe(priorityId('high'))
+        ->and($ticket->priority_source)->toBe(TicketPrioritySource::Ai);
+});
+
 it('does not touch a ticket that is no longer live', function () {
     autoRaise(true);
     $ticket = ticketFor($this->teacher, 'closed', ['priority_id' => priorityId('low')]);

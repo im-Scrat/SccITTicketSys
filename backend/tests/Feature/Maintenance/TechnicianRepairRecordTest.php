@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Domains\Identity\Services\PermissionResolver;
+use App\Enums\AssetStatus;
 use App\Enums\AssignmentStatus;
+use App\Enums\ComponentType;
 use App\Enums\MaintenanceStatus;
 use App\Enums\PcStatus;
 use App\Enums\PermissionGrantType;
@@ -67,6 +69,22 @@ it('does not offer one when the ticket names no machine to hold the history', fu
         ->getJson("/api/tickets/assigned/{$noPc->uuid}")
         ->assertOk()
         ->assertJsonPath('meta.repair.can_start', false);
+});
+
+it('offers one on a ticket that names another piece of equipment instead of a PC', function (): void {
+    // Phase 2.9 (SDD DD-79): a maintenance record may belong to an asset, so
+    // a ticket about a printer has somewhere for the repair history to go.
+    $printer = assetOfType(ComponentType::Printer, [
+        'current_room_id' => $this->room->id,
+        'status' => AssetStatus::Deployed->value,
+    ]);
+    $assetTicket = ticketFor($this->teacher, 'in-progress', ['pc_unit_id' => null, 'asset_id' => $printer->id]);
+    assign($assetTicket, $this->technician, AssignmentStatus::InProgress);
+
+    $this->actingAs($this->technician)
+        ->getJson("/api/tickets/assigned/{$assetTicket->uuid}")
+        ->assertOk()
+        ->assertJsonPath('meta.repair.can_start', true);
 });
 
 /* ------------------------------------------------ the full capture, end to end */

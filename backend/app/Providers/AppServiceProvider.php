@@ -172,6 +172,25 @@ class AppServiceProvider extends ServiceProvider
         )->by((string) ($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
 
         /*
+         * Phase 2.9 — report-a-problem form (SDD DD-78/80). Same shape and
+         * reasoning as `ticket-comments`: per account, ceilings set against
+         * runaway automation rather than ordinary use.
+         *
+         * `ticket-attachments`: the form uploads each photo separately after
+         * creating the ticket, so a burst of uploads is now normal — but a
+         * client in a retry loop, or a script, must not upload without bound.
+         * `lookup-equipment`: one call per room a reporter picks; walking every
+         * room is the only way to assemble a located inventory from it.
+         */
+        RateLimiter::for('ticket-attachments', fn (Request $request): Limit => Limit::perHour(
+            (int) config('security.rate_limits.ticket_attachments_per_hour', 60),
+        )->by((string) ($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        RateLimiter::for('lookup-equipment', fn (Request $request): Limit => Limit::perMinute(
+            (int) config('security.rate_limits.lookup_equipment_per_minute', 120),
+        )->by((string) ($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        /*
          * Phase 2.9. The teacher AI panel used to borrow `tickets`, but a named
          * limiter's bucket is (name + key): once `tickets` was finally applied
          * to ticket *creation*, every panel view would have spent the same

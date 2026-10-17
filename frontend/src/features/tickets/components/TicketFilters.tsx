@@ -1,4 +1,5 @@
 import { Button, SearchInput, Select } from '@/components/ui'
+import { groupCategories } from '../categoryGroups'
 import type { TicketOptions } from '../types'
 
 export type FilterKey =
@@ -81,7 +82,10 @@ export function TicketFilters({
           <FilterSelect
             label="Category"
             value={params.get('category') ?? ''}
-            options={(options?.categories ?? []).map((c) => ({ value: c.value, label: c.label }))}
+            // Grouped for display only — the option values are the API's slugs,
+            // passed straight through, so `?category=` and the request are unchanged.
+            groups={groupCategories(options?.categories ?? [])}
+            emptyLabel="All Categories"
             onChange={(value) => patch({ category: value || null, page: null })}
           />
         )}
@@ -159,17 +163,30 @@ export function TicketFilters({
   )
 }
 
+interface SelectOption {
+  value: string
+  label: string
+}
+
 function FilterSelect({
   label,
   value,
-  options,
+  options = [],
+  groups,
   onChange,
   allowEmpty = true,
   emptyLabel = 'All',
 }: {
   label: string
   value: string
-  options: Array<{ value: string; label: string }>
+  options?: SelectOption[]
+  /**
+   * Options under headings, rendered as native `<optgroup>`s. The heading is
+   * visible only while the list is open — which is the point: the closed control
+   * stays one compact field like its neighbours, and the OS supplies the keyboard,
+   * type-ahead and touch picker for free.
+   */
+  groups?: Array<{ key: string; heading: string; options: SelectOption[] }>
   onChange: (value: string) => void
   allowEmpty?: boolean
   emptyLabel?: string
@@ -183,6 +200,15 @@ function FilterSelect({
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
+        ))}
+        {groups?.map((group) => (
+          <optgroup key={group.key} label={group.heading}>
+            {group.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </optgroup>
         ))}
       </Select>
     </label>

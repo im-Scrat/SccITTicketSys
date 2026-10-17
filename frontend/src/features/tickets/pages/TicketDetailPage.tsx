@@ -1,6 +1,6 @@
 import { ArrowLeft, Pencil } from 'lucide-react'
-import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Badge, Button, PageLoader, Tabs } from '@/components/ui'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
@@ -9,12 +9,14 @@ import { TicketAiTroubleshooting } from '../components/TicketAiTroubleshooting'
 import { TicketAttachments } from '../components/TicketAttachments'
 import { TicketPriorityBadge, TicketStatusBadge } from '../components/TicketBadges'
 import { TicketComments } from '../components/TicketComments'
+import { ReportOutcomeNotice } from '../components/ReportOutcomeNotice'
 import { TicketEditDrawer } from '../components/TicketEditDrawer'
 import { TicketStatusActions } from '../components/TicketStatusActions'
 import { TicketSummary } from '../components/TicketSummary'
 import { TicketTimeline } from '../components/TicketTimeline'
 import { VoteButton } from '../components/VoteButton'
 import { useTicket, useTicketAiAnalysis } from '../hooks/queries'
+import { type ReportOutcome, readReportOutcome } from '../reportOutcome'
 import { isFullTicket, type TicketCard } from '../types'
 
 /**
@@ -31,18 +33,46 @@ import { isFullTicket, type TicketCard } from '../types'
  * The reporter-owned lifecycle moves (confirm, reopen, cancel) are rendered from
  * `meta.transitions`, so the buttons are whatever `TicketLifecycle` says this
  * person may do, phrased in the reporter's terms rather than the system's.
+ *
+ * **Arriving from the report form** (SDD DD-80), the router state carries what
+ * happened to the report's photos. It is read once, then removed from the
+ * history entry — so a reload, or Back and Forward, does not announce the same
+ * thing again — and "Photos & files" opens first when a photo did not make it,
+ * because that is where it can be added again.
  */
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { hasPermission } = useAuth()
   const { data, isLoading, isError, error } = useTicket(id)
   // Only the full record's viewers may read the analysis (the server enforces
   // it; this just avoids asking on a community card).
   const ai = useTicketAiAnalysis(id, Boolean(data && isFullTicket(data)))
 
-  const [tab, setTab] = useState('details')
+  const [outcome, setOutcome] = useState<ReportOutcome | null>(() =>
+    readReportOutcome(location.state),
+  )
+  const [tab, setTab] = useState(() =>
+    outcome && outcome.ticketId === id && outcome.failed.length > 0 ? 'files' : 'details',
+  )
   const [editing, setEditing] = useState(false)
+
+  // Read once; clear it from the entry, keeping the path, query and hash.
+  const arrivedWithOutcome = readReportOutcome(location.state) !== null
+  useEffect(() => {
+    if (!arrivedWithOutcome) return
+    navigate(
+      { pathname: location.pathname, search: location.search, hash: location.hash },
+      { replace: true, state: null },
+    )
+  }, [arrivedWithOutcome, navigate, location.pathname, location.search, location.hash])
+
+  // This page is one instance across tickets: the notice must not follow the
+  // reporter to the next one they open.
+  useEffect(() => {
+    if (outcome && outcome.ticketId !== id) setOutcome(null)
+  }, [outcome, id])
 
   useDocumentMeta({ title: data ? data.data.ticket_number : 'Ticket' })
 
@@ -98,6 +128,8 @@ export default function TicketDetailPage() {
   return (
     <div className="flex flex-col gap-8">
       <BackLink onClick={() => navigate('/app/tickets')} />
+
+      {outcome && <ReportOutcomeNotice outcome={outcome} ticketId={ticket.id} />}
 
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div className="min-w-0 flex-1">
@@ -240,6 +272,15 @@ function CommunityView({
                 </dd>
               </div>
             )}
+            {/* The card's asset is a label only — no id, so nothing to link to. */}
+            {ticket.asset && (
+              <div className="flex gap-2">
+                <dt>Affected item</dt>
+                <dd className="text-ink">
+                  {ticket.asset.label} ({ticket.asset.identifier})
+                </dd>
+              </div>
+            )}
             {ticket.location?.room && (
               <div className="flex gap-2">
                 <dt>Location</dt>
@@ -267,12 +308,12 @@ function CommunityView({
             `comment_internal` is false without asking: an internal note never
             reaches this response, and the API refuses the field for a requester
             outright rather than quietly publishing the note.
+
+            Not gated on status (owner decision, 2026-10-14): "it is still
+            broken" belongs on a resolved ticket too, and the server never
+            refused it — only this view did.
           */}
-          <TicketComments
-            ticketId={ticket.id}
-            canComment={canComment && ticket.status.is_open}
-            canCommentInternal={false}
-          />
+          <TicketComments ticketId={ticket.id} canComment={canComment} canCommentInternal={false} />
         </div>
       </section>
     </div>

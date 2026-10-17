@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Tickets\Services;
 
+use App\Domains\Analytics\Services\TicketMetrics;
 use App\Domains\Assets\Services\AssetDirectoryQuery;
 use App\Enums\TicketUpdateType;
 use App\Models\Building;
@@ -129,6 +130,7 @@ class TicketDirectoryQuery
 
         $this->applySearch($query, $this->term($params));
         $this->applyCommonFilters($query, $params);
+        $this->applyResolvedWithin($query, $params);
         $this->applySort(
             $query,
             (string) ($params['sort'] ?? 'created_at'),
@@ -212,6 +214,14 @@ class TicketDirectoryQuery
             'pcUnit.room:id,uuid,name,floor_id',
             'pcUnit.room.floor:id,uuid,name,floor_number,building_id',
             'pcUnit.room.floor.building:id,uuid,name,code',
+            // Phase 2.9 (SDD DD-79). The model's name is what
+            // `Asset::displayName()` falls back to when the asset has none.
+            // Read with trashed, as the report form's room lookup reads it
+            // (`AssetOptions::roomAssets()`): an archived catalog entry must
+            // not turn the equipment it names into its tag on the ticket
+            // (DD-78), when the reporter picked it by its model name.
+            'asset:id,uuid,asset_tag,name,hardware_model_id',
+            'asset.hardwareModel' => fn ($query) => $query->withTrashed()->select(['id', 'model_name']),
             'room:id,uuid,name,floor_id',
             'room.floor:id,uuid,name,floor_number,building_id',
             'room.floor.building:id,uuid,name,code',
@@ -297,6 +307,31 @@ class TicketDirectoryQuery
                 PcUnit::withTrashed()->select('id')->where('uuid', (string) $params['pc_unit']),
             );
         }
+    }
+
+    /**
+     * "Resolved within the last N days" — the requester's own list only.
+     *
+     * This is the predicate {@see TicketMetrics::reporterSummary()} counts as
+     * `resolved_recently` — `resolved_at >= now() - N days`, same operator, same
+     * clock — so the dashboard figure and the list it links to are one definition
+     * and cannot drift apart. Reopening nulls `resolved_at`, so a ticket that is
+     * open again is not "resolved within" anything.
+     *
+     * Called from {@see own()} alone and kept out of {@see applyCommonFilters()}
+     * on purpose: the community feed, the administrator directory and the
+     * technician queue gain no new filter surface from this.
+     *
+     * @param  Builder<Ticket>  $query
+     * @param  array<string, mixed>  $params
+     */
+    private function applyResolvedWithin(Builder $query, array $params): void
+    {
+        if (! $this->filled($params['resolved_within'] ?? null)) {
+            return;
+        }
+
+        $query->where('tickets.resolved_at', '>=', now()->subDays((int) $params['resolved_within']));
     }
 
     /**

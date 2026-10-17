@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { configure, render, screen, within } from '@testing-library/react'
+import { configure, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '@/App'
@@ -181,11 +181,18 @@ describe('the single finding route', () => {
   })
 })
 
+/** The menu is a slide-out panel; its links exist for the user once it is opened. */
+async function openNavigation() {
+  fireEvent.click(await screen.findByRole('button', { name: /open navigation menu/i }))
+
+  return screen.findByRole('navigation', { name: 'Primary' })
+}
+
 describe('the navigation', () => {
   it('offers the surface to an administrator', async () => {
     renderAt('/app/announcements', ADMINISTRATOR)
 
-    const nav = await screen.findByRole('navigation', { name: 'Primary' })
+    const nav = await openNavigation()
 
     expect(within(nav).getByRole('link', { name: /predictive maintenance/i })).toHaveAttribute(
       'href',
@@ -199,7 +206,7 @@ describe('the navigation', () => {
   ])('does not show it to a %s, even one granted the permission', async (_name, user) => {
     renderAt('/app/announcements', user)
 
-    const nav = await screen.findByRole('navigation', { name: 'Primary' })
+    const nav = await openNavigation()
 
     expect(within(nav).queryByRole('link', { name: /predictive maintenance/i })).toBeNull()
   })

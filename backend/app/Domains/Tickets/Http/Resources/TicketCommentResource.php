@@ -52,6 +52,10 @@ class TicketCommentResource extends JsonResource
             'is_mine' => $this->user_id === $request->user()?->getKey(),
             'parent_id' => $this->whenLoaded('parent', fn (): ?string => $this->parent?->uuid),
 
+            // Present on a thread's top-level comment when the listing loaded
+            // them; already filtered by the query, like the roots (SDD DD-74).
+            'replies' => $this->whenLoaded('replies', fn () => self::collection($this->replies)),
+
             /*
              * Moderation attribution. Shown only to administrators: a requester
              * needs to know a comment was removed, not which administrator did

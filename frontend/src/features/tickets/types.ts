@@ -36,16 +36,42 @@ export interface StatusRef {
   is_terminal?: boolean
 }
 
+/**
+ * Who set a ticket's priority, weakest claim first (SDD DD-75): the category's
+ * default, the reporter's own choice, a room's minimum, the AI's raise, IT
+ * staff (the only choice nothing automatic overrides). `null` — a ticket older
+ * than the column.
+ */
+export type PrioritySource = 'category' | 'reporter' | 'location' | 'ai' | 'manual'
+
 export interface PriorityRef {
   slug: string | null
   label: string | null
   level: number | null
   color?: string | null
+  /**
+   * Staff projections only (the full record for IT staff, the staff list). A
+   * reporter never receives it, so they are never told in so many words which
+   * rule set their ticket's level. That is all withholding it does: the level
+   * itself is shown to the reporter by design, so a Low that comes back High
+   * still shows that the room has a minimum — the floor's value is not
+   * treated as confidential.
+   */
+  source?: PrioritySource | null
 }
 
 export interface CategoryRef {
   slug: string | null
   label: string | null
+}
+
+/**
+ * A category plus the reporter's own words for an "Other" one (SDD DD-77).
+ * The full record and the staff list only — never the community card, where
+ * free text written for the IT team does not belong.
+ */
+export interface CategoryWithDetail extends CategoryRef {
+  detail: string | null
 }
 
 export interface PersonRef {
@@ -60,6 +86,13 @@ export interface PcUnitRef {
   label: string
   identifier: string
 }
+
+/**
+ * The other equipment a ticket can name — a printer, a projector — in the same
+ * label-only shape as a PC (SDD DD-79). A ticket names at most one item: a PC
+ * or an asset, never both.
+ */
+export type EquipmentRef = PcUnitRef
 
 export interface LocationRef {
   room: string | null
@@ -81,6 +114,8 @@ export interface TicketCard {
   priority: PriorityRef
   category: CategoryRef
   pc_unit: Pick<PcUnitRef, 'label' | 'identifier'> | null
+  /** No id on the card: a requester names the item, never links to its record. */
+  asset: Pick<EquipmentRef, 'label' | 'identifier'> | null
   location: LocationRef | null
   /**
    * `label` is what to show: "You", "A colleague", or — for an Administrator
@@ -102,10 +137,11 @@ export interface TicketRow {
   title: string
   status: StatusRef
   priority: PriorityRef
-  category: CategoryRef
+  category: CategoryWithDetail
   reporter: PersonRef
   technician: PersonRef | null
   pc_unit: PcUnitRef | null
+  asset: EquipmentRef | null
   location: LocationRef | null
   upvote_count: number
   comment_count: number
@@ -134,11 +170,12 @@ export interface TicketDetail {
   source: string
   status: StatusRef
   priority: PriorityRef
-  category: CategoryRef
+  category: CategoryWithDetail
   reporter: PersonRef | null
   technician: PersonRef | null
   is_assigned: boolean
   pc_unit: PcUnitRef | null
+  asset: EquipmentRef | null
   location: LocationRef | null
   upvote_count: number
   comment_count: number
@@ -260,8 +297,9 @@ export interface TicketRepairRecord {
 
 /**
  * The technician route's repair section (WP-K). `can_start` is the server's
- * whole answer — an active assignment, a PC to hold the history, no record
- * already open, and `maintenance.create` — so the client never re-derives it.
+ * whole answer — an active assignment, a PC or other item to hold the history
+ * (SDD DD-79), no record already open, and `maintenance.create` — so the client
+ * never re-derives it.
  */
 export interface TicketRepairMeta {
   records: TicketRepairRecord[]
@@ -327,7 +365,13 @@ export interface TicketComment {
   /** `id` is sent to Administrators only (Phase 2.9); null for everyone else. */
   author: { id: string | null; name: string | null; role: string | null } | null
   is_mine: boolean
+  /** The thread's top-level comment, on a reply; null on a top-level comment. */
   parent_id?: string | null
+  /**
+   * On a top-level comment in the listing: its replies, oldest first. Threads
+   * are one level deep (SDD DD-74), so a reply never carries replies of its own.
+   */
+  replies?: TicketComment[]
   moderated_by: string | null
   created_at: string | null
 }
@@ -355,24 +399,43 @@ export interface StatusOption extends OptionItem {
   is_terminal: boolean
 }
 
+/**
+ * A category as the options endpoint offers it. `requires_detail` marks the
+ * "Other" kinds that ask the reporter to say what the problem is (SDD DD-77) —
+ * category data, so the client never keeps its own list of slugs.
+ */
+export interface CategoryOption extends OptionItem {
+  requires_detail?: boolean
+}
+
+/**
+ * Every role receives the priority list (SDD DD-75), ordered most urgent first.
+ * The SLA minutes are staff-only: a requester gets the name, level and colour,
+ * so both minutes are absent for them — check with `!= null`, never `!== null`.
+ */
 export interface PriorityOption extends OptionItem {
   level: number
   color: string
-  response_minutes: number | null
-  resolution_minutes: number | null
+  response_minutes?: number | null
+  resolution_minutes?: number | null
 }
 
 export interface TechnicianOption extends OptionItem {
   role: string
 }
 
-/** Role-shaped: `priorities` and `technicians` are empty for a requester. */
+/**
+ * Role-shaped: `technicians` is empty for a requester, and a requester's
+ * priorities carry no SLA minutes. `uploads.max_kb` is the server's per-file
+ * ceiling, so a photo can be refused before it is sent rather than after.
+ */
 export interface TicketOptions {
-  categories: OptionItem[]
+  categories: CategoryOption[]
   statuses: StatusOption[]
   tags: OptionItem[]
   priorities: PriorityOption[]
   technicians: TechnicianOption[]
+  uploads?: { max_kb: number }
 }
 
 export interface TicketDashboard {
@@ -428,6 +491,12 @@ export interface TicketParams {
   has_pc_unit?: boolean
   breached?: boolean
   awaiting_confirmation?: boolean
+  /**
+   * The requester's own list only (Phase 2.9): tickets whose `resolved_at` falls
+   * inside the last N days — the list behind the dashboard's "Resolved (30 days)".
+   * The server rejects anything outside 1–365 with 422.
+   */
+  resolved_within?: number
   /**
    * Administrative directory only (Phase 2.9): open tickets whose reporter said
    * NOT FIXED in the current period. Sent as `1` — Laravel's `boolean` rule

@@ -88,6 +88,9 @@ class TechnicianQueueController extends Controller
             'status', 'priority', 'category', 'tags',
             'reporter', 'assignedTechnician',
             'pcUnit.room.floor.building', 'room.floor.building',
+            // With trashed, as every ticket projection reads it
+            // (`TicketDirectoryQuery::base()`).
+            'asset.hardwareModel' => fn ($query) => $query->withTrashed(),
             'attachments.uploadedBy',
         ]);
 
@@ -128,10 +131,12 @@ class TechnicianQueueController extends Controller
      * module's own row rule (FR-MNT-011), so this lists exactly what the
      * technician could already reach there — nothing more.
      *
-     * `can_start` is false when the ticket names no PC: a maintenance record
+     * `can_start` is false when the ticket names no equipment — neither a PC
+     * nor, since Phase 2.9, another asset (SDD DD-79): a maintenance record
      * must have a machine or asset to belong to
      * (`maintenance_records_target_check`), so repair work on an untracked
-     * device has no equipment history to write into.
+     * device has no equipment history to write into. Either target will do,
+     * since the record takes either.
      *
      * @return array{records: list<array<string, mixed>>, can_start: bool}
      */
@@ -163,7 +168,7 @@ class TechnicianQueueController extends Controller
                 ],
                 'completed_at' => $record->completed_at?->toIso8601String(),
             ])->values()->all(),
-            'can_start' => $ticket->pc_unit_id !== null
+            'can_start' => ($ticket->pc_unit_id !== null || $ticket->asset_id !== null)
                 && ! $hasOpen
                 && $this->visibility->canWork($user, $ticket)
                 && $user->can('create', MaintenanceRecord::class),

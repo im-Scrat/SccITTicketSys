@@ -73,7 +73,7 @@ test.describe('authentication', () => {
       await signIn(page, role)
 
       await expect(page).toHaveURL(/\/app/)
-      await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible()
+      await expect(page.getByRole('button', { name: /open navigation menu/i })).toBeVisible()
 
       // The session is real on the server, not just in the client store.
       expect(await apiStatus(page, '/api/user')).toBe(200)

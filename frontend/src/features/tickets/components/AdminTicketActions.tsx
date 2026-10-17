@@ -213,7 +213,8 @@ function PriorityDialog({
             {(options?.priorities ?? []).map((item) => (
               <option key={item.value} value={item.value}>
                 {item.label}
-                {item.resolution_minutes !== null
+                {/* `!= null`: the minutes are absent, not null, outside staff options. */}
+                {item.resolution_minutes != null
                   ? ` — resolve within ${Math.round(item.resolution_minutes / 60)}h`
                   : ''}
               </option>

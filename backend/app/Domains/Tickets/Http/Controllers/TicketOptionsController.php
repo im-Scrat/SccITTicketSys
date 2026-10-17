@@ -12,6 +12,7 @@ use App\Models\TicketCategory;
 use App\Models\TicketPriority;
 use App\Models\TicketStatus;
 use App\Models\User;
+use App\Support\Attachments\AttachmentSecurity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,16 +20,24 @@ use Illuminate\Http\Request;
  * The vocabularies the ticket forms and filters need, in one round trip
  * (SRS FR-TKT-001/014).
  *
- * A single endpoint rather than five: the report form needs categories, tags and
- * (for staff) priorities simultaneously, and five parallel requests to open one
- * form is the chattiness that makes a UI feel slow on the modest hardware this
- * product targets.
+ * A single endpoint rather than five: the report form needs categories,
+ * priorities, tags and the upload ceiling simultaneously, and five parallel
+ * requests to open one form is the chattiness that makes a UI feel slow on the
+ * modest hardware this product targets.
  *
- * **The payload is role-shaped.** A requester gets categories and tags — the
- * fields they may actually fill. Priorities and the assignable-technician list
- * are staff data: offering a teacher a priority dropdown the API would refuse
- * (`StoreTicketRequest` prohibits it) would be a form that lies about what it
- * can do.
+ * **The payload is role-shaped** — every role gets exactly the fields it may
+ * fill, so no form offers a control the API would refuse:
+ *  - **priorities** go to everyone, because since Phase 2.9 a reporter may
+ *    choose one (SDD DD-75; `StoreTicketRequest` accepts it). A requester gets
+ *    the level's name, rank and colour — enough to choose — but **not** its SLA
+ *    minutes: response and resolution budgets are management data, withheld
+ *    from requesters everywhere else too (`TicketDetailResource::sla`);
+ *  - **categories** carry `requires_detail`, so the form knows when to ask for
+ *    a description of the kind of problem (SDD DD-77);
+ *  - **uploads.max_kb** is the server's own per-file ceiling, so the form can
+ *    refuse an oversized photo before uploading it (SDD DD-80);
+ *  - the assignable-**technician** list is administrator data, empty for
+ *    everyone else.
  */
 class TicketOptionsController extends Controller
 {
@@ -52,6 +61,7 @@ class TicketOptionsController extends Controller
                         'value' => $c->slug,
                         'label' => $c->name,
                         'description' => $c->description,
+                        'requires_detail' => (bool) $c->requires_detail,
                     ])->all(),
 
                 'statuses' => TicketStatus::query()
@@ -71,22 +81,29 @@ class TicketOptionsController extends Controller
                     ->map(fn (Tag $t): array => ['value' => $t->slug, 'label' => $t->name])
                     ->all(),
 
-                // Staff-only: a requester cannot set a priority, so offering the
-                // list would describe a control that does not exist for them.
-                'priorities' => $isStaff
-                    ? TicketPriority::query()
-                        ->where('is_active', true)
-                        ->orderByDesc('level')
-                        ->get()
-                        ->map(fn (TicketPriority $p): array => [
-                            'value' => $p->slug,
-                            'label' => $p->name,
-                            'level' => (int) $p->level,
-                            'color' => $p->color,
+                // Everyone may choose a priority when reporting (Phase 2.9);
+                // only staff see what each level costs in SLA minutes. Most
+                // urgent first, the order the staff controls already use — the
+                // report form re-sorts its own cards ascending.
+                'priorities' => TicketPriority::query()
+                    ->where('is_active', true)
+                    ->orderByDesc('level')
+                    ->get()
+                    ->map(fn (TicketPriority $p): array => [
+                        'value' => $p->slug,
+                        'label' => $p->name,
+                        'level' => (int) $p->level,
+                        'color' => $p->color,
+                        ...($isStaff ? [
                             'response_minutes' => $p->response_time_minutes,
                             'resolution_minutes' => $p->resolution_time_minutes,
-                        ])->all()
-                    : [],
+                        ] : []),
+                    ])->all(),
+
+                // The per-file ceiling the attachment endpoint enforces.
+                'uploads' => [
+                    'max_kb' => AttachmentSecurity::maxKilobytes(),
+                ],
 
                 // Administrator-only: the assignment dropdown.
                 'technicians' => $isAdministrator

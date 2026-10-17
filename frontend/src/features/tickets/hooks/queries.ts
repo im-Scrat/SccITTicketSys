@@ -82,15 +82,22 @@ export function useMyTickets(params: TicketParams, enabled = true) {
  *
  * Only runs once there is enough text to be meaningful — searching on two
  * characters would return noise and teach the reporter to ignore the panel.
+ *
+ * While the next search runs, the previous matches stay (`keepPreviousData`):
+ * the panel sits in the middle of the report form, and one that emptied and
+ * refilled on every search would shift everything below it. Once the text is
+ * too short to search, nothing old is kept.
  */
 export function useDuplicateCheck(search: string, pcUnit?: string, enabled = true) {
   const trimmed = search.trim()
+  const active = enabled && (trimmed.length >= 5 || Boolean(pcUnit))
 
   return useQuery({
     queryKey: ticketsKeys.duplicates(trimmed, pcUnit),
     queryFn: () => fetchDuplicates({ search: trimmed, pc_unit: pcUnit }),
-    enabled: enabled && (trimmed.length >= 5 || Boolean(pcUnit)),
+    enabled: active,
     staleTime: 30 * 1000,
+    placeholderData: active ? keepPreviousData : undefined,
   })
 }
 

@@ -44,6 +44,13 @@ export interface RoomLookupParams {
   floor?: string
   room_type?: string
   limit?: number
+  /**
+   * `type` puts laboratories first, then offices, then every other room — the
+   * order a person reporting a fault is most likely to want. Ordered on the
+   * server because the list is capped: sorting a truncated list on the client
+   * would hide the very rooms it meant to bring forward.
+   */
+  sort?: 'type'
 }
 
 function clean(params: object): Record<string, string | number> {
@@ -109,6 +116,40 @@ export async function lookupPcUnits(search?: string): Promise<EquipmentLookupOpt
 export async function lookupAssets(search?: string): Promise<EquipmentLookupOption[]> {
   const { data } = await api.get<{ data: EquipmentLookupOption[] }>('/lookups/assets', {
     params: clean({ search }),
+  })
+  return data.data
+}
+
+/** The most the room-scoped lookup returns per list; the server refuses more. */
+export const ROOM_EQUIPMENT_LIMIT = 200
+
+/** One room's reportable equipment, as two label-only lists. */
+export interface RoomEquipmentLookup {
+  pc_units: EquipmentLookupOption[]
+  assets: EquipmentLookupOption[]
+}
+
+/**
+ * What can be reported in one room (SDD DD-78) — the third step of the report
+ * form's building → room → item cascade.
+ *
+ * Same narrow contract as the two lookups above, scoped to a room: its PCs that
+ * are not retired, and its other equipment that is in service. There is **no
+ * search parameter**: the server matches nothing but the room, so the endpoint
+ * cannot be used to probe the serial numbers or hostnames its labels withhold.
+ * Filtering a long list is done here, on the labels already received.
+ *
+ * A room this caller could not have picked — unknown, inactive, archived —
+ * answers with two empty lists, the same as an empty room, so the response
+ * says nothing about whether the room exists.
+ */
+export async function lookupRoomEquipment(
+  room: string,
+  signal?: AbortSignal,
+): Promise<RoomEquipmentLookup> {
+  const { data } = await api.get<{ data: RoomEquipmentLookup }>('/lookups/equipment', {
+    params: { room, limit: ROOM_EQUIPMENT_LIMIT },
+    signal,
   })
   return data.data
 }

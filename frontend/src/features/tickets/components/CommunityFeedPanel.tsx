@@ -1,11 +1,13 @@
-import { ArrowRight } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { Alert, Button, EmptyState, Skeleton } from '@/components/ui'
+import { PanelHeader } from '@/features/dashboard/components/PanelHeader'
+import { cn } from '@/lib/cn'
 import { useTicketFeed } from '../hooks/queries'
 import type { TicketParams } from '../types'
 import { TicketCardItem } from './TicketCardItem'
 
 const PARAMS: TicketParams = { sort: 'recent', per_page: 10 }
+
+const HEADING_ID = 'community-feed-heading'
 
 /**
  * Phase 2.9 — the community feed as the teacher's dashboard (D-A).
@@ -18,32 +20,37 @@ const PARAMS: TicketParams = { sort: 'recent', per_page: 10 }
  * decision TicketFeedPage records: infinite scroll takes the page's end away
  * from keyboard users and hides how much is left. Filters and other sorts live
  * on the full feed, one link away.
+ *
+ * **Two pieces, not one.** The heading and the content are separate components
+ * so the dashboard can seat them in a grid shared with the "My requests" panel:
+ * both headings in one row and both bodies in the next, which is what makes the
+ * two columns' tops and baselines line up whatever the heading wraps to.
  */
-export function CommunityFeedPanel({ canReport }: { canReport: boolean }) {
+export function CommunityFeedHeader({ className }: { className?: string }) {
+  return (
+    <div className={cn('min-w-0', className)}>
+      <PanelHeader
+        id={HEADING_ID}
+        title="Reported problems"
+        description="Check here before reporting. If it is already listed, an upvote tells the IT team how many people it affects."
+        link={{ to: '/app/tickets', label: 'Search and filter all' }}
+      />
+    </div>
+  )
+}
+
+export function CommunityFeedBody({
+  canReport,
+  className,
+}: {
+  canReport: boolean
+  className?: string
+}) {
   const feed = useTicketFeed(PARAMS)
   const tickets = feed.data?.pages.flatMap((page) => page.data) ?? []
 
   return (
-    <section aria-labelledby="community-feed-heading" className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <div>
-          <h2 id="community-feed-heading" className="text-lg font-semibold text-ink-strong">
-            Reported problems
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            Check here before reporting. If it is already listed, an upvote tells the IT team how
-            many people it affects.
-          </p>
-        </div>
-        <Link
-          to="/app/tickets"
-          className="inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-primary-strong hover:underline"
-        >
-          Search and filter all
-          <ArrowRight size={16} aria-hidden="true" />
-        </Link>
-      </div>
-
+    <section aria-labelledby={HEADING_ID} className={cn('flex min-w-0 flex-col gap-4', className)}>
       {feed.isError ? (
         <Alert tone="error" title="The feed could not be loaded">
           Use Refresh above to try again.

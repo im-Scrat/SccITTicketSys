@@ -13,7 +13,9 @@ use Illuminate\Support\Carbon;
 
 /**
  * A ticket category (SRS FR-TKT-001). `default_priority_id` seeds the priority
- * when a requester does not choose one.
+ * when a requester does not choose one. `requires_detail` marks a catch-all
+ * ("Other") category whose reports must describe the kind of problem in
+ * `tickets.category_detail` (SDD DD-77).
  *
  * @property int $id
  * @property string $name
@@ -21,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $description
  * @property int|null $default_priority_id
  * @property bool $is_active
+ * @property bool $requires_detail
  * @property int $sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -36,6 +39,7 @@ class TicketCategory extends Model
     {
         return [
             'is_active' => 'boolean',
+            'requires_detail' => 'boolean',
         ];
     }
 

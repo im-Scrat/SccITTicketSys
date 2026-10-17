@@ -14,7 +14,7 @@ vi.mock('@/services/api', () => ({
   },
 }))
 
-type TicketProp = Pick<TicketDetail, 'id' | 'ticket_number' | 'title' | 'pc_unit'>
+type TicketProp = Pick<TicketDetail, 'id' | 'ticket_number' | 'title' | 'pc_unit' | 'asset'>
 
 function ticket(overrides: Partial<TicketProp> = {}): TicketProp {
   return {
@@ -22,6 +22,7 @@ function ticket(overrides: Partial<TicketProp> = {}): TicketProp {
     ticket_number: 'TKT-2026-000123',
     title: 'PC shuts down under load',
     pc_unit: { id: 'pc-uuid-1', label: 'Lab 2 — PC 07', identifier: 'PC-L2-07' },
+    asset: null,
     ...overrides,
   }
 }
@@ -115,6 +116,30 @@ describe('TicketRepairRecord', () => {
       title: 'Repair — TKT-2026-000123: PC shuts down under load',
       type: 'corrective',
       pc_unit: 'pc-uuid-1',
+      ticket: 'ticket-uuid-1',
+    })
+  })
+
+  it('opens the record on the other equipment the ticket names, when it names no PC', async () => {
+    post.mockResolvedValue(created('mnt-new'))
+    renderSection(
+      { records: [], can_start: true },
+      {
+        t: ticket({
+          pc_unit: null,
+          asset: { id: 'asset-uuid-1', label: 'Epson projector', identifier: 'AST-0007' },
+        }),
+      },
+    )
+
+    expect(screen.getByText('Epson projector')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Start a repair record' }))
+
+    expect(await screen.findByText('maintenance page mnt-new')).toBeInTheDocument()
+    expect(post).toHaveBeenCalledWith('/maintenance', {
+      title: 'Repair — TKT-2026-000123: PC shuts down under load',
+      type: 'corrective',
+      asset: 'asset-uuid-1',
       ticket: 'ticket-uuid-1',
     })
   })

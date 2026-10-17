@@ -12,7 +12,7 @@ import { ticketsKeys } from '../hooks/queries'
 import type { TicketDetail, TicketRepairMeta } from '../types'
 
 interface TicketRepairRecordProps {
-  ticket: Pick<TicketDetail, 'id' | 'ticket_number' | 'title' | 'pc_unit'>
+  ticket: Pick<TicketDetail, 'id' | 'ticket_number' | 'title' | 'pc_unit' | 'asset'>
   repair: TicketRepairMeta
   readOnly: boolean
 }
@@ -30,13 +30,17 @@ const TITLE_LIMIT = 255
  * look — and this section only lists those records and opens a new one linked
  * to the ticket. Nothing about the repair is stored on the ticket itself.
  *
- * `can_start` is the server's whole answer (active assignment, a PC to hold the
- * history, no record already open, `maintenance.create`); the client never
- * re-derives it. The server also refuses a link to a ticket this technician is
- * not working, so the button is a convenience, not the control.
+ * `can_start` is the server's whole answer (active assignment, a PC or other
+ * item to hold the history, no record already open, `maintenance.create`); the
+ * client never re-derives it. The server also refuses a link to a ticket this
+ * technician is not working, so the button is a convenience, not the control.
+ *
+ * **The record goes on whichever item the ticket names** — its PC, or the other
+ * asset it was filed against (SDD DD-79). A ticket names at most one, so there
+ * is never a choice to make here.
  *
  * **Other open work on the machine stops the hand-off.** Creation can report
- * maintenance already open against the same PC (`meta.concurrent`, the warning
+ * maintenance already open against the same item (`meta.concurrent`, the warning
  * the Maintenance module's own create page shows). The record is created either
  * way; the technician is shown what else is open before going to it, and focus
  * moves to the way on — the start button has gone by then, so focus would
@@ -61,22 +65,24 @@ export function TicketRepairRecord({ ticket, repair, readOnly }: TicketRepairRec
 
   const { records, can_start: canStart } = repair
   const pcUnit = ticket.pc_unit
+  const asset = pcUnit ? null : (ticket.asset ?? null)
+  const target = pcUnit ?? asset
   const hasOpenRecord = records.some((record) => record.status.is_open)
 
-  // A ticket naming no machine cannot hold a record (the record needs a
-  // target); say so while the work is live, so the absence of a button is
-  // explained rather than mysterious.
-  const explainNoPc = !pcUnit && !readOnly
+  // A ticket naming no item cannot hold a record (the record needs a target);
+  // say so while the work is live, so the absence of a button is explained
+  // rather than mysterious.
+  const explainNoTarget = !target && !readOnly
 
-  if (records.length === 0 && !canStart && !explainNoPc && !created) return null
+  if (records.length === 0 && !canStart && !explainNoTarget && !created) return null
 
   const start = () => {
-    if (!pcUnit?.id) return
+    if (!target?.id) return
     create.mutate(
       {
         title: `Repair — ${ticket.ticket_number}: ${ticket.title}`.slice(0, TITLE_LIMIT),
         type: 'corrective',
-        pc_unit: pcUnit.id,
+        ...(pcUnit ? { pc_unit: target.id } : { asset: target.id }),
         ticket: ticket.id,
       },
       {
@@ -105,10 +111,10 @@ export function TicketRepairRecord({ ticket, repair, readOnly }: TicketRepairRec
         <h2 id={headingId} className="text-base font-bold text-ink-strong">
           Repair record
         </h2>
-        {pcUnit ? (
+        {target ? (
           <p className="measure text-sm text-muted">
             Diagnosis, root cause, parts replaced and photos go on a maintenance record in{' '}
-            <span className="font-semibold text-ink">{pcUnit.label}</span>&rsquo;s history, where
+            <span className="font-semibold text-ink">{target.label}</span>&rsquo;s history, where
             the next person to work on it will look.
             {hasOpenRecord &&
               !readOnly &&
@@ -116,8 +122,8 @@ export function TicketRepairRecord({ ticket, repair, readOnly }: TicketRepairRec
           </p>
         ) : (
           <p className="measure text-sm text-muted">
-            This ticket names no PC, so there is no machine history to record the repair in. Put
-            what you found and what you did in a comment instead.
+            This ticket names no PC or other equipment, so there is no history to record the repair
+            in. Put what you found and what you did in a comment instead.
           </p>
         )}
       </div>
@@ -168,7 +174,7 @@ export function TicketRepairRecord({ ticket, repair, readOnly }: TicketRepairRec
         </Alert>
       )}
 
-      {canStart && !readOnly && !created && pcUnit?.id && (
+      {canStart && !readOnly && !created && target?.id && (
         <div>
           <Button
             variant="secondary"

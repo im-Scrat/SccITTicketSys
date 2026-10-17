@@ -89,6 +89,37 @@ enum ComponentType: string
     }
 
     /**
+     * May a fault be reported against equipment of this type (SDD DD-78)?
+     *
+     * Whole equipment and attached devices — the things a teacher can see and
+     * point at in a room — but not the parts inside a PC: a broken RAM stick is
+     * reported as "this PC", and a fitted part's `current_room_id` is not kept
+     * up to date anyway. `Other` is included on purpose although
+     * {@see group()} files it under `component`: before Phase 2.5 widened this
+     * domain, whole equipment could only be catalogued as `peripheral` or
+     * `other` (DD-32), so excluding it would hide legacy printers and
+     * projectors.
+     */
+    public function isReportable(): bool
+    {
+        return $this->group() !== 'component' || $this === self::Other;
+    }
+
+    /**
+     * The backing values of every reportable type — the one list both the
+     * room-scoped equipment lookup and ticket validation filter on.
+     *
+     * @return list<string>
+     */
+    public static function reportableValues(): array
+    {
+        return array_values(array_map(
+            static fn (self $type): string => $type->value,
+            array_filter(self::cases(), static fn (self $type): bool => $type->isReportable()),
+        ));
+    }
+
+    /**
      * Grouping key for the category filter's option groups.
      *
      * @return 'equipment'|'peripheral'|'component'

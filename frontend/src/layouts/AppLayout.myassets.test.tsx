@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { AUTH_USER_KEY } from '@/features/auth/hooks/useAuth'
@@ -34,13 +34,20 @@ function renderNav(role: string, permissions: string[]) {
     permissions,
   } as unknown as AuthUser)
 
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/app']}>
         <AppLayout />
       </MemoryRouter>
     </QueryClientProvider>,
   )
+
+  // The navigation is a slide-out panel: open it, as a person would, so the
+  // absent-link assertions below are about what the menu offers rather than
+  // about the panel being closed.
+  fireEvent.click(screen.getByRole('button', { name: /open navigation menu/i }))
+
+  return view
 }
 
 describe('navigation: My assets', () => {

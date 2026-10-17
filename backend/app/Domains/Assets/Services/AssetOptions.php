@@ -15,6 +15,7 @@ use App\Models\HardwareModel;
 use App\Models\Manufacturer;
 use App\Models\PcUnit;
 use App\Models\Role;
+use App\Models\Room;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,11 +36,24 @@ use Illuminate\Database\Eloquent\Builder;
  *    price, supplier, custodian or archived rows. The lookup is authorized by
  *    the consuming workflow's permission, never by `assets.*`, so it cannot
  *    become a back door into the module.
+ *  - {@see roomPcUnits()} / {@see roomAssets()} serve the same narrow lookup,
+ *    scoped to **one room** — the report form's "which item has the problem?"
+ *    step (SDD DD-78). Same label-only rows, the reportable set from
+ *    {@see ReportableEquipment}, and **no search**: see {@see roomAssets()}.
  */
 class AssetOptions
 {
     /** Lookups are for picking one item out of a form field, not browsing. */
     private const LOOKUP_LIMIT = 50;
+
+    /**
+     * Ceiling for one room's list. A room is a bounded place — a lab holds tens
+     * of machines, not hundreds — so the form shows the whole room rather than
+     * paging through it.
+     */
+    public const ROOM_LIMIT = 200;
+
+    public function __construct(private readonly ReportableEquipment $reportable) {}
 
     /**
      * Everything the asset create/edit form needs in one round trip.
@@ -263,13 +277,15 @@ class AssetOptions
      * Label-only PC options for a non-administrator form field — the field a
      * teacher uses to say which machine is broken (FR-TKT, FR-LOC-011 sibling).
      *
+     * Starts from {@see ReportableEquipment::pcUnits()} — every unit that is not
+     * retired — so this list and ticket validation share one definition.
+     *
      * @return list<array{id: string, label: string, unit_code: string, location: string|null}>
      */
     public function lookupPcUnits(?string $search = null): array
     {
-        return PcUnit::query()
+        return $this->reportable->pcUnits()
             ->with('room.floor.building')
-            ->where('status', '<>', PcStatus::Retired->value)
             ->when($this->term($search) !== null, function (Builder $query) use ($search): void {
                 $term = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], trim((string) $search)).'%';
 
@@ -290,6 +306,81 @@ class AssetOptions
                 'location' => $this->roomLabel($unit->room),
             ])
             ->all();
+    }
+
+    /**
+     * The PCs in one room that a fault may be filed against — the report
+     * form's "Computers" group (SDD DD-78). Same row shape as
+     * {@see lookupPcUnits()}, so the same label-only resource renders it.
+     *
+     * The caller passes a room it has already found selectable
+     * ({@see LocationOptions::findSelectable()}); this method does not re-check.
+     *
+     * @return list<array{id: string, label: string, unit_code: string, location: string|null}>
+     */
+    public function roomPcUnits(Room $room, int $limit = self::ROOM_LIMIT): array
+    {
+        $location = $this->roomLabel($room->loadMissing('floor.building'));
+
+        return $this->reportable->pcUnits()
+            ->where('pc_units.room_id', $room->getKey())
+            ->orderBy('pc_units.unit_code')
+            ->limit($this->roomLimit($limit))
+            ->get()
+            ->map(fn (PcUnit $unit): array => [
+                'id' => $unit->uuid,
+                'label' => $unit->pc_name.' ('.$unit->unit_code.')',
+                'unit_code' => $unit->unit_code,
+                'location' => $location,
+            ])
+            // Natural order, as a person reads labels — "PC 2" before "PC 10".
+            // The SQL order (by identifier) only decides which rows survive
+            // the limit; the database collation would put "PC 10" first.
+            ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The other equipment in one room that a fault may be filed against — the
+     * report form's "Other equipment" group (SDD DD-78): in service, not fitted
+     * inside a PC, of a reportable type ({@see ReportableEquipment::assets()}).
+     *
+     * **No search, deliberately.** The global lookups match on serial number
+     * and hostname, columns their label-only response withholds; an `ILIKE`
+     * filter on a withheld column answers "does it contain this?" one probe at
+     * a time, which rebuilds the column. A room's list is short enough to
+     * filter on the client, so the parameter would be pure attack surface.
+     *
+     * The catalog model is loaded with trashed rows so an asset whose model was
+     * archived still reads by its model name rather than by its tag twice.
+     *
+     * @return list<array{id: string, label: string, asset_tag: string, location: string|null}>
+     */
+    public function roomAssets(Room $room, int $limit = self::ROOM_LIMIT): array
+    {
+        $location = $this->roomLabel($room->loadMissing('floor.building'));
+
+        return $this->reportable->assets()
+            ->with(['hardwareModel' => fn ($query) => $query->withTrashed()])
+            ->where('assets.current_room_id', $room->getKey())
+            ->orderBy('assets.asset_tag')
+            ->limit($this->roomLimit($limit))
+            ->get()
+            ->map(fn (Asset $asset): array => [
+                'id' => $asset->uuid,
+                'label' => $asset->displayName().' ('.$asset->asset_tag.')',
+                'asset_tag' => $asset->asset_tag,
+                'location' => $location,
+            ])
+            ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->all();
+    }
+
+    private function roomLimit(int $limit): int
+    {
+        return max(1, min($limit, self::ROOM_LIMIT));
     }
 
     private function term(?string $search): ?string

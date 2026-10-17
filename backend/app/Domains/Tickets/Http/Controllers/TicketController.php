@@ -80,6 +80,9 @@ class TicketController extends Controller
             'status', 'priority', 'category', 'tags',
             'reporter', 'assignedTechnician', 'duplicateOf',
             'pcUnit.room.floor.building', 'room.floor.building',
+            // With trashed, as every ticket projection reads it
+            // (`TicketDirectoryQuery::base()`).
+            'asset.hardwareModel' => fn ($query) => $query->withTrashed(),
             'attachments.uploadedBy',
         ]);
         $this->markVoted(collect([$ticket]), $user);

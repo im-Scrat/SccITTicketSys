@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Enums\AssetStatus;
 use App\Enums\AssignmentStatus;
+use App\Enums\ComponentType;
+use App\Models\TicketCategory;
 use App\Models\TicketComment;
 use Database\Seeders\SystemSettingSeeder;
 use Database\Seeders\TicketLookupSeeder;
@@ -90,6 +93,19 @@ it('keeps a completed ticket readable but refuses every write', function () {
     }
 });
 
+it('refuses a technician direct access to an unassigned ticket about another asset', function () {
+    // Phase 2.9: a ticket can name a printer or projector instead of a PC
+    // (SDD DD-79). The relationship rule is the same — the asset link opens
+    // nothing.
+    $asset = assetOfType(ComponentType::Projector, ['status' => AssetStatus::Deployed->value]);
+    $ticket = ticketFor($this->teacher, 'assigned', ['asset_id' => $asset->id]);
+    assign($ticket, userWithRole('technician'), AssignmentStatus::Accepted);
+
+    $this->actingAs($this->technician)->getJson("/api/tickets/{$ticket->uuid}")->assertForbidden();
+    $this->actingAs($this->technician)->getJson("/api/tickets/assigned/{$ticket->uuid}")->assertForbidden();
+    $this->actingAs($this->technician)->postJson("/api/tickets/assigned/{$ticket->uuid}/accept")->assertForbidden();
+});
+
 it('revokes access entirely once a technician declines', function () {
     $ticket = ticketFor($this->teacher, 'assigned');
     assign($ticket, $this->technician, AssignmentStatus::Declined);
@@ -152,6 +168,10 @@ it('closes every administrative route to a teacher', function () {
 });
 
 it('serves another reporter’s ticket as the restricted card, never the record', function () {
+    // Phase 2.9: the reporter's "Other" description and the linked asset's
+    // uuid are full-record data too (SDD DD-77/79).
+    $asset = assetOfType(ComponentType::Printer, ['status' => AssetStatus::Deployed->value]);
+
     // The card shows a 200-character excerpt by design, so the marker is placed
     // *beyond* that boundary — this asserts the truncation actually holds, not
     // merely that the field exists.
@@ -161,6 +181,10 @@ it('serves another reporter’s ticket as the restricted card, never the record'
         'resolution_due_at' => now()->addDay(),
         'ai_summary' => 'CONFIDENTIALAISUMMARY',
         'assigned_technician_id' => $this->technician->id,
+        'category_id' => TicketCategory::query()->where('slug', 'other')->value('id'),
+        'category_detail' => 'OTHERDETAILMARKER',
+        'asset_id' => $asset->id,
+        'priority_source' => 'reporter',
     ]);
 
     TicketComment::factory()->create([
@@ -184,7 +208,29 @@ it('serves another reporter’s ticket as the restricted card, never the record'
         ->and($body)->not->toContain('resolution_due_at')
         ->and($body)->not->toContain('ai_summary')
         ->and($body)->not->toContain('technician')
-        ->and($body)->not->toContain('attachment');
+        ->and($body)->not->toContain('attachment')
+        ->and($body)->not->toContain('OTHERDETAILMARKER')
+        ->and($body)->not->toContain($asset->uuid)
+        ->and($body)->not->toContain('"source":"reporter"');
+
+    // Every other route that renders the same card holds the same line —
+    // including the reporter's own "My tickets", which is the same projection
+    // (`TicketController::mine`) and so must not carry what the card omits.
+    foreach ([
+        'feed' => [$this->teacher, '/api/tickets/feed'],
+        'feed card' => [$this->teacher, "/api/tickets/feed/{$ticket->uuid}"],
+        'duplicates' => [$this->teacher, '/api/tickets/duplicates?search=SENSITIVEDETAIL'],
+        'my tickets, the reporter' => [$this->otherTeacher, '/api/tickets/mine'],
+    ] as $where => [$viewer, $uri]) {
+        $card = json_encode($this->actingAs($viewer)->getJson($uri)->assertOk()->json());
+
+        // `toContain` is variadic, so the route goes in a message here.
+        expect(str_contains($card, $ticket->ticket_number))->toBeTrue("{$where}: the card is listed")
+            ->and(str_contains($card, 'OTHERDETAILMARKER'))->toBeFalse("{$where}: Other description")
+            ->and(str_contains($card, $asset->uuid))->toBeFalse("{$where}: asset uuid")
+            ->and(str_contains($card, 'SENSITIVEDETAIL'))->toBeFalse("{$where}: full description")
+            ->and(str_contains($card, '"source":"reporter"'))->toBeFalse("{$where}: priority source");
+    }
 });
 
 it('gives the reporter the full record of their own ticket', function () {
@@ -233,14 +279,9 @@ it('refuses a requester posting an internal note', function () {
         ->assertJsonValidationErrors('is_internal');
 });
 
-it('refuses a requester setting priority or reporting on behalf', function () {
-    $this->actingAs($this->teacher)->postJson('/api/tickets', [
-        'title' => 'Projector will not power on',
-        'description' => 'The projector in Lab 2 shows no light at all.',
-        'category' => 'hardware',
-        'priority' => 'critical',
-    ])->assertStatus(422)->assertJsonValidationErrors('priority');
-
+it('refuses a requester reporting on behalf of someone else', function () {
+    // Choosing a priority is open to reporters since Phase 2.9 (SDD DD-75;
+    // TicketReporterPriorityTest). Filing as someone else stays staff-only.
     $this->actingAs($this->teacher)->postJson('/api/tickets', [
         'title' => 'Projector will not power on',
         'description' => 'The projector in Lab 2 shows no light at all.',
@@ -265,12 +306,14 @@ it('shapes the options payload by role', function () {
     $teacherOptions = $this->actingAs($this->teacher)->getJson('/api/tickets/options')->assertOk()->json('data');
     $adminOptions = $this->actingAs($this->admin)->getJson('/api/tickets/options')->assertOk()->json('data');
 
-    // A requester cannot set a priority, so offering the list would describe a
-    // control that does not exist for them.
-    expect($teacherOptions['priorities'])->toBeEmpty()
+    // A requester may choose a priority (Phase 2.9), so they get the levels —
+    // but not what each costs in SLA minutes, which is management data.
+    expect($teacherOptions['priorities'])->not->toBeEmpty()
+        ->and(array_keys($teacherOptions['priorities'][0]))->toEqualCanonicalizing(['value', 'label', 'level', 'color'])
         ->and($teacherOptions['technicians'])->toBeEmpty()
         ->and($teacherOptions['categories'])->not->toBeEmpty()
         ->and($adminOptions['priorities'])->not->toBeEmpty()
+        ->and($adminOptions['priorities'][0])->toHaveKeys(['response_minutes', 'resolution_minutes'])
         ->and($adminOptions['technicians'])->not->toBeEmpty();
 });
 

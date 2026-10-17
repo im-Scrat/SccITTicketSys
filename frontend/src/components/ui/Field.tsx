@@ -13,12 +13,19 @@ type InjectedProps = {
   id: string
   'aria-invalid'?: boolean
   'aria-describedby'?: string
+  'aria-required'?: boolean
 }
 
 /**
  * Label + control + message wrapper (DESIGN.md: label above the field). Generates
  * a stable id, wires the control's `aria-invalid`/`aria-describedby`, and shows
  * an error (announced) or a hint. Error is never color-only — it is real text.
+ *
+ * `required` puts an asterisk on the label for sighted users — hidden from
+ * assistive technology, which would read it as "star" — and tells a screen
+ * reader through `aria-required` on the control instead (DESIGN.md). Never the
+ * native `required` attribute: the browser would show its own validation bubble,
+ * in its own words, before the form's validation ever ran.
  */
 export function Field({ label, children, error, hint, required }: FieldProps) {
   const id = useId()
@@ -31,6 +38,7 @@ export function Field({ label, children, error, hint, required }: FieldProps) {
         id,
         'aria-invalid': error ? true : undefined,
         'aria-describedby': describedBy,
+        'aria-required': required ? true : undefined,
       })
     : children
 

@@ -36,6 +36,7 @@ class TicketDetailResource extends JsonResource
     public function toArray(Request $request): array
     {
         $pcUnit = $this->pcUnit;
+        $asset = $this->asset;
         $room = $this->locationRoom();
         $status = $this->statusRow();
         $floor = $room?->floor;
@@ -63,13 +64,27 @@ class TicketDetailResource extends JsonResource
                 'label' => $this->priority?->name,
                 'level' => $this->priority !== null ? (int) $this->priority->level : null,
                 'color' => $this->priority?->color,
-                // Phase 2.9 — which rule set it (category / location / ai /
-                // manual); null for tickets older than the column.
-                'source' => $this->priority_source?->value,
+                /*
+                 * Phase 2.9 — which rule set it (category / reporter /
+                 * location / ai / manual); null for tickets older than the
+                 * column. **Staff only, and absent rather than null for anyone
+                 * else** (SDD DD-75), so a requester is never told *which*
+                 * rule decided their level. That is all the omission does: it
+                 * removes the label, not the evidence. A reporter who chose Low
+                 * and reads back High can still see a room floor raised it, as
+                 * they could under D-B — requesters are shown their ticket's
+                 * priority by design, and the floor's value is not treated as
+                 * confidential. Keeping a floor genuinely private would need a
+                 * separate decision about the level itself, not this key.
+                 */
+                'source' => $this->when($isStaff, fn (): ?string => $this->priority_source?->value),
             ],
             'category' => [
                 'slug' => $this->category?->slug,
                 'label' => $this->category?->name,
+                // The reporter's own words for an "Other" category (SDD DD-77).
+                // Full record and staff list only — never the community card.
+                'detail' => $this->category_detail,
             ],
 
             'reporter' => $this->reporter !== null ? [
@@ -97,6 +112,13 @@ class TicketDetailResource extends JsonResource
                 'id' => $pcUnit->uuid,
                 'label' => $pcUnit->pc_name,
                 'identifier' => $pcUnit->unit_code,
+            ] : null,
+            // The same label-only shape for another piece of equipment
+            // (SDD DD-79). A ticket names at most one of the two.
+            'asset' => $asset !== null ? [
+                'id' => $asset->uuid,
+                'label' => $asset->displayName(),
+                'identifier' => $asset->asset_tag,
             ] : null,
             'location' => $room !== null ? [
                 'room' => $room->name,

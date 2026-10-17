@@ -237,7 +237,9 @@ function SettingsForm({ payload, saved, onSavedChange: setSaved }: SettingsFormP
           onChange={(event) => set('assistant_enabled', event.target.checked)}
         />
         <Checkbox
-          label="AI may raise ticket priority (never lowers it, never overrides a person’s choice)"
+          // A reporter's own choice may be raised (SDD DD-75); only a priority
+          // IT staff set is final.
+          label="AI may raise ticket priority (never lowers it, never overrides a choice made by IT staff)"
           checked={values.priority_auto_raise}
           onChange={(event) => set('priority_auto_raise', event.target.checked)}
         />

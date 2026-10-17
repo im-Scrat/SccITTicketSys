@@ -40,7 +40,8 @@ export function PcAlreadyReported({ pcUnit }: { pcUnit: string }) {
           If one of these is your problem, upvote it or add a comment instead of reporting it again.
         </p>
       </div>
-      <ul className="flex flex-col gap-3">
+      {/* Compact rows of one bordered list, not cards: this sits inside the form's section. */}
+      <ul className="divide-y divide-border rounded-md border border-border">
         {tickets.map((ticket) => (
           <li key={ticket.id}>
             <TicketCardItem ticket={ticket} compact />

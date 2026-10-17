@@ -70,9 +70,30 @@ export async function signIn(page: Page, role: Role): Promise<void> {
    *
    * The ceiling is deliberately well past a warm navigation. A failure here
    * should mean "sign-in is broken", never "the bundler was busy".
+   *
+   * The shell's proof is the floating menu button: the navigation itself lives
+   * in a slide-out panel that is closed (hidden) until opened.
    */
-  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible({ timeout: 75_000 })
+  await expect(page.getByRole('button', { name: /open navigation menu/i })).toBeVisible({
+    timeout: 75_000,
+  })
   await settle(page)
+}
+
+/**
+ * Open the slide-out navigation and return it. The links only exist for the
+ * user — and for Playwright's role queries — while the panel is open, so any
+ * assertion about what the menu offers (including "offers nothing") must open
+ * it first: a `toHaveCount(0)` against the closed panel passes for every role
+ * and proves nothing.
+ */
+export async function openNavigation(page: Page) {
+  await page.getByRole('button', { name: /open navigation menu/i }).click()
+
+  const nav = page.getByRole('navigation', { name: 'Primary' })
+  await expect(nav).toBeVisible()
+
+  return nav
 }
 
 /**

@@ -34,6 +34,13 @@ export interface NavItem {
    * under `/app/tickets/manage`, which would otherwise light up "Tickets" too).
    */
   excludes?: string[]
+  /**
+   * The heading this item sits under in the slide-out menu. Presentation only:
+   * it never affects who sees the item. Items without one (the dashboard) stand
+   * above the first heading. Consecutive items with the same group are rendered
+   * together — see {@link groupNavItems}.
+   */
+  group?: string
 }
 
 export type RoleSlug = 'administrator' | 'technician' | 'teacher'
@@ -63,9 +70,22 @@ const TEACHER_NAV: NavItem[] = [
     label: 'Report a problem',
     icon: FilePlus2,
     permission: 'tickets.create',
+    group: 'Help desk',
   },
-  { to: '/app/tickets/mine', label: 'My tickets', icon: Ticket, permission: 'tickets.view' },
-  { to: '/app/announcements', label: 'Announcements', icon: Megaphone, end: true },
+  {
+    to: '/app/tickets/mine',
+    label: 'My tickets',
+    icon: Ticket,
+    permission: 'tickets.view',
+    group: 'Help desk',
+  },
+  {
+    to: '/app/announcements',
+    label: 'Announcements',
+    icon: Megaphone,
+    end: true,
+    group: 'Communication',
+  },
 ]
 
 const TECHNICIAN_NAV: NavItem[] = [
@@ -77,12 +97,14 @@ const TECHNICIAN_NAV: NavItem[] = [
     label: 'My work',
     icon: ListChecks,
     permission: 'tickets.update',
+    group: 'Work',
   },
   {
     to: '/app/tickets/history',
     label: 'Completed work',
     icon: History,
     permission: 'tickets.update',
+    group: 'Work',
   },
   {
     to: '/app/maintenance',
@@ -90,6 +112,7 @@ const TECHNICIAN_NAV: NavItem[] = [
     icon: Wrench,
     permission: 'maintenance.view',
     end: true,
+    group: 'Work',
   },
   // FR-WSR-009's one item for proof of work and support requests —
   // technician-only by Client decision (2026-08-30).
@@ -99,12 +122,21 @@ const TECHNICIAN_NAV: NavItem[] = [
     icon: HandHelping,
     permission: 'maintenance.view',
     end: true,
+    group: 'Work',
   },
   // Custody is a fact about an asset, not a grant: no permission (Phase 2.9).
-  { to: '/app/my-assets', label: 'My assets', icon: PackageCheck },
-  { to: '/app/announcements', label: 'Announcements', icon: Megaphone, end: true },
+  { to: '/app/my-assets', label: 'My assets', icon: PackageCheck, group: 'Work' },
+  {
+    to: '/app/announcements',
+    label: 'Announcements',
+    icon: Megaphone,
+    end: true,
+    group: 'Communication',
+  },
 ]
 
+// Ordered so that each group is one contiguous run: the menu renders a heading
+// per run, so a group split in two would print its heading twice.
 const ADMINISTRATOR_NAV: NavItem[] = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
   {
@@ -113,59 +145,109 @@ const ADMINISTRATOR_NAV: NavItem[] = [
     icon: Ticket,
     permission: 'tickets.view',
     excludes: ['/app/tickets/manage'],
+    group: 'Service desk',
   },
   {
     to: '/app/tickets/manage',
     label: 'Ticket management',
     icon: ClipboardList,
     permission: 'tickets.view',
-  },
-  { to: '/app/technicians', label: 'Technicians', icon: UsersRound, permission: 'users.view' },
-  {
-    to: '/app/maintenance',
-    label: 'Maintenance',
-    icon: Wrench,
-    permission: 'maintenance.view',
-    end: true,
+    group: 'Service desk',
   },
   {
-    to: '/app/maintenance/manage',
-    label: 'Maintenance management',
-    icon: Gauge,
-    permission: 'maintenance.view',
+    to: '/app/technicians',
+    label: 'Technicians',
+    icon: UsersRound,
+    permission: 'users.view',
+    group: 'Service desk',
   },
   {
     to: '/app/work-support/manage',
     label: 'Support requests',
     icon: Inbox,
     permission: 'maintenance.view',
+    group: 'Service desk',
   },
-  { to: '/app/my-assets', label: 'My assets', icon: PackageCheck },
+  {
+    to: '/app/maintenance',
+    label: 'Maintenance',
+    icon: Wrench,
+    permission: 'maintenance.view',
+    end: true,
+    group: 'Maintenance',
+  },
+  {
+    to: '/app/maintenance/manage',
+    label: 'Maintenance management',
+    icon: Gauge,
+    permission: 'maintenance.view',
+    group: 'Maintenance',
+  },
+  {
+    to: '/app/predictions',
+    label: 'Predictive maintenance',
+    icon: LineChart,
+    permission: 'predictions.view',
+    group: 'Maintenance',
+  },
+  { to: '/app/my-assets', label: 'My assets', icon: PackageCheck, group: 'Assets & places' },
+  {
+    to: '/app/assets',
+    label: 'Assets',
+    icon: HardDrive,
+    permission: 'assets.view',
+    group: 'Assets & places',
+  },
+  {
+    to: '/app/locations',
+    label: 'Locations',
+    icon: Building2,
+    permission: 'locations.view',
+    group: 'Assets & places',
+  },
+  {
+    to: '/app/floor-plan',
+    label: 'Floor plan',
+    icon: MapIcon,
+    permission: 'floorplan.view',
+    group: 'Assets & places',
+  },
   {
     to: '/app/announcements',
     label: 'Announcements',
     icon: Megaphone,
     end: true,
     excludes: ['/app/announcements/manage'],
+    group: 'Communication',
   },
   {
     to: '/app/announcements/manage',
     label: 'Announcement management',
     icon: Megaphone,
     permission: 'system.announcements.manage',
+    group: 'Communication',
   },
-  { to: '/app/assets', label: 'Assets', icon: HardDrive, permission: 'assets.view' },
-  { to: '/app/locations', label: 'Locations', icon: Building2, permission: 'locations.view' },
-  { to: '/app/floor-plan', label: 'Floor plan', icon: MapIcon, permission: 'floorplan.view' },
   {
-    to: '/app/predictions',
-    label: 'Predictive maintenance',
-    icon: LineChart,
-    permission: 'predictions.view',
+    to: '/app/users',
+    label: 'Users',
+    icon: Users,
+    permission: 'users.view',
+    group: 'Administration',
   },
-  { to: '/app/ai-settings', label: 'AI settings', icon: BrainCircuit, permission: 'ai.configure' },
-  { to: '/app/users', label: 'Users', icon: Users, permission: 'users.view' },
-  { to: '/app/registrations', label: 'Registrations', icon: UserCheck, permission: 'users.update' },
+  {
+    to: '/app/registrations',
+    label: 'Registrations',
+    icon: UserCheck,
+    permission: 'users.update',
+    group: 'Administration',
+  },
+  {
+    to: '/app/ai-settings',
+    label: 'AI settings',
+    icon: BrainCircuit,
+    permission: 'ai.configure',
+    group: 'Administration',
+  },
 ]
 
 const NAV_BY_ROLE: Record<RoleSlug, NavItem[]> = {
@@ -185,4 +267,32 @@ export function navItemsFor(
   const items = NAV_BY_ROLE[role as RoleSlug] ?? [NAV_BY_ROLE.teacher[0]]
 
   return items.filter((item) => !item.permission || hasPermission(item.permission))
+}
+
+export interface NavSection {
+  /** Heading text, or null for the leading items that stand above any heading. */
+  label: string | null
+  items: NavItem[]
+}
+
+/**
+ * Fold an already-filtered item list into the sections the menu prints. A new
+ * section starts whenever the group changes, so a heading never appears for a
+ * group whose items were all filtered out by permission.
+ */
+export function groupNavItems(items: NavItem[]): NavSection[] {
+  const sections: NavSection[] = []
+
+  for (const item of items) {
+    const label = item.group ?? null
+    const last = sections[sections.length - 1]
+
+    if (last && last.label === label) {
+      last.items.push(item)
+    } else {
+      sections.push({ label, items: [item] })
+    }
+  }
+
+  return sections
 }

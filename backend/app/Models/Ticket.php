@@ -24,7 +24,9 @@ use Illuminate\Support\Carbon;
  * @property int|null $assigned_technician_id
  * @property int|null $room_id
  * @property int|null $pc_unit_id
+ * @property int|null $asset_id
  * @property int $category_id
+ * @property string|null $category_detail
  * @property int $priority_id
  * @property TicketPrioritySource|null $priority_source
  * @property int $current_status_id
@@ -93,6 +95,15 @@ class Ticket extends Model
      *
      * Resolved here rather than in each of the three ticket projections, which
      * would otherwise each carry a copy of the same rule.
+     *
+     * A ticket that names another piece of equipment (`asset_id`, SDD DD-79)
+     * deliberately does **not** consult the asset's room: `CreateTicket` stores
+     * the room it was filed in (inheriting the asset's when none was named), and
+     * validation requires a named item to be in the named room, so the stored
+     * room is already the answer. An asset's own `current_room_id` is also not
+     * kept up to date when a part is fitted into a PC, and every room rule —
+     * directory filters, archive blockers, the AI's location block — reads the
+     * stored `room_id`.
      */
     public function locationRoom(): ?Room
     {
@@ -148,6 +159,18 @@ class Ticket extends Model
     public function pcUnit(): BelongsTo
     {
         return $this->belongsTo(PcUnit::class);
+    }
+
+    /**
+     * The non-PC equipment this fault is about, if any (SDD DD-79). A ticket
+     * names at most one item — `tickets_equipment_target_check` refuses a row
+     * carrying both this and `pc_unit_id`.
+     *
+     * @return BelongsTo<Asset, $this>
+     */
+    public function asset(): BelongsTo
+    {
+        return $this->belongsTo(Asset::class);
     }
 
     /** @return BelongsTo<TicketCategory, $this> */

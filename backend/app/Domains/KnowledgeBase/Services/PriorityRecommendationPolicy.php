@@ -27,7 +27,9 @@ use App\Models\TicketUpdate;
  *   3. the recommended level is strictly **higher** than the current one —
  *      it never lowers, so a room's priority floor (applied at creation) and a
  *      category default can only ever be exceeded, never undercut;
- *   4. nobody chose the priority by hand (`priority_source` ≠ manual);
+ *   4. no IT staff member set it (`priority_source` ≠ manual). A reporter's
+ *      own choice (`reporter`, SDD DD-75) is not a lock: like a category
+ *      default or a room floor, it may be raised;
  *   5. the ticket is still live (not resolved, closed or cancelled).
  *
  * When applied it moves the SLA clock exactly as a human change would

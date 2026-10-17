@@ -32,8 +32,12 @@ use Illuminate\Support\Collection;
  *   asset_transfers           room-to-room moves
  *   pc_component_installations  fitted into / removed from a PC
  *   maintenance_records       service visits
- *   tickets                   faults reported against the host PC
+ *   tickets                   faults reported against the asset itself
+ *                             (`tickets.asset_id`, since Phase 2.9 SDD DD-79)
  *   qr_codes                  label issue and revocation
+ *
+ * That is seven sources for an asset and five for a PC unit, whose timeline
+ * reads activity, fitted components, maintenance, its own tickets and QR codes.
  *
  * **Strictly read-only, and strictly additive.** Nothing here updates or deletes
  * a historical row; the sources are append-only or soft-deleted by design, so a
@@ -46,7 +50,8 @@ use Illuminate\Support\Collection;
  * denominator and would still not carry the per-source detail the UI renders.
  * The set is bounded by one asset's own lifetime — tens to hundreds of rows, not
  * millions — and each source is additionally capped by {@see PER_SOURCE_CAP}, so
- * the merge is O(small) and the query count is fixed at seven regardless of size.
+ * the merge is O(small) and the query count is fixed — one per source —
+ * regardless of size.
  */
 class AssetHistory
 {
@@ -73,6 +78,7 @@ class AssetHistory
             $this->transferEntries($asset),
             $this->installationEntries($asset),
             $this->maintenanceEntries($asset),
+            $this->ticketEntries($asset),
             $this->qrEntries($asset),
         );
 
@@ -80,8 +86,8 @@ class AssetHistory
     }
 
     /**
-     * The merged timeline for a PC unit. Its sources differ from an asset's —
-     * a PC has tickets and fitted components, but no transfers of its own.
+     * The merged timeline for a PC unit — five sources to an asset's seven. A
+     * PC has fitted components, but no status history or transfers of its own.
      *
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
@@ -329,16 +335,21 @@ class AssetHistory
     }
 
     /**
-     * Faults reported against this PC. Tickets carry `pc_unit_id` only, which is
-     * why they appear on a PC's timeline and not on a loose asset's.
+     * Faults reported against this PC (`tickets.pc_unit_id`) or, since
+     * Phase 2.9, against this asset itself (`tickets.asset_id`, SDD DD-79). A
+     * ticket names at most one of the two, so no fault appears on two
+     * timelines. A part fitted inside a PC does not inherit the PC's tickets
+     * here: which part a PC fault was really about is not recorded.
      *
      * @return list<array<string, mixed>>
      */
-    private function ticketEntries(PcUnit $pcUnit): array
+    private function ticketEntries(Asset|PcUnit $subject): array
     {
+        $column = $subject instanceof PcUnit ? 'pc_unit_id' : 'asset_id';
+
         return Ticket::query()
             ->with(['status', 'reporter:id,uuid,first_name,last_name'])
-            ->where('pc_unit_id', $pcUnit->getKey())
+            ->where($column, $subject->getKey())
             ->orderByDesc('created_at')
             ->limit(self::PER_SOURCE_CAP)
             ->get()

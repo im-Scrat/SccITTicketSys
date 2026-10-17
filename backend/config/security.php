@@ -42,6 +42,12 @@ return [
         'tickets_per_hour' => (int) env('TICKETS_PER_HOUR', 20),
         'ticket_comments_per_hour' => (int) env('TICKET_COMMENTS_PER_HOUR', 60),
 
+        // Phase 2.9 — report-a-problem form. Photos are uploaded one request
+        // each after the ticket is created; the room-scoped equipment list is
+        // fetched once per room a reporter picks. Per user, like the above.
+        'ticket_attachments_per_hour' => (int) env('TICKET_ATTACHMENTS_PER_HOUR', 60),
+        'lookup_equipment_per_minute' => (int) env('LOOKUP_EQUIPMENT_PER_MINUTE', 120),
+
         // Phase 2.9 — reading a stored AI analysis (no provider call). Its own
         // budget, so viewing the panel can never spend ticket-creation quota.
         'ticket_ai_analysis_per_hour' => (int) env('TICKET_AI_ANALYSIS_PER_HOUR', 120),

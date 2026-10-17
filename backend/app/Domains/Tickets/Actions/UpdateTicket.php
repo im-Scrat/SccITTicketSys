@@ -17,6 +17,7 @@ use App\Models\TicketUpdate;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -69,13 +70,27 @@ class UpdateTicket
             $attributes[$field] = $new;
         }
 
+        $effectiveCategory = $ticket->category;
+
         if (array_key_exists('category', $data)) {
             $category = TicketCategory::query()->where('slug', (string) $data['category'])->first();
 
             if ($category !== null && $category->getKey() !== $ticket->category_id) {
                 $changes['category'] = ['from' => $ticket->category?->name, 'to' => $category->name];
                 $attributes['category_id'] = $category->getKey();
+                $effectiveCategory = $category;
             }
+        }
+
+        // Phase 2.9 (SDD DD-77). Resolved here, in the action, and added to
+        // `$attributes` like any other field — validation alone is not enough,
+        // because an edit whose `$attributes` stay empty returns below without
+        // saving, so a description-only edit would be silently dropped.
+        $detail = $this->categoryDetail($ticket, $effectiveCategory, $data);
+
+        if ($detail !== $ticket->category_detail) {
+            $changes['category_detail'] = ['from' => $ticket->category_detail, 'to' => $detail];
+            $attributes['category_detail'] = $detail;
         }
 
         if ($attributes === []) {
@@ -101,6 +116,36 @@ class UpdateTicket
         );
 
         return $ticket->refresh()->load(['status', 'priority', 'category', 'reporter']);
+    }
+
+    /**
+     * The "Other" description this ticket should carry after the edit.
+     *
+     *  - Under a category that does not ask for one, none — so moving a ticket
+     *    out of an "Other" category drops the description that only made sense
+     *    there.
+     *  - Otherwise the value sent (trimmed with `Str::trim`, the same Unicode
+     *    trim the HTTP middleware applies, so a non-HTTP caller cannot store a
+     *    blank that `tickets_category_detail_check` would refuse), or the
+     *    current one when the field was not sent.
+     *
+     * Whether a null is *allowed* here is `UpdateTicketRequest`'s decision.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function categoryDetail(Ticket $ticket, ?TicketCategory $category, array $data): ?string
+    {
+        if ($category !== null && ! $category->requires_detail) {
+            return null;
+        }
+
+        if (! array_key_exists('category_detail', $data)) {
+            return $ticket->category_detail;
+        }
+
+        $value = is_string($data['category_detail']) ? Str::trim($data['category_detail']) : '';
+
+        return $value === '' ? null : $value;
     }
 
     /**

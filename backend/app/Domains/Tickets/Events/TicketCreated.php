@@ -11,12 +11,13 @@ use Illuminate\Queue\SerializesModels;
 /**
  * Raised when a ticket is reported.
  *
- * **Deliberately has no listener in Phase 2.6.** It is the seam the
- * asynchronous AI analysis job attaches to in the AI phase (SRS FR-AI-021,
- * UCS-02 step 5) and the seam the notification domain attaches to for
- * FR-NOT-003. Raising it now means those phases register a listener rather than
- * editing `CreateTicket` — which is the whole point of the modular monolith's
- * event boundary (SDD §14.2).
+ * **Raised in Phase 2.6 with no listener**, as the seam later phases attach to
+ * rather than editing `CreateTicket` — the whole point of the modular
+ * monolith's event boundary (SDD §14.2). It has since gained two, exactly that
+ * way: KnowledgeBase's `AnalyzeTicketOnCreated` queues the asynchronous AI
+ * pre-screening (SRS FR-AI-021, UCS-02 step 5; WP-I), and Analytics'
+ * `SignalAdminDashboard` pushes the administrator dashboard's realtime signal
+ * (Phase 2.9).
  *
  * An event with no listener costs one no-op dispatch. An event added later costs
  * a change to the write path everyone depends on.

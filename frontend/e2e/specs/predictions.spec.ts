@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { apiFetch, goto, settle, signIn, signOut } from '../fixtures/app'
+import { apiFetch, goto, openNavigation, settle, signIn, signOut } from '../fixtures/app'
 import { manifest } from '../fixtures/manifest'
 
 /**
@@ -306,11 +306,10 @@ for (const role of ['technician', 'teacher'] as const) {
     }) => {
       await signIn(page, role)
 
-      await expect(
-        page
-          .getByRole('navigation', { name: 'Primary' })
-          .getByRole('link', { name: /predictive maintenance/i }),
-      ).toHaveCount(0)
+      // Open the menu first: against the closed panel this count is always 0.
+      const nav = await openNavigation(page)
+      await expect(nav.getByRole('link', { name: 'Dashboard' })).toBeVisible()
+      await expect(nav.getByRole('link', { name: /predictive maintenance/i })).toHaveCount(0)
 
       await goto(page, LIST)
       await expect(page.getByRole('heading', { name: /access denied/i })).toBeVisible()

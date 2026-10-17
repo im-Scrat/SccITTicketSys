@@ -62,7 +62,7 @@ class ManageTicketComment
             ]);
 
             return $comment;
-        })->load('user.role');
+        })->load(['user.role', 'parent' => fn ($parent) => $parent->select(['id', 'uuid'])]);
 
         /*
          * WP-2.7a — the notification seam (FR-TKT-007, FR-NOT-003 T3).

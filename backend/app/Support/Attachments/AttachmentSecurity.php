@@ -152,7 +152,7 @@ final class AttachmentSecurity
      */
     public static function rules(string $profile): array
     {
-        $maxKb = (int) config('security.uploads.max_kb', 10240);
+        $maxKb = self::maxKilobytes();
 
         return [
             'required',
@@ -161,6 +161,17 @@ final class AttachmentSecurity
             'mimetypes:'.implode(',', self::allowedMimes($profile)),
             'extensions:'.implode(',', self::allowedExtensions($profile)),
         ];
+    }
+
+    /**
+     * The per-file size ceiling, in kilobytes — deployment policy
+     * (`security.uploads.max_kb`). One reader for {@see rules()} and for the
+     * ticket options payload, so the report form checks a photo against the very
+     * number the server will enforce rather than a copy that can drift.
+     */
+    public static function maxKilobytes(): int
+    {
+        return (int) config('security.uploads.max_kb', 10240);
     }
 
     /**

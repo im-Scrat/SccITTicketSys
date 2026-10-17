@@ -25,8 +25,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * leak the register.
  *
  * The underlying data is already shaped by
- * `AssetOptions::lookupAssets()` / `lookupPcUnits()`, so this wraps a plain
- * array rather than a model.
+ * `AssetOptions::lookupAssets()` / `lookupPcUnits()` — and, for the report
+ * form's room-scoped list, `roomAssets()` / `roomPcUnits()` (SDD DD-78), which
+ * produce the same rows — so this wraps a plain array rather than a model.
  */
 class AssetOptionResource extends JsonResource
 {

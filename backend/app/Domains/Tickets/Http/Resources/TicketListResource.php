@@ -32,6 +32,7 @@ class TicketListResource extends JsonResource
     public function toArray(Request $request): array
     {
         $pcUnit = $this->pcUnit;
+        $asset = $this->asset;
         $room = $this->locationRoom();
         $status = $this->statusRow();
 
@@ -52,10 +53,15 @@ class TicketListResource extends JsonResource
                 'label' => $this->priority?->name,
                 'level' => $this->priority !== null ? (int) $this->priority->level : null,
                 'color' => $this->priority?->color,
+                // Phase 2.9 (SDD DD-75) — staff-only projection, so the source
+                // is safe here, and it is what lets triage spot a priority the
+                // reporter chose (`reporter`) and override it.
+                'source' => $this->priority_source?->value,
             ],
             'category' => [
                 'slug' => $this->category?->slug,
                 'label' => $this->category?->name,
+                'detail' => $this->category_detail,
             ],
 
             'reporter' => [
@@ -71,6 +77,11 @@ class TicketListResource extends JsonResource
                 'id' => $pcUnit->uuid,
                 'label' => $pcUnit->pc_name,
                 'identifier' => $pcUnit->unit_code,
+            ] : null,
+            'asset' => $asset !== null ? [
+                'id' => $asset->uuid,
+                'label' => $asset->displayName(),
+                'identifier' => $asset->asset_tag,
             ] : null,
             'location' => $room !== null ? [
                 'room' => $room->name,

@@ -23,7 +23,8 @@ use Illuminate\Database\Eloquent\Builder;
  *                      claiming a part that no longer exists (FR-PC-004).
  *  - **open_tickets**: a target with open tickets may not be archived; the work
  *                      has to be resolved or closed first. Ticket history is
- *                      never rewritten (the same stance FR-LOC-009 takes).
+ *                      never rewritten (the same stance FR-LOC-009 takes). For
+ *                      an asset that means its own tickets and its host PC's.
  *  - **components**  : a PC unit still holding installed components may not be
  *                      archived until they are removed or the PC is stripped.
  *
@@ -105,20 +106,26 @@ class AssetGuard
     }
 
     /**
-     * Open tickets raised against the asset. Tickets point at a `pc_unit_id`
-     * rather than an `asset_id`, so an asset's ticket exposure is the exposure of
-     * the PC it is installed in.
+     * Open tickets this asset is exposed to: those reported against the asset
+     * itself (`tickets.asset_id`, Phase 2.9 SDD DD-79 — a printer, a projector),
+     * plus those against the PC it is fitted in, if any — a fault on the PC may
+     * well be this part's.
+     *
+     * The two sets cannot overlap: `tickets_equipment_target_check` refuses a
+     * ticket naming both a PC and an asset, so the sum never double-counts.
      */
     private function openTicketsForAsset(Asset $asset): int
     {
+        $open = fn (Builder $q): Builder => $q->where('is_open', true);
+
+        $own = $asset->tickets()->whereHas('status', $open)->count();
+
         $pcUnit = $this->installedIn($asset);
 
         if ($pcUnit === null) {
-            return 0;
+            return $own;
         }
 
-        return $pcUnit->tickets()
-            ->whereHas('status', fn (Builder $q): Builder => $q->where('is_open', true))
-            ->count();
+        return $own + $pcUnit->tickets()->whereHas('status', $open)->count();
     }
 }

@@ -160,6 +160,17 @@ class Asset extends Model
         return $this->hasMany(AssetAttachment::class);
     }
 
+    /**
+     * Faults reported against this asset itself (SDD DD-79). Faults reported
+     * against the PC it is fitted in are that PC's tickets, not these.
+     *
+     * @return HasMany<Ticket, $this>
+     */
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
     /** @return HasMany<QrCode, $this> */
     public function qrCodes(): HasMany
     {

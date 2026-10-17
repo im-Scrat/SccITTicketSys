@@ -47,6 +47,11 @@ class IndexTicketsRequest extends FormRequest
             'has_pc_unit' => ['nullable', 'boolean'],
             'breached' => ['nullable', 'boolean'],
             'awaiting_confirmation' => ['nullable', 'boolean'],
+            // Phase 2.9 — the requester's own list only (`/tickets/mine`): "resolved
+            // in the last N days", the exact list behind the dashboard's
+            // "Resolved (30 days)" figure. Bounded, so a crafted value cannot ask
+            // for an absurd date range. The other surfaces validate it but ignore it.
+            'resolved_within' => ['nullable', 'integer', 'min:1', 'max:365'],
             // Phase 2.9 — administrative directory only (NOT FIXED, awaiting an owner).
             'escalated' => ['nullable', 'boolean'],
             'include_closed' => ['nullable', 'boolean'],

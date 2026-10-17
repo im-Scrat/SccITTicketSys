@@ -1,3 +1,4 @@
+import { UserRound } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import type { PriorityRef, SlaPosture, StatusRef } from '../types'
 
@@ -100,6 +101,58 @@ export function TicketPriorityBadge({
       label={`${priority.label} priority`}
       className={className}
     />
+  )
+}
+
+/**
+ * The priority's dot on its own, for the report form's choices. Decorative —
+ * the choice's written name carries the meaning. Same tone map as the badge, so
+ * Urgent (slug `critical`) is the one red dot, as the Reserved-Red rule allows
+ * for a critical level, and a priority nobody mapped is plain.
+ */
+export function PriorityDot({ slug, className }: { slug: string; className?: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-block size-3 shrink-0 rounded-full',
+        toneDots[priorityTones[slug] ?? 'neutral'],
+        className,
+      )}
+      aria-hidden="true"
+    />
+  )
+}
+
+/**
+ * "Reporter's choice" — the person who reported the fault picked this priority
+ * themselves, and nothing has overridden it since (SDD DD-75).
+ *
+ * It exists so an administrator can *find* self-declared priorities: teachers
+ * may choose Urgent, and the control on that is a person lowering it, which is
+ * only possible if the ticket says where its priority came from. The source
+ * reaches staff projections only — a reporter's own record never carries it — so
+ * this renders nothing for anyone else without having to ask who is looking.
+ * Neutral on purpose: a reporter's choice is information, not a warning.
+ */
+export function ReporterChoiceMarker({
+  priority,
+  className,
+}: {
+  priority: PriorityRef
+  className?: string
+}) {
+  if (priority.source !== 'reporter') return null
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border-2 border-dashed border-control-border px-3 py-1 text-xs font-semibold text-ink',
+        className,
+      )}
+    >
+      <UserRound size={14} aria-hidden="true" />
+      Reporter’s choice
+    </span>
   )
 }
 

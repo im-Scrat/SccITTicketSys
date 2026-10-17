@@ -1,15 +1,25 @@
-import { FileText, Trash2, Upload, X } from 'lucide-react'
-import { type ChangeEvent, useEffect, useState } from 'react'
+import { isAxiosError } from 'axios'
+import { FileText, FileUp, Trash2, X } from 'lucide-react'
+import { type ChangeEvent, useEffect, useId, useRef, useState } from 'react'
+import { PhotoPickerButtons } from '@/components/PhotoPickerButtons'
 import { Alert, Button, ConfirmDialog, EmptyState, Modal, Skeleton } from '@/components/ui'
 import { getErrorMessage } from '@/features/auth/lib/serverErrors'
+import { usePreparedPhotos } from '@/hooks/usePreparedPhotos'
 import { formatDateTime } from '@/lib/datetime'
 import { fetchAttachmentObjectUrl } from '../api/ticketsApi'
-import { useDeleteAttachment, useUploadAttachment } from '../hooks/mutations'
-import { useTicketAttachments } from '../hooks/queries'
+import { uploadFailureReason, useDeleteAttachment, useUploadAttachment } from '../hooks/mutations'
+import { useTicketAttachments, useTicketOptions } from '../hooks/queries'
 import type { TicketAttachment } from '../types'
+import { PhotoDraftList } from './PhotoDraftList'
 
-/** Kept in step with `StoreTicketAttachmentRequest`'s allow-list. */
-const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain'
+/**
+ * The non-photo half of `StoreTicketAttachmentRequest`'s allow-list. Photos go
+ * through the shared photo picker, whose filter is `PHOTO_ACCEPT`.
+ */
+const DOCUMENT_ACCEPT = 'application/pdf,text/plain'
+
+/** Photos one pick may add here; each is uploaded as soon as it is ready. */
+const PHOTOS_PER_PICK = 10
 
 interface TicketAttachmentsProps {
   ticketId: string
@@ -28,17 +38,84 @@ interface TicketAttachmentsProps {
  * thumbnail pulls its bytes through the authenticated API client and holds an
  * object URL, revoked on unmount so the tab does not leak blobs. Same mechanism
  * as the asset gallery, and for the same reason.
+ *
+ * **Photos use the report form's pipeline** (SDD DD-80): this is where a
+ * reporter is sent to add again a photo that failed while reporting, and the
+ * photos most likely to have failed — an original over the size limit, an
+ * Android file with no extension — would fail identically if re-sent as they
+ * are. So a picked photo is shrunk and renamed exactly as on the form, then
+ * uploaded. A PDF or a text log has nothing to prepare and goes up as picked,
+ * through its own button.
+ *
+ * Every control is a real button with the product's focus ring; the file
+ * inputs behind them are hidden from the keyboard. (The previous upload control
+ * put focus on a one-pixel input inside a label, where nobody could see it.)
  */
 export function TicketAttachments({ ticketId, canManage }: TicketAttachmentsProps) {
   const { data, isLoading, isError } = useTicketAttachments(ticketId)
+  const options = useTicketOptions(canManage)
   const upload = useUploadAttachment(ticketId)
   const remove = useDeleteAttachment()
 
   const [error, setError] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<TicketAttachment | null>(null)
   const [deleting, setDeleting] = useState<TicketAttachment | null>(null)
+  const [uploadingId, setUploadingId] = useState<number | null>(null)
 
-  const onPick = async (event: ChangeEvent<HTMLInputElement>) => {
+  const pickerId = useId()
+  const hintId = useId()
+  const documentInput = useRef<HTMLInputElement>(null)
+  const photos = usePreparedPhotos({
+    max: PHOTOS_PER_PICK,
+    maxKb: options.data?.uploads?.max_kb,
+    fallbackFocus: () => document.getElementById(pickerId),
+  })
+
+  // Uploads run one at a time even when a second pick arrives mid-batch: the
+  // picker stays usable (disabling it would drop keyboard focus), and each
+  // batch joins the end of this chain.
+  const uploads = useRef<Promise<void>>(Promise.resolve())
+
+  /**
+   * Prepare, then send each ready photo in turn; a refused one stays listed
+   * with the reason. Leaving the tab does not stop the batch: the photo hook
+   * still finishes preparing what it was given, and this chain still sends it.
+   *
+   * A 429 means the hourly upload limit is spent: the rest of this pick is
+   * refused with the same reason rather than each travelling in full to be
+   * turned down (the report form stops the same way).
+   */
+  const onPhotos = (files: File[]) => {
+    setError(null)
+    const settled = photos.add(files)
+
+    uploads.current = uploads.current.then(async () => {
+      let stopped: string | null = null
+
+      for (const draft of await settled) {
+        // Skipped if refused while preparing, or removed while waiting its turn.
+        if (draft.status !== 'ready' || !draft.file || !photos.has(draft.id)) continue
+        if (stopped) {
+          photos.reject(draft.id, stopped)
+          continue
+        }
+
+        setUploadingId(draft.id)
+        try {
+          await upload.mutateAsync(draft.file)
+          photos.sent(draft.id)
+        } catch (caught) {
+          const reason = uploadFailureReason(caught)
+          photos.reject(draft.id, reason)
+          if (isAxiosError(caught) && caught.response?.status === 429) stopped = reason
+        } finally {
+          setUploadingId(null)
+        }
+      }
+    })
+  }
+
+  const onDocument = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = '' // allow re-picking the same file after an error
     if (!file) return
@@ -77,21 +154,43 @@ export function TicketAttachments({ ticketId, canManage }: TicketAttachmentsProp
       {error && <Alert tone="error">{error}</Alert>}
 
       {canManage && (
-        <div>
-          <label className="inline-flex h-15 cursor-pointer items-center gap-3 rounded-md border border-control-border bg-surface px-6 text-sm font-semibold text-ink shadow-sm hover:bg-surface-sunken">
-            <Upload size={32} aria-hidden="true" />
-            {upload.isPending ? 'Uploading…' : 'Add a photo or file'}
-            <input
-              type="file"
-              className="sr-only"
-              accept={ACCEPT}
-              onChange={onPick}
-              disabled={upload.isPending}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <PhotoPickerButtons
+              onPick={onPhotos}
+              primaryId={pickerId}
+              describedBy={hintId}
+              galleryLabel="Add photos"
             />
-          </label>
-          <p className="mt-2 text-sm text-muted">
-            A photo of the screen or the machine, a PDF, or a plain-text log. Up to 10 MB.
+            <Button
+              variant="secondary"
+              className="w-full sm:w-auto"
+              leftIcon={<FileUp size={22} aria-hidden="true" />}
+              onClick={() => documentInput.current?.click()}
+              disabled={upload.isPending}
+              aria-describedby={hintId}
+            >
+              Add a file
+            </Button>
+            <input
+              ref={documentInput}
+              type="file"
+              accept={DOCUMENT_ACCEPT}
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
+              data-testid="document-input"
+              onChange={onDocument}
+            />
+          </div>
+          <p id={hintId} className="text-sm text-muted">
+            A photo of the screen or the machine, a PDF, or a plain-text log
+            {options.data?.uploads
+              ? `, up to ${Math.round(options.data.uploads.max_kb / 1024)} MB each`
+              : ''}
+            . Large photos are made smaller before they are sent.
           </p>
+          <PhotoDraftList photos={photos} uploadingId={uploadingId} />
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readReportDraft, saveReportDraft } from '@/features/tickets/hooks/useReportDraft'
 import { login, logout } from '../api/authApi'
 import type { AuthUser } from '../types'
 import { AUTH_USER_KEY } from './useAuth'
@@ -80,6 +81,51 @@ describe('auth mutations drop the previous principal’s cache', () => {
     await act(() => result.current.mutateAsync().catch(() => undefined))
 
     expect(principalKeys(client)).toEqual([])
+  })
+
+  it('removes the unsent problem report kept in this tab on logout', async () => {
+    vi.mocked(logout).mockResolvedValue(undefined as never)
+    saveReportDraft('uuid-a', {
+      title: 'Projector will not start',
+      description: '',
+      category: '',
+      category_detail: '',
+      priority: '',
+      building: '',
+      room: '',
+      item: '',
+    })
+    const client = clientWithPrincipalCache()
+    const { result } = renderHook(() => useLogout(), { wrapper: wrapperFor(client) })
+
+    await act(() => result.current.mutateAsync())
+
+    expect(readReportDraft('uuid-a')).toBeNull()
+  })
+
+  it('keeps the signing-in user’s unsent report and drops anyone else’s', async () => {
+    // A's session expired (a 401, no sign-out), and B signs in on the same tab.
+    sessionStorage.clear()
+    const draft = {
+      title: 'Projector will not start',
+      description: '',
+      category: '',
+      category_detail: '',
+      priority: '',
+      building: '',
+      room: '',
+      item: '',
+    }
+    saveReportDraft('uuid-a', draft)
+    saveReportDraft(teacher.id, { ...draft, title: 'Bea’s own report' })
+    vi.mocked(login).mockResolvedValue(teacher)
+    const client = clientWithPrincipalCache()
+    const { result } = renderHook(() => useLogin(), { wrapper: wrapperFor(client) })
+
+    await act(() => result.current.mutateAsync({ email: teacher.email, password: 'x' } as never))
+
+    expect(sessionStorage.getItem('sccit.reportDraft.uuid-a')).toBeNull()
+    expect(readReportDraft(teacher.id)?.title).toBe('Bea’s own report')
   })
 
   it('removes a previous principal’s cache when someone signs in', async () => {

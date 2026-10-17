@@ -1,7 +1,19 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Surface } from '@/components/ui'
 import { cn } from '@/lib/cn'
+import { PanelHeader } from './PanelHeader'
+
+/**
+ * `card` — the dashboard widget: title inside a small flat panel (admin and
+ * technician dashboards).
+ *
+ * `section` — a page-level panel: the heading sits **above** a frame that is the
+ * same frame a ticket card uses. The teacher dashboard asks for it so every
+ * panel beside the community feed shares the feed's heading and frame instead of
+ * sitting next to it in a lighter, smaller style.
+ */
+export type WidgetVariant = 'card' | 'section'
 
 interface WidgetCardProps {
   title: string
@@ -11,6 +23,7 @@ interface WidgetCardProps {
   linkLabel?: string
   children: ReactNode
   className?: string
+  variant?: WidgetVariant
 }
 
 /**
@@ -25,7 +38,24 @@ export function WidgetCard({
   linkLabel = 'Open',
   children,
   className,
+  variant = 'card',
 }: WidgetCardProps) {
+  const headingId = useId()
+
+  if (variant === 'section') {
+    return (
+      <section aria-labelledby={headingId} className={cn('flex min-w-0 flex-col gap-4', className)}>
+        <PanelHeader
+          id={headingId}
+          title={title}
+          description={description}
+          link={href ? { to: href, label: linkLabel } : undefined}
+        />
+        <div className="rounded-lg border-2 border-border bg-surface p-6">{children}</div>
+      </section>
+    )
+  }
+
   return (
     <Surface className={cn('flex flex-col p-4', className)}>
       <div className="flex items-start justify-between gap-3">

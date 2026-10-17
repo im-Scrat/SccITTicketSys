@@ -69,6 +69,9 @@ class TicketAssignedNotification extends ProjectNotification
                 'ticket' => $this->ticket->uuid,
                 'ticket_number' => $this->ticket->ticket_number,
                 'priority' => $this->ticket->priority?->slug,
+                // What people call the level ("Urgent"); the slug above stays
+                // the stable identifier for anything that keys on it (DD-76).
+                'priority_label' => $this->ticket->priority?->name,
                 'room' => $this->ticket->room?->name,
                 'reassignment' => $this->reassignment,
             ], static fn (mixed $value): bool => $value !== null),
@@ -83,11 +86,17 @@ class TicketAssignedNotification extends ProjectNotification
     protected function mailLines(array $payload): array
     {
         // The ticket *title* is requester-authored free text, so it stays in the
-        // in-app row and out of the mail body — see ProjectNotification.
+        // in-app row and out of the mail body — see ProjectNotification. The
+        // priority's *name* is a staff-defined lookup label, not user text, so
+        // the mail reads "Priority: Urgent." rather than the bare slug it used
+        // to print. A notification stored before the label existed still
+        // falls back to the slug.
+        $priority = $payload['data']['priority_label'] ?? $payload['data']['priority'] ?? null;
+
         return [
             $payload['title'].'.',
-            isset($payload['data']['priority'])
-                ? 'Priority: '.$payload['data']['priority'].'.'
+            is_string($priority)
+                ? 'Priority: '.$priority.'.'
                 : 'Open the ticket for its priority and location.',
         ];
     }

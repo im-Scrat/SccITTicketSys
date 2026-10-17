@@ -4,12 +4,17 @@ import { Alert, Badge } from '@/components/ui'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { formatDateTime } from '@/lib/datetime'
 import type { SlaPosture, TicketDetail } from '../types'
-import { SlaBadge, TicketPriorityBadge, TicketStatusBadge } from './TicketBadges'
+import {
+  ReporterChoiceMarker,
+  SlaBadge,
+  TicketPriorityBadge,
+  TicketStatusBadge,
+} from './TicketBadges'
 
 interface TicketSummaryProps {
   ticket: TicketDetail
   sla?: SlaPosture | null
-  /** Administrators can open the PC's asset record; nobody else can. */
+  /** Administrators can open the PC's or the asset's record; nobody else can. */
   linkEquipment?: boolean
 }
 
@@ -20,7 +25,9 @@ interface TicketSummaryProps {
  * `technician`, `sla` and `ai` arrive as `null` for a requester because
  * {@link TicketDetailResource} refuses to populate them, not because this
  * component hides them. So a field that is absent is absent from the response,
- * and there is nothing here for a browser devtools panel to reveal.
+ * and there is nothing here for a browser devtools panel to reveal. The same
+ * holds for `priority.source`: only IT staff receive it, which is why the
+ * "Reporter's choice" marker needs no role check of its own (SDD DD-75).
  */
 export function TicketSummary({ ticket, sla = null, linkEquipment = false }: TicketSummaryProps) {
   const { hasRole } = useAuth()
@@ -33,6 +40,7 @@ export function TicketSummary({ ticket, sla = null, linkEquipment = false }: Tic
           <span className="text-sm font-bold tnum text-ink-strong">{ticket.ticket_number}</span>
           <TicketStatusBadge status={ticket.status} />
           <TicketPriorityBadge priority={ticket.priority} />
+          <ReporterChoiceMarker priority={ticket.priority} />
           {ticket.category.label && <Badge tone="outline">{ticket.category.label}</Badge>}
           <SlaBadge sla={sla} />
           {ticket.archived && <Badge tone="outline">Archived</Badge>}
@@ -78,22 +86,28 @@ export function TicketSummary({ ticket, sla = null, linkEquipment = false }: Tic
 
           <Detail label="Reported">{formatDateTime(ticket.reported_at)}</Detail>
 
-          <Detail label="Affected PC">
+          {ticket.category.detail && (
+            <Detail label="Kind of problem">{ticket.category.detail}</Detail>
+          )}
+
+          {/* A ticket names at most one item — a PC or another asset (SDD DD-79). */}
+          <Detail label={ticket.pc_unit ? 'Affected PC' : 'Affected item'}>
             {ticket.pc_unit ? (
-              linkEquipment && ticket.pc_unit.id ? (
-                <Link
-                  to={`/app/assets/pc-units/${ticket.pc_unit.id}`}
-                  className="font-semibold underline"
-                >
-                  {ticket.pc_unit.label} ({ticket.pc_unit.identifier})
-                </Link>
-              ) : (
-                <>
-                  {ticket.pc_unit.label} ({ticket.pc_unit.identifier})
-                </>
-              )
+              <EquipmentName
+                equipment={ticket.pc_unit}
+                href={
+                  linkEquipment && ticket.pc_unit.id
+                    ? `/app/assets/pc-units/${ticket.pc_unit.id}`
+                    : null
+                }
+              />
+            ) : ticket.asset ? (
+              <EquipmentName
+                equipment={ticket.asset}
+                href={linkEquipment && ticket.asset.id ? `/app/assets/${ticket.asset.id}` : null}
+              />
             ) : (
-              'Not about a specific PC'
+              'Not about a specific item'
             )}
           </Detail>
 
@@ -170,6 +184,25 @@ export function TicketSummary({ ticket, sla = null, linkEquipment = false }: Tic
         </section>
       )}
     </div>
+  )
+}
+
+function EquipmentName({
+  equipment,
+  href,
+}: {
+  equipment: { label: string; identifier: string }
+  /** Administrators can open the record; everyone else reads the label. */
+  href: string | null
+}) {
+  const text = `${equipment.label} (${equipment.identifier})`
+
+  return href ? (
+    <Link to={href} className="font-semibold underline">
+      {text}
+    </Link>
+  ) : (
+    <>{text}</>
   )
 }
 

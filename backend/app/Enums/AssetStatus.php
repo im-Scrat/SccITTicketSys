@@ -93,6 +93,23 @@ enum AssetStatus: string
     }
 
     /**
+     * Statuses in which an asset is **in service** in a room, and so may have a
+     * fault reported against it from the report form (SDD DD-78; owner decision
+     * 2026-10-16): In Service, Maintenance and Out of Service.
+     *
+     * Narrower than {@see isLive()} on purpose. New, Available (spare stock),
+     * Assigned and In Transit equipment is not in use by anyone, so nobody can
+     * meet a fault on it — and listing it room by room would turn the form's
+     * equipment list into a located inventory of portable stock.
+     *
+     * @return list<string>
+     */
+    public static function reportableValues(): array
+    {
+        return [self::Deployed->value, self::InRepair->value, self::OutOfService->value];
+    }
+
+    /**
      * Legal next states (SRS FR-AST-005; enforced by
      * {@see AssetLifecycle}).
      *

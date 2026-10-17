@@ -1,5 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
-import { apiFetch, apiJson, apiStatus, goto, signIn, signOut } from '../fixtures/app'
+import {
+  apiFetch,
+  apiJson,
+  apiStatus,
+  goto,
+  openNavigation,
+  signIn,
+  signOut,
+} from '../fixtures/app'
 import { manifest } from '../fixtures/manifest'
 
 /**
@@ -583,7 +591,10 @@ for (const role of ['technician', 'teacher'] as const) {
     test('has no navigation entry, and the URL shows Access denied', async ({ page }) => {
       await signIn(page, role)
 
-      await expect(page.getByRole('link', { name: /Floor plan/ })).toHaveCount(0)
+      // Open the menu first: against the closed panel this count is always 0.
+      const nav = await openNavigation(page)
+      await expect(nav.getByRole('link', { name: 'Dashboard' })).toBeVisible()
+      await expect(nav.getByRole('link', { name: /Floor plan/ })).toHaveCount(0)
 
       for (const path of ['/app/floor-plan', mapUrl()]) {
         await goto(page, path)

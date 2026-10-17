@@ -2,7 +2,11 @@
 
 use App\Domains\Identity\Services\PermissionResolver;
 use App\Enums\AssignmentStatus;
+use App\Enums\ComponentType;
 use App\Enums\PermissionGrantType;
+use App\Models\Asset;
+use App\Models\HardwareComponent;
+use App\Models\HardwareModel;
 use App\Models\MaintenanceRecord;
 use App\Models\MaintenanceType;
 use App\Models\Permission;
@@ -172,4 +176,19 @@ function givePermission(User $user, string $name, PermissionGrantType $type = Pe
 function maintenanceType(string $slug): MaintenanceType
 {
     return MaintenanceType::query()->where('slug', $slug)->firstOrFail();
+}
+
+/**
+ * An asset of one catalog type. `HardwareComponentFactory` picks a random
+ * component type, which is useless for the report form's equipment rules
+ * (SDD DD-78): whether an asset is reportable depends on exactly that type.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function assetOfType(ComponentType $type, array $attributes = []): Asset
+{
+    $component = HardwareComponent::factory()->create(['component_type' => $type->value]);
+    $model = HardwareModel::factory()->create(['hardware_component_id' => $component->id]);
+
+    return Asset::factory()->create(['hardware_model_id' => $model->id, ...$attributes]);
 }

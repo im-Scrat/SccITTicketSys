@@ -11,6 +11,7 @@ import {
   updateProfile,
   type UpdateProfilePayload,
 } from '../api/authApi'
+import { clearReportDrafts, clearReportDraftsExcept } from '@/features/tickets/hooks/useReportDraft'
 import type { AuthUser, LoginPayload, RegisterPayload } from '../types'
 import { AUTH_USER_KEY } from './useAuth'
 
@@ -39,8 +40,11 @@ export function useLogin() {
     onSuccess: (user: AuthUser) => {
       // A sign-in can follow an *expired* session without a logout in between,
       // possibly as someone else — so the previous principal's cache goes here
-      // too, before the new user's first screen reads from it.
+      // too, before the new user's first screen reads from it. So does anyone
+      // else's unsent report in this tab (SDD DD-80); the person signing in
+      // keeps their own, which is what it was saved for.
       dropPrincipalCache(queryClient)
+      clearReportDraftsExcept(user.id)
       queryClient.setQueryData(AUTH_USER_KEY, user)
     },
   })
@@ -58,6 +62,10 @@ export function useLogin() {
  * AI analyses and every other per-user query on screen for the next person on a
  * shared machine until each refetch landed. {@link dropPrincipalCache} removes
  * all of it, so a feature added later cannot reopen the gap by being forgotten.
+ *
+ * The same goes for an unsent problem report kept in this tab's session storage
+ * (SDD DD-80): signing out is the person saying they are done, and the next
+ * person at the keyboard must not be offered their half-written report.
  */
 export function useLogout() {
   const queryClient = useQueryClient()
@@ -67,6 +75,7 @@ export function useLogout() {
     onSettled: () => {
       queryClient.setQueryData(AUTH_USER_KEY, null)
       dropPrincipalCache(queryClient)
+      clearReportDrafts()
     },
   })
 }
