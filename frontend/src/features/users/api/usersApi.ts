@@ -1,4 +1,5 @@
 import { api } from '@/services/api'
+import { triggerBlobDownload } from '@/lib/download'
 import type {
   ActivityEntry,
   BulkAction,
@@ -168,20 +169,6 @@ export async function bulkUserAction(
   return data
 }
 
-/** Turn a blob response into a browser download. */
-function triggerDownload(blob: Blob, disposition: string, fallback: string): void {
-  const match = disposition.match(/filename="?([^"]+)"?/)
-  const filename = match?.[1] ?? fallback
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
-}
-
 /** Download the (filtered) directory export. */
 export async function downloadExport(
   params: DirectoryParams,
@@ -191,7 +178,7 @@ export async function downloadExport(
     params: { ...cleanParams(params), format },
     responseType: 'blob',
   })
-  triggerDownload(
+  triggerBlobDownload(
     response.data as Blob,
     String(response.headers['content-disposition'] ?? ''),
     `users.${format}`,
@@ -205,7 +192,7 @@ export async function downloadSelected(ids: string[], format: 'csv' | 'xlsx'): P
     { action: 'export', ids, format },
     { responseType: 'blob' },
   )
-  triggerDownload(
+  triggerBlobDownload(
     response.data as Blob,
     String(response.headers['content-disposition'] ?? ''),
     `users.${format}`,

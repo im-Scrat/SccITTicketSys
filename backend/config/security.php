@@ -90,6 +90,10 @@ return [
          * a ceiling for a client stuck re-requesting.
          */
         'reports_per_minute' => (int) env('REPORTS_PER_MINUTE', 120),
+
+        // Phase 2.10 R3 — report documents (download and print) and report emails.
+        'report_exports_per_hour' => (int) env('REPORT_EXPORTS_PER_HOUR', 60),
+        'report_emails_per_hour' => (int) env('REPORT_EMAILS_PER_HOUR', 10),
     ],
 
     // File uploads (Phase 2.5 asset attachments; SRS NFR-SEC-007/008).

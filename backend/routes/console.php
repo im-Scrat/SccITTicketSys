@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\SchoolClock;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -63,5 +64,17 @@ Schedule::command('maintenance:detect-due')
  */
 Schedule::command('knowledge:index')
     ->dailyAt('03:10')
+    ->withoutOverlapping()
+    ->onOneServer();
+
+/*
+ * Phase 2.10 R3 — report housekeeping (SDD DD-91/DD-92): expired files deleted
+ * (rows kept as expired), stale email copies marked failed, old request
+ * metadata nulled. Scheduled in school time, explicitly: the scheduler runs in
+ * UTC, and 03:40 UTC would be the middle of a Manila school day.
+ */
+Schedule::command('reports:prune-exports')
+    ->timezone(SchoolClock::TIMEZONE)
+    ->dailyAt('03:40')
     ->withoutOverlapping()
     ->onOneServer();

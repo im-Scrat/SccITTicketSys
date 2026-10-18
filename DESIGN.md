@@ -348,6 +348,13 @@ The vocabulary that ties tickets, assets, maintenance, and the floor plan togeth
 - **Progress and steps.** Long work shows a labelled ProgressBar with "N of M" in words; multi-step flows show a Stepper (completed steps carry a check; below `sm` it reads "Step 3 of 6 · …"). A failed or stopped run uses the warning tone, never red.
 - **Announcements.** Results that arrive without a focus change go through a LiveRegion mounted before its first message.
 
+### Report documents (Phase 2.10, SDD DD-91/DD-92)
+- **Actions.** Export, Email and Print are secondary buttons with text and icon, beside Refresh; hidden entirely without `reports.export`.
+- **Dialogs show only what applies.** Paper and orientation only for PDF and Word; records only for someone allowed to export them; each format states its purpose in one line.
+- **Honest states.** "Preparing your file" while the server renders, then an automatic download with "Download again"; email statuses read Queued / Sent to mail server / Failed — never "delivered". A capture-sink warning appears while mail does not leave the server.
+- **Outside addresses are a decision, not a default.** They are marked "Outside the school" and need an explicit tick before Send is enabled.
+- **Print.** Always light, the PDF's content and charts, one column at most ~52rem; the paper size is left to the browser's print dialog.
+
 ### Navigation
 - **Primary nav:** left sidebar, `--surface` on `--bg`, collapsible to a 56px icon rail; a drawer on mobile. Items are Body-size with a 16px leading icon.
 - **Active item:** `--primary-subtle` background, `--primary-strong` text/icon, 4px radius. Hover on inactive → `--surface-sunken`. Active state is never color-only — the fill plus weight carry it.

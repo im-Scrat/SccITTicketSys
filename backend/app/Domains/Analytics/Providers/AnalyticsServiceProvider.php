@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Analytics\Providers;
 
+use App\Domains\Analytics\Listeners\RecordReportEmailDelivery;
 use App\Domains\Analytics\Listeners\SignalAdminDashboard;
 use App\Domains\KnowledgeBase\Events\PcPredictionGenerated;
 use App\Domains\Maintenance\Events\MaintenanceCompleted;
@@ -17,6 +18,8 @@ use App\Domains\Tickets\Events\TicketSlaThresholdCrossed;
 use App\Domains\Tickets\Events\TicketStatusChanged;
 use App\Domains\WorkSupport\Events\WorkSupportRequestDecided;
 use App\Domains\WorkSupport\Events\WorkSupportRequestSubmitted;
+use Illuminate\Notifications\Events\NotificationFailed;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -50,5 +53,9 @@ class AnalyticsServiceProvider extends ServiceProvider
         foreach (self::DASHBOARD_EVENTS as $event) {
             Event::listen($event, SignalAdminDashboard::class);
         }
+
+        // Phase 2.10 R3 — what happened to each emailed report copy (SDD DD-92).
+        Event::listen(NotificationSent::class, RecordReportEmailDelivery::class);
+        Event::listen(NotificationFailed::class, RecordReportEmailDelivery::class);
     }
 }

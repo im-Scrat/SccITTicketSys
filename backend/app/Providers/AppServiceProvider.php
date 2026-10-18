@@ -40,9 +40,11 @@ use App\Models\WorkSupportRequest;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Markdown;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use PhpOffice\PhpWord\Settings as WordSettings;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -62,6 +64,25 @@ class AppServiceProvider extends ServiceProvider
         $this->registerAuthorization();
         $this->registerRateLimiters();
         $this->registerPasswordResetUrl();
+        $this->registerDocumentEscaping();
+    }
+
+    /**
+     * Phase 2.10 (SDD DD-85/DD-92) — escaping that the document libraries
+     * leave off by default, switched on once for the whole application.
+     *
+     *  - **PhpWord** writes text runs as raw XML unless output escaping is on,
+     *    so a room named `<w:fldSimple …/>` would become a live Word field.
+     *    ReportDocxRenderer refuses to run while it is off.
+     *  - **Mail Markdown** escapes the values interpolated into a message, so a
+     *    room name written as `[click](http://…)` renders as text, not a link.
+     *    Checked against the existing notification mails, which interpolate
+     *    plain values only.
+     */
+    private function registerDocumentEscaping(): void
+    {
+        WordSettings::setOutputEscapingEnabled(true);
+        Markdown::withSecuredEncoding();
     }
 
     /**
@@ -267,6 +288,20 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('reports', fn (Request $request): Limit => Limit::perMinute(
             (int) config('security.rate_limits.reports_per_minute', 120),
         )->by('reports:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        /*
+         * Phase 2.10 R3 — documents and email (SDD DD-91/DD-92), per account.
+         * Exports and printing each cost a render; email is held tighter,
+         * because each request sends mail outside the system. The daily
+         * recipient cap is enforced separately, in ReportEmailer.
+         */
+        RateLimiter::for('report-exports', fn (Request $request): Limit => Limit::perHour(
+            (int) config('security.rate_limits.report_exports_per_hour', 60),
+        )->by('report-exports:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        RateLimiter::for('report-emails', fn (Request $request): Limit => Limit::perHour(
+            (int) config('security.rate_limits.report_emails_per_hour', 10),
+        )->by('report-emails:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
     }
 
     /**

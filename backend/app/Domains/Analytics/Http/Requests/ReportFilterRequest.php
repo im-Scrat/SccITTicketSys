@@ -42,6 +42,9 @@ abstract class ReportFilterRequest extends FormRequest
 {
     use ValidatesLookupSlugs;
 
+    /** The report vocabulary's own parameter names (everything rules() declares before extraRules()). */
+    public const PARAMETERS = ['period', 'anchor', 'from', 'to', 'since_year', 'granularity', 'compare', 'room_type', 'building', 'room', 'status', 'category', 'problem_area'];
+
     /** The instant this request reports up to: one value for validation and the report. */
     private ?CarbonImmutable $asOf = null;
 
@@ -141,13 +144,29 @@ abstract class ReportFilterRequest extends FormRequest
         ];
     }
 
+    /**
+     * The validated report parameters only — the shared vocabulary, without
+     * whatever a concrete request adds (an export's format) — for storing with
+     * a queued document.
+     *
+     * @return array<string, mixed>
+     */
+    public function reportParameters(): array
+    {
+        return array_intersect_key($this->validated(), array_flip(self::PARAMETERS));
+    }
+
     /** The validated filters, resolved once against this request's instant. */
     public function filters(): ReportFilters
     {
         return $this->filters ??= ReportFilters::fromValidated($this->validated(), $this->asOf());
     }
 
-    protected function asOf(): CarbonImmutable
+    /**
+     * The instant this request reports up to. Public so a queued document can
+     * store it and rebuild exactly this report later, whatever the clock says.
+     */
+    public function asOf(): CarbonImmutable
     {
         return $this->asOf ??= SchoolClock::asOf();
     }

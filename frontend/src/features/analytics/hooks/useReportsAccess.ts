@@ -7,7 +7,12 @@ import { useAuth } from '@/features/auth/hooks/useAuth'
  *
  * UX only: every report endpoint refuses anyone else regardless.
  */
-export function useReportsAccess(): { canView: boolean; canExport: boolean } {
+export function useReportsAccess(): {
+  canView: boolean
+  canExport: boolean
+  /** Ticket record tables in documents also need `tickets.export`. */
+  canExportRecords: boolean
+} {
   const { user, hasPermission } = useAuth()
   const canView =
     // `role?`: a session can briefly hold a user before its role is known.
@@ -15,5 +20,7 @@ export function useReportsAccess(): { canView: boolean; canExport: boolean } {
     hasPermission('reports.view') &&
     hasPermission('tickets.view')
 
-  return { canView, canExport: canView && hasPermission('reports.export') }
+  const canExport = canView && hasPermission('reports.export')
+
+  return { canView, canExport, canExportRecords: canExport && hasPermission('tickets.export') }
 }

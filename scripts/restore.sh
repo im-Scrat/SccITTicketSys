@@ -140,7 +140,7 @@ esac
 if [ "$DRY_RUN" -eq 1 ]; then
     say ""
     say "--dry-run: nothing was changed. A real run would now: take a verified safety"
-    say "snapshot, stop queue_prod/queue_ai_prod/scheduler_prod, put app_prod into"
+    say "snapshot, stop queue_prod/queue_ai_prod/queue_bulk_prod/scheduler_prod, put app_prod into"
     say "maintenance mode, restore in one transaction$( [ "$DB_ONLY" -eq 1 ] || printf ', swap the uploads'), and bring it all back."
     exit 0
 fi
@@ -164,7 +164,8 @@ SAFETY="$(sh "$REPO_ROOT/scripts/backup.sh" --stack prod --label pre-restore --v
 ok "undo with: sh scripts/restore.sh --stack prod $SAFETY"
 
 # ---- 7. Quiesce, restore, and always come back ---------------------------
-WRITERS='queue_prod queue_ai_prod scheduler_prod'
+# queue_bulk_prod (Phase 2.10) writes report files and, from R6, imported records.
+WRITERS='queue_prod queue_ai_prod queue_bulk_prod scheduler_prod'
 SQL="$(mktemp)"
 resume() {
     app_exec php artisan up >/dev/null 2>&1 || warn "artisan up failed — run it by hand."

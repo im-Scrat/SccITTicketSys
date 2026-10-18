@@ -21,6 +21,7 @@ see [OPERATIONS.md](OPERATIONS.md) for deployment, snapshots and rollback.
 | `nginx_prod` | `sccit_prod_nginx` | `sccit/web:prod` | `127.0.0.1:8081` | Static SPA + reverse proxy |
 | `queue_prod` | `sccit_prod_queue` | `sccit/app:prod` | — | `queue:work` (realtime, notifications, default) |
 | `queue_ai_prod` | `sccit_prod-queue_ai_prod-N` | `sccit/app:prod` | — | `queue:work --queue=ai`, `AI_WORKERS` replicas (default 3) |
+| `queue_bulk_prod` | `sccit_prod_queue_bulk` | `sccit/app:prod` | — | `queue:work --queue=bulk` — report documents, asset imports (512 MB, 170 s) |
 | `scheduler_prod` | `sccit_prod_scheduler` | `sccit/app:prod` | — | `schedule:work` |
 | `reverb_prod` | `sccit_prod_reverb` | `sccit/app:prod` | — (internal 6001) | WebSockets (Reverb) |
 
@@ -32,8 +33,8 @@ All services share the `sccit_prod_network` network.
 (public disk — `/var/www/html/storage/app/public`; read-only in `nginx_prod`, which
 serves it at `/storage/`), `sccit_prod_private` (private disk —
 `/var/www/html/storage/app/private`: attachments, served only through the
-authorizing controllers; mounted on `app_prod`, `queue_prod`, `queue_ai_prod` and
-`scheduler_prod`, **never** on `nginx_prod`), `sccit_prod_mailpitdata`.
+authorizing controllers; mounted on `app_prod`, `queue_prod`, `queue_ai_prod`,
+`queue_bulk_prod` and `scheduler_prod`, **never** on `nginx_prod`), `sccit_prod_mailpitdata`.
 
 > `sccit_prod_private` has been live since 2026-10-11. Before it, private files
 > lived in each container's own layer and would not have survived a recreate

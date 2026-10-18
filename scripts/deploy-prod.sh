@@ -152,8 +152,9 @@ done
 step "5/8  Deploy"
 # Every service that runs the app image is recreated, or it keeps serving the
 # previous release: reverb_prod was missing from this list until Phase 2.9, and
-# queue_ai_prod (the AI worker pool) is new in it.
-dc up -d --force-recreate app_prod nginx_prod queue_prod queue_ai_prod scheduler_prod reverb_prod
+# queue_ai_prod (the AI worker pool) is new in it. queue_bulk_prod (report
+# documents and asset imports, Phase 2.10) joined in R3.
+dc up -d --force-recreate app_prod nginx_prod queue_prod queue_ai_prod queue_bulk_prod scheduler_prod reverb_prod
 ok "services recreated"
 
 # The FPM healthcheck has a 20s start period; migrating before it settles gives

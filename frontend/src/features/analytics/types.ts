@@ -218,3 +218,112 @@ export interface ReportParams {
   category?: string
   problem_area?: string
 }
+
+/* ------------------------------------------------------------------ documents */
+
+/** Reports that can become a document (export, email, print). */
+export type ReportType = 'ticket_overview' | 'overall'
+
+export type ExportFormat = 'pdf' | 'docx' | 'xlsx' | 'csv'
+
+export interface DocumentOptions {
+  paper?: 'a4' | 'letter'
+  orientation?: 'portrait' | 'landscape'
+  include_records?: boolean
+}
+
+export interface EmailDelivery {
+  recipient: string
+  external: boolean
+  status: 'queued' | 'sent' | 'failed'
+  status_label: string
+  sent_at: string | null
+}
+
+/** A queued report document, as its requester sees it. */
+export interface ReportExport {
+  id: string
+  report_type: ReportType
+  report_label: string
+  format: ExportFormat
+  format_label: string
+  purpose: 'download' | 'email'
+  profile: 'full' | 'identifiers'
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'expired'
+  status_label: string
+  filename: string | null
+  size_bytes: number | null
+  row_count: number | null
+  truncated: boolean
+  error_code: string | null
+  created_at: string | null
+  completed_at: string | null
+  expires_at: string | null
+  download_url: string | null
+  deliveries?: EmailDelivery[]
+}
+
+/** The server's answer to "who would receive this, and what would they get". */
+export interface RecipientCheck {
+  recipients: Array<{ address: string; external: boolean }>
+  external: string[]
+  internal_domains: string[]
+  delivers_externally: boolean
+  daily_cap: number
+  sent_today: number
+  remaining_today: number
+  contents: { report: string; format: string; includes: string[]; excludes: string[] }
+}
+
+export interface DocumentTable {
+  key: string
+  title: string
+  columns: Array<{ key: string; label: string; type: 'text' | 'number' | 'percent' | 'code' }>
+  rows: Array<Array<string | number | null>>
+  total_rows: number | null
+  truncated: boolean
+  truncation_note: string | null
+  note: string | null
+  is_records: boolean
+}
+
+export interface DocumentChart {
+  kind: 'line' | 'donut' | 'bar'
+  title: string
+  description: string
+  table_key: string | null
+  /** The same SVG the PDF embeds, as a `data:` image; null when there is nothing to draw. */
+  image?: string | null
+}
+
+export interface DocumentSection {
+  key: string
+  title: string
+  intro: string | null
+  kpis: Array<{ label: string; value: string; detail: string | null }>
+  charts: DocumentChart[]
+  tables: DocumentTable[]
+  paragraphs: string[]
+  notes: string[]
+}
+
+/** A report document, format-independent (SDD DD-91). */
+export interface ReportDocument {
+  type: ReportType
+  title: string
+  organisation: string
+  period_label: string
+  comparison_label: string | null
+  timezone_label: string
+  as_of_label: string
+  generated_label: string
+  filters: Array<{ label: string; value: string }>
+  summary: string[]
+  summary_label: string
+  caveats: string[]
+  sections: DocumentSection[]
+  definitions: Array<{ term: string; definition: string }>
+  limitations: string[]
+  profile: 'full' | 'identifiers'
+  records_included: boolean
+}

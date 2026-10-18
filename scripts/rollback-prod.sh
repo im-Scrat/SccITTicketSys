@@ -144,8 +144,9 @@ ok "sccit/app:prod and sccit/web:prod now point at $TARGET"
 # Same list as deploy-prod.sh: every service running the app image, or it keeps
 # the release being rolled back from (reverb_prod was missing before Phase 2.9).
 # Rolling back to a release that predates queue_ai_prod is harmless: that code
-# never queues onto `ai`, so the pool simply idles.
-dc up -d --force-recreate app_prod nginx_prod queue_prod queue_ai_prod scheduler_prod reverb_prod
+# never queues onto `ai`, so the pool simply idles. The same holds for
+# queue_bulk_prod (Phase 2.10 R3) and the `bulk` queue.
+dc up -d --force-recreate app_prod nginx_prod queue_prod queue_ai_prod queue_bulk_prod scheduler_prod reverb_prod
 ok "services recreated"
 
 if [ -n "$RESTORE_DB" ]; then

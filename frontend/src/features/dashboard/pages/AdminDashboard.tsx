@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios'
 import { BarChart3 } from 'lucide-react'
 import { Alert, Button, EmptyState, ErrorState } from '@/components/ui'
 import { ReportFilterToolbar } from '@/features/analytics/components/ReportFilterToolbar'
+import { ReportActions } from '@/features/analytics/components/export/ReportActions'
 import { useReportOptions, useTicketOverview } from '@/features/analytics/hooks/queries'
 import { useReportFilters } from '@/features/analytics/hooks/useReportFilters'
 import { useReportsAccess } from '@/features/analytics/hooks/useReportsAccess'
@@ -61,6 +62,13 @@ export default function AdminDashboard() {
         }}
       >
         <LiveStatus live={live} />
+        {canView && (
+          <ReportActions
+            reportType="ticket_overview"
+            params={params}
+            printPath="/app/dashboard/print"
+          />
+        )}
       </DashboardHeader>
 
       {!canView ? (

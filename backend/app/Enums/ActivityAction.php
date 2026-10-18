@@ -238,6 +238,20 @@ enum ActivityAction: string
     case AssetPositionChanged = 'asset_position_changed';
     case AssetPositionCleared = 'asset_position_cleared';
 
+    /*
+     * Phase 2.10 — report documents (SDD DD-91/DD-92). Counts and identifiers
+     * only in `properties`: never the content of a report, which is the
+     * records themselves. `ReportExported` is written after the file exists
+     * (a failed render leaves no claim that it was produced);
+     * `ReportDownloaded` on every download, because a file can be fetched more
+     * than once; `ReportEmailRequested` in the same transaction as the
+     * delivery rows, with the recipients and the confirmed outside addresses.
+     */
+    case ReportExported = 'report_exported';
+    case ReportDownloaded = 'report_downloaded';
+    case ReportEmailRequested = 'report_email_requested';
+    case ReportPrinted = 'report_printed';
+
     /** Human-readable label for audit-timeline rendering. */
     public function label(): string
     {
@@ -366,6 +380,10 @@ enum ActivityAction: string
             self::LayoutUpdated => 'Layout updated',
             self::AssetPositionChanged => 'Position changed',
             self::AssetPositionCleared => 'Position cleared',
+            self::ReportExported => 'Report exported',
+            self::ReportDownloaded => 'Report downloaded',
+            self::ReportEmailRequested => 'Report email requested',
+            self::ReportPrinted => 'Report printed',
         };
     }
 }

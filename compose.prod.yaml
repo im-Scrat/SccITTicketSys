@@ -209,6 +209,39 @@ services:
     networks:
       - sccit_prod_network
 
+  # ---------- Bulk worker (reuses the prod app image) ----------
+  # Phase 2.10 (SDD DD-93). Works ONLY the `bulk` queue: report documents
+  # (XLSX/CSV/DOCX/PDF) and, from R6, asset imports — work that takes tens of
+  # seconds and up to ~300 MB, which must not sit in front of notifications
+  # on queue_prod or squeeze its 128 MB default. One job at a time, 512 MB,
+  # --timeout=170 above ReportExportJob::$timeout (150 s); the connection's
+  # retry_after (240 s) stays above both. Same private volume, because it
+  # writes the files the app later streams.
+  queue_bulk_prod:
+    image: sccit/app:prod
+    container_name: sccit_prod_queue_bulk
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "-d", "memory_limit=512M", "artisan", "queue:work", "--queue=bulk", "--tries=1", "--timeout=170", "--memory=512", "--max-time=3600", "--sleep=3"]
+    env_file:
+      - ./backend/.env.production
+    healthcheck:
+      disable: true
+    volumes:
+      - sccit_prod_storage:/var/www/html/storage/app/public
+      - sccit_prod_private:/var/www/html/storage/app/private
+    secrets:
+      - gemini_api_key
+    depends_on:
+      app_prod:
+        condition: service_started
+      postgres_prod:
+        condition: service_healthy
+      redis_prod:
+        condition: service_healthy
+    networks:
+      - sccit_prod_network
+
   # ---------- Scheduler (reuses the prod app image) -----------
   scheduler_prod:
     image: sccit/app:prod

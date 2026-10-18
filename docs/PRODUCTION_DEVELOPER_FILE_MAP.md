@@ -95,7 +95,7 @@ file inside a container is lost on the next deploy — always edit the source.
 > asset files are stored on the `local` disk (e.g.
 > [backend/app/Domains/Tickets/Actions/AttachTicketFile.php](../backend/app/Domains/Tickets/Actions/AttachTicketFile.php)), which since
 > 2026-10-11 is the `sccit_prod_private` volume — mounted on `app_prod`,
-> `queue_prod`, `queue_ai_prod` and `scheduler_prod`, never on `nginx_prod`, so
+> `queue_prod`, `queue_ai_prod`, `queue_bulk_prod` and `scheduler_prod`, never on `nginx_prod`, so
 > the files are reachable only through the authorizing controllers. They
 > survive deploys and rollbacks and are in every snapshot (`private.tar.gz`).
 > Before that date the disk was each container's own layer; no file had been

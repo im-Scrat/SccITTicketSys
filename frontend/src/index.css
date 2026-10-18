@@ -114,7 +114,13 @@
   --text-3xl--line-height: 1.2;
 }
 
-:root {
+/*
+ * Light tokens on :root, and again on any `[data-theme='light']` subtree — the
+ * report print views wrap themselves in one so they render light inside a dark
+ * app (Phase 2.10 R3).
+ */
+:root,
+[data-theme='light'] {
   color-scheme: light;
 
   /*
@@ -193,62 +199,70 @@
   --content-measure: 60ch;
 }
 
-[data-theme='dark'] {
-  color-scheme: dark;
+/*
+ * Dark tokens never reach paper: on print every page falls back to the light
+ * tokens above, so Ctrl+P from a dark screen still prints dark text on white
+ * (Phase 2.10 R3; a test pins this). CSS only — no beforeprint script flips the
+ * theme, which would repaint the screen behind the dialog.
+ */
+@media not print {
+  [data-theme='dark'] {
+    color-scheme: dark;
 
-  /* Deep charcoal, never pure black: a black ground with white text produces
-     halation that is harder to read, not easier. */
-  --bg: oklch(0.16 0.008 258);
-  --surface: oklch(0.21 0.009 258);
-  --surface-sunken: oklch(0.26 0.01 258);
-  --border: oklch(0.34 0.011 258);
-  --control-border: oklch(0.62 0.013 258);
-  --ink: oklch(0.97 0.005 258); /* ~14:1 */
-  --ink-strong: oklch(0.99 0.003 258); /* ~15:1 */
-  --muted: oklch(0.79 0.012 258); /* ~7.4:1 */
-  --faint: oklch(0.66 0.011 258); /* decorative only */
+    /* Deep charcoal, never pure black: a black ground with white text produces
+       halation that is harder to read, not easier. */
+    --bg: oklch(0.16 0.008 258);
+    --surface: oklch(0.21 0.009 258);
+    --surface-sunken: oklch(0.26 0.01 258);
+    --border: oklch(0.34 0.011 258);
+    --control-border: oklch(0.62 0.013 258);
+    --ink: oklch(0.97 0.005 258); /* ~14:1 */
+    --ink-strong: oklch(0.99 0.003 258); /* ~15:1 */
+    --muted: oklch(0.79 0.012 258); /* ~7.4:1 */
+    --faint: oklch(0.66 0.011 258); /* decorative only */
 
-  /*
-   * On dark, the filled button inverts: a pale brand tint carrying near-black
-   * label text. A saturated mid-tone fill with white text cannot reach 7:1
-   * against either, so the roles swap rather than the contrast being dropped.
-   */
-  --primary: oklch(0.82 0.11 258);
-  --primary-hover: oklch(0.87 0.1 258);
-  --primary-active: oklch(0.76 0.11 258);
-  --primary-strong: oklch(0.84 0.1 258); /* ~8:1 as text on --surface */
-  --primary-subtle: oklch(0.3 0.06 258);
-  --on-primary: oklch(0.16 0.02 258); /* ~9:1 on --primary */
-  --focus: oklch(0.84 0.1 258);
+    /*
+     * On dark, the filled button inverts: a pale brand tint carrying near-black
+     * label text. A saturated mid-tone fill with white text cannot reach 7:1
+     * against either, so the roles swap rather than the contrast being dropped.
+     */
+    --primary: oklch(0.82 0.11 258);
+    --primary-hover: oklch(0.87 0.1 258);
+    --primary-active: oklch(0.76 0.11 258);
+    --primary-strong: oklch(0.84 0.1 258); /* ~8:1 as text on --surface */
+    --primary-subtle: oklch(0.3 0.06 258);
+    --on-primary: oklch(0.16 0.02 258); /* ~9:1 on --primary */
+    --focus: oklch(0.84 0.1 258);
 
-  --success: oklch(0.82 0.13 150);
-  --success-strong: oklch(0.84 0.13 150);
-  --success-subtle: oklch(0.27 0.045 150);
-  --warning: oklch(0.85 0.13 80);
-  --warning-strong: oklch(0.87 0.13 80);
-  --warning-subtle: oklch(0.29 0.05 80);
-  --danger: oklch(0.78 0.15 28);
-  --danger-strong: oklch(0.8 0.15 28);
-  --danger-subtle: oklch(0.29 0.07 28);
-  --danger-fill: oklch(0.78 0.15 28);
-  --danger-on: oklch(0.16 0.02 28); /* dark text on a light danger fill */
-  --info: oklch(0.82 0.11 235);
-  --info-subtle: oklch(0.28 0.045 235);
+    --success: oklch(0.82 0.13 150);
+    --success-strong: oklch(0.84 0.13 150);
+    --success-subtle: oklch(0.27 0.045 150);
+    --warning: oklch(0.85 0.13 80);
+    --warning-strong: oklch(0.87 0.13 80);
+    --warning-subtle: oklch(0.29 0.05 80);
+    --danger: oklch(0.78 0.15 28);
+    --danger-strong: oklch(0.8 0.15 28);
+    --danger-subtle: oklch(0.29 0.07 28);
+    --danger-fill: oklch(0.78 0.15 28);
+    --danger-on: oklch(0.16 0.02 28); /* dark text on a light danger fill */
+    --info: oklch(0.82 0.11 235);
+    --info-subtle: oklch(0.28 0.045 235);
 
-  --grid-line: oklch(0.34 0.011 258 / 0.6);
+    --grid-line: oklch(0.34 0.011 258 / 0.6);
 
-  /* Charts — validated against the dark surface: every mark ≥3:1, worst
-     adjacent colour-blind ΔE 8.5. Same families as light, re-stepped. */
-  --chart-status-open: #5198d8;
-  --chart-status-assigned: #007c7c;
-  --chart-status-in-progress: #688ad5;
-  --chart-status-on-hold: #b7810f;
-  --chart-status-resolved: #137d4a;
-  --chart-status-closed: #91959b;
-  --chart-status-cancelled: #63666c;
-  --chart-status-other: #7c8087;
+    /* Charts — validated against the dark surface: every mark ≥3:1, worst
+       adjacent colour-blind ΔE 8.5. Same families as light, re-stepped. */
+    --chart-status-open: #5198d8;
+    --chart-status-assigned: #007c7c;
+    --chart-status-in-progress: #688ad5;
+    --chart-status-on-hold: #b7810f;
+    --chart-status-resolved: #137d4a;
+    --chart-status-closed: #91959b;
+    --chart-status-cancelled: #63666c;
+    --chart-status-other: #7c8087;
 
-  --content-measure: 60ch;
+    --content-measure: 60ch;
+  }
 }
 
 @layer base {
@@ -422,5 +436,26 @@
 
   [data-print-hide] {
     display: none !important;
+  }
+
+  /* Report printouts (Phase 2.10 R3): margins only — the paper size is the
+     print dialog's choice, never forced. Tables repeat their header on each
+     page and rows, charts and headings do not split from what follows. */
+  @page {
+    margin: 14mm 12mm 16mm;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr,
+  figure {
+    break-inside: avoid;
+  }
+
+  h2,
+  h3 {
+    break-after: avoid;
   }
 }

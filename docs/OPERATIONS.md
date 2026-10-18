@@ -278,3 +278,29 @@ Exit status is the number of failed checks, so callers can branch on it.
 | Browser suite | CI only — the opt-in `workflow_dispatch` job in `.github/workflows/ci.yml` |
 
 Related: [PRODUCTION_DEVELOPER_FILE_MAP.md](PRODUCTION_DEVELOPER_FILE_MAP.md) · [DOCKER.md](DOCKER.md) · [DEVELOPMENT.md](DEVELOPMENT.md) · [TESTING.md](TESTING.md)
+
+## 6. Report documents and email (Phase 2.10)
+
+**Where they are made.** Report exports (PDF, Word, Excel, CSV) and emailed
+reports render on `queue_bulk_prod`, the worker that works only the `bulk`
+queue. If exports sit at "Preparing" for more than a minute, check that worker
+first: `docker compose -p sccit_prod -f compose.prod.yaml ps queue_bulk_prod`
+and its logs. Deploy, rollback and restore all handle it like the other
+workers.
+
+**Where the files go.** `storage/app/private/report-exports/<uuid>/` on the
+`sccit_prod_private` volume, so they are in every snapshot while they exist.
+`reports:prune-exports` runs daily at 03:40 Asia/Manila: files older than
+72 hours are deleted (their rows stay, marked expired), email copies still
+queued after 24 hours are marked failed, and request IPs and user agents on
+rows older than 180 days are cleared.
+
+**Email.** Production SMTP points at the Mailpit sink (`:8026`), so emailed
+reports are captured there and reach no real mailbox — the dialog says so while
+`REPORT_EMAIL_DELIVERS_EXTERNALLY` is false. **Mailpit keeps a copy of every
+attachment** until its own data is cleared; treat its volume as holding report
+data. Before real delivery: configure the school's SMTP in `.env.production`,
+set `REPORT_EMAIL_DELIVERS_EXTERNALLY=true` and, if the school's addresses are
+on a domain other than the sending one, `REPORT_EMAIL_INTERNAL_DOMAINS`
+(comma-separated). Every other report setting has a default in
+`backend/config/reports.php`.

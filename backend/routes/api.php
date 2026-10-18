@@ -3,7 +3,10 @@
 use App\Domains\Administration\Http\Controllers\AnnouncementController;
 use App\Domains\Administration\Http\Controllers\NotificationController;
 use App\Domains\Administration\Http\Controllers\NotificationPreferenceController;
+use App\Domains\Analytics\Http\Controllers\Admin\ReportEmailController;
+use App\Domains\Analytics\Http\Controllers\Admin\ReportExportController;
 use App\Domains\Analytics\Http\Controllers\Admin\ReportOptionsController;
+use App\Domains\Analytics\Http\Controllers\Admin\ReportPrintController;
 use App\Domains\Analytics\Http\Controllers\Admin\TechnicianMonitoringController;
 use App\Domains\Analytics\Http\Controllers\Admin\TicketOverviewController;
 use App\Domains\Analytics\Http\Controllers\DashboardController;
@@ -1169,6 +1172,26 @@ Route::middleware('auth:sanctum')->group(function () {
                 Route::middleware('throttle:reports')->group(function () {
                     Route::get('/options', ReportOptionsController::class);
                     Route::get('/ticket-overview', TicketOverviewController::class);
+                });
+
+                /*
+                 * Phase 2.10 R3 — documents: export, email and print (SDD
+                 * DD-91/DD-92). `can:export,ReportArea` adds `reports.export`
+                 * to the group's gate. A document belongs to the person who
+                 * asked for it; `{export}` is a plain uuid string resolved
+                 * after authorization, and another administrator's answers 404.
+                 * Literal paths are declared before the wildcard.
+                 */
+                Route::middleware('can:export,'.ReportArea::class)->group(function () {
+                    Route::get('/exports', [ReportExportController::class, 'index']);
+                    Route::post('/exports', [ReportExportController::class, 'store'])->middleware('throttle:report-exports');
+                    Route::get('/exports/{export}', [ReportExportController::class, 'show'])->whereUuid('export');
+                    Route::get('/exports/{export}/download', [ReportExportController::class, 'download'])->whereUuid('export');
+
+                    Route::post('/emails/check-recipients', [ReportEmailController::class, 'check'])->middleware('throttle:report-exports');
+                    Route::post('/emails', [ReportEmailController::class, 'store'])->middleware('throttle:report-emails');
+
+                    Route::post('/print', ReportPrintController::class)->middleware('throttle:report-exports');
                 });
             });
     });

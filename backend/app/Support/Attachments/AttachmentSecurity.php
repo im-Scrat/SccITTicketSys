@@ -82,6 +82,16 @@ final class AttachmentSecurity
     public const PROFILE_MAINTENANCE = 'maintenance';
 
     /**
+     * Report documents the application itself produced (Phase 2.10, SDD
+     * DD-91). **Download-only**: nothing is ever uploaded against this
+     * profile, so it has no place in {@see rules()}; it exists so the one
+     * response path ({@see stream()}) serves reports with the same server-
+     * decided headers as every other file. None of these types is in
+     * {@see INLINE_SAFE}, so a report is always an attachment.
+     */
+    public const PROFILE_REPORT = 'report';
+
+    /**
      * The allow-list, as `detected MIME => permitted extensions`.
      *
      * Deliberately expressed as a map rather than two parallel lists: the
@@ -115,6 +125,12 @@ final class AttachmentSecurity
             'image/jpeg' => ['jpg', 'jpeg'],
             'image/webp' => ['webp'],
             'application/pdf' => ['pdf'],
+        ],
+        self::PROFILE_REPORT => [
+            'application/pdf' => ['pdf'],
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => ['docx'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => ['xlsx'],
+            'text/csv' => ['csv'],
         ],
     ];
 

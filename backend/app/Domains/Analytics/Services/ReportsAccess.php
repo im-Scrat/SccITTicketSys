@@ -55,6 +55,20 @@ final class ReportsAccess
         return $this->canView($actor) && $actor->hasPermissionTo('tickets.view');
     }
 
+    /**
+     * Ticket *record* tables in a document (one row per ticket): the export
+     * gate plus `tickets.export`, the permission the ticket directory's own
+     * export already requires. Aggregate figures need only `tickets.view`; a
+     * list of every ticket is a whole-directory read and is held to the same
+     * bar wherever it is produced.
+     */
+    public function canExportTicketRecords(User $actor): bool
+    {
+        return $this->canExport($actor)
+            && $actor->hasPermissionTo('tickets.view')
+            && $actor->hasPermissionTo('tickets.export');
+    }
+
     public function canViewLocations(User $actor): bool
     {
         return $this->canView($actor) && $actor->hasPermissionTo('locations.view');
@@ -83,6 +97,20 @@ final class ReportsAccess
     {
         if (! $this->canView($actor)) {
             throw new AuthorizationException('Reports are available to administrators only.');
+        }
+    }
+
+    /**
+     * The same, for export, email and print — re-checked by the queued job at
+     * the moment it renders, so an administrator demoted after asking gets no
+     * file.
+     *
+     * @throws AuthorizationException
+     */
+    public function assertCanExport(User $actor): void
+    {
+        if (! $this->canExport($actor)) {
+            throw new AuthorizationException('Exporting reports needs the reports.export permission.');
         }
     }
 }

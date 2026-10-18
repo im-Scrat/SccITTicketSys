@@ -8,6 +8,7 @@ import { ProtectedRoute } from '@/features/auth/guards/ProtectedRoute'
 import { RequirePermission } from '@/features/auth/guards/RequirePermission'
 import { RequireRole } from '@/features/auth/guards/RequireRole'
 import { RequireFloorPlan } from '@/features/floor-plan/guards/RequireFloorPlan'
+import { RequireReports } from '@/features/analytics/guards/RequireReports'
 import { RequirePredictions } from '@/features/predictions/guards/RequirePredictions'
 import { PublicLayout } from '@/layouts/PublicLayout'
 
@@ -58,6 +59,9 @@ const FloorPlanRoomPage = lazy(() => import('@/features/floor-plan/pages/FloorPl
 // Predictive-maintenance findings (WP-M) — Administrator only.
 const PredictionsListPage = lazy(() => import('@/features/predictions/pages/PredictionsListPage'))
 const PredictionDetailPage = lazy(() => import('@/features/predictions/pages/PredictionDetailPage'))
+
+// Report print views (Phase 2.10 R3) — outside AppLayout, Administrator-only.
+const ReportPrintPage = lazy(() => import('@/features/analytics/pages/ReportPrintPage'))
 
 // Asset Management (Phase 2.5).
 const AssetDashboardPage = lazy(() => import('@/features/assets/pages/AssetDashboardPage'))
@@ -155,6 +159,22 @@ function App() {
             <Route element={<ProtectedRoute />}>
               {/* Outside AppLayout on purpose — see ForcePasswordChangePage. */}
               <Route path="/change-password" element={<ForcePasswordChangePage />} />
+              {/* Print views sit outside AppLayout so nothing but the report
+                  reaches paper, and always render light. Administrator-only
+                  with reports.view and reports.export (owner decision D8),
+                  like every endpoint behind them. */}
+              <Route
+                path="/app/dashboard/print"
+                element={
+                  <RequireReports export>
+                    <ReportPrintPage
+                      reportType="ticket_overview"
+                      backPath="/app"
+                      backLabel="Back to the dashboard"
+                    />
+                  </RequireReports>
+                }
+              />
               <Route path="/app" element={<AppLayout />}>
                 {/* The role-aware dashboard is the landing surface (FR-DSH-001);
                     profile and password moved to /app/account. */}
