@@ -30,9 +30,14 @@ class CreatePcUnit
     public function __construct(private readonly AuditLogger $audit) {}
 
     /**
+     * `$auditContext` is the asset import's reference (import uuid, row number,
+     * file), recorded on this record's own audit row — so an imported record's
+     * history says where it came from (Phase 2.10 R6).
+     *
      * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $auditContext
      */
-    public function handle(array $data, User $actor, Request $request): PcUnit
+    public function handle(array $data, User $actor, Request $request, array $auditContext = []): PcUnit
     {
         $status = PcStatus::from((string) ($data['status'] ?? PcStatus::Available->value));
         $condition = PcCondition::from((string) ($data['current_condition'] ?? PcCondition::Working->value));
@@ -78,6 +83,7 @@ class CreatePcUnit
                 'pc_name' => $pcUnit->pc_name,
                 'status' => $status->value,
                 'room' => $pcUnit->room?->name,
+                ...($auditContext !== [] ? ['import' => $auditContext] : []),
             ],
             request: $request,
             module: 'assets',

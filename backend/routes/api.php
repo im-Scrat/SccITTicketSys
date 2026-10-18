@@ -18,6 +18,9 @@ use App\Domains\Assets\Http\Controllers\Admin\AssetAttachmentController;
 use App\Domains\Assets\Http\Controllers\Admin\AssetController;
 use App\Domains\Assets\Http\Controllers\Admin\AssetDashboardController;
 use App\Domains\Assets\Http\Controllers\Admin\AssetHistoryController;
+use App\Domains\Assets\Http\Controllers\Admin\AssetImportController;
+use App\Domains\Assets\Http\Controllers\Admin\AssetImportDecisionController;
+use App\Domains\Assets\Http\Controllers\Admin\AssetImportRowController;
 use App\Domains\Assets\Http\Controllers\Admin\CatalogController;
 use App\Domains\Assets\Http\Controllers\Admin\PcUnitController;
 use App\Domains\Assets\Http\Controllers\Admin\QrCodeController;
@@ -80,6 +83,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Middleware\AuthenticateSession;
 use App\Models\AiPrediction;
 use App\Models\AiSystemSetting;
+use App\Models\AssetImport;
 use App\Models\FloorPlanPosition;
 use App\Models\RoomLayout;
 use Illuminate\Support\Facades\Route;
@@ -1204,6 +1208,53 @@ Route::middleware('auth:sanctum')->group(function () {
                     Route::post('/emails', [ReportEmailController::class, 'store'])->middleware('throttle:report-emails');
 
                     Route::post('/print', ReportPrintController::class)->middleware('throttle:report-exports');
+                });
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Asset import (Phase 2.10 R6, SRS FR-AST-016, SDD DD-96) — ADMIN ONLY
+        |------------------------------------------------------------------
+        | Closed by `can:viewAny,AssetImport` (AssetImportAccess:
+        | Administrator role + assets.view + assets.create; no new
+        | permission). Writes add `can:manage` and a throttle; a test
+        | asserts every route here carries the group gate. Imports are
+        | addressed by uuid — a plain string resolved *after* authorization,
+        | so a refused caller cannot tell a real import from an invented one
+        | (route-model binding would answer 404 first) — rows by their row
+        | number inside the import, and location/catalog decisions by their
+        | own uuid, looked up inside the import. Literal paths come first.
+        */
+        Route::middleware(['password.current', 'can:viewAny,'.AssetImport::class])
+            ->prefix('admin/asset-imports')
+            // One constraint call per group: a second would replace the first.
+            ->whereUuid(['import', 'location', 'entry'])
+            ->group(function () {
+                Route::get('/template', [AssetImportController::class, 'template']);
+                Route::get('/room-options', [AssetImportController::class, 'roomOptions']);
+                Route::get('/', [AssetImportController::class, 'index']);
+                Route::post('/', [AssetImportController::class, 'store'])->middleware(['can:manage,'.AssetImport::class, 'throttle:asset-import-uploads']);
+
+                Route::get('/{import}', [AssetImportController::class, 'show']);
+                Route::get('/{import}/values', [AssetImportController::class, 'values']);
+                Route::get('/{import}/rows', [AssetImportRowController::class, 'index']);
+                Route::get('/{import}/locations', [AssetImportDecisionController::class, 'locations']);
+                Route::get('/{import}/catalog', [AssetImportDecisionController::class, 'catalog']);
+                Route::get('/{import}/file', [AssetImportController::class, 'file']);
+
+                Route::middleware(['can:manage,'.AssetImport::class, 'throttle:asset-import-edits'])->group(function () {
+                    Route::put('/{import}/source', [AssetImportController::class, 'updateSource']);
+                    Route::put('/{import}/mapping', [AssetImportController::class, 'updateMapping']);
+                    Route::post('/{import}/rows/bulk', [AssetImportRowController::class, 'bulk']);
+                    Route::patch('/{import}/rows/{rowNumber}', [AssetImportRowController::class, 'update'])->whereNumber('rowNumber');
+                    Route::put('/{import}/locations/{location}', [AssetImportDecisionController::class, 'updateLocation']);
+                    Route::put('/{import}/catalog/{entry}', [AssetImportDecisionController::class, 'updateCatalog']);
+                    Route::post('/{import}/cancel', [AssetImportController::class, 'cancel']);
+                });
+
+                Route::middleware(['can:manage,'.AssetImport::class, 'throttle:asset-import-commits'])->group(function () {
+                    Route::post('/{import}/confirm', [AssetImportController::class, 'confirm']);
+                    Route::post('/{import}/retry', [AssetImportController::class, 'retry']);
                 });
             });
     });

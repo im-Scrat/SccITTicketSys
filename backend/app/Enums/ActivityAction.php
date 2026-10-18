@@ -254,6 +254,20 @@ enum ActivityAction: string
     // Phase 2.10 R5 — an AI interpretation of a report: outcome and counts, never its text.
     case ReportNarrativeGenerated = 'report_narrative_generated';
 
+    /*
+     * Phase 2.10 R6 — the asset import (SDD DD-96). Counts and identifiers
+     * only: `AssetsImported` is written once, by the finalizer, with the
+     * outcome and its counts; each record it created carries its own
+     * `PcUnitCreated` / `AssetCreated` row with the import's uuid and row
+     * number. `CatalogEntryCreated` is the catalog's first write path (D5).
+     */
+    case AssetImportUploaded = 'asset_import_uploaded';
+    case AssetsImported = 'assets_imported';
+    case AssetImportRetried = 'asset_import_retried';
+    case AssetImportCancelled = 'asset_import_cancelled';
+    case AssetImportFileDownloaded = 'asset_import_file_downloaded';
+    case CatalogEntryCreated = 'catalog_entry_created';
+
     /** Human-readable label for audit-timeline rendering. */
     public function label(): string
     {
@@ -387,6 +401,12 @@ enum ActivityAction: string
             self::ReportEmailRequested => 'Report email requested',
             self::ReportPrinted => 'Report printed',
             self::ReportNarrativeGenerated => 'AI report interpretation generated',
+            self::AssetImportUploaded => 'Asset import file uploaded',
+            self::AssetsImported => 'Assets imported',
+            self::AssetImportRetried => 'Asset import retried',
+            self::AssetImportCancelled => 'Asset import cancelled',
+            self::AssetImportFileDownloaded => 'Asset import file downloaded',
+            self::CatalogEntryCreated => 'Catalog entry created',
         };
     }
 }

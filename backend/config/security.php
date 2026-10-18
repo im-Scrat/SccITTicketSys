@@ -96,6 +96,11 @@ return [
         'report_emails_per_hour' => (int) env('REPORT_EMAILS_PER_HOUR', 10),
         // Phase 2.10 R5 — AI interpretations of reports, per administrator.
         'report_narratives_per_hour' => (int) env('REPORT_NARRATIVES_PER_HOUR', 12),
+
+        // Phase 2.10 R6 — the asset import, per administrator.
+        'asset_import_uploads_per_hour' => (int) env('ASSET_IMPORT_UPLOADS_PER_HOUR', 20),
+        'asset_import_edits_per_minute' => (int) env('ASSET_IMPORT_EDITS_PER_MINUTE', 240),
+        'asset_import_commits_per_hour' => (int) env('ASSET_IMPORT_COMMITS_PER_HOUR', 30),
     ],
 
     // File uploads (Phase 2.5 asset attachments; SRS NFR-SEC-007/008).

@@ -73,6 +73,12 @@ describe('administrator navigation', () => {
     expect(labels('administrator', (p) => p !== 'reports.view')).not.toContain('Overall reports')
   })
 
+  it('lists Asset imports right after Assets, and only with assets.create', () => {
+    const items = labels('administrator')
+    expect(items[items.indexOf('Assets') + 1]).toBe('Asset imports')
+    expect(labels('administrator', (p) => p !== 'assets.create')).not.toContain('Asset imports')
+  })
+
   it('hides Technicians when users.view is denied to this administrator', () => {
     expect(labels('administrator', (p) => p !== 'users.view')).not.toContain('Technicians')
   })

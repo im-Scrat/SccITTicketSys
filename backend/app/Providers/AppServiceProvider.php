@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Domains\Analytics\Policies\ReportAreaPolicy;
 use App\Domains\Analytics\Reporting\ReportArea;
+use App\Domains\Assets\Policies\AssetImportPolicy;
 use App\Domains\Assets\Policies\AssetPolicy;
 use App\Domains\Assets\Policies\PcUnitPolicy;
 use App\Domains\FloorPlan\Policies\FloorPlanPositionPolicy;
@@ -25,6 +26,7 @@ use App\Models\AiKnowledgeArticle;
 use App\Models\AiPrediction;
 use App\Models\AiSystemSetting;
 use App\Models\Asset;
+use App\Models\AssetImport;
 use App\Models\Building;
 use App\Models\Floor;
 use App\Models\FloorPlanPosition;
@@ -166,6 +168,7 @@ class AppServiceProvider extends ServiceProvider
         // bare `reports.*` string, which the seeded technician grant of
         // `reports.view` would open through `Gate::before`. See ReportsAccess.
         Gate::policy(ReportArea::class, ReportAreaPolicy::class);
+        Gate::policy(AssetImport::class, AssetImportPolicy::class);
     }
 
     /**
@@ -307,6 +310,17 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('report-emails', fn (Request $request): Limit => Limit::perHour(
             (int) config('security.rate_limits.report_emails_per_hour', 10),
         )->by('report-emails:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        // Phase 2.10 R6 — the asset import: uploads, review edits and saves, per administrator.
+        RateLimiter::for('asset-import-uploads', fn (Request $request): Limit => Limit::perHour(
+            (int) config('security.rate_limits.asset_import_uploads_per_hour', 20),
+        )->by('asset-import-uploads:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+        RateLimiter::for('asset-import-edits', fn (Request $request): Limit => Limit::perMinute(
+            (int) config('security.rate_limits.asset_import_edits_per_minute', 240),
+        )->by('asset-import-edits:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+        RateLimiter::for('asset-import-commits', fn (Request $request): Limit => Limit::perHour(
+            (int) config('security.rate_limits.asset_import_commits_per_hour', 30),
+        )->by('asset-import-commits:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
     }
 
     /**

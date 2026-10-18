@@ -92,6 +92,22 @@ final class AttachmentSecurity
     public const PROFILE_REPORT = 'report';
 
     /**
+     * Inventory spreadsheets uploaded to the asset import (Phase 2.10 R6, SDD
+     * DD-96). Upload-only, and never served inline: the original is offered
+     * back as a download and nothing else.
+     *
+     * Excel's .xlsx is a zip container, and finfo reports a real one as
+     * either the OOXML type or plain `application/zip` depending on the order
+     * of its entries, so both are accepted — but only with the `.xlsx`
+     * extension ({@see extensionMatches()}), and the container is then opened
+     * and inspected by `SpreadsheetSafety` before a single cell is read. CSV
+     * has no signature at all: finfo calls it `text/csv` or `text/plain`, and
+     * some exporters label it `application/csv`. Macro-enabled, binary (.xls)
+     * and OpenDocument files are outside the profile on purpose.
+     */
+    public const PROFILE_SPREADSHEET = 'spreadsheet';
+
+    /**
      * The allow-list, as `detected MIME => permitted extensions`.
      *
      * Deliberately expressed as a map rather than two parallel lists: the
@@ -131,6 +147,13 @@ final class AttachmentSecurity
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => ['docx'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => ['xlsx'],
             'text/csv' => ['csv'],
+        ],
+        self::PROFILE_SPREADSHEET => [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => ['xlsx'],
+            'application/zip' => ['xlsx'],
+            'text/csv' => ['csv'],
+            'text/plain' => ['csv'],
+            'application/csv' => ['csv'],
         ],
     ];
 
@@ -228,6 +251,18 @@ final class AttachmentSecurity
         return $mime !== null && str_starts_with($mime, 'image/')
             ? self::KIND_IMAGE
             : self::KIND_DOCUMENT;
+    }
+
+    /**
+     * Does the detected type agree with the file's own extension?
+     *
+     * The `mimetypes:` and `extensions:` rules each check one half, so on
+     * their own a zip named `.csv` or a text file named `.xlsx` passes both.
+     * The profile map pairs them; this is the check that uses the pairing.
+     */
+    public static function extensionMatches(string $mime, string $extension, string $profile): bool
+    {
+        return in_array(strtolower($extension), self::profile($profile)[$mime] ?? [], true);
     }
 
     /** Is this stored MIME type one the profile actually permits? */

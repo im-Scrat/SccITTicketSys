@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace App\Domains\Assets\Http\Requests;
 
 use App\Domains\Assets\Actions\UpsertPcSpecification;
-use App\Enums\PcCondition;
-use App\Enums\PcStatus;
+use App\Domains\Assets\Rules\PcUnitCreationRules;
 use App\Models\PcUnit;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 /**
  * Validates PC-unit creation (SRS FR-PC-001/002/005).
@@ -22,6 +20,8 @@ use Illuminate\Validation\Rule;
  * `ip_address` maps to a Postgres `inet` column — an invalid address would be a
  * database-level cast error, so it is validated as an IP here to produce a field
  * message instead.
+ *
+ * The rules live in {@see PcUnitCreationRules} (Phase 2.10 R6), shared with the asset import.
  */
 class StorePcUnitRequest extends FormRequest
 {
@@ -35,35 +35,7 @@ class StorePcUnitRequest extends FormRequest
      */
     public function rules(): array
     {
-        $rules = [
-            'unit_code' => ['required', 'string', 'max:255', Rule::unique('pc_units', 'unit_code')],
-            'pc_name' => ['required', 'string', 'max:255'],
-            'asset_tag' => ['nullable', 'string', 'max:255', Rule::unique('pc_units', 'asset_tag')],
-            'hostname' => ['nullable', 'string', 'max:255', Rule::unique('pc_units', 'hostname')],
-            'serial_number' => ['nullable', 'string', 'max:255'],
-            'brand' => ['nullable', 'string', 'max:255'],
-            'model' => ['nullable', 'string', 'max:255'],
-
-            'room' => ['nullable', 'string', 'uuid', Rule::exists('rooms', 'uuid')->whereNull('deleted_at')],
-
-            'ip_address' => ['nullable', 'string', 'ip'],
-            'mac_address' => ['nullable', 'string', 'max:255', 'regex:/^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/'],
-
-            'status' => ['nullable', 'string', Rule::in(PcStatus::values())],
-            'current_condition' => ['nullable', 'string', Rule::in(PcCondition::values())],
-
-            'purchase_date' => ['nullable', 'date'],
-            'warranty_expiration' => ['nullable', 'date', 'after_or_equal:purchase_date'],
-
-            'notes' => ['nullable', 'string', 'max:5000'],
-            'specification' => ['nullable', 'array'],
-        ];
-
-        foreach (UpsertPcSpecification::FIELDS as $field) {
-            $rules["specification.{$field}"] = ['nullable', 'string', 'max:255'];
-        }
-
-        return $rules;
+        return PcUnitCreationRules::rules();
     }
 
     /**
@@ -71,24 +43,12 @@ class StorePcUnitRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            'unit_code.unique' => 'That unit code is already in use.',
-            'asset_tag.unique' => 'That asset tag is already in use.',
-            'hostname.unique' => 'That hostname is already in use.',
-            'mac_address.regex' => 'Enter a MAC address like 00:1B:44:11:3A:B7.',
-            'room.exists' => 'Choose an available room for this PC.',
-            'warranty_expiration.after_or_equal' => 'Warranty cannot expire before the purchase date.',
-        ];
+        return PcUnitCreationRules::messages();
     }
 
     protected function prepareForValidation(): void
     {
-        if (is_string($this->input('unit_code'))) {
-            $this->merge(['unit_code' => trim($this->string('unit_code')->upper()->value())]);
-        }
-
-        if (is_string($this->input('asset_tag'))) {
-            $this->merge(['asset_tag' => trim($this->string('asset_tag')->upper()->value())]);
-        }
+        // Only the identifiers the rules normalise; nothing else is rewritten.
+        $this->merge(array_intersect_key(PcUnitCreationRules::normalize($this->all()), array_flip(['unit_code', 'asset_tag'])));
     }
 }

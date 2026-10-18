@@ -9,6 +9,7 @@ import { RequirePermission } from '@/features/auth/guards/RequirePermission'
 import { RequireRole } from '@/features/auth/guards/RequireRole'
 import { RequireFloorPlan } from '@/features/floor-plan/guards/RequireFloorPlan'
 import { RequireReports } from '@/features/analytics/guards/RequireReports'
+import { RequireAssetImport } from '@/features/asset-import/guards/RequireAssetImport'
 import { RequirePredictions } from '@/features/predictions/guards/RequirePredictions'
 import { PublicLayout } from '@/layouts/PublicLayout'
 
@@ -71,6 +72,13 @@ const AssetsPage = lazy(() => import('@/features/assets/pages/AssetsPage'))
 const AssetDetailPage = lazy(() => import('@/features/assets/pages/AssetDetailPage'))
 const PcUnitDetailPage = lazy(() => import('@/features/assets/pages/PcUnitDetailPage'))
 const MyAssetsPage = lazy(() => import('@/features/assets/pages/MyAssetsPage'))
+const AssetImportStartPage = lazy(
+  () => import('@/features/asset-import/pages/AssetImportStartPage'),
+)
+const AssetImportPage = lazy(() => import('@/features/asset-import/pages/AssetImportPage'))
+const AssetImportHistoryPage = lazy(
+  () => import('@/features/asset-import/pages/AssetImportHistoryPage'),
+)
 
 // Ticket Management (Phase 2.6).
 const TicketFeedPage = lazy(() => import('@/features/tickets/pages/TicketFeedPage'))
@@ -278,6 +286,33 @@ function App() {
                     <RequirePermission permission="assets.view">
                       <AssetsPage />
                     </RequirePermission>
+                  }
+                />
+                {/* Phase 2.10 R6 — the asset import: Administrator role +
+                    assets.view + assets.create, as AssetImportAccess decides on
+                    the server. Declared before `assets/:id`. */}
+                <Route
+                  path="assets/import"
+                  element={
+                    <RequireAssetImport>
+                      <AssetImportStartPage />
+                    </RequireAssetImport>
+                  }
+                />
+                <Route
+                  path="assets/imports"
+                  element={
+                    <RequireAssetImport>
+                      <AssetImportHistoryPage />
+                    </RequireAssetImport>
+                  }
+                />
+                <Route
+                  path="assets/imports/:id"
+                  element={
+                    <RequireAssetImport>
+                      <AssetImportPage />
+                    </RequireAssetImport>
                   }
                 />
                 <Route

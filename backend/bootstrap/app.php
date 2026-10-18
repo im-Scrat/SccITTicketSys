@@ -2,6 +2,7 @@
 
 use App\Domains\Administration\Console\SendDailyDigest;
 use App\Domains\Analytics\Console\PruneReportExports;
+use App\Domains\Assets\Console\MaintainAssetImports;
 use App\Domains\KnowledgeBase\Console\CheckAiConnection;
 use App\Domains\KnowledgeBase\Console\IndexKnowledgeArticles;
 use App\Domains\Maintenance\Console\DetectDuePreventiveMaintenance;
@@ -67,6 +68,7 @@ return Application::configure(basePath: dirname(__DIR__))
         IndexKnowledgeArticles::class,
         CheckAiConnection::class,
         PruneReportExports::class,
+        MaintainAssetImports::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         // Enable Sanctum SPA cookie auth on the API group (single-origin).

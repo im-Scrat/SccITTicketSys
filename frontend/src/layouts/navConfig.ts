@@ -4,6 +4,7 @@ import {
   Building2,
   ClipboardList,
   FilePlus2,
+  FileUp,
   Gauge,
   HandHelping,
   HardDrive,
@@ -200,6 +201,15 @@ const ADMINISTRATOR_NAV: NavItem[] = [
     label: 'Assets',
     icon: HardDrive,
     permission: 'assets.view',
+    excludes: ['/app/assets/import', '/app/assets/imports'],
+    group: 'Assets & places',
+  },
+  // Phase 2.10 R6 — the import needs assets.create as well (AssetImportAccess).
+  {
+    to: '/app/assets/imports',
+    label: 'Asset imports',
+    icon: FileUp,
+    permission: 'assets.create',
     group: 'Assets & places',
   },
   {

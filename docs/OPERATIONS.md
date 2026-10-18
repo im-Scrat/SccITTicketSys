@@ -311,3 +311,18 @@ asking for one sends aggregated figures with equipment and room codes (no
 names, ticket text, notes or costs) to the configured model, on the `ai` queue,
 at most 12 requests an hour per administrator. A period without enough
 recorded data never calls the provider — the page says "Not enough data".
+
+**Asset import (Phase 2.10 R6).** Administrators import PC units and other
+equipment from `/app/assets/import`. Every step after the upload runs on the
+`bulk` queue (`queue_bulk_prod`); `assets:imports-maintain` runs every 15
+minutes to resume a save whose worker was killed (for example by a deploy),
+expire unconfirmed drafts after 7 days, and delete uploaded files — with the
+raw cells — 30 days after an import finished. An import never updates an
+existing record; duplicates are skipped and listed.
+
+*Production acceptance of an import* is done in two steps: (1) a dry run —
+upload, map, review, confirm screen, then **Cancel** (nothing is saved, and
+the file is deleted); (2) the first real save only with the school's own
+inventory file, scheduled with the owner, immediately after
+`sh scripts/backup.sh --stack prod --verify`. Never import test data into
+production.

@@ -78,3 +78,13 @@ Schedule::command('reports:prune-exports')
     ->dailyAt('03:40')
     ->withoutOverlapping()
     ->onOneServer();
+
+/*
+ * Phase 2.10 R6 — asset-import housekeeping (SDD DD-96): resume a save whose
+ * worker died, expire unconfirmed drafts, delete source files (and the raw
+ * cells with them) once their retention ends.
+ */
+Schedule::command('assets:imports-maintain')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();

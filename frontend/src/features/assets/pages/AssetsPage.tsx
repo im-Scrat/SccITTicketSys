@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Button,
+  ButtonLink,
   EmptyState,
   Pagination,
   SearchInput,
@@ -35,8 +36,10 @@ const PER_PAGE = 20
 export default function AssetsPage() {
   useDocumentMeta({ title: 'Asset directory' })
   const navigate = useNavigate()
-  const { hasPermission } = useAuth()
+  const { hasPermission, hasRole } = useAuth()
   const canCreate = hasPermission('assets.create')
+  // The import is Administrator-only as well (AssetImportAccess, Phase 2.10 R6).
+  const canImport = canCreate && hasRole('administrator')
 
   const [params, setParams] = useSearchParams()
   const [tab, setTab] = useState(params.get('tab') === 'pc-units' ? 'pc-units' : 'assets')
@@ -160,15 +163,20 @@ export default function AssetsPage() {
         </div>
 
         <div className="flex flex-wrap gap-3">
+          {canImport && (
+            <ButtonLink
+              to="/app/assets/import"
+              variant="secondary"
+              leftIcon={<Upload size={32} aria-hidden="true" />}
+            >
+              Import
+            </ButtonLink>
+          )}
           {/*
-            Import and export land in a later phase. Rendered disabled with an
-            explanation rather than hidden: an operator who expects them should
-            find out they are coming, not wonder whether they missed a menu.
+            Export lands in a later phase. Rendered disabled with an
+            explanation rather than hidden: an operator who expects it should
+            find out it is coming, not wonder whether they missed a menu.
           */}
-          <Button variant="secondary" disabled title="Available in a later phase">
-            <Upload size={32} aria-hidden="true" />
-            Import
-          </Button>
           <Button variant="secondary" disabled title="Available in a later phase">
             <Download size={32} aria-hidden="true" />
             Export

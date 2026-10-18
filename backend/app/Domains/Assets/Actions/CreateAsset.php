@@ -37,9 +37,14 @@ class CreateAsset
     ) {}
 
     /**
+     * `$auditContext` is the asset import's reference (import uuid, row number,
+     * file), recorded on this record's own audit row — so an imported record's
+     * history says where it came from (Phase 2.10 R6).
+     *
      * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $auditContext
      */
-    public function handle(array $data, User $actor, Request $request): Asset
+    public function handle(array $data, User $actor, Request $request, array $auditContext = []): Asset
     {
         $status = AssetStatus::from((string) ($data['status'] ?? AssetStatus::New->value));
         $condition = PcCondition::from((string) ($data['condition'] ?? PcCondition::Working->value));
@@ -93,6 +98,7 @@ class CreateAsset
                 'status' => $status->value,
                 'status_label' => $status->label(),
                 'room' => $asset->currentRoom?->name,
+                ...($auditContext !== [] ? ['import' => $auditContext] : []),
             ],
             request: $request,
             module: 'assets',
