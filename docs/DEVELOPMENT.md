@@ -81,9 +81,23 @@ overwrites production.
 ## Dependencies
 
 Production installs from `backend/composer.lock` and `frontend/package-lock.json`
-when the images are built. The old procedure (`scripts/dep-update.sh`) needed
-the retired dev stack; how to regenerate lock files now is an open owner
-decision.
+when the images are built, so a dependency change is a lock-file change. Make it
+with `scripts/lock-update.sh` (owner decision D7, 2026-10-17), then run the gate:
+
+```bash
+sh scripts/lock-update.sh composer require vendor/package:^1.0
+sh scripts/lock-update.sh composer update vendor/package --with-dependencies
+sh scripts/lock-update.sh npm install package@^1.2
+sh scripts/gates.sh          # installs from the new lock files in fresh images
+```
+
+The script copies the two manifests into a scratch directory, runs the command
+in a throwaway container (Composer in `sccit/app:gate-base`, the production PHP
+base, so platform checks match production; npm in `node:22-alpine`), with
+`--no-install` / `--package-lock-only` and no package scripts, and copies the
+manifests back. It installs nothing anywhere and prints the advisories of the
+new lock (`composer audit` / `npm audit`). `npm ci` in `frontend/` for the
+editor is still fine: it installs the lock exactly and never edits it.
 
 ## Troubleshooting
 

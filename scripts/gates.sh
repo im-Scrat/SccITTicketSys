@@ -133,7 +133,12 @@ if [ "$ONLY" != 'backend' ]; then
     run_gate 'frontend: ESLint'      fe 'npm run lint'
     run_gate 'frontend: Prettier'    fe 'npm run format:check'
     run_gate 'frontend: Vitest'      fe 'npm run test'
-    [ "$SKIP_BUILD" -eq 1 ] || run_gate 'frontend: production build' fe 'npm run build'
+    # The CSP scan reads the built chunks, so it shares the build's container:
+    # every fe() call is a fresh one, and dist/ does not outlive it. It is the
+    # only gate that sees what production's style-src/script-src will refuse
+    # (frontend/scripts/scan-csp.mjs explains why nothing else can).
+    [ "$SKIP_BUILD" -eq 1 ] || run_gate 'frontend: production build + CSP scan' \
+        fe 'npm run build && node scripts/scan-csp.mjs'
 fi
 
 if [ "$WITH_E2E" -eq 1 ]; then

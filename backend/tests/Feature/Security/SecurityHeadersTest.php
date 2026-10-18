@@ -82,6 +82,22 @@ it('never allows unsafe-inline script in the production policy', function () {
         ->and($m[1])->toContain('sha256-');
 })->group('security');
 
+it('keeps the production style policy at self only', function () {
+    $prod = (string) file_get_contents(repoPath('docker/nginx/security-headers.prod.conf'));
+
+    expect(preg_match('/add_header Content-Security-Policy "([^"]+)"/', $prod, $header))->toBe(1);
+    expect(preg_match('/style-src([^;]*)/', $header[1], $m))->toBe(1);
+
+    // The chart kit and the print routes (Phase 2.10, DD-84) are built for this
+    // policy: React style props go through the CSSOM, which style-src does not
+    // govern, and nothing injects a <style> element (the gate's build scan,
+    // frontend/scripts/scan-csp.mjs, checks the bundle for that). Loosening it
+    // to make a library render would hide exactly what the scan exists to
+    // catch; change the code instead.
+    expect(trim($m[1]))->toBe("'self'")
+        ->and($header[1])->not->toContain('unsafe-eval');
+})->group('security');
+
 it('sends baseline security headers on API responses', function () {
     $response = $this->getJson('/api/health');
 

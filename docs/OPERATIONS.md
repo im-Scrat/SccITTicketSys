@@ -267,6 +267,7 @@ Exit status is the number of failed checks, so callers can branch on it.
 | Task | Command |
 |---|---|
 | Full quality gate | `sh scripts/gates.sh` |
+| Change a dependency (lock files) | `sh scripts/lock-update.sh composer require …` / `npm install …`, then the gate ([DEVELOPMENT.md](DEVELOPMENT.md#dependencies)) |
 | Deploy a release | `sh scripts/deploy-prod.sh` |
 | List releases | `sh scripts/releases.sh list` |
 | Roll back | `sh scripts/rollback-prod.sh <sha>` |

@@ -173,7 +173,7 @@ Limits that come with sharing:
 
 1. **Edit** source (§3 tells you where).
 2. **Gate** — [`sh scripts/gates.sh`](../scripts/gates.sh) runs Pint, PHPStan, Pest, tsc, ESLint,
-   Prettier, Vitest and the production build in a disposable environment with
+   Prettier, Vitest and the production build (with a CSP scan of the built chunks) in a disposable environment with
    its own PostgreSQL and Redis. `--only backend` / `--only frontend` to narrow.
 3. **Deploy** — [`sh scripts/deploy-prod.sh`](../scripts/deploy-prod.sh): gates → restore-verified snapshot →
    build and tag images → recreate services → `migrate --force` → smoke test. It
@@ -401,7 +401,8 @@ When a role's permissions change, [CLAUDE.md](../CLAUDE.md) §7 also requires up
 | Web image (built SPA + proxy) | [docker/nginx/Dockerfile.prod](../docker/nginx/Dockerfile.prod), [docker/nginx/prod.conf](../docker/nginx/prod.conf), [docker/nginx/security-headers.prod.conf](../docker/nginx/security-headers.prod.conf) |
 | Database first-run | [docker/postgres/init/01-enable-extensions.sql](../docker/postgres/init/01-enable-extensions.sql), [docker/postgres/init/02-create-test-db.sql](../docker/postgres/init/02-create-test-db.sql) |
 | Build context filter | [.dockerignore](../.dockerignore) |
-| Gate images | [docker/gate/Dockerfile.backend](../docker/gate/Dockerfile.backend), [docker/gate/Dockerfile.frontend](../docker/gate/Dockerfile.frontend), [scripts/lib/isolated-gate.sh](../scripts/lib/isolated-gate.sh) |
+| Gate images | [docker/gate/Dockerfile.backend](../docker/gate/Dockerfile.backend), [docker/gate/Dockerfile.frontend](../docker/gate/Dockerfile.frontend), [scripts/lib/isolated-gate.sh](../scripts/lib/isolated-gate.sh), [frontend/scripts/scan-csp.mjs](../frontend/scripts/scan-csp.mjs) (CSP scan of the build) |
+| Dependency (lock-file) changes | [scripts/lock-update.sh](../scripts/lock-update.sh) — see [docs/DEVELOPMENT.md](DEVELOPMENT.md#dependencies) |
 | Operations | [scripts/deploy-prod.sh](../scripts/deploy-prod.sh), [scripts/rollback-prod.sh](../scripts/rollback-prod.sh), [scripts/releases.sh](../scripts/releases.sh), [scripts/smoke.sh](../scripts/smoke.sh), [scripts/gates.sh](../scripts/gates.sh), [scripts/backup.sh](../scripts/backup.sh), [scripts/verify-backup.sh](../scripts/verify-backup.sh), [scripts/restore.sh](../scripts/restore.sh), [scripts/lib/stack.sh](../scripts/lib/stack.sh), [scripts/lib/snapshot.sh](../scripts/lib/snapshot.sh) — see [docs/OPERATIONS.md](OPERATIONS.md) |
 
 ---
@@ -460,9 +461,10 @@ Then: [`sh scripts/gates.sh`](../scripts/gates.sh) → [`sh scripts/deploy-prod.
 - Dependencies: production installs from [backend/composer.lock](../backend/composer.lock) and
   [frontend/package-lock.json](../frontend/package-lock.json) at image build. `npm ci` in
   `frontend/` is fine — it installs the lock file exactly and never edits it.
-  Do not run `npm install <package>`, `composer require` or `composer update`:
-  those change dependencies, and there is currently no sanctioned way to do
-  that without the retired dev stack (owner decision pending).
+  Do not run `npm install <package>`, `composer require` or `composer update`
+  directly: change dependencies only through
+  [`sh scripts/lock-update.sh`](../scripts/lock-update.sh) (owner decision D7),
+  which regenerates the lock files in a disposable container, then run the gate.
 - Line endings: Git runs with `core.autocrlf=true`; let your editor keep each
   file's existing endings.
 

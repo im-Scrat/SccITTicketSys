@@ -245,14 +245,17 @@ the prod container against the repo — never by assuming.
 `scripts/restore.sh` overwrites production — never run it to "test" anything;
 use `--dry-run` or `scripts/verify-backup.sh`.
 
-**Dependency changes** used to go through `scripts/dep-update.sh`, which needed
-the dev stack and is retired with it. Production installs from `composer.lock`
-and `package-lock.json` at image build time, so a dependency change is a
-lock-file change; how to regenerate lock files without a dev stack is an open
-owner decision. (dep-update.sh records why it existed: rewriting `vendor/` under
-dev's live JIT-enabled workers caused 592 SIGSEGV php-fpm crashes during OD-1,
-2026-09-28. Production is not exposed — it installs during `docker build` and
-runs with `opcache.validate_timestamps=0`.)
+**Dependency changes** are lock-file changes: production installs from
+`composer.lock` and `package-lock.json` at image build time. Regenerate them
+only with `sh scripts/lock-update.sh composer require|update|remove …` or
+`sh scripts/lock-update.sh npm install|uninstall|update …` (owner decision D7,
+2026-10-17). It runs the command in a disposable container built from the gate
+images (`--no-install` / `--package-lock-only`, no scripts), so nothing is
+installed anywhere; then run `sh scripts/gates.sh`. Never run `composer
+require/update` or `npm install <pkg>` on the host or inside a running
+container. (The retired `scripts/dep-update.sh` records why: rewriting
+`vendor/` under dev's live JIT-enabled workers caused 592 SIGSEGV php-fpm
+crashes during OD-1, 2026-09-28.)
 
 ---
 
@@ -263,7 +266,7 @@ isolated environment (its own PostgreSQL and Redis, removed afterwards) —
 never on the host, and never in production, whose image has no dev tooling.
 
 ```bash
-# Pint, PHPStan, Pest, tsc, ESLint, Prettier, Vitest, production build
+# Pint, PHPStan, Pest, tsc, ESLint, Prettier, Vitest, production build + CSP scan
 sh scripts/gates.sh
 sh scripts/gates.sh --only backend       # or: --only frontend
 
