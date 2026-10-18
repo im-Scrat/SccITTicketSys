@@ -1,0 +1,25 @@
+{
+  "schema": "sccit.release/1",
+  "release": "01238a6",
+  "deployed_at": "2026-10-18T10:30:03Z",
+  "git": {
+    "commit": "01238a6e97f503ecc045d3c4d8ce83735a0f733d",
+    "branch": "phase-2.10/analytics-reports-import",
+    "dirty": false
+  },
+  "images": {
+    "app_tag": "sccit/app:prod-01238a6",
+    "web_tag": "sccit/web:prod-01238a6",
+    "app_id": "sha256:81dbe710b35db93b18f67d3ce07a678a72c1fe5d76484e0bde0e5aeefaa1806a",
+    "web_id": "sha256:e8328063cfcfcb8d883c3ab4ad57ef53108b12aee67bdcf66c2a350cf6906854"
+  },
+  "database": {
+    "migration_count": "49"
+  },
+  "verification": {
+    "gates": "passed",
+    "smoke": "passed"
+  },
+  "previous_release": "096132e",
+  "pre_deploy_snapshot": "backups/prod/20261018T102906Z-predeploy-01238a6"
+}
