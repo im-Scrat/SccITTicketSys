@@ -254,6 +254,7 @@ final class ReportExporter
                 includeRecords: (bool) ($export->options['include_records'] ?? false),
                 recordLimit: (int) config('reports.exports.record_limit', 10000),
             ),
+            $export->filters,
         );
     }
 

@@ -39,6 +39,8 @@ final readonly class ReportTable
         public bool $truncated = false,
         public ?string $note = null,
         public bool $isRecords = false,
+        /** @var list<array{path: string, query: array<string, string>}|null>|null one drill-down per row, for the screen */
+        public ?array $links = null,
     ) {}
 
     /**
@@ -77,6 +79,16 @@ final readonly class ReportTable
     }
 
     /**
+     * A copy with a drill-down link per row (null where a row has none).
+     *
+     * @param  list<array{path: string, query: array<string, string>}|null>  $links
+     */
+    public function withLinks(array $links): self
+    {
+        return new self($this->key, $this->title, $this->columns, $this->rows, $this->totalRows, $this->truncated, $this->note, $this->isRecords, $links);
+    }
+
+    /**
      * A copy holding only the first `$limit` rows, marked truncated if it lost any.
      */
     public function limitedTo(int $limit): self
@@ -94,6 +106,7 @@ final readonly class ReportTable
             truncated: true,
             note: $this->note,
             isRecords: $this->isRecords,
+            links: $this->links !== null ? array_slice($this->links, 0, max($limit, 0)) : null,
         );
     }
 
@@ -112,6 +125,7 @@ final readonly class ReportTable
             'truncation_note' => $this->truncationNote(),
             'note' => $this->note,
             'is_records' => $this->isRecords,
+            'links' => $this->links,
         ];
     }
 }

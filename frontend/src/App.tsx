@@ -62,6 +62,8 @@ const PredictionDetailPage = lazy(() => import('@/features/predictions/pages/Pre
 
 // Report print views (Phase 2.10 R3) — outside AppLayout, Administrator-only.
 const ReportPrintPage = lazy(() => import('@/features/analytics/pages/ReportPrintPage'))
+// Overall Reports (Phase 2.10 R4) — Administrator-only.
+const OverallReportsPage = lazy(() => import('@/features/analytics/pages/OverallReportsPage'))
 
 // Asset Management (Phase 2.5).
 const AssetDashboardPage = lazy(() => import('@/features/assets/pages/AssetDashboardPage'))
@@ -163,6 +165,18 @@ function App() {
                   reaches paper, and always render light. Administrator-only
                   with reports.view and reports.export (owner decision D8),
                   like every endpoint behind them. */}
+              <Route
+                path="/app/reports/print"
+                element={
+                  <RequireReports export>
+                    <ReportPrintPage
+                      reportType="overall"
+                      backPath="/app/reports"
+                      backLabel="Back to Overall reports"
+                    />
+                  </RequireReports>
+                }
+              />
               <Route
                 path="/app/dashboard/print"
                 element={
@@ -534,6 +548,16 @@ function App() {
                     because a permission alone can be granted to an individual
                     Technician or Teacher. The API refuses them regardless
                     (`PcPredictionAccess`), so typing the URL gains nothing. */}
+                {/* Overall Reports (Phase 2.10 R4): Administrator role and
+                    reports.view, like every endpoint behind it (owner decision D8). */}
+                <Route
+                  path="reports"
+                  element={
+                    <RequireReports>
+                      <OverallReportsPage />
+                    </RequireReports>
+                  }
+                />
                 <Route
                   path="predictions"
                   element={

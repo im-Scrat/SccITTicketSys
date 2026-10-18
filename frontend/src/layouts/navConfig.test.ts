@@ -64,6 +64,15 @@ describe('administrator navigation', () => {
     expect(items).not.toContain('My submissions')
   })
 
+  it('puts Overall reports right after the Dashboard', () => {
+    const items = labels('administrator')
+    expect(items.slice(0, 2)).toEqual(['Dashboard', 'Overall reports'])
+  })
+
+  it('hides Overall reports when reports.view is denied to this administrator', () => {
+    expect(labels('administrator', (p) => p !== 'reports.view')).not.toContain('Overall reports')
+  })
+
   it('hides Technicians when users.view is denied to this administrator', () => {
     expect(labels('administrator', (p) => p !== 'users.view')).not.toContain('Technicians')
   })

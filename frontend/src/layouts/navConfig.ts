@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   BrainCircuit,
   Building2,
   ClipboardList,
@@ -139,6 +140,9 @@ const TECHNICIAN_NAV: NavItem[] = [
 // per run, so a group split in two would print its heading twice.
 const ADMINISTRATOR_NAV: NavItem[] = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  // Phase 2.10 R4: the Administrator's Overall Reports, beside the dashboard
+  // it extends. The route and every endpoint also require the role.
+  { to: '/app/reports', label: 'Overall reports', icon: BarChart3, permission: 'reports.view' },
   {
     to: '/app/tickets',
     label: 'Tickets',

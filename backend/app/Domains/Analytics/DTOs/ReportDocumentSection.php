@@ -27,6 +27,12 @@ final readonly class ReportDocumentSection
         public array $tables = [],
         public array $paragraphs = [],
         public array $notes = [],
+        /** Why the charts are left out (too little data), in words; null when they are drawn. */
+        public ?string $insufficient = null,
+        /** @var list<array{table: string, title: string, total: int}> the server-paginated record tables this section offers */
+        public array $records = [],
+        /** @var list<string> filters that do not apply to this section, in words */
+        public array $notApplicable = [],
     ) {}
 
     public function table(string $key): ?ReportTable
@@ -45,7 +51,7 @@ final readonly class ReportDocumentSection
      */
     public function withTables(array $tables): self
     {
-        return new self($this->key, $this->title, $this->intro, $this->kpis, $this->charts, $tables, $this->paragraphs, $this->notes);
+        return new self($this->key, $this->title, $this->intro, $this->kpis, $this->charts, $tables, $this->paragraphs, $this->notes, $this->insufficient, $this->records, $this->notApplicable);
     }
 
     /**
@@ -62,6 +68,9 @@ final readonly class ReportDocumentSection
             'tables' => array_map(static fn (ReportTable $t): array => $t->toArray(), $this->tables),
             'paragraphs' => $this->paragraphs,
             'notes' => $this->notes,
+            'insufficient' => $this->insufficient,
+            'records' => $this->records,
+            'not_applicable' => $this->notApplicable,
         ];
     }
 }

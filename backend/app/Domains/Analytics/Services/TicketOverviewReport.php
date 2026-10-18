@@ -57,7 +57,7 @@ final class TicketOverviewReport
         $recordsIncluded = $options->includeRecords && $this->access->canExportTicketRecords($actor);
 
         if ($recordsIncluded) {
-            $sections[] = $this->records($filters, $actor, $options, $identifiersOnly);
+            $sections[] = $this->recordsSection($filters, $actor, $options, $identifiersOnly);
         }
 
         return ['payload' => $payload, 'sections' => $sections, 'records_included' => $recordsIncluded];
@@ -297,7 +297,17 @@ final class TicketOverviewReport
         );
     }
 
-    private function records(ReportFilters $filters, User $actor, ReportBuildOptions $options, bool $identifiersOnly): ReportDocumentSection
+    /**
+     * The overview payload itself, for documents that cite its summary and filters.
+     *
+     * @return array{data: array<string, mixed>, meta: array<string, mixed>}
+     */
+    public function overviewPayload(ReportFilters $filters, User $actor): array
+    {
+        return $this->overview->build($filters, $actor);
+    }
+
+    public function recordsSection(ReportFilters $filters, User $actor, ReportBuildOptions $options, bool $identifiersOnly): ReportDocumentSection
     {
         $scope = $this->directory->reportScope($filters->directoryParams(), $actor);
         $total = (clone $scope)->count();

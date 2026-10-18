@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Analytics\Services;
 
 use App\Domains\Analytics\Reporting\ReportArea;
+use App\Enums\OverallReportSection;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 
@@ -72,6 +73,42 @@ final class ReportsAccess
     public function canViewLocations(User $actor): bool
     {
         return $this->canView($actor) && $actor->hasPermissionTo('locations.view');
+    }
+
+    /** Equipment figures and lists (Overall Reports): `assets.view`. */
+    public function canViewAssets(User $actor): bool
+    {
+        return $this->canView($actor) && $actor->hasPermissionTo('assets.view');
+    }
+
+    /** Repair, replacement and preventive-care figures (Overall Reports): `maintenance.view`. */
+    public function canViewMaintenance(User $actor): bool
+    {
+        return $this->canView($actor) && $actor->hasPermissionTo('maintenance.view');
+    }
+
+    /**
+     * The Overall Reports sections this viewer may see, in page order (Phase
+     * 2.10 R4, SDD DD-94). Locations also needs ticket data (it counts
+     * problems). The Overview is offered when any other section is, and is
+     * assembled from those only.
+     *
+     * @return list<OverallReportSection>
+     */
+    public function visibleSections(User $actor): array
+    {
+        if (! $this->canView($actor)) {
+            return [];
+        }
+
+        $sections = array_values(array_filter([
+            $this->canViewTickets($actor) ? OverallReportSection::Tickets : null,
+            $this->canViewAssets($actor) ? OverallReportSection::Equipment : null,
+            $this->canViewMaintenance($actor) ? OverallReportSection::Repairs : null,
+            $this->canViewLocations($actor) && $this->canViewTickets($actor) ? OverallReportSection::Locations : null,
+        ]));
+
+        return $sections === [] ? [] : [OverallReportSection::Overview, ...$sections];
     }
 
     /**

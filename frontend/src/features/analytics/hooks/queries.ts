@@ -1,6 +1,12 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { fetchReportOptions, fetchTicketOverview } from '../api/reportsApi'
-import type { ReportParams } from '../types'
+import {
+  fetchOverallRecords,
+  fetchOverallSection,
+  fetchReportOptions,
+  fetchTicketOverview,
+  searchEquipment,
+} from '../api/reportsApi'
+import type { OverallParams, OverallSectionKey, ReportParams } from '../types'
 
 /**
  * Under `['dashboard', …]` on purpose: the administrators' live channel
@@ -10,6 +16,10 @@ import type { ReportParams } from '../types'
 export const reportKeys = {
   ticketOverview: (params: ReportParams) => ['dashboard', 'ticket-overview', params] as const,
   options: () => ['dashboard', 'report-options'] as const,
+  overall: (section: OverallSectionKey, params: OverallParams) =>
+    ['overall-report', section, params] as const,
+  records: (table: string, params: OverallParams, page: object) =>
+    ['overall-report-records', table, params, page] as const,
 }
 
 /**
@@ -37,6 +47,54 @@ export function useReportOptions(enabled = true) {
     queryKey: reportKeys.options(),
     queryFn: fetchReportOptions,
     staleTime: 60_000,
+    enabled,
+  })
+}
+
+/**
+ * One Overall Reports section. Not refetched on the live channel's
+ * invalidations while being read — the page shows "New activity since this
+ * report loaded" instead (see OverallReportsPage); `staleTime` mirrors the
+ * server's 60-second cache.
+ */
+export function useOverallSection(
+  section: OverallSectionKey,
+  params: OverallParams,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: reportKeys.overall(section, params),
+    queryFn: () => fetchOverallSection(section, params),
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    enabled,
+    retry: (failures, error) => {
+      const status = (error as { response?: { status?: number } }).response?.status
+      return status !== 403 && status !== 422 && failures < 2
+    },
+  })
+}
+
+export function useOverallRecords(
+  table: string,
+  params: OverallParams,
+  page: { page: number; per_page?: number; sort?: string; direction?: 'asc' | 'desc' },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: reportKeys.records(table, params, page),
+    queryFn: () => fetchOverallRecords(table, params, page),
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    enabled,
+  })
+}
+
+export function useEquipmentSearch(q: string, enabled = true) {
+  return useQuery({
+    queryKey: ['report-equipment-options', q],
+    queryFn: () => searchEquipment(q),
+    staleTime: 30_000,
     enabled,
   })
 }

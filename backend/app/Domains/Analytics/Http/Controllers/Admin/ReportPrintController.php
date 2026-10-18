@@ -29,7 +29,7 @@ class ReportPrintController extends Controller
         $actor = $request->user();
 
         $document = $builder
-            ->build($request->reportType(), $request->filters(), $actor, $request->buildOptions(ReportContentProfile::Full))
+            ->build($request->reportType(), $request->filters(), $actor, $request->buildOptions(ReportContentProfile::Full), $request->reportParameters())
             ->withRowBudget((int) config('reports.exports.paged_row_budget', 600));
 
         $audit->activity(

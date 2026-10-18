@@ -3,6 +3,11 @@ import { readBlobError, triggerBlobDownload } from '@/lib/download'
 import { api } from '@/services/api'
 import type {
   DocumentOptions,
+  EquipmentOption,
+  OverallParams,
+  OverallSectionKey,
+  OverallSectionResponse,
+  RecordsPage,
   ExportFormat,
   RecipientCheck,
   ReportDocument,
@@ -114,6 +119,37 @@ export async function fetchPrintDocument(request: DocumentRequest): Promise<Repo
   const { data } = await api.post<{ data: ReportDocument }>(
     '/admin/reports/print',
     documentBody(request),
+  )
+  return data.data
+}
+
+/* ------------------------------------------------------------ overall reports */
+
+export async function fetchOverallSection(
+  section: OverallSectionKey,
+  params: OverallParams,
+): Promise<OverallSectionResponse> {
+  const { data } = await api.get<OverallSectionResponse>('/admin/reports/overall', {
+    params: { ...params, section },
+  })
+  return data
+}
+
+export async function fetchOverallRecords(
+  table: string,
+  params: OverallParams,
+  page: { page: number; per_page?: number; sort?: string; direction?: 'asc' | 'desc' },
+): Promise<RecordsPage> {
+  const { data } = await api.get<RecordsPage>('/admin/reports/overall/records', {
+    params: { ...params, table, ...page },
+  })
+  return data
+}
+
+export async function searchEquipment(q: string): Promise<EquipmentOption[]> {
+  const { data } = await api.get<{ data: EquipmentOption[] }>(
+    '/admin/reports/overall/equipment-options',
+    { params: { q } },
   )
   return data.data
 }

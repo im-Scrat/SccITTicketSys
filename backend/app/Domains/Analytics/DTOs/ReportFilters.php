@@ -42,7 +42,33 @@ final readonly class ReportFilters
         public array $statuses,
         public array $categories,
         public array $problemAreas,
+        /**
+         * Further directory parameters every ticket figure is scoped by — the
+         * Overall Reports equipment filter (`pc_unit` / `asset`). Part of
+         * {@see scopeParams()}, so counts, drill-downs and cache keys all carry it.
+         *
+         * @var array<string, string>
+         */
+        public array $extraScope = [],
     ) {}
+
+    /**
+     * A copy scoped further (see `$extraScope`).
+     *
+     * @param  array<string, string>  $scope
+     */
+    public function withExtraScope(array $scope): self
+    {
+        if ($scope === []) {
+            return $this;
+        }
+
+        return new self(
+            $this->period, $this->comparison, $this->compareMode, $this->granularity, $this->requestedGranularity,
+            $this->anchor, $this->roomType, $this->building, $this->room, $this->statuses, $this->categories,
+            $this->problemAreas, [...$this->extraScope, ...$scope],
+        );
+    }
 
     /**
      * Build from a validated request payload.
@@ -110,13 +136,13 @@ final readonly class ReportFilters
      */
     public function scopeParams(): array
     {
-        return array_filter([
+        return [...$this->extraScope, ...array_filter([
             'room_type' => $this->roomType,
             'building' => $this->building,
             'room' => $this->room,
             'category' => $this->categories !== [] ? implode(',', $this->categories) : null,
             'problem_area' => $this->problemAreas !== [] ? implode(',', $this->problemAreas) : null,
-        ], static fn (?string $value): bool => $value !== null);
+        ], static fn (?string $value): bool => $value !== null)];
     }
 
     /**

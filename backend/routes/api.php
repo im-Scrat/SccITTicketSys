@@ -3,6 +3,7 @@
 use App\Domains\Administration\Http\Controllers\AnnouncementController;
 use App\Domains\Administration\Http\Controllers\NotificationController;
 use App\Domains\Administration\Http\Controllers\NotificationPreferenceController;
+use App\Domains\Analytics\Http\Controllers\Admin\OverallReportController;
 use App\Domains\Analytics\Http\Controllers\Admin\ReportEmailController;
 use App\Domains\Analytics\Http\Controllers\Admin\ReportExportController;
 use App\Domains\Analytics\Http\Controllers\Admin\ReportOptionsController;
@@ -1172,6 +1173,12 @@ Route::middleware('auth:sanctum')->group(function () {
                 Route::middleware('throttle:reports')->group(function () {
                     Route::get('/options', ReportOptionsController::class);
                     Route::get('/ticket-overview', TicketOverviewController::class);
+
+                    // Phase 2.10 R4 — Overall Reports (SDD DD-94): one section, a
+                    // page of a record table, the equipment picker's search.
+                    Route::get('/overall', [OverallReportController::class, 'section']);
+                    Route::get('/overall/records', [OverallReportController::class, 'records']);
+                    Route::get('/overall/equipment-options', [OverallReportController::class, 'equipmentOptions']);
                 });
 
                 /*

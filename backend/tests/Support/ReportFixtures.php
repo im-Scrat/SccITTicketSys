@@ -6,6 +6,11 @@ namespace Tests\Support;
 
 use App\Models\Building;
 use App\Models\Floor;
+use App\Models\HardwareComponent;
+use App\Models\HardwareReplacement;
+use App\Models\MaintenanceRecord;
+use App\Models\MaintenanceType;
+use App\Models\PcUnit;
 use App\Models\Room;
 use App\Models\Ticket;
 use App\Models\TicketStatus;
@@ -77,6 +82,46 @@ final class ReportFixtures
             'to_status_id' => TicketStatus::query()->where('slug', $to)->value('id'),
             'changed_by' => $by?->id,
             'created_at' => CarbonImmutable::parse($localTime, SchoolClock::TIMEZONE)->utc(),
+        ]);
+    }
+
+    /**
+     * A PC unit in a room (Overall Reports fixtures).
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function pc(?Room $room, array $attributes = []): PcUnit
+    {
+        return PcUnit::factory()->create(['room_id' => $room?->id, ...$attributes]);
+    }
+
+    /**
+     * A maintenance record completed at a school-local time, of a seeded type
+     * (requires MaintenanceTypeSeeder): preventive, corrective, hardware-upgrade…
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function repair(PcUnit $pc, string $typeSlug, string $completedLocal, array $attributes = []): MaintenanceRecord
+    {
+        return MaintenanceRecord::factory()->create([
+            'pc_unit_id' => $pc->id,
+            'maintenance_type_id' => MaintenanceType::query()->where('slug', $typeSlug)->value('id'),
+            'status' => 'completed',
+            'completed_at' => self::local($completedLocal)->utc(),
+            'maintenance_date' => self::local($completedLocal)->utc(),
+            ...$attributes,
+        ]);
+    }
+
+    /** A replacement on a repair; null component types leave that side unrecorded. */
+    public static function replacement(MaintenanceRecord $record, ?string $oldType, ?string $newType, string $replacedLocal): HardwareReplacement
+    {
+        return HardwareReplacement::factory()->create([
+            'maintenance_record_id' => $record->id,
+            'pc_unit_id' => $record->pc_unit_id,
+            'old_component_id' => $oldType !== null ? HardwareComponent::factory()->create(['component_type' => $oldType])->id : null,
+            'new_component_id' => $newType !== null ? HardwareComponent::factory()->create(['component_type' => $newType])->id : null,
+            'replaced_at' => self::local($replacedLocal)->utc(),
         ]);
     }
 }

@@ -327,3 +327,99 @@ export interface ReportDocument {
   profile: 'full' | 'identifiers'
   records_included: boolean
 }
+
+/* ------------------------------------------------------------ overall reports */
+
+export type OverallSectionKey = 'overview' | 'tickets' | 'equipment' | 'repairs' | 'locations'
+
+export interface SectionKpi {
+  label: string
+  value: string
+  detail: string | null
+  drilldown: Drilldown | null
+  figure: number | null
+}
+
+export interface SectionChart {
+  kind: 'line' | 'donut' | 'bar'
+  title: string
+  description: string
+  categories: string[]
+  series: Array<{
+    name: string
+    values: Array<number | null>
+    style: 'current' | 'compare' | 'slices'
+  }>
+  colors: string[]
+  keys: string[]
+  table_key: string | null
+  value_label: string
+}
+
+export interface SectionTable extends DocumentTable {
+  links: Array<Drilldown | null> | null
+}
+
+/** One Overall Reports section, as the server builds it (also its document section). */
+export interface OverallSection {
+  key: OverallSectionKey
+  title: string
+  intro: string | null
+  kpis: SectionKpi[]
+  charts: SectionChart[]
+  tables: SectionTable[]
+  paragraphs: string[]
+  notes: string[]
+  insufficient: string | null
+  records: Array<{ table: string; title: string; total: number }>
+  not_applicable: string[]
+}
+
+export interface OverallSectionResponse {
+  data: OverallSection
+  meta: {
+    report_type: 'overall'
+    timezone: string
+    generated_at: string
+    as_of_label: string
+    period: { range_label: string; from: string; to: string }
+    comparison: { range_label: string } | null
+    sections: Array<{ key: OverallSectionKey; label: string }>
+    query: Record<string, string>
+    definitions: Array<{ term: string; text: string }>
+  }
+}
+
+export interface RecordsPage {
+  data: {
+    table: string
+    title: string
+    columns: Array<{ key: string; label: string; type: 'text' | 'number' | 'percent' | 'code' }>
+    rows: Array<Array<string | number | null>>
+    links: Array<Drilldown | null>
+  }
+  meta: {
+    total: number
+    page: number
+    per_page: number
+    last_page: number
+    sort: string
+    direction: 'asc' | 'desc'
+    sorts: string[]
+  }
+}
+
+export interface EquipmentOption {
+  value: string
+  label: string
+  description: string
+  group: string
+}
+
+/** The Overall Reports filters beyond the shared vocabulary (1:1 with the API). */
+export interface OverallParams extends ReportParams {
+  equipment?: string
+  maintenance_class?: string
+  component_type?: string
+  location_group?: string
+}

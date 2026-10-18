@@ -38,6 +38,8 @@ final readonly class ChartSpec
         public string $description,
         public ?string $tableKey = null,
         public string $valueLabel = 'Tickets',
+        /** @var list<string> stable keys per category (status slugs, bucket keys) — the screen maps them to theme tokens */
+        public array $keys = [],
     ) {}
 
     /** Nothing to draw: every value is zero or unknown. */
@@ -99,6 +101,7 @@ final readonly class ChartSpec
             description: $this->description,
             tableKey: $this->tableKey,
             valueLabel: $this->valueLabel,
+            keys: $this->keys !== [] ? array_map(fn (int $i): string => $this->keys[$i] ?? '', $keep) : [],
         );
     }
 
@@ -116,6 +119,7 @@ final readonly class ChartSpec
             'description' => $this->description,
             'table_key' => $this->tableKey,
             'value_label' => $this->valueLabel,
+            'keys' => $this->keys,
         ];
     }
 }

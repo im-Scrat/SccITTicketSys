@@ -6,6 +6,7 @@ namespace App\Domains\Analytics\Http\Requests;
 
 use App\Domains\Analytics\Services\ReportBuildOptions;
 use App\Domains\Analytics\Services\ReportsAccess;
+use App\Enums\ComponentType;
 use App\Enums\ReportContentProfile;
 use App\Enums\ReportType;
 use App\Models\User;
@@ -22,8 +23,11 @@ use Illuminate\Validation\Rule;
  */
 abstract class ReportDocumentRequest extends ReportFilterRequest
 {
-    /** Reports with a document builder today; the overall report joins in R4. */
-    public const DOCUMENT_TYPES = [ReportType::TicketOverview];
+    /** Reports with a document builder. */
+    public const DOCUMENT_TYPES = [ReportType::TicketOverview, ReportType::Overall];
+
+    /** The overall report's own filters, carried into its documents. */
+    public const OVERALL_PARAMETERS = ['equipment', 'maintenance_class', 'component_type', 'location_group'];
 
     public function authorize(): bool
     {
@@ -42,7 +46,9 @@ abstract class ReportDocumentRequest extends ReportFilterRequest
         return match ($this->reportType()) {
             ReportType::TicketOverview => $access->canViewTickets($user)
                 && (! $this->narrowsByLocation() || $access->canViewLocations($user)),
-            default => true,
+            ReportType::Overall => $access->visibleSections($user) !== []
+                && (! $this->narrowsByLocation() || $access->canViewLocations($user))
+                && ($this->input('equipment') === null || $access->canViewAssets($user)),
         };
     }
 
@@ -56,6 +62,10 @@ abstract class ReportDocumentRequest extends ReportFilterRequest
             'paper' => ['nullable', 'string', Rule::in(['a4', 'letter'])],
             'orientation' => ['nullable', 'string', Rule::in(['portrait', 'landscape'])],
             'include_records' => ['sometimes', 'boolean'],
+            'equipment' => ['nullable', 'string', 'regex:/^(pc|asset):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/'],
+            'maintenance_class' => ['nullable', 'string', 'max:64', 'regex:/^(corrective|preventive|upgrade)(,(corrective|preventive|upgrade))*$/'],
+            'component_type' => ['nullable', 'string', Rule::in(ComponentType::values())],
+            'location_group' => ['nullable', 'string', Rule::in(['room', 'floor', 'building'])],
             ...$this->documentRules(),
         ];
     }
@@ -66,6 +76,19 @@ abstract class ReportDocumentRequest extends ReportFilterRequest
     protected function documentRules(): array
     {
         return [];
+    }
+
+    /**
+     * The report parameters plus the overall report's own filters.
+     *
+     * @return array<string, mixed>
+     */
+    public function reportParameters(): array
+    {
+        return [
+            ...parent::reportParameters(),
+            ...array_filter(array_intersect_key($this->validated(), array_flip(self::OVERALL_PARAMETERS)), static fn (mixed $v): bool => $v !== null),
+        ];
     }
 
     public function reportType(): ReportType

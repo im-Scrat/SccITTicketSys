@@ -6,8 +6,8 @@ import { Alert, Button, ButtonLink, Skeleton } from '@/components/ui'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { fetchPrintDocument } from '../api/reportsApi'
 import { PrintableReport } from '../components/print/PrintableReport'
-import { REPORT_PARAM_KEYS } from '../hooks/useReportFilters'
-import type { ReportParams, ReportType } from '../types'
+import { OVERALL_PARAM_KEYS, REPORT_PARAM_KEYS } from '../hooks/useReportFilters'
+import type { OverallParams, ReportType } from '../types'
 
 interface ReportPrintPageProps {
   reportType: ReportType
@@ -31,14 +31,16 @@ export default function ReportPrintPage({ reportType, backPath, backLabel }: Rep
   const navigate = useNavigate()
   const printed = useRef(false)
 
-  const params = useMemo<ReportParams>(() => {
-    const out: ReportParams = {}
-    for (const key of REPORT_PARAM_KEYS) {
+  const params = useMemo<OverallParams>(() => {
+    const out: OverallParams = {}
+    // The overall report carries its own filters (equipment, repair class…) too.
+    const keys = reportType === 'overall' ? OVERALL_PARAM_KEYS : REPORT_PARAM_KEYS
+    for (const key of keys) {
       const value = searchParams.get(key)
       if (value) out[key] = value
     }
     return out
-  }, [searchParams])
+  }, [searchParams, reportType])
   const includeRecords = searchParams.get('include_records') === '1'
   const autoprint = searchParams.get('autoprint') === '1'
 

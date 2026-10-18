@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace App\Domains\Analytics\Services;
 
+use App\Domains\Analytics\DTOs\OverallReportFilters;
 use App\Domains\Analytics\DTOs\ReportDocument;
 use App\Domains\Analytics\DTOs\ReportFilters;
+use App\Domains\Analytics\DTOs\ReportPeriod;
+use App\Enums\ComponentType;
+use App\Enums\MaintenanceClass;
+use App\Enums\ReportContentProfile;
 use App\Enums\ReportType;
+use App\Models\Asset;
+use App\Models\PcUnit;
 use App\Models\User;
 use App\Support\SchoolClock;
 use Illuminate\Auth\Access\AuthorizationException;
-use InvalidArgumentException;
 
 /**
  * The single source of report document content (Phase 2.10, SDD DD-91).
@@ -29,18 +35,95 @@ final class ReportDocumentBuilder
     public function __construct(
         private readonly ReportsAccess $access,
         private readonly TicketOverviewReport $ticketOverview,
+        private readonly OverallReportService $overall,
     ) {}
 
     /**
+     * @param  array<string, mixed>  $parameters  the validated request parameters (the overall report reads its own filters from them)
+     *
      * @throws AuthorizationException
      */
-    public function build(ReportType $type, ReportFilters $filters, User $actor, ReportBuildOptions $options): ReportDocument
+    public function build(ReportType $type, ReportFilters $filters, User $actor, ReportBuildOptions $options, array $parameters = []): ReportDocument
     {
         $this->access->assertCanExport($actor);
 
         return match ($type) {
             ReportType::TicketOverview => $this->ticketOverviewDocument($filters, $actor, $options),
-            ReportType::Overall => throw new InvalidArgumentException('The overall report is built from its own sections (Phase 2.10 R4).'),
+            ReportType::Overall => $this->overallDocument(OverallReportFilters::fromValidated($filters, $parameters), $actor, $options),
+        };
+    }
+
+    /**
+     * Every Overall Reports section the viewer may see, from the same builders
+     * as the page, plus the ticket records when asked for and permitted.
+     */
+    private function overallDocument(OverallReportFilters $filters, User $actor, ReportBuildOptions $options): ReportDocument
+    {
+        $report = $filters->report;
+        $sections = $this->overall->documentSections($filters, $actor);
+        $recordsIncluded = false;
+
+        if ($options->includeRecords && $this->access->canExportTicketRecords($actor)) {
+            $sections[] = $this->ticketOverview->recordsSection(
+                $report->withExtraScope($filters->equipmentParams()),
+                $actor,
+                $options,
+                $options->profile === ReportContentProfile::Identifiers,
+            );
+            $recordsIncluded = true;
+        }
+
+        $comparison = $report->comparison !== null && ! $report->hasStatusFilter()
+            ? ReportPeriod::rangeText($report->comparison->start, $report->comparison->end)
+            : null;
+        $tickets = $this->access->canViewTickets($actor) ? $this->ticketOverview->overviewPayload($report->withExtraScope($filters->equipmentParams()), $actor) : null;
+
+        $filterRows = $tickets !== null ? $this->filterRows($tickets['meta']) : [
+            ['label' => 'Period', 'value' => $report->period->rangeLabel()],
+        ];
+        if ($filters->hasEquipment()) {
+            $filterRows[] = ['label' => 'Equipment', 'value' => $this->equipmentLabel($filters)];
+        }
+        if ($filters->maintenanceClasses !== []) {
+            $filterRows[] = ['label' => 'Repair class (Repairs only)', 'value' => implode(', ', array_map(static fn (string $c): string => MaintenanceClass::from($c)->label(), $filters->maintenanceClasses))];
+        }
+        if ($filters->componentType !== null) {
+            $filterRows[] = ['label' => 'Component type (Repairs only)', 'value' => ComponentType::tryFrom($filters->componentType)?->label() ?? $filters->componentType];
+        }
+
+        return new ReportDocument(
+            type: ReportType::Overall,
+            title: ReportType::Overall->label(),
+            organisation: (string) config('reports.organisation', 'SccIT'),
+            periodLabel: $report->period->rangeLabel(),
+            comparisonLabel: $comparison,
+            timezoneLabel: SchoolClock::TIMEZONE,
+            asOfLabel: 'Data as of '.$report->period->asOf->subMinute()->format('j M Y, H:i').' ('.SchoolClock::TIMEZONE.')',
+            generatedLabel: 'Generated '.SchoolClock::now()->format('j M Y, H:i').' ('.SchoolClock::TIMEZONE.')',
+            filters: $filterRows,
+            summary: $tickets !== null ? array_map(static fn (array $s): string => (string) $s['text'], $tickets['data']['summary']['sentences']) : [],
+            summaryLabel: 'Calculated from recorded tickets (fixed rules, not AI)',
+            caveats: $tickets !== null ? array_values(array_map('strval', $tickets['data']['summary']['caveats'])) : [],
+            sections: $sections,
+            definitions: array_map(static fn (array $d): array => ['term' => (string) $d['term'], 'definition' => (string) $d['text']], ReportMetrics::ticketDefinitions()),
+            limitations: [
+                'Times are school time ('.SchoolClock::TIMEZONE.').',
+                'Ticket status is each ticket\'s status now. Equipment status, condition and warranty are as of today.',
+                'Problems are counted in the room they were reported in; repairs and equipment in their room now.',
+                'Recurring patterns and preventive-care candidates are counted by fixed rules, not by AI. AI advisory findings are never a probability.',
+                'Cost is recorded without a currency; totals say on how many records it was recorded.',
+            ],
+            profile: $options->profile,
+            recordsIncluded: $recordsIncluded,
+        );
+    }
+
+    private function equipmentLabel(OverallReportFilters $filters): string
+    {
+        return match ($filters->equipmentType) {
+            'pc' => 'PC unit '.(string) PcUnit::withTrashed()->where('uuid', $filters->equipmentUuid)->value('unit_code'),
+            'asset' => 'Asset '.(string) Asset::withTrashed()->where('uuid', $filters->equipmentUuid)->value('asset_tag'),
+            default => '',
         };
     }
 
