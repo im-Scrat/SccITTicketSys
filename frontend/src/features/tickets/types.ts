@@ -143,6 +143,12 @@ export interface TicketRow {
   pc_unit: PcUnitRef | null
   asset: EquipmentRef | null
   location: LocationRef | null
+  /**
+   * Phase 2.10, administrator directory only: the room the ticket was
+   * *reported* in (archived or not) — where report figures counted it. May
+   * differ from `location`, which prefers where the PC is now.
+   */
+  reported_location?: { room: string; building: string | null; archived: boolean } | null
   upvote_count: number
   comment_count: number
   attachment_count: number
@@ -516,6 +522,19 @@ export interface TicketParams {
    * does not accept the string `"true"` that axios would send for `true`.
    */
   escalated?: 1
+  /**
+   * Administrative directory only (Phase 2.10): what a report figure's
+   * drill-down carries, so the list totals exactly to the figure. Dates are
+   * school-local and inclusive; flags are sent as `1`.
+   */
+  reported_from?: string
+  reported_to?: string
+  room_type?: string
+  without_room?: 1
+  problem_area?: string
+  asset?: string
+  exclude_duplicates?: 1
+  exclude_cancelled?: 1
   include_closed?: boolean
   trashed?: 'without' | 'with' | 'only'
   sort?: TicketSortColumn | FeedSort

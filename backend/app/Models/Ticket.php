@@ -155,6 +155,22 @@ class Ticket extends Model
         return $this->belongsTo(Room::class);
     }
 
+    /**
+     * The room the ticket was reported in — the stored `room_id` — **including
+     * an archived room** (Phase 2.10, SDD DD-88).
+     *
+     * `room()` keeps the default scope and so loses an archived room; reports
+     * count tickets by the stored room whatever happened to it since, and the
+     * list a report figure opens has to be able to say where each row was
+     * counted ("Reported in: Lab 2 (archived)").
+     *
+     * @return BelongsTo<Room, $this>
+     */
+    public function reportedRoom(): BelongsTo
+    {
+        return $this->belongsTo(Room::class, 'room_id')->withTrashed();
+    }
+
     /** @return BelongsTo<PcUnit, $this> */
     public function pcUnit(): BelongsTo
     {

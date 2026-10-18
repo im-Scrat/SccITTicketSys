@@ -332,6 +332,14 @@ The vocabulary that ties tickets, assets, maintenance, and the floor plan togeth
 - Hover → `--surface-sunken`; selected → `--primary-subtle` (tone, not a left-stripe). Numeric columns right-aligned and tabular. Zebra striping is off by default; hairlines do the separating.
 - Empty state teaches ("No open tickets. New requests appear here as they arrive.") with the primary next action — never a bare "No data."
 
+### Charts (Phase 2.10, SDD DD-84)
+- **Form first.** A number is a stat card; a trend is a line; a part-to-whole of statuses is a donut beside its legend table; a ranking is an HTML table with bars (names wrap in full, never clipped). Recharts draws only lines, donuts and, later, stacked columns.
+- **Colour.** Statuses keep one colour each in every filter state (`--chart-status-<slug>`, validated in both modes: every mark ≥3:1, worst adjacent colour-blind ΔE 8.5). No red, no purple; closed and cancelled are grey so finished work recedes. Single-series bars use one mark colour (`--chart-bar`) on a neutral track (`--chart-track`).
+- **Comparison.** The current period is a 2px line in `--chart-current`; the comparison is **dashed 6 4** in `--chart-compare`, so the two differ in shape as well as colour. Legend keys show the dash. No area fill.
+- **Type and density.** Axis ticks, legends and labels at 16px, ticks at least ~72px apart, never rotated; compact numbers only on axis ticks from 10,000. The bucket still running has a hollow point.
+- **Honesty.** No data animation. Unknown is a gap, never zero (before records began). A one-day period is a figure in words, not a one-point line. Every chart offers its figures as a table, and the drawing itself is hidden from assistive technology in favour of that table.
+- **CSP.** Colours are passed as `var(--token)` strings; nothing injects a `<style>` element. The build's CSP scan fails the gate otherwise.
+
 ### Navigation
 - **Primary nav:** left sidebar, `--surface` on `--bg`, collapsible to a 56px icon rail; a drawer on mobile. Items are Body-size with a 16px leading icon.
 - **Active item:** `--primary-subtle` background, `--primary-strong` text/icon, 4px radius. Hover on inactive → `--surface-sunken`. Active state is never color-only — the fill plus weight carry it.

@@ -131,6 +131,12 @@ export default defineConfig(({ mode }) => ({
           if (/[\\/]node_modules[\\/](laravel-echo|pusher-js|tweetnacl)[\\/]/.test(id)) {
             return 'realtime'
           }
+          // Phase 2.10: no manual group for the chart library. It is imported only
+          // by the administrator's lazy dashboard, so the default splitting keeps
+          // it out of every other screen. A manual `charts` group was tried and
+          // dropped: its CommonJS members (use-sync-external-store, react-is)
+          // pulled React's own CommonJS wrapper into it, and then every screen
+          // imported the chart chunk to reach React.
           return undefined
         },
       },

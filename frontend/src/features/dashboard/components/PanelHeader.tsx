@@ -8,6 +8,12 @@ interface PanelHeaderProps {
   title: string
   description?: ReactNode
   link?: { to: string; label: string }
+  /**
+   * A display control for the panel's own content (a chart's "Group by"),
+   * on the title row like the link. Never a filter: a control here must not
+   * change any other panel on the page.
+   */
+  actions?: ReactNode
 }
 
 /**
@@ -25,13 +31,14 @@ interface PanelHeaderProps {
  * line, however differently the descriptions then wrap. On a column too narrow
  * for title and link together, the link drops beneath the title.
  */
-export function PanelHeader({ id, title, description, link }: PanelHeaderProps) {
+export function PanelHeader({ id, title, description, link, actions }: PanelHeaderProps) {
   return (
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 id={id} className="text-lg font-semibold text-ink-strong">
           {title}
         </h2>
+        {actions}
         {link && (
           <Link
             to={link.to}

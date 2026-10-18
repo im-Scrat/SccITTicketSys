@@ -87,6 +87,20 @@ class TicketListResource extends JsonResource
                 'room' => $room->name,
                 'building' => $room->floor?->building?->name,
             ] : null,
+            // Phase 2.10 (SDD DD-88) — where the ticket was *reported*: the
+            // stored room, archived or not. `location` above prefers where the
+            // PC is now; report figures count the stored room, so a list opened
+            // from a report can say where each row was counted. Present on the
+            // administrator directory only, which is the one surface that loads
+            // it (and the one report drill-downs open).
+            'reported_location' => $this->when(
+                $this->resource->relationLoaded('reportedRoom'),
+                fn (): ?array => $this->reportedRoom !== null ? [
+                    'room' => $this->reportedRoom->name,
+                    'building' => $this->reportedRoom->floor?->building?->name,
+                    'archived' => $this->reportedRoom->deleted_at !== null,
+                ] : null,
+            ),
 
             'upvote_count' => (int) $this->upvote_count,
             'comment_count' => (int) $this->comment_count,

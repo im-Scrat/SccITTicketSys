@@ -3,8 +3,11 @@
 use App\Domains\Administration\Http\Controllers\AnnouncementController;
 use App\Domains\Administration\Http\Controllers\NotificationController;
 use App\Domains\Administration\Http\Controllers\NotificationPreferenceController;
+use App\Domains\Analytics\Http\Controllers\Admin\ReportOptionsController;
 use App\Domains\Analytics\Http\Controllers\Admin\TechnicianMonitoringController;
+use App\Domains\Analytics\Http\Controllers\Admin\TicketOverviewController;
 use App\Domains\Analytics\Http\Controllers\DashboardController;
+use App\Domains\Analytics\Reporting\ReportArea;
 use App\Domains\Assets\Http\Controllers\Admin\AssetActionController;
 use App\Domains\Assets\Http\Controllers\Admin\AssetAttachmentController;
 use App\Domains\Assets\Http\Controllers\Admin\AssetController;
@@ -1143,6 +1146,31 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/technicians/{technician}', [TechnicianMonitoringController::class, 'show'])
                 ->whereUuid('technician');
         });
+
+        /*
+        |------------------------------------------------------------------
+        | Reports and dashboard analytics (Phase 2.10, SPMP WP-2.10) — ADMIN ONLY
+        |------------------------------------------------------------------
+        | The whole group is closed by `can:viewAny,ReportArea`: a dotless
+        | policy ability no permission name can match, delegating to
+        | ReportsAccess (Administrator role + reports.view; owner decision
+        | D8). Never a `can:reports.*` string — the seeded technician grant
+        | of reports.view would open it (the Gate::before trap). A test
+        | asserts every route under this prefix carries the gate. Requests
+        | and services check again, with the module domain gates.
+        |
+        | `throttle:reports` sits on the aggregate GETs only: each miss runs
+        | several aggregate statements, and a runaway filter loop should hit
+        | a ceiling, not the database.
+        */
+        Route::middleware(['password.current', 'can:viewAny,'.ReportArea::class])
+            ->prefix('admin/reports')
+            ->group(function () {
+                Route::middleware('throttle:reports')->group(function () {
+                    Route::get('/options', ReportOptionsController::class);
+                    Route::get('/ticket-overview', TicketOverviewController::class);
+                });
+            });
     });
 });
 

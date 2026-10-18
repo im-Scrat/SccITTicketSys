@@ -27,24 +27,28 @@ class TicketLookupSeeder extends Seeder
         // switches them off (Client decision 2026-10-16: one "Other"). Listing
         // them here would switch them back on, because this seeder forces every
         // row it names to active.
+        // `problem_area` (owner decision D6, SDD DD-87) is the mapping the owner
+        // approved on 2026-10-18, frozen in
+        // `2026_10_18_100000_add_problem_area_to_ticket_categories` for installed
+        // databases; a test keeps this list and that migration equal.
         $categories = [
-            ['name' => 'Hardware', 'slug' => 'hardware'],
-            ['name' => 'Software', 'slug' => 'software'],
-            ['name' => 'Network', 'slug' => 'network'],
-            ['name' => 'Performance & System Slowness', 'slug' => 'performance-slowness'],
-            ['name' => 'Operating System Updates', 'slug' => 'os-updates'],
-            ['name' => 'Power Issue', 'slug' => 'power-issue'],
-            ['name' => 'Audio & Video Output', 'slug' => 'audio-video-output'],
-            ['name' => 'Browser & Web Issues', 'slug' => 'browser-web'],
-            ['name' => 'Peripheral', 'slug' => 'peripheral'],
-            ['name' => 'Account & Access', 'slug' => 'account-access'],
-            ['name' => 'BIOS / Firmware errors', 'slug' => 'bios-firmware'],
-            ['name' => 'Blue Screen / Kernel Panic', 'slug' => 'blue-screen'],
-            ['name' => 'Missing Software', 'slug' => 'missing-software'],
+            ['name' => 'Hardware', 'slug' => 'hardware', 'problem_area' => 'hardware'],
+            ['name' => 'Software', 'slug' => 'software', 'problem_area' => 'software'],
+            ['name' => 'Network', 'slug' => 'network', 'problem_area' => 'network'],
+            ['name' => 'Performance & System Slowness', 'slug' => 'performance-slowness', 'problem_area' => 'software'],
+            ['name' => 'Operating System Updates', 'slug' => 'os-updates', 'problem_area' => 'software'],
+            ['name' => 'Power Issue', 'slug' => 'power-issue', 'problem_area' => 'hardware'],
+            ['name' => 'Audio & Video Output', 'slug' => 'audio-video-output', 'problem_area' => 'hardware'],
+            ['name' => 'Browser & Web Issues', 'slug' => 'browser-web', 'problem_area' => 'software'],
+            ['name' => 'Peripheral', 'slug' => 'peripheral', 'problem_area' => 'hardware'],
+            ['name' => 'Account & Access', 'slug' => 'account-access', 'problem_area' => 'other'],
+            ['name' => 'BIOS / Firmware errors', 'slug' => 'bios-firmware', 'problem_area' => 'hardware'],
+            ['name' => 'Blue Screen / Kernel Panic', 'slug' => 'blue-screen', 'problem_area' => 'software'],
+            ['name' => 'Missing Software', 'slug' => 'missing-software', 'problem_area' => 'software'],
             // The one catch-all, offered under "Other Categories". Kept rather
             // than retired: tickets reference it (`tickets.category_id` is
             // ON DELETE RESTRICT).
-            ['name' => 'Other', 'slug' => 'other'],
+            ['name' => 'Other', 'slug' => 'other', 'problem_area' => 'other'],
         ];
 
         // The catch-all asks the reporter to describe the kind of problem in a

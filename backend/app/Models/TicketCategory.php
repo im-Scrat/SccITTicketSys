@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ProblemArea;
 use Database\Factories\TicketCategoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +16,8 @@ use Illuminate\Support\Carbon;
  * A ticket category (SRS FR-TKT-001). `default_priority_id` seeds the priority
  * when a requester does not choose one. `requires_detail` marks a catch-all
  * ("Other") category whose reports must describe the kind of problem in
- * `tickets.category_detail` (SDD DD-77).
+ * `tickets.category_detail` (SDD DD-77). `problem_area` groups it for reports
+ * (hardware, software, network, other; owner decision D6, SDD DD-87).
  *
  * @property int $id
  * @property string $name
@@ -24,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $default_priority_id
  * @property bool $is_active
  * @property bool $requires_detail
+ * @property ProblemArea $problem_area
  * @property int $sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -40,6 +43,7 @@ class TicketCategory extends Model
         return [
             'is_active' => 'boolean',
             'requires_detail' => 'boolean',
+            'problem_area' => ProblemArea::class,
         ];
     }
 

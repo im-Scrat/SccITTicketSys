@@ -12,6 +12,7 @@ use App\Models\Notification;
 use App\Models\NotificationDigest;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Support\SchoolClock;
 use Carbon\CarbonImmutable;
 use Database\Seeders\SystemSettingSeeder;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -77,7 +78,9 @@ it('uses the school timezone the Client declared in system settings', function (
 
     $declared = SystemSetting::query()->where('key', 'system.timezone')->value('value');
 
-    expect(trim((string) $declared, "\"'"))->toBe(DailyDigest::TIMEZONE);
+    expect(trim((string) $declared, "\"'"))->toBe(DailyDigest::TIMEZONE)
+        // Phase 2.10: reports read the same zone, through one constant.
+        ->and(SchoolClock::TIMEZONE)->toBe(DailyDigest::TIMEZONE);
 });
 
 /* ------------------------------------------------------- window boundaries */

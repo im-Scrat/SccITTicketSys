@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domains\Tickets\Http\Requests;
 
+use App\Enums\ProblemArea;
+use App\Enums\RoomType;
 use App\Models\Ticket;
+use App\Support\Concerns\ValidatesLookupSlugs;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -24,6 +26,8 @@ use Illuminate\Validation\Validator;
  */
 class IndexTicketsRequest extends FormRequest
 {
+    use ValidatesLookupSlugs;
+
     public function authorize(): bool
     {
         return (bool) $this->user()?->can('viewAny', Ticket::class);
@@ -59,6 +63,17 @@ class IndexTicketsRequest extends FormRequest
             'resolved_within' => ['nullable', 'integer', 'min:1', 'max:365'],
             // Phase 2.9 — administrative directory only (NOT FIXED, awaiting an owner).
             'escalated' => ['nullable', 'boolean'],
+            // Phase 2.10 — administrative directory only: the parameters a report
+            // figure's drill-down link carries (SDD DD-88). Dates are school-local
+            // and inclusive; lists are checked against their domains in after().
+            'reported_from' => ['nullable', 'string', 'date_format:Y-m-d'],
+            'reported_to' => ['nullable', 'string', 'date_format:Y-m-d'],
+            'room_type' => ['nullable', 'string', 'max:255'],
+            'without_room' => ['nullable', 'boolean'],
+            'problem_area' => ['nullable', 'string', 'max:255'],
+            'asset' => ['nullable', 'string', 'uuid'],
+            'exclude_duplicates' => ['nullable', 'boolean'],
+            'exclude_cancelled' => ['nullable', 'boolean'],
             'include_closed' => ['nullable', 'boolean'],
             'trashed' => ['nullable', 'string', Rule::in(['without', 'with', 'only'])],
             'sort' => ['nullable', 'string', Rule::in([
@@ -85,13 +100,31 @@ class IndexTicketsRequest extends FormRequest
     public function after(): array
     {
         return [
-            fn (Validator $v) => $this->validateSlugs($v, 'status', 'ticket_statuses'),
-            fn (Validator $v) => $this->validateSlugs($v, 'priority', 'ticket_priorities'),
-            fn (Validator $v) => $this->validateSlugs($v, 'category', 'ticket_categories'),
+            fn (Validator $v) => $this->validateLookupSlugs($v, 'status', 'ticket_statuses'),
+            fn (Validator $v) => $this->validateLookupSlugs($v, 'priority', 'ticket_priorities'),
+            fn (Validator $v) => $this->validateLookupSlugs($v, 'category', 'ticket_categories'),
+            fn (Validator $v) => $this->validateList($v, 'room_type', RoomType::values()),
+            fn (Validator $v) => $this->validateList($v, 'problem_area', ProblemArea::values()),
+            function (Validator $v): void {
+                $from = $this->input('reported_from');
+                $to = $this->input('reported_to');
+
+                // Both are date_format-checked above; compare only valid pairs.
+                if (is_string($from) && is_string($to)
+                    && ! $v->errors()->has('reported_from') && ! $v->errors()->has('reported_to')
+                    && $to < $from) {
+                    $v->errors()->add('reported_to', 'The end date must be on or after the start date.');
+                }
+            },
         ];
     }
 
-    private function validateSlugs(Validator $validator, string $field, string $table): void
+    /**
+     * A comma list whose every item must belong to a fixed domain.
+     *
+     * @param  list<string>  $allowed
+     */
+    private function validateList(Validator $validator, string $field, array $allowed): void
     {
         $raw = $this->input($field);
 
@@ -99,16 +132,10 @@ class IndexTicketsRequest extends FormRequest
             return;
         }
 
-        $submitted = array_values(array_filter(array_map('trim', explode(',', $raw))));
-
-        if ($submitted === []) {
-            return;
-        }
-
-        $known = DB::table($table)->whereIn('slug', $submitted)->pluck('slug')->all();
-
-        foreach (array_diff($submitted, $known) as $unknown) {
-            $validator->errors()->add($field, "\"{$unknown}\" is not a valid {$field}.");
+        foreach (array_filter(array_map('trim', explode(',', $raw))) as $value) {
+            if (! in_array($value, $allowed, true)) {
+                $validator->errors()->add($field, "\"{$value}\" is not a valid {$field}.");
+            }
         }
     }
 }

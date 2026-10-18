@@ -68,8 +68,12 @@ export function StatCard({
     // The visible text is "label" and "value" in separate elements; reading them
     // as one phrase ("Overdue: 2") is what a screen-reader user needs from a
     // link, so the name is set explicitly.
+    // The hint rides along: an explicit name replaces the content, so without
+    // it "▲ 3 vs last month" would be visible but never announced.
     const name =
-      typeof value === 'string' || typeof value === 'number' ? `${label}: ${value}` : undefined
+      typeof value === 'string' || typeof value === 'number'
+        ? `${label}: ${value}${hint ? `. ${hint}` : ''}`
+        : undefined
 
     return (
       <Link

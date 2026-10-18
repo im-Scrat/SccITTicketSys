@@ -24,6 +24,8 @@ interface WidgetCardProps {
   children: ReactNode
   className?: string
   variant?: WidgetVariant
+  /** `section` only: a display control on the heading row (see PanelHeader). */
+  actions?: ReactNode
 }
 
 /**
@@ -39,6 +41,7 @@ export function WidgetCard({
   children,
   className,
   variant = 'card',
+  actions,
 }: WidgetCardProps) {
   const headingId = useId()
 
@@ -50,8 +53,10 @@ export function WidgetCard({
           title={title}
           description={description}
           link={href ? { to: href, label: linkLabel } : undefined}
+          actions={actions}
         />
-        <div className="rounded-lg border-2 border-border bg-surface p-6">{children}</div>
+        {/* flex-1: panels side by side end level, whatever their content height. */}
+        <div className="flex-1 rounded-lg border-2 border-border bg-surface p-6">{children}</div>
       </section>
     )
   }

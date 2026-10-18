@@ -83,6 +83,13 @@ return [
          */
         'ai_test_per_hour' => (int) env('AI_TEST_PER_HOUR', 10),
         'ai_assistant_per_minute' => (int) env('AI_ASSISTANT_PER_MINUTE', 10),
+
+        /*
+         * Phase 2.10 — report aggregates (dashboard analytics, Overall Reports),
+         * per account. Generous for an Administrator clicking through filters;
+         * a ceiling for a client stuck re-requesting.
+         */
+        'reports_per_minute' => (int) env('REPORTS_PER_MINUTE', 120),
     ],
 
     // File uploads (Phase 2.5 asset attachments; SRS NFR-SEC-007/008).

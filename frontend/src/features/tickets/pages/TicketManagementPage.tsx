@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Button, EmptyState, Pagination, Skeleton, Tabs } from '@/components/ui'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { TicketMetricsCards } from '../components/TicketMetricsCards'
+import { LinkedFilterChips } from '../components/LinkedFilterChips'
 import { TicketFilters } from '../components/TicketFilters'
 import { TicketsTable } from '../components/TicketsTable'
 import { useTicketDashboard, useTicketDirectory, useTicketOptions } from '../hooks/queries'
@@ -50,6 +51,17 @@ export default function TicketManagementPage() {
       awaiting_confirmation: params.get('awaiting_confirmation') === '1' ? 1 : undefined,
       // Phase 2.9: reached from the admin dashboard's "Escalated" queue.
       escalated: params.get('escalated') === '1' ? 1 : undefined,
+      // Phase 2.10: everything a report figure's drill-down link carries, so
+      // the list opened from a figure totals exactly to it.
+      room: params.get('room') ?? undefined,
+      building: params.get('building') ?? undefined,
+      reported_from: params.get('reported_from') ?? undefined,
+      reported_to: params.get('reported_to') ?? undefined,
+      room_type: params.get('room_type') ?? undefined,
+      without_room: params.get('without_room') === '1' ? 1 : undefined,
+      problem_area: params.get('problem_area') ?? undefined,
+      exclude_duplicates: params.get('exclude_duplicates') === '1' ? 1 : undefined,
+      exclude_cancelled: params.get('exclude_cancelled') === '1' ? 1 : undefined,
       trashed: (params.get('trashed') as TicketParams['trashed']) ?? 'without',
       sort: (params.get('sort') as TicketSortColumn) ?? 'created_at',
       direction: (params.get('direction') as 'asc' | 'desc') ?? 'desc',
@@ -202,6 +214,8 @@ export default function TicketManagementPage() {
         </div>
       ) : (
         <>
+          <LinkedFilterChips params={params} patch={patch} />
+
           <TicketFilters
             search={search}
             onSearch={setSearch}

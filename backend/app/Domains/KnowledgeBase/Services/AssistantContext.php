@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\KnowledgeBase\Services;
 
+use App\Domains\Analytics\Services\ReportsAccess;
 use App\Domains\Tickets\Services\TicketVisibility;
 use App\Models\Ticket;
 use App\Models\User;
@@ -51,7 +52,10 @@ class AssistantContext
      */
     private array $counterparts = [];
 
-    public function __construct(private readonly TicketVisibility $visibility) {}
+    public function __construct(
+        private readonly TicketVisibility $visibility,
+        private readonly ReportsAccess $reports,
+    ) {}
 
     /** How the role is described to the model. Unknown roles get no description. */
     private const ROLE_LABELS = [
@@ -93,7 +97,15 @@ class AssistantContext
 
         $can = [];
         foreach (self::CAPABILITIES as $permission => $phrase) {
-            if ($user->hasPermissionTo($permission)) {
+            // Phase 2.10 (owner decision D8): technicians keep the seeded
+            // `reports.view` grant, but reports open to administrators only, so
+            // the permission alone would have the assistant promise a page the
+            // user cannot reach. The capability follows ReportsAccess instead.
+            $holds = $permission === 'reports.view'
+                ? $this->reports->canView($user)
+                : $user->hasPermissionTo($permission);
+
+            if ($holds) {
                 $can[] = $phrase;
             }
         }

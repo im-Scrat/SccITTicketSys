@@ -33,7 +33,8 @@ export function EmptyState({ icon, title, description, action, className }: Empt
           {icon}
         </div>
       )}
-      <p className="text-[0.9375rem] font-semibold text-ink-strong">{title}</p>
+      {/* text-base (20px): the 15px it used to be sat below the app's 16px floor. */}
+      <p className="text-base font-semibold text-ink-strong">{title}</p>
       {description && <p className="mt-1.5 max-w-sm text-sm text-muted">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>

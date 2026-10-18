@@ -164,6 +164,31 @@
   /* subtle brand-tinted grid, used only inside product visuals */
   --grid-line: oklch(0.88 0.008 85 / 0.7);
 
+  /*
+   * Charts (Phase 2.10, SDD DD-84). Ticket statuses keep one colour each, in
+   * every filter state — colour follows the status, never its rank. Validated
+   * with the dataviz palette checker against the light surface: every mark
+   * ≥3:1, worst adjacent colour-blind ΔE 8.7. No red (reserved for danger) and
+   * no purple. Closed and cancelled are grey on purpose: finished work recedes,
+   * and its label, not its hue, identifies it.
+   */
+  --chart-status-open: #0b67a9;
+  --chart-status-assigned: #00a0a1;
+  --chart-status-in-progress: #2e4d99;
+  --chart-status-on-hold: #c08500;
+  --chart-status-resolved: #00814a;
+  --chart-status-closed: #4c5057;
+  --chart-status-cancelled: #85898f;
+  --chart-status-other: #6b6f76;
+  /* The current period wears the selection colour; the comparison recedes
+     and is dashed, so the two differ by shape as well as colour. */
+  --chart-current: var(--primary);
+  --chart-compare: var(--faint);
+  --chart-grid: var(--grid-line);
+  --chart-axis: var(--border);
+  --chart-bar: var(--primary);
+  --chart-track: var(--surface-sunken);
+
   /* Reading measure — 50–60 characters for prose blocks. */
   --content-measure: 60ch;
 }
@@ -211,6 +236,17 @@
   --info-subtle: oklch(0.28 0.045 235);
 
   --grid-line: oklch(0.34 0.011 258 / 0.6);
+
+  /* Charts — validated against the dark surface: every mark ≥3:1, worst
+     adjacent colour-blind ΔE 8.5. Same families as light, re-stepped. */
+  --chart-status-open: #5198d8;
+  --chart-status-assigned: #007c7c;
+  --chart-status-in-progress: #688ad5;
+  --chart-status-on-hold: #b7810f;
+  --chart-status-resolved: #137d4a;
+  --chart-status-closed: #91959b;
+  --chart-status-cancelled: #63666c;
+  --chart-status-other: #7c8087;
 
   --content-measure: 60ch;
 }

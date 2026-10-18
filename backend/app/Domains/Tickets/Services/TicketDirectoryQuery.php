@@ -7,6 +7,7 @@ namespace App\Domains\Tickets\Services;
 use App\Domains\Analytics\Services\TicketMetrics;
 use App\Domains\Assets\Services\AssetDirectoryQuery;
 use App\Enums\TicketUpdateType;
+use App\Models\Asset;
 use App\Models\Building;
 use App\Models\Floor;
 use App\Models\PcUnit;
@@ -14,6 +15,8 @@ use App\Models\Room;
 use App\Models\TechnicianAssignment;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Support\SchoolClock;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -102,12 +105,16 @@ class TicketDirectoryQuery
      */
     public function directory(array $params, User $user): LengthAwarePaginator
     {
-        $query = $this->base($user);
+        $query = $this->reportScope($params, $user)->with([
+            // Phase 2.10 — where each row was *reported* (the stored room,
+            // archived or not), for the "Reported in" line a report's
+            // drill-down list shows beside the PC's current location.
+            'reportedRoom' => fn ($q) => $q->withTrashed()->select(['id', 'uuid', 'name', 'floor_id', 'deleted_at']),
+            'reportedRoom.floor' => fn ($q) => $q->withTrashed()->select(['id', 'building_id']),
+            'reportedRoom.floor.building' => fn ($q) => $q->withTrashed()->select(['id', 'name']),
+        ]);
 
-        $this->applyTrashed($query, (string) ($params['trashed'] ?? 'without'));
         $this->applySearch($query, $this->term($params));
-        $this->applyCommonFilters($query, $params);
-        $this->applyAdministrativeFilters($query, $params);
         $this->applySort(
             $query,
             (string) ($params['sort'] ?? 'created_at'),
@@ -115,6 +122,37 @@ class TicketDirectoryQuery
         );
 
         return $query->paginate($this->perPage($params))->withQueryString();
+    }
+
+    /**
+     * The administrator directory's population, without search, sort or paging
+     * (Phase 2.10, SDD DD-88).
+     *
+     * Report figures aggregate over exactly this builder, and a figure's
+     * drill-down link carries the same parameters into {@see directory()}, which
+     * starts from the same call — so a count and the list it opens are one
+     * definition and cannot drift (the rule DD-81 set for the SLA tiles).
+     *
+     * `$reportedBefore` is the one thing a link cannot say: a comparison window
+     * cut "at the same point in time" (18 Sep, 04:41). Its figures use it; such a
+     * figure gets no drill-down at all rather than an approximate one.
+     *
+     * @param  array<string, mixed>  $params
+     * @return Builder<Ticket>
+     */
+    public function reportScope(array $params, User $user, ?CarbonImmutable $reportedBefore = null): Builder
+    {
+        $query = $this->base($user);
+
+        $this->applyTrashed($query, (string) ($params['trashed'] ?? 'without'));
+        $this->applyCommonFilters($query, $params);
+        $this->applyAdministrativeFilters($query, $params);
+
+        if ($reportedBefore !== null) {
+            $query->where('tickets.created_at', '<', $reportedBefore->utc());
+        }
+
+        return $query;
     }
 
     /**
@@ -414,6 +452,70 @@ class TicketDirectoryQuery
 
         if (($params['escalated'] ?? null) === true || ($params['escalated'] ?? null) === '1') {
             $this->onlyEscalated($query);
+        }
+
+        $this->applyReportFilters($query, $params);
+    }
+
+    /**
+     * Phase 2.10 — the filters report drill-downs carry (SDD DD-88).
+     *
+     * Administrative directory only, like the rest of this group: a requester's
+     * list and a technician's queue gain no new filter surface.
+     *
+     *  - `reported_from` / `reported_to`: school-local dates, inclusive, turned
+     *    into a half-open UTC range — the same boundary rule the reports use.
+     *  - `room_type`, `without_room`: the **stored** room (where the ticket was
+     *    reported), archived rooms included, as the room filter already does.
+     *  - `problem_area`: the category's problem area (owner decision D6).
+     *  - `asset`: tickets about one non-PC item (archived items included).
+     *  - `exclude_duplicates`, `exclude_cancelled`: together they are what the
+     *    reports count as *problems*. A duplicate is a second report of one
+     *    fault and a cancelled ticket was withdrawn; ranking rooms by either
+     *    would rank reporting habits, not faults.
+     *
+     * @param  Builder<Ticket>  $query
+     * @param  array<string, mixed>  $params
+     */
+    private function applyReportFilters(Builder $query, array $params): void
+    {
+        if ($this->filled($params['reported_from'] ?? null)) {
+            $query->where('tickets.created_at', '>=', SchoolClock::startOfLocalDay((string) $params['reported_from'])->utc());
+        }
+
+        if ($this->filled($params['reported_to'] ?? null)) {
+            $query->where('tickets.created_at', '<', SchoolClock::startOfLocalDay((string) $params['reported_to'])->addDay()->utc());
+        }
+
+        if ($this->filled($params['room_type'] ?? null)) {
+            $query->whereIn(
+                'tickets.room_id',
+                Room::withTrashed()->select('id')->whereIn('room_type', $this->list($params['room_type'])),
+            );
+        }
+
+        if ($this->flag($params['without_room'] ?? null)) {
+            $query->whereNull('tickets.room_id');
+        }
+
+        if ($this->filled($params['problem_area'] ?? null)) {
+            $areas = $this->list($params['problem_area']);
+            $query->whereHas('category', fn (Builder $q) => $q->whereIn('problem_area', $areas));
+        }
+
+        if ($this->filled($params['asset'] ?? null)) {
+            $query->whereIn(
+                'tickets.asset_id',
+                Asset::withTrashed()->select('id')->where('uuid', (string) $params['asset']),
+            );
+        }
+
+        if ($this->flag($params['exclude_duplicates'] ?? null)) {
+            $query->whereNull('tickets.duplicate_of_id');
+        }
+
+        if ($this->flag($params['exclude_cancelled'] ?? null)) {
+            $query->whereHas('status', fn (Builder $q) => $q->where('slug', '!=', 'cancelled'));
         }
     }
 

@@ -9,6 +9,7 @@ use App\Enums\UserStatus;
 use App\Models\Notification;
 use App\Models\NotificationDigest;
 use App\Models\User;
+use App\Support\SchoolClock;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
@@ -45,10 +46,12 @@ class DailyDigest
     /**
      * The school's timezone — the authority for what "daily" means.
      *
-     * Mirrors `system_settings['system.timezone']`, which is where the Client
-     * declared it. Kept in sync by test, not by hope.
+     * An alias of {@see SchoolClock::TIMEZONE} since Phase 2.10, which made the
+     * zone one constant for the digest and for reporting alike. Mirrors
+     * `system_settings['system.timezone']`, which is where the Client declared
+     * it. Kept in sync by test, not by hope.
      */
-    public const TIMEZONE = 'Asia/Manila';
+    public const TIMEZONE = SchoolClock::TIMEZONE;
 
     public function __construct(private readonly NotificationPreferences $preferences) {}
 

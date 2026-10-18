@@ -207,6 +207,14 @@ export function TicketsTable({
                   ? `${ticket.location.room}${ticket.location.building ? `, ${ticket.location.building}` : ''}`
                   : '—'}
               </span>
+              {/* Phase 2.10: where a report counted it, when that is somewhere else. */}
+              {ticket.reported_location &&
+                ticket.reported_location.room !== ticket.location?.room && (
+                  <span className="block text-xs text-muted">
+                    Reported in: {ticket.reported_location.room}
+                    {ticket.reported_location.archived ? ' (archived)' : ''}
+                  </span>
+                )}
             </Td>
 
             <Td className="text-right tnum">{ticket.upvote_count}</Td>

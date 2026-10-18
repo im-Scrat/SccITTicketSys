@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Tickets\Actions;
 
+use App\Domains\Analytics\Services\AdminDashboardSignal;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Domains\Tickets\Services\SlaCalculator;
 use App\Enums\ActivityAction;
@@ -44,6 +45,7 @@ class UpdateTicket
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly SlaCalculator $sla,
+        private readonly AdminDashboardSignal $dashboard,
     ) {}
 
     /**
@@ -114,6 +116,12 @@ class UpdateTicket
             module: 'tickets',
             description: "Ticket {$ticket->ticket_number} updated",
         );
+
+        // Phase 2.10 — a category change moves the ticket between problem areas
+        // in every report, so the dashboard's cached figures must not outlive it.
+        if (array_key_exists('category_id', $attributes)) {
+            $this->dashboard->send('ticket.updated', $ticket->uuid);
+        }
 
         return $ticket->refresh()->load(['status', 'priority', 'category', 'reporter']);
     }
@@ -252,6 +260,10 @@ class UpdateTicket
                 ? "Ticket {$ticket->ticket_number} marked a duplicate of {$canonical->ticket_number}"
                 : "Ticket {$ticket->ticket_number} no longer marked a duplicate",
         );
+
+        // Phase 2.10 — duplicates leave the "problems" counts, so the cached
+        // report figures are stale the moment this changes.
+        $this->dashboard->send('ticket.updated', $ticket->uuid);
 
         return $ticket->refresh()->load('duplicateOf');
     }

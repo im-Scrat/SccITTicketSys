@@ -196,6 +196,22 @@ function FilterSelect({
       <span className="text-sm font-semibold text-ink">{label}</span>
       <Select value={value} onChange={(event) => onChange(event.target.value)}>
         {allowEmpty && <option value="">{emptyLabel}</option>}
+        {/*
+          Phase 2.10: a report's drill-down can bring a value this list does not
+          offer (several statuses at once). Shown as itself, so the control never
+          claims "All" while the list is filtered.
+        */}
+        {value !== '' &&
+          !options.some((option) => option.value === value) &&
+          !groups?.some((group) => group.options.some((option) => option.value === value)) && (
+            <option value={value}>
+              Selected:{' '}
+              {value
+                .split(',')
+                .map((part) => options.find((option) => option.value === part)?.label ?? part)
+                .join(', ')}
+            </option>
+          )}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

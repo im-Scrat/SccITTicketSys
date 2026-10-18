@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Domains\Analytics\Policies\ReportAreaPolicy;
+use App\Domains\Analytics\Reporting\ReportArea;
 use App\Domains\Assets\Policies\AssetPolicy;
 use App\Domains\Assets\Policies\PcUnitPolicy;
 use App\Domains\FloorPlan\Policies\FloorPlanPositionPolicy;
@@ -137,6 +139,12 @@ class AppServiceProvider extends ServiceProvider
         // does — for the list and for a single article from one predicate, so an
         // article absent from a user's list is equally unreachable by uuid.
         Gate::policy(AiKnowledgeArticle::class, KnowledgeArticlePolicy::class);
+
+        // Reports (Phase 2.10, owner decision D8): Administrator-only, closed by
+        // the policy on a marker class — reports have no model — and never by a
+        // bare `reports.*` string, which the seeded technician grant of
+        // `reports.view` would open through `Gate::before`. See ReportsAccess.
+        Gate::policy(ReportArea::class, ReportAreaPolicy::class);
     }
 
     /**
@@ -250,6 +258,15 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('qr-proof', fn (Request $request): Limit => Limit::perMinute(
             (int) config('security.rate_limits.qr_proof_per_user_per_minute', 12),
         )->by('qr-proof:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        /*
+         * Phase 2.10 — the report aggregates. A cache miss runs several
+         * aggregate statements; this is a ceiling for a runaway filter loop,
+         * far above what a person clicking through filters produces.
+         */
+        RateLimiter::for('reports', fn (Request $request): Limit => Limit::perMinute(
+            (int) config('security.rate_limits.reports_per_minute', 120),
+        )->by('reports:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
     }
 
     /**
