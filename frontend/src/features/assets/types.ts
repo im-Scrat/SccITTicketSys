@@ -488,6 +488,8 @@ export interface AssetParams {
   room?: string
   warranty_expiring?: number
   trashed?: TrashedFilter
+  /** Only the records one import created (Phase 2.10 R7). */
+  import?: string
   sort?: AssetSortColumn
   direction?: 'asc' | 'desc'
   per_page?: number
@@ -503,6 +505,8 @@ export interface PcUnitParams {
   room?: string
   warranty_expiring?: number
   trashed?: TrashedFilter
+  /** Only the records one import created (Phase 2.10 R7). */
+  import?: string
   sort?: PcSortColumn
   direction?: 'asc' | 'desc'
   per_page?: number

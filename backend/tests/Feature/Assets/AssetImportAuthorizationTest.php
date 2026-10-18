@@ -41,6 +41,8 @@ beforeEach(function (): void {
             ['get', "/api/admin/asset-imports/{$uuid}/locations"],
             ['get', "/api/admin/asset-imports/{$uuid}/catalog"],
             ['get', "/api/admin/asset-imports/{$uuid}/file"],
+            ['get', "/api/admin/asset-imports/{$uuid}/review"],
+            ['post', "/api/admin/asset-imports/{$uuid}/review/acknowledge"],
             ['put', "/api/admin/asset-imports/{$uuid}/source"],
             ['put', "/api/admin/asset-imports/{$uuid}/mapping"],
             ['patch', "/api/admin/asset-imports/{$uuid}/rows/2"],
@@ -124,7 +126,7 @@ it('closes every route under /api/admin/asset-imports with the import policy gat
     $routes = collect(Route::getRoutes()->getRoutes())
         ->filter(fn (RoutingRoute $route): bool => str_starts_with($route->uri(), 'api/admin/asset-imports'));
 
-    expect($routes->count())->toBeGreaterThanOrEqual(19);
+    expect($routes->count())->toBeGreaterThanOrEqual(21);
 
     $routes->each(function (RoutingRoute $route) use ($gate): void {
         expect($route->gatherMiddleware())->toContain($gate);

@@ -1,6 +1,6 @@
 import { Archive, ArrowLeft, ArrowRightLeft, Pencil, RotateCcw, Tag, UserCog } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Badge,
@@ -69,7 +69,27 @@ export default function AssetDetailPage() {
 
   useDocumentMeta({ title: asset ? asset.display_name : 'Asset' })
 
-  const [tab, setTab] = useState<TabValue>('general')
+  // A link may open a given tab (`?tab=warranty` — the post-import review).
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState<TabValue>(() => {
+    const requested = searchParams.get('tab')
+    return (
+      [
+        'general',
+        'specifications',
+        'components',
+        'qr',
+        'maintenance',
+        'transfers',
+        'timeline',
+        'attachments',
+        'warranty',
+        'custodian',
+      ] as string[]
+    ).includes(requested ?? '')
+      ? (requested as TabValue)
+      : 'general'
+  })
   const [editing, setEditing] = useState(false)
   const [dialog, setDialog] = useState<'status' | 'transfer' | 'assign' | 'archive' | null>(null)
   const [error, setError] = useState<string | null>(null)

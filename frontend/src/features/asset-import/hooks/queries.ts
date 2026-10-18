@@ -4,6 +4,7 @@ import {
   fetchImport,
   fetchImports,
   fetchLocations,
+  fetchReview,
   fetchRoomOptions,
   fetchRows,
   type RowQuery,
@@ -18,6 +19,7 @@ export const importKeys = {
   locations: (id: string) => ['asset-imports', 'detail', id, 'locations'] as const,
   catalog: (id: string) => ['asset-imports', 'detail', id, 'catalog'] as const,
   rooms: (search: string) => ['asset-imports', 'rooms', search] as const,
+  review: (id: string) => ['asset-imports', 'detail', id, 'review'] as const,
 }
 
 /** The stages where the server is working and the page should follow it. */
@@ -73,4 +75,9 @@ export function useRoomOptions(search: string, enabled = true) {
     staleTime: 60_000,
     enabled,
   })
+}
+
+/** Where an import's records now appear (Phase 2.10 R7). */
+export function useImportReview(id: string, enabled: boolean) {
+  return useQuery({ queryKey: importKeys.review(id), queryFn: () => fetchReview(id), enabled })
 }

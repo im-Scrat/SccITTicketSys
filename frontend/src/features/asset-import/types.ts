@@ -296,3 +296,41 @@ export interface MappingPayload {
   defaults: Record<string, string | boolean | null>
   date_order: 'dmy' | 'mdy' | null
 }
+
+/* ------------------------------------------------- post-import review (R7) */
+
+export interface ReviewInstance {
+  id: string
+  label: string
+  path: string
+  hint: string
+  archived: boolean
+  edited: boolean
+}
+
+export interface ReviewSlide {
+  kind: string
+  title: string
+  page_label: string
+  explanation: string
+  path: string
+  views: Array<{ key: string; label: string }>
+  instances: ReviewInstance[]
+  instance_total: number
+}
+
+/** GET /admin/asset-imports/{id}/review — where the records now appear. */
+export interface ImportReview {
+  import: {
+    id: string
+    file_name: string
+    outcome: ImportOutcome | null
+    result: ImportResult | null
+  }
+  reviewable: boolean
+  receipt: { reviewed_at: string | null; covers_all: boolean }
+  highlight_values: string[]
+  slides: ReviewSlide[]
+  exclusions: Array<{ kind: string; label: string; reason: string }>
+  selectable_elsewhere: string[]
+}

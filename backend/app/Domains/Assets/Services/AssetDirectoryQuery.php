@@ -105,6 +105,7 @@ class AssetDirectoryQuery
         $this->applySupplier($query, $params['supplier'] ?? null);
         $this->applyTechnician($query, $params['technician'] ?? null);
         $this->applyWarrantyWindow($query, $params['warranty_expiring'] ?? null, 'assets');
+        $this->applyImportScope($query, $params['import'] ?? null, 'created_asset_id', 'assets.id');
         $this->applyLocationScope(
             $query,
             'assets.current_room_id',
@@ -147,6 +148,7 @@ class AssetDirectoryQuery
         $this->applyPcStatus($query, $params['status'] ?? null);
         $this->applyCondition($query, $params['condition'] ?? null, 'pc_units.current_condition');
         $this->applyWarrantyWindow($query, $params['warranty_expiring'] ?? null, 'pc_units');
+        $this->applyImportScope($query, $params['import'] ?? null, 'created_pc_unit_id', 'pc_units.id');
         $this->applyLocationScope(
             $query,
             'pc_units.room_id',
@@ -201,6 +203,27 @@ class AssetDirectoryQuery
         $direction = strtolower((string) ($params['direction'] ?? $default));
 
         return $direction === 'desc' ? 'desc' : 'asc';
+    }
+
+    /**
+     * Only the records one import created (Phase 2.10 R7) — the post-import
+     * review's directory slide, and the "Open the filtered directory" link.
+     * The request admits the parameter only for the import's audience.
+     *
+     * @param  Builder<Asset>|Builder<PcUnit>  $query
+     */
+    private function applyImportScope(Builder $query, mixed $import, string $createdColumn, string $idColumn): void
+    {
+        if (! is_string($import) || $import === '') {
+            return;
+        }
+
+        $query->whereIn($idColumn, fn (QueryBuilder $sub) => $sub->select("asset_import_rows.{$createdColumn}")
+            ->from('asset_import_rows')
+            ->join('asset_imports', 'asset_imports.id', '=', 'asset_import_rows.asset_import_id')
+            ->where('asset_imports.uuid', $import)
+            ->where('asset_import_rows.outcome', 'created')
+            ->whereNotNull("asset_import_rows.{$createdColumn}"));
     }
 
     /**

@@ -426,6 +426,25 @@
   }
 }
 
+/* Phase 2.10 R7 — values from an imported file, marked in the review's
+   preview through the CSS Custom Highlight API (no change to the page's
+   markup). A wash and an underline: a shape as well as a colour, never a
+   warning tone. The legend chip in the preview's bar wears the same mark. */
+::highlight(import-value) {
+  background-color: var(--primary-subtle);
+  color: var(--ink-strong);
+  text-decoration: underline 2px var(--primary);
+  text-underline-offset: 3px;
+}
+.import-mark-key {
+  background-color: var(--primary-subtle);
+  color: var(--ink-strong);
+  text-decoration: underline 2px var(--primary);
+  text-underline-offset: 3px;
+  padding-inline: 0.25rem;
+  border-radius: 0.125rem;
+}
+
 /* Print: QR labels and asset sheets must come out clean on a school printer —
    no app chrome, no dark theme, black on white. */
 @media print {

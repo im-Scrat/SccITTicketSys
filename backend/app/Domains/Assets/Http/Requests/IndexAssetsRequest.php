@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Assets\Http\Requests;
 
 use App\Domains\Assets\Http\Requests\Concerns\ValidatesFilterLists;
+use App\Domains\Assets\Services\AssetImportAccess;
 use App\Enums\AssetStatus;
 use App\Enums\ComponentType;
 use App\Enums\PcCondition;
@@ -47,6 +48,8 @@ class IndexAssetsRequest extends FormRequest
             'building' => ['nullable', 'string', 'uuid'],
             'floor' => ['nullable', 'string', 'uuid'],
             'room' => ['nullable', 'string', 'uuid'],
+            // Phase 2.10 R7 — only the records one import created (post-import review).
+            'import' => ['nullable', 'string', 'uuid'],
             'warranty_expiring' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'trashed' => ['nullable', 'string', Rule::in(['without', 'with', 'only'])],
             'sort' => ['nullable', 'string', Rule::in([
@@ -70,6 +73,11 @@ class IndexAssetsRequest extends FormRequest
     public function after(): array
     {
         return [
+            // The import filter belongs to the import's own audience
+            // (AssetImportAccess), never to a per-user grant of assets.view.
+            fn (Validator $validator) => $this->filled('import') && ! app(AssetImportAccess::class)->canUse($this->user())
+                ? $validator->errors()->add('import', 'That filter is not available.')
+                : null,
             fn (Validator $validator) => $this->validateFilterList($validator, 'status', AssetStatus::values()),
             fn (Validator $validator) => $this->validateFilterList($validator, 'condition', PcCondition::values()),
             fn (Validator $validator) => $this->validateFilterList($validator, 'category', ComponentType::values()),

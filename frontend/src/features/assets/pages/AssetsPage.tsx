@@ -1,6 +1,6 @@
 import { Download, Plus, Upload } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Button,
@@ -67,6 +67,7 @@ export default function AssetsPage() {
         ? Number(params.get('warranty_expiring'))
         : undefined,
       trashed: (params.get('trashed') as AssetParams['trashed']) ?? 'without',
+      import: params.get('import') ?? undefined,
       sort: (params.get('sort') as AssetSortColumn) ?? 'asset_tag',
       direction: (params.get('direction') as 'asc' | 'desc') ?? 'asc',
       page: params.get('page') ? Number(params.get('page')) : 1,
@@ -82,6 +83,7 @@ export default function AssetsPage() {
       building: params.get('building') ?? undefined,
       room: params.get('room') ?? undefined,
       trashed: (params.get('trashed') as PcUnitParams['trashed']) ?? 'without',
+      import: params.get('import') ?? undefined,
       sort: (params.get('pc_sort') as PcSortColumn) ?? 'unit_code',
       direction: (params.get('direction') as 'asc' | 'desc') ?? 'asc',
       page: params.get('page') ? Number(params.get('page')) : 1,
@@ -191,6 +193,22 @@ export default function AssetsPage() {
           )}
         </div>
       </header>
+
+      {params.get('import') && (
+        <Alert tone="info" title="Showing only the records one import created">
+          <span className="flex flex-wrap items-center gap-3">
+            <Link
+              to={`/app/assets/imports/${params.get('import')}`}
+              className="font-semibold text-primary-strong hover:underline"
+            >
+              Open the import
+            </Link>
+            <Button variant="ghost" size="sm" onClick={() => patch({ import: null, page: null })}>
+              Show every record
+            </Button>
+          </span>
+        </Alert>
+      )}
 
       <Tabs
         tabs={[

@@ -8,6 +8,7 @@ import '@fontsource-variable/inter/wght.css'
 import '@fontsource-variable/jetbrains-mono/wght.css'
 import App from '@/App'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { PreviewPortalRoot } from '@/layouts/PreviewPortalRoot'
 import { queryClient } from '@/services/queryClient'
 import './index.css'
 
@@ -32,6 +33,9 @@ createRoot(document.getElementById('root')!).render(
         <BrowserRouter>
           <App />
         </BrowserRouter>
+        {/* Beside the router, not inside it: the post-import review's
+            preview has its own MemoryRouter (Phase 2.10 R7). */}
+        <PreviewPortalRoot />
       </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,

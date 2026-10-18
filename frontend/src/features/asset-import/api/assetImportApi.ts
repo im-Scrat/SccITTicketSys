@@ -5,6 +5,7 @@ import type {
   AssetImportListItem,
   CatalogEntry,
   ImportLocation,
+  ImportReview,
   ImportMode,
   ImportRow,
   MappingPayload,
@@ -217,4 +218,16 @@ export function downloadTemplate(mode: ImportMode): Promise<void> {
 
 export function downloadOriginal(id: string, extension: string): Promise<void> {
   return download(`${base}/${id}/file`, `asset-import-${id}.${extension}`)
+}
+
+export async function fetchReview(id: string): Promise<ImportReview> {
+  const { data } = await api.get<{ data: ImportReview }>(`${base}/${id}/review`)
+  return data.data
+}
+
+export async function acknowledgeReview(id: string): Promise<ImportReview['receipt']> {
+  const { data } = await api.post<{ data: ImportReview['receipt'] }>(
+    `${base}/${id}/review/acknowledge`,
+  )
+  return data.data
 }

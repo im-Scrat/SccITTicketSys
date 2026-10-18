@@ -1241,6 +1241,8 @@ Route::middleware('auth:sanctum')->group(function () {
                 Route::get('/{import}/locations', [AssetImportDecisionController::class, 'locations']);
                 Route::get('/{import}/catalog', [AssetImportDecisionController::class, 'catalog']);
                 Route::get('/{import}/file', [AssetImportController::class, 'file']);
+                // Phase 2.10 R7 — the post-import review (reading it writes nothing).
+                Route::get('/{import}/review', [AssetImportController::class, 'review']);
 
                 Route::middleware(['can:manage,'.AssetImport::class, 'throttle:asset-import-edits'])->group(function () {
                     Route::put('/{import}/source', [AssetImportController::class, 'updateSource']);
@@ -1250,6 +1252,7 @@ Route::middleware('auth:sanctum')->group(function () {
                     Route::put('/{import}/locations/{location}', [AssetImportDecisionController::class, 'updateLocation']);
                     Route::put('/{import}/catalog/{entry}', [AssetImportDecisionController::class, 'updateCatalog']);
                     Route::post('/{import}/cancel', [AssetImportController::class, 'cancel']);
+                    Route::post('/{import}/review/acknowledge', [AssetImportController::class, 'acknowledgeReview']);
                 });
 
                 Route::middleware(['can:manage,'.AssetImport::class, 'throttle:asset-import-commits'])->group(function () {

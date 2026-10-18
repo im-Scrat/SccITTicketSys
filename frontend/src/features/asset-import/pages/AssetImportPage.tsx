@@ -20,6 +20,7 @@ import { ImportPanel } from '../components/ImportPanel'
 import { ImportProgressPanel } from '../components/ImportProgressPanel'
 import { ImportStatusBadge } from '../components/ImportStatusBadge'
 import { MappingStep } from '../components/MappingStep'
+import { ImportReviewSlideshow } from '../components/review/ImportReviewSlideshow'
 import { ReviewStep } from '../components/ReviewStep'
 import { useCancelImport } from '../hooks/mutations'
 import { useAssetImport } from '../hooks/queries'
@@ -79,8 +80,16 @@ export default function AssetImportPage() {
   useEffect(() => {
     if (previous.current && previous.current !== 'finished' && item?.status === 'finished') {
       for (const key of CHANGED_BY_IMPORT) void client.invalidateQueries({ queryKey: key })
+      // The review opens by itself when this save created records (plan §3.5).
+      if ((item.result?.created ?? 0) > 0) {
+        const params = new URLSearchParams(searchParams)
+        params.set('review', '1')
+        setSearchParams(params, { replace: true })
+      }
     }
     previous.current = item?.status
+    // Only the status transition matters here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.status, client])
 
   if (imported.isLoading) return <Skeleton className="h-96 w-full" />
@@ -185,6 +194,9 @@ export default function AssetImportPage() {
       {step === 'confirm' && item.plan && <ConfirmStep item={item} onBack={() => go('fix')} />}
       {step === 'importing' && <ImportProgressPanel item={item} />}
       {step === 'summary' && <ImportOutcomeSummary item={item} />}
+      {item.status === 'finished' && (item.result?.created ?? 0) > 0 && (
+        <ImportReviewSlideshow item={item} />
+      )}
 
       <ConfirmDialog
         open={cancelling}

@@ -1,6 +1,6 @@
 import { Archive, ArrowLeft, Pencil, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Badge,
@@ -57,7 +57,25 @@ export default function PcUnitDetailPage() {
 
   useDocumentMeta({ title: pcUnit ? pcUnit.pc_name : 'PC unit' })
 
-  const [tab, setTab] = useState<TabValue>('general')
+  // A link may open a given tab (`?tab=warranty` — the post-import review).
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState<TabValue>(() => {
+    const requested = searchParams.get('tab')
+    return (
+      [
+        'general',
+        'specifications',
+        'components',
+        'qr',
+        'maintenance',
+        'timeline',
+        'attachments',
+        'warranty',
+      ] as string[]
+    ).includes(requested ?? '')
+      ? (requested as TabValue)
+      : 'general'
+  })
   const [editing, setEditing] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [error, setError] = useState<string | null>(null)

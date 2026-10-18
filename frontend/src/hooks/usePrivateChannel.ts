@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useIsPreview } from '@/contexts/PreviewModeContext'
 import { getEcho } from '@/services/echo'
 
 /**
@@ -40,9 +41,11 @@ export function usePrivateChannel(
   optionsRef.current = options
 
   const events = Object.keys(listeners).sort().join('|')
+  // A page previewed inside the import review opens no socket of its own.
+  const preview = useIsPreview()
 
   useEffect(() => {
-    if (!name) return
+    if (!name || preview) return
 
     let cancelled = false
     let subscribed: string | null = null
@@ -70,5 +73,5 @@ export function usePrivateChannel(
       optionsRef.current.onLiveChange?.(false)
       if (subscribed) void getEcho().then((echo) => echo.leave(subscribed!))
     }
-  }, [name, events])
+  }, [name, events, preview])
 }

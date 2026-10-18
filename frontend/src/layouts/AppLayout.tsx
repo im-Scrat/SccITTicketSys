@@ -1,6 +1,7 @@
 import { ChevronDown, LogOut, UserCog } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { ImportReturnBanner } from '@/features/asset-import/components/review/ImportReturnBanner'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useAuth } from '@/features/auth/hooks/useAuth'
@@ -171,6 +172,7 @@ export function AppLayout() {
         {/* Full-bleed, single column. Individual pages cap their *prose* at
             `.measure`; tables and toolbars use the full width. */}
         <main className="w-full flex-1 px-6 py-10 lg:px-10">
+          <ImportReturnBanner />
           <Outlet />
         </main>
 

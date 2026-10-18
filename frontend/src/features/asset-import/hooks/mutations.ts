@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  acknowledgeReview,
   bulkRows,
   cancelImport,
   confirmImport,
@@ -128,4 +129,13 @@ export function useCancelImport(id: string) {
 export function useRetryImport(id: string) {
   const apply = useApplyImport(id)
   return useMutation({ mutationFn: () => retryImport(id), onSuccess: apply })
+}
+
+/** "I've reviewed" — the receipt only. */
+export function useAcknowledgeReview(id: string) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: () => acknowledgeReview(id),
+    onSuccess: () => void client.invalidateQueries({ queryKey: importKeys.detail(id) }),
+  })
 }

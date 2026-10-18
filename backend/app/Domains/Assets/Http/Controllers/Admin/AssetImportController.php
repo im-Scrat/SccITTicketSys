@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Assets\Http\Controllers\Admin;
 
+use App\Domains\Assets\Actions\AcknowledgeImportReview;
 use App\Domains\Assets\Actions\CancelAssetImport;
 use App\Domains\Assets\Actions\ConfirmAssetImport;
 use App\Domains\Assets\Actions\CreateAssetImport;
@@ -21,6 +22,7 @@ use App\Domains\Assets\Http\Resources\AssetImportResource;
 use App\Domains\Assets\Services\Import\AssetImportValues;
 use App\Domains\Assets\Services\Import\ImportFieldDictionary;
 use App\Domains\Assets\Services\Import\ImportLocationMatcher;
+use App\Domains\Assets\Services\Import\ImportReviewBuilder;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Enums\ActivityAction;
 use App\Enums\AssetImportEntityMode;
@@ -152,6 +154,29 @@ class AssetImportController extends Controller
         $this->authorize('manage', $import);
 
         return new AssetImportResource($action->handle($import, $request->user(), $request)->load(['creator', 'confirmer']));
+    }
+
+    /**
+     * Where this import's records now appear (Phase 2.10 R7). Reading it
+     * writes nothing.
+     */
+    public function review(Request $request, string $import, ImportReviewBuilder $builder): JsonResponse
+    {
+        $import = $this->resolveImport($import);
+        $this->authorize('view', $import);
+
+        return response()->json(['data' => $builder->build($import, $request->user())]);
+    }
+
+    /** "I've reviewed": the receipt, and only the receipt. */
+    public function acknowledgeReview(Request $request, string $import, AcknowledgeImportReview $action, ImportReviewBuilder $builder): JsonResponse
+    {
+        $import = $this->resolveImport($import);
+        $this->authorize('manage', $import);
+
+        $import = $action->handle($import, $request->user());
+
+        return response()->json(['data' => $builder->build($import, $request->user())['receipt']]);
     }
 
     /** The original file, as an attachment, audited on every download. */

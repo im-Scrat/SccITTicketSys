@@ -1,5 +1,6 @@
 import { Download } from 'lucide-react'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Badge,
@@ -31,6 +32,7 @@ const BANNER_TONE = { success: 'success', warning: 'warning', neutral: 'info' } 
 export function ImportOutcomeSummary({ item }: { item: AssetImport }) {
   const retry = useRetryImport(item.id)
   const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
   const failed = useImportRows(item.id, { outcome: 'failed', per_page: 100 })
   const notAttempted = useImportRows(item.id, { outcome: 'not_attempted', per_page: 100 })
   const skipped = useImportRows(item.id, { outcome: 'skipped_duplicate', per_page: 100 })
@@ -134,6 +136,17 @@ export function ImportOutcomeSummary({ item }: { item: AssetImport }) {
       )}
 
       <div className="flex flex-wrap gap-3">
+        {result.created > 0 && (
+          <Button
+            onClick={() => {
+              const params = new URLSearchParams(searchParams)
+              params.set('review', '1')
+              setSearchParams(params, { replace: true })
+            }}
+          >
+            Review updated pages
+          </Button>
+        )}
         <ButtonLink to="/app/assets/list" variant="secondary">
           Open the asset directory
         </ButtonLink>
