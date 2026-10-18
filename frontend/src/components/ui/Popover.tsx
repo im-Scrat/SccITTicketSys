@@ -41,6 +41,9 @@ export function Popover({ value, label, children, align = 'start', className }: 
     // Move focus to the first control inside, so keyboard users land in the panel.
     panel.current?.querySelector<HTMLElement>('input, button, select, a[href]')?.focus()
 
+    // Capture phase, so this runs before an enclosing Modal or Drawer hears the
+    // key (theirs is a bubble-phase listener on the same document): stopping it
+    // here means Escape closes the panel, not the dialog the panel sits in.
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation()
@@ -52,10 +55,10 @@ export function Popover({ value, label, children, align = 'start', className }: 
       if (!wrapper.current?.contains(event.target as Node)) setOpen(false)
     }
 
-    document.addEventListener('keydown', onKey)
+    document.addEventListener('keydown', onKey, true)
     document.addEventListener('pointerdown', onPointer)
     return () => {
-      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('keydown', onKey, true)
       document.removeEventListener('pointerdown', onPointer)
     }
   }, [open])

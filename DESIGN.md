@@ -340,6 +340,14 @@ The vocabulary that ties tickets, assets, maintenance, and the floor plan togeth
 - **Honesty.** No data animation. Unknown is a gap, never zero (before records began). A one-day period is a figure in words, not a one-point line. Every chart offers its figures as a table, and the drawing itself is hidden from assistive technology in favour of that table.
 - **CSP.** Colours are passed as `var(--token)` strings; nothing injects a `<style>` element. The build's CSP scan fails the gate otherwise.
 
+### Overlays (Phase 2.10, SDD DD-90)
+- **One layer, two shapes.** Modal (centred) and Drawer (right-anchored) share one overlay layer: focus moves in on open, Tab wraps inside, the page behind is `inert`, Escape closes only the topmost overlay, and focus returns to the opener. Never build a third overlay by hand — use these.
+- **Floating layers.** Tooltip and the Combobox list are portalled and positioned with fixed coordinates set through the CSSOM; inside a dialog they portal into its root, so they are neither clipped nor inert. Stacking: sticky 20, dropdown 30, modal 50, list 60, tooltip 70.
+- **Tooltips supplement, never carry.** A tooltip repeats or explains; anything it says is also reachable another way. It appears on hover (300 ms intent) and keyboard focus, stays while hovered, and Escape hides it without moving focus.
+- **Truncation is the exception.** Text wraps by default; `TruncatedText` cuts only where alignment matters (cells, legends, chips) and then becomes focusable with the full text in a tooltip.
+- **Progress and steps.** Long work shows a labelled ProgressBar with "N of M" in words; multi-step flows show a Stepper (completed steps carry a check; below `sm` it reads "Step 3 of 6 · …"). A failed or stopped run uses the warning tone, never red.
+- **Announcements.** Results that arrive without a focus change go through a LiveRegion mounted before its first message.
+
 ### Navigation
 - **Primary nav:** left sidebar, `--surface` on `--bg`, collapsible to a 56px icon rail; a drawer on mobile. Items are Body-size with a 16px leading icon.
 - **Active item:** `--primary-subtle` background, `--primary-strong` text/icon, 4px radius. Hover on inactive → `--surface-sunken`. Active state is never color-only — the fill plus weight carry it.
