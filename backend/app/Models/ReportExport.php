@@ -34,6 +34,7 @@ use Illuminate\Support\Carbon;
  * @property ReportExportPurpose $purpose
  * @property array<string, mixed> $filters
  * @property array<string, mixed> $options
+ * @property int|null $narrative_id
  * @property Carbon $as_of
  * @property string $dedupe_key
  * @property string $disk

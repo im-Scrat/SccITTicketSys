@@ -32,6 +32,7 @@ export function ReportActions({ reportType, params, printPath }: ReportActionsPr
     >,
   )
   if (canIncludeRecords) query.set('include_records', '1')
+  if (reportType === 'overall') query.set('include_narrative', '1')
   query.set('autoprint', '1')
 
   return (

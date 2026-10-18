@@ -42,12 +42,18 @@ export default function ReportPrintPage({ reportType, backPath, backLabel }: Rep
     return out
   }, [searchParams, reportType])
   const includeRecords = searchParams.get('include_records') === '1'
+  const includeNarrative = searchParams.get('include_narrative') === '1'
   const autoprint = searchParams.get('autoprint') === '1'
 
   const document = useQuery({
-    queryKey: ['report-print', reportType, params, includeRecords],
+    queryKey: ['report-print', reportType, params, includeRecords, includeNarrative],
     queryFn: () =>
-      fetchPrintDocument({ report_type: reportType, params, include_records: includeRecords }),
+      fetchPrintDocument({
+        report_type: reportType,
+        params,
+        include_records: includeRecords,
+        include_narrative: includeNarrative,
+      }),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     retry: false,

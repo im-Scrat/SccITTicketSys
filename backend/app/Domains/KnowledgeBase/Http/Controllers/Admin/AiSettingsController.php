@@ -87,8 +87,10 @@ class AiSettingsController extends Controller
         $assistantBefore = $this->settings->assistantEnabled();
         $autoRaiseBefore = $this->settings->priorityAutoRaiseEnabled();
         $autoRaiseAfter = array_key_exists('priority_auto_raise', $data) ? (bool) $data['priority_auto_raise'] : $autoRaiseBefore;
+        $narrativesBefore = $this->settings->reportNarrativesEnabled();
+        $narrativesAfter = array_key_exists('report_narratives_enabled', $data) ? (bool) $data['report_narratives_enabled'] : $narrativesBefore;
 
-        DB::transaction(function () use ($row, $active, $embedding, $data, $actor, $autoRaiseAfter): void {
+        DB::transaction(function () use ($row, $active, $embedding, $data, $actor, $autoRaiseAfter, $narrativesAfter): void {
             $row->forceFill([
                 'active_model_id' => $active?->getKey(),
                 'embedding_model_id' => $embedding?->getKey(),
@@ -109,6 +111,11 @@ class AiSettingsController extends Controller
                 ['key' => 'ai.priority_auto_raise'],
                 ['group' => 'ai', 'label' => 'AI May Raise Ticket Priority', 'value' => $autoRaiseAfter, 'type' => 'boolean', 'is_public' => false, 'updated_by' => $actor->getKey()],
             );
+
+            SystemSetting::query()->updateOrCreate(
+                ['key' => 'ai.report_narratives_enabled'],
+                ['group' => 'ai', 'label' => 'AI Interpretations of Reports', 'value' => $narrativesAfter, 'type' => 'boolean', 'is_public' => false, 'updated_by' => $actor->getKey()],
+            );
         });
 
         $this->audit->activity(
@@ -116,8 +123,8 @@ class AiSettingsController extends Controller
             actor: $actor,
             subject: $row,
             properties: [
-                'before' => [...$before, 'assistant_enabled' => $assistantBefore, 'priority_auto_raise' => $autoRaiseBefore],
-                'after' => [...$row->only($tracked), 'assistant_enabled' => (bool) $data['assistant_enabled'], 'priority_auto_raise' => $autoRaiseAfter],
+                'before' => [...$before, 'assistant_enabled' => $assistantBefore, 'priority_auto_raise' => $autoRaiseBefore, 'report_narratives_enabled' => $narrativesBefore],
+                'after' => [...$row->only($tracked), 'assistant_enabled' => (bool) $data['assistant_enabled'], 'priority_auto_raise' => $autoRaiseAfter, 'report_narratives_enabled' => $narrativesAfter],
             ],
             request: $request,
             module: 'ai',
@@ -254,6 +261,7 @@ class AiSettingsController extends Controller
                 'auto_generate_articles' => (bool) $row?->auto_generate_articles,
                 'assistant_enabled' => $this->settings->assistantEnabled(),
                 'priority_auto_raise' => $this->settings->priorityAutoRaiseEnabled(),
+                'report_narratives_enabled' => $this->settings->reportNarrativesEnabled(),
             ],
             'models' => AiModel::query()->orderBy('modality')->orderBy('name')->get()->map(fn (AiModel $model): array => [
                 'id' => $model->uuid,
@@ -280,6 +288,7 @@ class AiSettingsController extends Controller
                 'Ticket title and description, with names, email addresses and phone numbers removed.',
                 'The equipment specification and recent maintenance and ticket history of the machine concerned, and the room it is in (name, type, building, and any minimum priority set for it).',
                 'Published knowledge-article text, and questions asked of the assistant (with personal data removed).',
+                'When AI interpretations of reports are on and an administrator asks for one: aggregated report figures with equipment and room codes — no names, ticket text, notes or costs.',
             ],
             'data_never_sent' => [
                 'User names, email addresses, phone numbers or credentials.',

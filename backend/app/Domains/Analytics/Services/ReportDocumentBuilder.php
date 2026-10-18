@@ -6,8 +6,11 @@ namespace App\Domains\Analytics\Services;
 
 use App\Domains\Analytics\DTOs\OverallReportFilters;
 use App\Domains\Analytics\DTOs\ReportDocument;
+use App\Domains\Analytics\DTOs\ReportDocumentSection;
 use App\Domains\Analytics\DTOs\ReportFilters;
 use App\Domains\Analytics\DTOs\ReportPeriod;
+use App\Domains\Analytics\DTOs\ReportTable;
+use App\Domains\KnowledgeBase\Services\ReportNarrativeGenerator;
 use App\Enums\ComponentType;
 use App\Enums\MaintenanceClass;
 use App\Enums\ReportContentProfile;
@@ -36,6 +39,7 @@ final class ReportDocumentBuilder
         private readonly ReportsAccess $access,
         private readonly TicketOverviewReport $ticketOverview,
         private readonly OverallReportService $overall,
+        private readonly ReportNarrativeGenerator $narratives,
     ) {}
 
     /**
@@ -71,6 +75,12 @@ final class ReportDocumentBuilder
                 $options->profile === ReportContentProfile::Identifiers,
             );
             $recordsIncluded = true;
+        }
+
+        $narrativeId = null;
+        if ($options->includeNarrative && $this->access->canViewInsights($actor)) {
+            [$insights, $narrativeId] = $this->insightsSection($filters);
+            $sections[] = $insights;
         }
 
         $comparison = $report->comparison !== null && ! $report->hasStatusFilter()
@@ -115,7 +125,48 @@ final class ReportDocumentBuilder
             ],
             profile: $options->profile,
             recordsIncluded: $recordsIncluded,
+            narrativeId: $narrativeId,
         );
+    }
+
+    /**
+     * The AI insights section of a document (Phase 2.10 R5, SDD DD-95): the
+     * recorded facts per question, then — only if an interpretation was
+     * completed for exactly this data — its findings, labelled advisory.
+     * Otherwise the section says none was generated for exactly this data;
+     * an interpretation of other figures is never printed beside these.
+     *
+     * @return array{0: ReportDocumentSection, 1: int|null}
+     */
+    private function insightsSection(OverallReportFilters $filters): array
+    {
+        $packet = $this->narratives->packet($filters);
+        $narrative = $this->narratives->completedFor($filters, $packet);
+        $data = $packet->toArray();
+
+        $facts = [];
+        foreach ($data['questions'] as $key => $q) {
+            foreach ($q['facts'] as $fact) {
+                $facts[] = [strtoupper((string) $key), (string) $fact['label'], is_int($fact['value']) || is_float($fact['value']) ? $fact['value'] : (string) $fact['value'], (int) $fact['record_count']];
+            }
+            if (! $q['sufficient']) {
+                $facts[] = [strtoupper((string) $key), 'Not enough data: '.(string) $q['reason'], '—', 0];
+            }
+        }
+
+        $tables = [ReportTable::make('facts', 'Recorded facts (from the records)', [['q', 'Question', ReportTable::TYPE_CODE], ['fact', 'Fact'], ['value', 'Value', ReportTable::TYPE_NUMBER], ['records', 'Records', ReportTable::TYPE_NUMBER]], $facts)];
+        $notes = ['Recorded facts come straight from the records. The AI interpretation is advisory and may be wrong; confidence is the model\'s own rating, not a probability.'];
+
+        if ($narrative !== null) {
+            $kinds = ['observation' => 'Observation', 'possible_explanation' => 'Possible explanation', 'recommendation' => 'Suggested action'];
+            $tables[] = ReportTable::make('interpretation', 'AI interpretation (advisory)', [['q', 'Question', ReportTable::TYPE_CODE], ['kind', 'Kind'], ['text', 'Statement'], ['confidence', 'Confidence']],
+                array_map(static fn (array $f): array => [strtoupper((string) $f['question']), $kinds[$f['kind']] ?? (string) $f['kind'], (string) $f['text'], (string) $f['confidence']], $narrative->findings ?? []));
+            $notes[] = sprintf('Generated %s by %s.%s', $narrative->generated_at?->setTimezone(SchoolClock::TIMEZONE)->format('j M Y, H:i') ?? '', (string) $narrative->model, $narrative->withheld_count > 0 ? sprintf(' %d statements were withheld because they did not meet the evidence rules.', $narrative->withheld_count) : '');
+        } else {
+            $notes = ['No AI interpretation was generated for exactly this data, so none is included.', ...$notes];
+        }
+
+        return [new ReportDocumentSection(key: 'insights', title: 'AI insights', intro: 'Questions about replacements, problem locations, failing parts, performance issues and preventive care.', tables: $tables, notes: $notes), $narrative?->id];
     }
 
     private function equipmentLabel(OverallReportFilters $filters): string

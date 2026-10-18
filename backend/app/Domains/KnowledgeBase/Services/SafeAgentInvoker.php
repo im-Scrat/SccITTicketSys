@@ -19,6 +19,7 @@ use Laravel\Ai\Exceptions\RateLimitedException;
 use Laravel\Ai\Gateway\Concerns\CreatesClient;
 use Laravel\Ai\Gateway\Concerns\DecodesStructuredOutput;
 use Laravel\Ai\Responses\AgentResponse;
+use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use Throwable;
 
@@ -119,6 +120,16 @@ class SafeAgentInvoker
             return [$response, (int) round((microtime(true) - $startedAt) * 1000)];
         });
 
+        // Phase 2.10 R5 — an answer cut off at the token limit, or withheld by the
+        // provider's safety filter, is not an answer; neither retries well.
+        $finish = $response->steps->last()?->finishReason;
+        if ($finish === FinishReason::Length) {
+            throw AiProviderException::truncated();
+        }
+        if ($finish === FinishReason::ContentFilter) {
+            throw AiProviderException::contentFiltered();
+        }
+
         $structured = $this->extractStructuredOutput($agent, $response);
 
         Log::info('ai.invocation', [
@@ -139,6 +150,7 @@ class SafeAgentInvoker
             promptTokens: $response->usage->inputTokens,
             completionTokens: $response->usage->outputTokens,
             latencyMs: $latencyMs,
+            finishReason: $finish?->value,
         );
     }
 

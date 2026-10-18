@@ -49,6 +49,8 @@ class SystemSettingSeeder extends Seeder
             // Phase 2.9 (D-B): off until AI recommendations have been reviewed
             // against real tickets; recommendations are recorded either way.
             ['ai', 'ai.priority_auto_raise', 'AI May Raise Ticket Priority', false, 'boolean', false, false],
+            // Phase 2.10 R5: off until an administrator has read what is sent.
+            ['ai', 'ai.report_narratives_enabled', 'AI Interpretations of Reports', false, 'boolean', false, false],
             ['system', 'system.timezone', 'System Timezone', 'Asia/Manila', 'string', false, true],
             ['system', 'system.date_format', 'Date Format', 'Y-m-d', 'string', true, false],
         ];

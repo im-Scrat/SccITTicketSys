@@ -38,6 +38,7 @@ export function ExportDialog({
   const [paper, setPaper] = useState<'a4' | 'letter'>('a4')
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
   const [includeRecords, setIncludeRecords] = useState(false)
+  const [includeNarrative, setIncludeNarrative] = useState(false)
   const [exportId, setExportId] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const downloaded = useRef<string | null>(null)
@@ -81,6 +82,7 @@ export function ExportDialog({
         params,
         format,
         include_records: includeRecords,
+        ...(reportType === 'overall' ? { include_narrative: includeNarrative } : {}),
         ...(paged ? { paper, orientation } : {}),
       },
       { onSuccess: (created) => setExportId(created.id) },
@@ -187,6 +189,20 @@ export function ExportDialog({
               <p className="text-sm text-muted">
                 Ticket records are not included: exporting them needs the tickets export permission.
               </p>
+            )}
+
+            {reportType === 'overall' && (
+              <div className="flex flex-col gap-1">
+                <Checkbox
+                  label="Include the AI interpretation"
+                  checked={includeNarrative}
+                  onChange={(event) => setIncludeNarrative(event.target.checked)}
+                />
+                <p className="pl-8 text-xs text-muted">
+                  Only if one was generated for exactly these figures; otherwise the document says
+                  so. It is labelled advisory, beside the recorded facts.
+                </p>
+              </div>
             )}
 
             {requestError && <Alert tone="error">{requestError}</Alert>}

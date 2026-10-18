@@ -28,5 +28,7 @@ final readonly class AiInvocationResult
         public int $promptTokens,
         public int $completionTokens,
         public int $latencyMs,
+        /** How the provider ended the answer (`stop`, …), when it said. */
+        public ?string $finishReason = null,
     ) {}
 }

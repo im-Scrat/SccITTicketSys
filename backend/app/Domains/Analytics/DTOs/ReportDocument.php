@@ -45,6 +45,8 @@ final readonly class ReportDocument
         public array $limitations,
         public ReportContentProfile $profile,
         public bool $recordsIncluded,
+        /** The AI interpretation this document carries, if any (Phase 2.10 R5). */
+        public ?int $narrativeId = null,
     ) {}
 
     /**
@@ -118,7 +120,7 @@ final readonly class ReportDocument
             $this->type, $this->title, $this->organisation, $this->periodLabel, $this->comparisonLabel,
             $this->timezoneLabel, $this->asOfLabel, $this->generatedLabel, $this->filters, $this->summary,
             $this->summaryLabel, $this->caveats, $sections, $this->definitions, $this->limitations,
-            $this->profile, $this->recordsIncluded,
+            $this->profile, $this->recordsIncluded, $this->narrativeId,
         );
     }
 

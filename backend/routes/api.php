@@ -6,6 +6,7 @@ use App\Domains\Administration\Http\Controllers\NotificationPreferenceController
 use App\Domains\Analytics\Http\Controllers\Admin\OverallReportController;
 use App\Domains\Analytics\Http\Controllers\Admin\ReportEmailController;
 use App\Domains\Analytics\Http\Controllers\Admin\ReportExportController;
+use App\Domains\Analytics\Http\Controllers\Admin\ReportNarrativeController;
 use App\Domains\Analytics\Http\Controllers\Admin\ReportOptionsController;
 use App\Domains\Analytics\Http\Controllers\Admin\ReportPrintController;
 use App\Domains\Analytics\Http\Controllers\Admin\TechnicianMonitoringController;
@@ -1179,7 +1180,11 @@ Route::middleware('auth:sanctum')->group(function () {
                     Route::get('/overall', [OverallReportController::class, 'section']);
                     Route::get('/overall/records', [OverallReportController::class, 'records']);
                     Route::get('/overall/equipment-options', [OverallReportController::class, 'equipmentOptions']);
+                    // Phase 2.10 R5 — AI insights: the facts always, the interpretation on demand.
+                    Route::get('/narratives/current', [ReportNarrativeController::class, 'current']);
                 });
+
+                Route::post('/narratives', [ReportNarrativeController::class, 'generate'])->middleware('throttle:report-narratives');
 
                 /*
                  * Phase 2.10 R3 — documents: export, email and print (SDD

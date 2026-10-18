@@ -7,6 +7,7 @@ import { useAdminDashboardChannel } from '@/features/dashboard/hooks/useAdminDas
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { cn } from '@/lib/cn'
 import { ReportActions } from '../components/export/ReportActions'
+import { InsightsSection } from '../components/overall/InsightsSection'
 import { OverallExtraFilters } from '../components/overall/OverallExtraFilters'
 import { SectionView } from '../components/overall/SectionView'
 import { ReportFilterToolbar } from '../components/ReportFilterToolbar'
@@ -15,7 +16,7 @@ import { REPORT_PARAM_KEYS, useOverallFilters } from '../hooks/useReportFilters'
 import { useReportsAccess } from '../hooks/useReportsAccess'
 import type { OverallSectionKey, ReportParams } from '../types'
 
-const SECTION_LABELS: Record<OverallSectionKey, string> = {
+const SECTION_LABELS: Record<Exclude<OverallSectionKey, 'insights'>, string> = {
   overview: 'Overview',
   tickets: 'Tickets',
   equipment: 'Equipment',
@@ -52,14 +53,24 @@ export default function OverallReportsPage() {
 
   const options = useReportOptions(canView)
   const overviewMeta = useTicketOverview(reportParams, canView && hasPermission('tickets.view'))
-  const current = useOverallSection(section, params, canView)
+  // AI insights draw on tickets, equipment and repairs (the server checks the same).
+  const canViewInsights =
+    canView &&
+    hasPermission('tickets.view') &&
+    hasPermission('assets.view') &&
+    hasPermission('maintenance.view')
+  const isInsights = section === 'insights'
+  const current = useOverallSection(section, params, canView && !isInsights)
   const data = current.data
-  const sections =
+  const baseSections: Array<{ key: OverallSectionKey; label: string }> =
     data?.meta.sections ??
-    (Object.keys(SECTION_LABELS) as OverallSectionKey[]).map((key) => ({
+    (Object.keys(SECTION_LABELS) as Array<keyof typeof SECTION_LABELS>).map((key) => ({
       key,
       label: SECTION_LABELS[key],
     }))
+  const sections = canViewInsights
+    ? [...baseSections, { key: 'insights' as const, label: 'AI insights' }]
+    : baseSections
 
   // A change on the live channel after the figures loaded: say so, never refetch
   // under the reader. A fresh load (refresh, new filters) clears the notice.
@@ -162,7 +173,9 @@ export default function OverallReportsPage() {
             </ul>
           </nav>
 
-          {validation ? (
+          {isInsights ? (
+            <InsightsSection params={params} />
+          ) : validation ? (
             <Alert tone="warning" title="These filters can't be shown">
               <span className="flex flex-col items-start gap-3">
                 {validation}

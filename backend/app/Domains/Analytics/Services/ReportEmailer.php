@@ -137,7 +137,7 @@ final class ReportEmailer
      *
      * @param  list<string>  $recipients
      * @param  array<string, mixed>  $parameters
-     * @param  array{paper: string, orientation: string, include_records: bool}  $options
+     * @param  array{paper: string, orientation: string, include_records: bool, include_narrative?: bool}  $options
      *
      * @throws ValidationException when the daily cap would be exceeded
      */

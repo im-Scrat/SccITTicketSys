@@ -251,6 +251,8 @@ enum ActivityAction: string
     case ReportDownloaded = 'report_downloaded';
     case ReportEmailRequested = 'report_email_requested';
     case ReportPrinted = 'report_printed';
+    // Phase 2.10 R5 — an AI interpretation of a report: outcome and counts, never its text.
+    case ReportNarrativeGenerated = 'report_narrative_generated';
 
     /** Human-readable label for audit-timeline rendering. */
     public function label(): string
@@ -384,6 +386,7 @@ enum ActivityAction: string
             self::ReportDownloaded => 'Report downloaded',
             self::ReportEmailRequested => 'Report email requested',
             self::ReportPrinted => 'Report printed',
+            self::ReportNarrativeGenerated => 'AI report interpretation generated',
         };
     }
 }

@@ -230,6 +230,8 @@ export interface DocumentOptions {
   paper?: 'a4' | 'letter'
   orientation?: 'portrait' | 'landscape'
   include_records?: boolean
+  /** Overall report: the AI interpretation, only if one exists for exactly these figures. */
+  include_narrative?: boolean
 }
 
 export interface EmailDelivery {
@@ -330,7 +332,8 @@ export interface ReportDocument {
 
 /* ------------------------------------------------------------ overall reports */
 
-export type OverallSectionKey = 'overview' | 'tickets' | 'equipment' | 'repairs' | 'locations'
+export type OverallSectionKey =
+  'overview' | 'tickets' | 'equipment' | 'repairs' | 'locations' | 'insights'
 
 export interface SectionKpi {
   label: string
@@ -422,4 +425,55 @@ export interface OverallParams extends ReportParams {
   maintenance_class?: string
   component_type?: string
   location_group?: string
+}
+
+/* -------------------------------------------------------------- AI insights */
+
+export interface NarrativeFact {
+  key: string
+  question: string
+  label: string
+  value: number | string
+  unit: string | null
+  basis: string
+  record_count: number
+}
+
+export interface NarrativeFinding {
+  question: string
+  kind: 'observation' | 'possible_explanation' | 'recommendation'
+  text: string
+  cited_fact_keys: string[]
+  confidence: 'low' | 'medium' | 'high'
+}
+
+export interface ReportNarrative {
+  id: string
+  status: 'pending' | 'completed' | 'insufficient' | 'unavailable' | 'failed' | 'disabled'
+  status_label: string
+  model: string | null
+  coverage: Record<string, string> | null
+  findings: NarrativeFinding[]
+  limitations: string[]
+  withheld_count: number
+  error_code: string | null
+  generated_at: string | null
+  created_at: string | null
+}
+
+/** GET /admin/reports/narratives/current — the facts always, the interpretation if any. */
+export interface NarrativeState {
+  enabled: boolean
+  configured: boolean
+  current: boolean
+  changed_fact_keys: string[]
+  facts: {
+    scope: string
+    questions: Record<
+      string,
+      { question: string; sufficient: boolean; reason: string | null; facts: NarrativeFact[] }
+    >
+    limitations: string[]
+  }
+  narrative: ReportNarrative | null
 }

@@ -62,6 +62,7 @@ abstract class ReportDocumentRequest extends ReportFilterRequest
             'paper' => ['nullable', 'string', Rule::in(['a4', 'letter'])],
             'orientation' => ['nullable', 'string', Rule::in(['portrait', 'landscape'])],
             'include_records' => ['sometimes', 'boolean'],
+            'include_narrative' => ['sometimes', 'boolean'],
             'equipment' => ['nullable', 'string', 'regex:/^(pc|asset):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/'],
             'maintenance_class' => ['nullable', 'string', 'max:64', 'regex:/^(corrective|preventive|upgrade)(,(corrective|preventive|upgrade))*$/'],
             'component_type' => ['nullable', 'string', Rule::in(ComponentType::values())],
@@ -97,7 +98,7 @@ abstract class ReportDocumentRequest extends ReportFilterRequest
     }
 
     /**
-     * @return array{paper: string, orientation: string, include_records: bool}
+     * @return array{paper: string, orientation: string, include_records: bool, include_narrative: bool}
      */
     public function documentOptions(): array
     {
@@ -105,6 +106,7 @@ abstract class ReportDocumentRequest extends ReportFilterRequest
             'paper' => (string) ($this->validated('paper') ?? 'a4'),
             'orientation' => (string) ($this->validated('orientation') ?? 'portrait'),
             'include_records' => $this->boolean('include_records'),
+            'include_narrative' => $this->boolean('include_narrative'),
         ];
     }
 
@@ -114,6 +116,7 @@ abstract class ReportDocumentRequest extends ReportFilterRequest
             profile: $profile,
             includeRecords: $this->boolean('include_records'),
             recordLimit: (int) config('reports.exports.record_limit', 10000),
+            includeNarrative: $this->boolean('include_narrative'),
         );
     }
 }

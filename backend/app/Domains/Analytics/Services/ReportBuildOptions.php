@@ -18,5 +18,7 @@ final readonly class ReportBuildOptions
         public ReportContentProfile $profile = ReportContentProfile::Full,
         public bool $includeRecords = false,
         public int $recordLimit = 10000,
+        /** Overall report only: add the AI interpretation, if one exists for exactly this data. */
+        public bool $includeNarrative = false,
     ) {}
 }

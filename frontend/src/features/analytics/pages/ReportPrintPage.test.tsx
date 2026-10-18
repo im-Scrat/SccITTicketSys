@@ -123,6 +123,7 @@ describe('ReportPrintPage', () => {
       report_type: 'ticket_overview',
       params: { period: 'month', room_type: 'laboratory' },
       include_records: false,
+      include_narrative: false,
     })
   })
 

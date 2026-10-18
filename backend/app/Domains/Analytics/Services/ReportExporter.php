@@ -62,7 +62,7 @@ final class ReportExporter
      * Record a document and queue it.
      *
      * @param  array<string, mixed>  $parameters  validated report parameters
-     * @param  array{paper: string, orientation: string, include_records: bool}  $options
+     * @param  array{paper: string, orientation: string, include_records: bool, include_narrative?: bool}  $options
      */
     public function request(
         ReportType $type,
@@ -171,6 +171,7 @@ final class ReportExporter
             $truncated = array_filter($rendered->tables(), static fn (ReportTable $t): bool => $t->truncated) !== [];
 
             $export->forceFill([
+                'narrative_id' => $document->narrativeId,
                 'status' => ReportExportStatus::Completed,
                 'path' => $path,
                 'filename' => $filename,
@@ -253,6 +254,7 @@ final class ReportExporter
                 profile: $export->profile,
                 includeRecords: (bool) ($export->options['include_records'] ?? false),
                 recordLimit: (int) config('reports.exports.record_limit', 10000),
+                includeNarrative: (bool) ($export->options['include_narrative'] ?? false),
             ),
             $export->filters,
         );

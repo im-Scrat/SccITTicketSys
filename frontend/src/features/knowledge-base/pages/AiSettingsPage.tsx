@@ -248,6 +248,15 @@ function SettingsForm({ payload, saved, onSavedChange: setSaved }: SettingsFormP
           ticket either way, so you can review them before switching this on.
         </p>
         <Checkbox
+          label="AI interpretations of reports (on request, by administrators)"
+          checked={values.report_narratives_enabled}
+          onChange={(event) => set('report_narratives_enabled', event.target.checked)}
+        />
+        <p className="-mt-1 pl-9 text-sm text-muted">
+          Sends aggregated report figures with equipment and room codes — no names, ticket text,
+          notes or costs. Every statement is checked against the figures before it is shown.
+        </p>
+        <Checkbox
           label="Predictive maintenance findings"
           checked={values.enable_predictions}
           onChange={(event) => set('enable_predictions', event.target.checked)}

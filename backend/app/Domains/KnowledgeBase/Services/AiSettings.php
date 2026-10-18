@@ -155,4 +155,17 @@ class AiSettings
 
         return $value !== null && filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
+
+    /**
+     * Phase 2.10 R5 — whether administrators may ask for AI interpretations of
+     * reports (`system_settings.ai.report_narratives_enabled`, seeded false).
+     * Absent means **off**, like the priority switch: it sends report figures
+     * to the provider, so it must be switched on deliberately.
+     */
+    public function reportNarrativesEnabled(): bool
+    {
+        $value = SystemSetting::query()->where('key', 'ai.report_narratives_enabled')->first()?->value;
+
+        return $value !== null && filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
 }

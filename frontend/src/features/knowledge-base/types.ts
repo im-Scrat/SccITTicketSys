@@ -18,6 +18,8 @@ export interface AiSettingsValues {
   auto_generate_articles: boolean
   assistant_enabled: boolean
   priority_auto_raise: boolean
+  /** Phase 2.10 R5 — AI interpretations of reports. */
+  report_narratives_enabled: boolean
 }
 
 export interface AiSettingsPayload {

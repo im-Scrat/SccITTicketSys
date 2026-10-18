@@ -304,3 +304,10 @@ set `REPORT_EMAIL_DELIVERS_EXTERNALLY=true` and, if the school's addresses are
 on a domain other than the sending one, `REPORT_EMAIL_INTERNAL_DOMAINS`
 (comma-separated). Every other report setting has a default in
 `backend/config/reports.php`.
+
+**AI interpretations of reports (Phase 2.10 R5)** are **off** until an
+administrator ticks "AI interpretations of reports" in AI settings. With it on,
+asking for one sends aggregated figures with equipment and room codes (no
+names, ticket text, notes or costs) to the configured model, on the `ai` queue,
+at most 12 requests an hour per administrator. A period without enough
+recorded data never calls the provider — the page says "Not enough data".

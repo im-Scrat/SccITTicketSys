@@ -299,6 +299,11 @@ class AppServiceProvider extends ServiceProvider
             (int) config('security.rate_limits.report_exports_per_hour', 60),
         )->by('report-exports:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
 
+        // Phase 2.10 R5 — AI report interpretations, on top of the shared AI governor.
+        RateLimiter::for('report-narratives', fn (Request $request): Limit => Limit::perHour(
+            (int) config('security.rate_limits.report_narratives_per_hour', 12),
+        )->by('report-narratives:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
         RateLimiter::for('report-emails', fn (Request $request): Limit => Limit::perHour(
             (int) config('security.rate_limits.report_emails_per_hour', 10),
         )->by('report-emails:user:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));

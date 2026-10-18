@@ -81,6 +81,15 @@ final class ReportsAccess
         return $this->canView($actor) && $actor->hasPermissionTo('assets.view');
     }
 
+    /**
+     * AI insights (Phase 2.10 R5): their facts come from tickets, equipment and
+     * repairs, so the viewer needs all three modules as well as reports.
+     */
+    public function canViewInsights(User $actor): bool
+    {
+        return $this->canViewTickets($actor) && $this->canViewAssets($actor) && $this->canViewMaintenance($actor);
+    }
+
     /** Repair, replacement and preventive-care figures (Overall Reports): `maintenance.view`. */
     public function canViewMaintenance(User $actor): bool
     {

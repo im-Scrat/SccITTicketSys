@@ -6,6 +6,7 @@ namespace App\Domains\KnowledgeBase\DTOs;
 
 use App\Domains\KnowledgeBase\Agents\PcFailurePredictionAgent;
 use App\Domains\KnowledgeBase\Exceptions\AiProviderException;
+use App\Domains\KnowledgeBase\Services\AdvisoryLanguage;
 use App\Enums\PredictionRiskLevel;
 
 /**
@@ -28,8 +29,7 @@ final readonly class PcPredictionResult
      * fail", "could fail" and "under certain loads" pass; "will fail",
      * "certain to", "certainly", "guaranteed" and "inevitable" do not.
      */
-    private const OVERCLAIM = '/\b(guarantee[ds]?|inevitabl[ey]|definitely|definite\s+failure|certainly|certain\s+(to|that)|is\s+certain|will\s+(certainly\s+|definitely\s+)?fail)\b/i';
-
+    /** @see AdvisoryLanguage::OVERCLAIM — one definition for every advisory text (Phase 2.10 R5). */
     private function __construct(
         public bool $sufficientEvidence,
         public ?string $predictedIssue,
@@ -73,7 +73,7 @@ final readonly class PcPredictionResult
         }
 
         foreach ([$issue, $explanation, $recommendation] as $text) {
-            if (preg_match(self::OVERCLAIM, $text) === 1) {
+            if (AdvisoryLanguage::overclaims($text)) {
                 throw AiProviderException::malformedOutput();
             }
         }

@@ -34,6 +34,8 @@ class UpdateAiSettingsRequest extends FormRequest
             // Phase 2.9 — optional so an older client that never sends it
             // leaves the switch where it is.
             'priority_auto_raise' => ['sometimes', 'boolean'],
+            // Phase 2.10 R5 — absent leaves the switch where it is.
+            'report_narratives_enabled' => ['sometimes', 'boolean'],
         ];
     }
 }

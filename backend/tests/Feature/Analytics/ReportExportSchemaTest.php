@@ -7,6 +7,7 @@ use App\Enums\ReportEmailDeliveryStatus;
 use App\Enums\ReportExportFormat;
 use App\Enums\ReportExportPurpose;
 use App\Enums\ReportExportStatus;
+use App\Enums\ReportNarrativeStatus;
 use App\Enums\ReportType;
 use App\Support\Attachments\AttachmentSecurity;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ dataset('report checks', [
     'profile' => ['report_exports', 'report_exports_profile_check', ReportContentProfile::values()],
     'purpose' => ['report_exports', 'report_exports_purpose_check', ReportExportPurpose::values()],
     'delivery status' => ['report_email_deliveries', 'report_email_deliveries_status_check', ReportEmailDeliveryStatus::values()],
+    'narrative status' => ['report_narratives', 'report_narratives_status_check', ReportNarrativeStatus::values()],
 ]);
 
 it('keeps the CHECK list equal to the enum', function (string $table, string $constraint, array $values): void {

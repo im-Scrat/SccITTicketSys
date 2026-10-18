@@ -95,6 +95,18 @@ class AiProviderException extends RuntimeException
         return self::capacityLimit('The AI service is busy right now. Please try again shortly.', null);
     }
 
+    /** Phase 2.10 R5 — the answer hit the token limit; a retry would be cut off the same way. */
+    public static function truncated(): self
+    {
+        return new self('The AI answer was cut off before it finished.');
+    }
+
+    /** Phase 2.10 R5 — the provider's safety filter withheld the answer. */
+    public static function contentFiltered(): self
+    {
+        return new self('The AI provider declined to answer this request.');
+    }
+
     public static function malformedOutput(): self
     {
         return new self('The AI provider returned an empty or malformed response.');
