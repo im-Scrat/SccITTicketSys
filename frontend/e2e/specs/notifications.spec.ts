@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { apiFetch, apiLogin, goto, json, settle, signIn, signOut } from '../fixtures/app'
+import { apiFetch, apiJson, apiLogin, goto, settle, signIn, signOut } from '../fixtures/app'
 import { manifest } from '../fixtures/manifest'
 
 /**
@@ -53,15 +53,20 @@ async function arrangeConversation(page: Page): Promise<Arranged> {
 
   // 1. The teacher reports a fault. Their own report notifies nobody.
   await apiLogin(page, 'teacher')
-  const created = await apiFetch(page, '/api/tickets', 'POST', {
-    title: 'Projector in the verification lab will not power on',
-    description:
-      'The projector shows no light and the power indicator stays dark after a full reset.',
-    category: 'hardware',
-  })
-  expect(created.status, `creating the ticket: ${created.body}`).toBe(201)
+  const created = await apiJson<{ data: { id: string; ticket_number: string } }>(
+    page,
+    '/api/tickets',
+    'POST',
+    {
+      title: 'Projector in the verification lab will not power on',
+      description:
+        'The projector shows no light and the power indicator stays dark after a full reset.',
+      category: 'hardware',
+    },
+  )
+  expect(created.status, 'creating the ticket').toBe(201)
 
-  const ticket = json<{ data: { id: string; ticket_number: string } }>(created).data
+  const ticket = created.data.data
 
   // 2. The administrator assigns it — T1a to the technician, T2 to the reporter.
   await apiLogin(page, 'administrator')
@@ -153,7 +158,7 @@ test.describe('notification centre — administrator', () => {
     }
     await expect(bell(page)).toHaveAccessibleName('Notifications', { timeout: 20_000 })
     expect(
-      json<{ unread: number }>(await apiFetch(page, '/api/notifications/unread-count')).unread,
+      (await apiJson<{ unread: number }>(page, '/api/notifications/unread-count')).data.unread,
     ).toBe(0)
 
     // A preference change survives a reload, because it was actually saved.
@@ -289,10 +294,11 @@ test.describe('notification centre — teacher', () => {
 
     // Asserted against the API as well as the surface: a UI that merely hid the
     // third row would look identical here.
-    const own = json<{ data: { title: string; action_url: string | null }[] }>(
-      await apiFetch(page, `/api/notifications?type=ticket_update`),
+    const own = await apiJson<{ data: { title: string; action_url: string | null }[] }>(
+      page,
+      '/api/notifications?type=ticket_update',
     )
-    const aboutThisTicket = own.data.filter((row) => row.title.includes(ticketNumber))
+    const aboutThisTicket = own.data.data.filter((row) => row.title.includes(ticketNumber))
     expect(aboutThisTicket.filter((row) => row.title.startsWith('New comment'))).toHaveLength(2)
 
     // Every destination they were given is inside the application they can reach.
@@ -307,20 +313,16 @@ test.describe('notification centre — teacher', () => {
     // Take a uuid that genuinely belongs to the technician.
     await goto(page, '/sign-in')
     await apiLogin(page, 'technician')
-    const technicianInbox = json<{ data: { id: string }[] }>(
-      await apiFetch(page, '/api/notifications'),
-    )
-    const foreign = technicianInbox.data[0]?.id
+    const technicianInbox = await apiJson<{ data: { id: string }[] }>(page, '/api/notifications')
+    const foreign = technicianInbox.data.data[0]?.id
     expect(foreign, 'the technician should have a notification to borrow').toBeTruthy()
     await signOut(page)
 
     await signIn(page, 'teacher')
 
     // Absent from the list…
-    const teacherInbox = json<{ data: { id: string }[] }>(
-      await apiFetch(page, '/api/notifications'),
-    )
-    expect(teacherInbox.data.map((row) => row.id)).not.toContain(foreign)
+    const teacherInbox = await apiJson<{ data: { id: string }[] }>(page, '/api/notifications')
+    expect(teacherInbox.data.data.map((row) => row.id)).not.toContain(foreign)
 
     // …and equally unreachable by uuid, on both the read and the write endpoint.
     // A list filter without this check is an IDOR.

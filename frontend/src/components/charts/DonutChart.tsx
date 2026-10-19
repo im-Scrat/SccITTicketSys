@@ -52,6 +52,11 @@ export function DonutChart({ slices, size, centreLabel, label }: DonutChartProps
             stroke={CHART.surface}
             strokeWidth={shown.length > 1 ? 2 : 0}
             isAnimationActive={false}
+            // The Pie's own root layer is tabIndex 0 by default, independent of
+            // the chart's accessibilityLayer. Inside this aria-hidden wrapper
+            // it would be a focus stop with no name (axe: aria-hidden-focus);
+            // the legend table is the keyboard and screen-reader path.
+            rootTabIndex={-1}
           >
             {(shown.length > 0 ? shown : [{ key: 'none' }]).map((slice) => (
               <Cell
