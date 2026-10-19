@@ -56,17 +56,25 @@ class SystemSettingSeeder extends Seeder
         ];
 
         foreach ($settings as [$group, $key, $label, $value, $type, $isPublic, $isProtected]) {
-            SystemSetting::query()->updateOrCreate(
-                ['key' => $key],
-                [
-                    'group' => $group,
-                    'label' => $label,
-                    'value' => $value,
-                    'type' => $type,
-                    'is_public' => $isPublic,
-                    'is_protected' => $isProtected,
-                ],
-            );
+            $setting = SystemSetting::query()->firstOrNew(['key' => $key]);
+
+            // Metadata converges on every run; the *value* is written only when
+            // the setting is new. A re-seed used to overwrite every value an
+            // administrator had changed (school name, auto-close window, AI
+            // switches) with these defaults.
+            $setting->fill([
+                'group' => $group,
+                'label' => $label,
+                'type' => $type,
+                'is_public' => $isPublic,
+                'is_protected' => $isProtected,
+            ]);
+
+            if (! $setting->exists) {
+                $setting->value = $value;
+            }
+
+            $setting->save();
         }
     }
 }

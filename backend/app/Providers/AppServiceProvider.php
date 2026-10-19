@@ -37,10 +37,12 @@ use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
 use App\Models\WorkSupportRequest;
+use App\Support\Queue\RedactingFailedJobProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Markdown;
+use Illuminate\Queue\Failed\FailedJobProviderInterface;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -53,7 +55,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Credentials must not survive into failed_jobs.exception, which the
+        // queue worker writes outside every log handler (NFR-SEC-005).
+        $this->app->extend('queue.failer', fn (FailedJobProviderInterface $failer): FailedJobProviderInterface => new RedactingFailedJobProvider($failer));
     }
 
     /**

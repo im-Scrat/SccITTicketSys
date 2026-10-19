@@ -36,7 +36,10 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-school_it_service_management}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scc26}
+      # No fallback: a missing password must stop the stack, not start it with
+      # a value published in this repository (it is public). Set it in the
+      # root .env; deploy-prod.sh also refuses known development values.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in the root .env}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
       - sccit_prod_pgdata:/var/lib/postgresql/data
@@ -56,7 +59,7 @@ services:
     container_name: sccit_prod_redis
     restart: unless-stopped
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-scc26redis}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in the root .env}
     command: ["sh", "-c", "redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes"]
     volumes:
       - sccit_prod_redisdata:/data

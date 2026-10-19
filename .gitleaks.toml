@@ -1,0 +1,16 @@
+# gitleaks configuration — CI job "Secret scan (gitleaks)" (.github/workflows/ci.yml).
+# The repository is public: a credential that reaches any commit is published.
+# Default rules apply; the allowlist covers only test fixtures that contain
+# deliberately fake credentials in order to prove they are redacted.
+title = "SccIT gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake credentials used by redaction tests"
+paths = [
+  '''backend/tests/Unit/PromptRedactorTest\.php''',
+  '''backend/tests/Feature/AI/AssistantDataSafetyTest\.php''',
+  '''backend/tests/Feature/Security/SecretRedactionTest\.php''',
+]

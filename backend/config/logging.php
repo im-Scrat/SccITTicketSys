@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Logging\RedactSecrets;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -63,6 +64,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => [RedactSecrets::class],
         ],
 
         'daily' => [
@@ -71,6 +73,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+            'tap' => [RedactSecrets::class],
         ],
 
         'slack' => [
@@ -103,6 +106,9 @@ return [
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
             'processors' => [PsrLogMessageProcessor::class],
+            // Production logs here (LOG_CHANNEL=stderr): credentials are
+            // removed before the record reaches the stream (NFR-SEC-005).
+            'tap' => [RedactSecrets::class],
         ],
 
         'syslog' => [
@@ -116,6 +122,7 @@ return [
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => [RedactSecrets::class],
         ],
 
         'null' => [
