@@ -154,6 +154,13 @@ jobs:
         run: |
           cp .env.example .env
           cp backend/.env.example backend/.env
+          # backend/.env.example leaves the Reverb app credentials empty; with no
+          # key /api/broadcasting/config answers 503 and the browser falls back
+          # to polling, slower than the realtime specs wait. Throwaway values
+          # for this disposable stack only.
+          for key in REVERB_APP_ID REVERB_APP_KEY REVERB_APP_SECRET; do
+            sed -i "s/^${key}=.*/${key}=$(openssl rand -hex 12)/" backend/.env
+          done
 
       - name: Start a disposable stack (compose.yaml, dev profile)
         run: |
