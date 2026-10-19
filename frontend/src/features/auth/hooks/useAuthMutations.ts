@@ -1,3 +1,7 @@
+import {
+  clearFloorplanDrafts,
+  clearFloorplanDraftsExcept,
+} from '@/features/floor-plan/lib/draftStorage'
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   changePassword,
@@ -45,6 +49,7 @@ export function useLogin() {
       // keeps their own, which is what it was saved for.
       dropPrincipalCache(queryClient)
       clearReportDraftsExcept(user.id)
+      clearFloorplanDraftsExcept(user.id)
       queryClient.setQueryData(AUTH_USER_KEY, user)
     },
   })
@@ -64,7 +69,7 @@ export function useLogin() {
  * all of it, so a feature added later cannot reopen the gap by being forgotten.
  *
  * The same goes for an unsent problem report kept in this tab's session storage
- * (SDD DD-80): signing out is the person saying they are done, and the next
+ * (SDD DD-80), and an unsaved Floorplan draft (DD-101): signing out is the person saying they are done, and the next
  * person at the keyboard must not be offered their half-written report.
  */
 export function useLogout() {
@@ -76,6 +81,7 @@ export function useLogout() {
       queryClient.setQueryData(AUTH_USER_KEY, null)
       dropPrincipalCache(queryClient)
       clearReportDrafts()
+      clearFloorplanDrafts()
     },
   })
 }

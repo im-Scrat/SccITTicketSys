@@ -50,11 +50,11 @@ function renderNav(role: string, permissions: string[]) {
   return view
 }
 
-describe('navigation: Floor plan', () => {
+describe('navigation: Floorplan', () => {
   it('is offered to an Administrator who holds floorplan.view', () => {
     renderNav('administrator', ['floorplan.view'])
 
-    expect(screen.getByRole('link', { name: /Floor plan/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Floorplan/ })).toHaveAttribute(
       'href',
       '/app/floor-plan',
     )
@@ -63,7 +63,7 @@ describe('navigation: Floor plan', () => {
   it('is not offered to an Administrator whose permission was withdrawn', () => {
     renderNav('administrator', ['users.view'])
 
-    expect(screen.queryByRole('link', { name: /Floor plan/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Floorplan/ })).not.toBeInTheDocument()
   })
 
   it.each(['technician', 'teacher'])(
@@ -71,7 +71,7 @@ describe('navigation: Floor plan', () => {
     (role) => {
       renderNav(role, ['floorplan.view', 'floorplan.manage'])
 
-      expect(screen.queryByRole('link', { name: /Floor plan/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /Floorplan/ })).not.toBeInTheDocument()
     },
   )
 })

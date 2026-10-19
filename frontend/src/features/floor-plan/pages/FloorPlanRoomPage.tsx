@@ -1,392 +1,1251 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isAxiosError } from 'axios'
-import { ArrowLeft, LayoutGrid, LayoutTemplate, Rows3 } from 'lucide-react'
-import { useId, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { ChevronRight, DoorClosed, History, ListTree, PanelRight, Pencil } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { Alert, EmptyState, PageLoader, Surface } from '@/components/ui'
-import { Button } from '@/components/ui/Button'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import {
+  Alert,
+  Button,
+  ButtonLink,
+  Drawer,
+  EmptyState,
+  ErrorState,
+  LiveRegion,
+  Modal,
+  PcStatusBadge,
+  Skeleton,
+} from '@/components/ui'
+import { useIsPreview } from '@/contexts/PreviewModeContext'
+import { useAuth } from '@/features/auth/hooks/useAuth'
+import { LiveStatus } from '@/features/dashboard/components/LiveStatus'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
+import { usePresenceChannel } from '@/hooks/usePresenceChannel'
+import { cn } from '@/lib/cn'
+import { PC_STATUS, PC_STATUS_TONE_CLASSES, PC_STATUS_VALUES } from '@/lib/pcStatus'
 import ForbiddenPage from '@/pages/ForbiddenPage'
-import { CreateLayoutForm } from '../components/CreateLayoutForm'
+import { DetailsPanel } from '../components/DetailsPanel'
+import {
+  AutoArrangeDialog,
+  ConflictDialog,
+  LayoutSettingsDialog,
+  ShortcutsDialog,
+} from '../components/EditorDialogs'
+import { PresenceIndicator, SaveStateBadge, type SaveState } from '../components/EditorStatus'
+import { EditorToolbar } from '../components/EditorToolbar'
 import { FloorPlanCanvas } from '../components/FloorPlanCanvas'
-import { FloorPlanLegend } from '../components/FloorPlanLegend'
-import { FloorPlanToolbar } from '../components/FloorPlanToolbar'
-import { PcInspectorPanel } from '../components/PcInspectorPanel'
-import { PcUnitList } from '../components/PcUnitList'
-import { PlacementPanel } from '../components/PlacementPanel'
-import { UnplacedUnits } from '../components/UnplacedUnits'
-import { useCreateLayout, usePlacePcUnit } from '../hooks/mutations'
+import { SetupLayout } from '../components/SetupLayout'
+import { WorkstationsPanel } from '../components/WorkstationsPanel'
+import { useCreateLayout, useSaveLayout, withStatusChanged } from '../hooks/mutations'
+import { floorPlanKeys, useRoomPlan } from '../hooks/queries'
 import { useFloorPlanChannel } from '../hooks/useFloorPlanChannel'
-import { useRoomPlan } from '../hooks/queries'
-import { placementErrorMessage } from '../lib/errors'
-import { describePoint, freeSpot, nodeMetrics, previewPoint, type Point } from '../lib/placement'
-import { ALERT_STATUSES } from '../lib/presentation'
-import type { LayoutCreateRequest, PlacedPc, RoomPlan } from '../types'
-
-/** Invisible, but makes a repeated announcement a different string. */
-const NBSP = String.fromCharCode(0xa0)
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
+import type { DragItem } from '../lib/dragItem'
+import { clearDraft, readDraft, writeDraft, type StoredDraft } from '../lib/draftStorage'
+import { FIXTURES, newFixture } from '../lib/fixtures'
+import {
+  arrangeInRows,
+  boxInsideRoom,
+  corners,
+  halfExtent,
+  normalizeRotation,
+  overlapsAny,
+  pointsInsideRoom,
+  quarterTurn,
+  snapAndClamp,
+  workstationBox,
+  type Point,
+} from '../lib/geometry'
+import {
+  countChanges,
+  docFromPlan,
+  merge3,
+  resolveConflicts,
+  toSaveRequest,
+  type LayoutDoc,
+  type LayoutSettings,
+  type MergeResult,
+  type ObjectKey,
+} from '../lib/layoutDocument'
+import { visibleSize } from '../lib/viewport'
+import { isDirty } from '../stores/createEditorStore'
+import { EditorStoreProvider } from '../stores/EditorStoreContext'
+import { useEditor, useEditorStore } from '../stores/useEditor'
+import type { FixtureKind, LayoutStaleConflict, RoomPlan } from '../types'
 
 /**
- * One room's floor plan — the map and, for an Administrator who may edit it,
- * placement (WP-D) and, since fix pass 2, creating the plan itself.
+ * A room's Floorplan editor — `/app/floor-plan/rooms/:id` (Phase 2.11).
  *
- * **Fails closed on the server's answer.** The route guard has already checked
- * the role and permission, but that is only a courtesy: the backend refuses
- * everyone but an Administrator, and a 403 from it — for any reason, including
- * a stale or tampered client — replaces the page with the Forbidden screen. No
- * plan data is ever rendered from a failed response. Editing is offered only
- * when the server says so (`editor.can_edit`), and every write is authorized
- * again when it arrives.
+ * Loads the room's plan, then hands it to a per-room editor store. Access is
+ * the server's call: 401/403 shows the Forbidden page, 404 a "not found" state
+ * with a way back.
  */
 export default function FloorPlanRoomPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: plan, isLoading, error } = useRoomPlan(id)
+  const query = useRoomPlan(id)
 
-  useDocumentMeta({ title: plan ? `${plan.room.name} floor plan` : 'Floor plan' })
+  if (query.isLoading) return <WorkspaceSkeleton />
 
-  if (isLoading) return <PageLoader />
-
-  if (isAxiosError(error) && (error.response?.status === 403 || error.response?.status === 401)) {
-    return <ForbiddenPage />
-  }
-
-  if (isAxiosError(error) && error.response?.status === 404) {
-    return <Alert tone="error">That room could not be found. It may have been archived.</Alert>
-  }
-
-  if (error || !plan || !id) {
-    return <Alert tone="error">We couldn’t load this floor plan.</Alert>
-  }
-
-  return <RoomPlanView roomId={id} plan={plan} />
-}
-
-function RoomPlanView({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
-  const place = usePlacePcUnit(roomId)
-  const createLayout = useCreateLayout(roomId)
-  const cardTitleId = useId()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [saving, setSaving] = useState<ReadonlySet<string>>(new Set())
-  const [placeError, setPlaceError] = useState<string | null>(null)
-  const [announcement, setAnnouncement] = useState('')
-  const [arranging, setArranging] = useState(false)
-  const [newVersionOpen, setNewVersionOpen] = useState(false)
-  // WP-G — which unit's maintenance history is open, if any. Independent of
-  // `selectedId` (which drives move targeting in edit mode): selecting a node
-  // to move it also opens its history, but closing the inspector must never
-  // clear a move in progress, so the two are tracked separately.
-  const [inspectingId, setInspectingId] = useState<string | null>(null)
-
-  const { layout } = plan
-  const editable = plan.editor.can_edit && layout !== null
-  const where = [plan.room.building?.name, plan.room.floor?.name].filter(Boolean).join(' · ')
-  const alerts = plan.pcs.filter(
-    (pc) => pc.open_ticket !== null || ALERT_STATUSES.has(pc.status.value),
-  ).length
-
-  /**
-   * Polite, never assertive: a committed move is news, not an interruption. A
-   * repeated sentence gets an invisible trailing space so a screen reader still
-   * reads it — some ignore an unchanged live region.
-   */
-  const announce = (message: string) =>
-    setAnnouncement((current) => (current === message ? `${message}${NBSP}` : message))
-
-  const markSaving = (pcId: string, on: boolean) =>
-    setSaving((current) => {
-      const next = new Set(current)
-      if (on) next.add(pcId)
-      else next.delete(pcId)
-      return next
-    })
-
-  // WP-E — live updates from every other viewer of this room (FR-FP-007). Own
-  // in-flight moves are skipped: their own onSuccess is the authoritative
-  // reconciliation, so an echo of the same move is a no-op rather than a race.
-  useFloorPlanChannel(roomId, {
-    layoutVersion: layout?.version,
-    isOwnPendingMove: (pcId) => saving.has(pcId),
-    announce,
-  })
-
-  /** The one write path — drag, keyboard move, numeric form, "Place on plan" and "Arrange" all end here. */
-  const placeUnit = async (pcId: string, point: Point, snap: boolean): Promise<PlacedPc> => {
-    if (!layout) throw new Error('No active layout.')
-    const placed = plan.pcs.find((pc) => pc.id === pcId)
-    const unit = placed ?? plan.unplaced.find((pc) => pc.id === pcId)
-    const name = unit?.name ?? 'The unit'
-
-    setPlaceError(null)
-    markSaving(pcId, true)
-    try {
-      const stored = await place.mutateAsync({
-        version: layout.version,
-        pcId,
-        // WP-F, D3: echo what this browser currently believes the position
-        // is. A unit not yet on the plan (`placed` undefined) has nothing to
-        // echo — null, so the write proceeds as a first placement.
-        request: { x: point.x, y: point.y, snap, expected_updated_at: placed?.updated_at ?? null },
-        preview: previewPoint(point, layout, snap),
-      })
-      // Say where it actually is — the server's point, which may have been
-      // snapped or clamped away from the one that was sent.
-      const adjusted = stored.x !== point.x || stored.y !== point.y
-      const how = adjusted ? (snap ? ', aligned to the grid' : ', kept inside the room') : ''
-      announce(`${stored.name} placed at ${describePoint(stored)}${how}.`)
-      return stored
-    } catch (failure) {
-      const message = placementErrorMessage(failure)
-      setPlaceError(message)
-      announce(`${name} could not be moved. ${message}`)
-      throw failure
-    } finally {
-      markSaving(pcId, false)
+  if (query.isError) {
+    const status = isAxiosError(query.error) ? query.error.response?.status : undefined
+    if (status === 401 || status === 403) return <ForbiddenPage />
+    if (status === 404) {
+      return (
+        <EmptyState
+          icon={<DoorClosed className="size-6" aria-hidden="true" />}
+          title="This room could not be found"
+          description="It may have been archived, or the link is out of date."
+          action={<ButtonLink to="/app/floor-plan">Back to Floorplan</ButtonLink>}
+        />
+      )
     }
-  }
-
-  const placeFromMap = (pc: PlacedPc, point: Point, snap: boolean) => {
-    // Refusals are already shown and announced; nothing else to do here.
-    placeUnit(pc.id, point, snap).catch(() => undefined)
-  }
-
-  const spotFor = (placed: PlacedPc[]): Point => {
-    if (!layout) return { x: 0, y: 0 }
     return (
-      freeSpot(placed, layout, nodeMetrics(layout).radius * 3) ?? {
-        x: Math.round(layout.width / 2),
-        y: Math.round(layout.height / 2),
-      }
+      <ErrorState
+        title="The Floorplan could not be loaded"
+        description="Check your connection and try again."
+        onRetry={() => void query.refetch()}
+        retrying={query.isFetching}
+      />
     )
   }
 
-  const placeUnplaced = (pcId: string) => {
-    if (!layout) return
-    setSelectedId(pcId)
-    placeUnit(pcId, spotFor(plan.pcs), true).catch(() => undefined)
+  if (!query.data || !id) return null
+
+  return (
+    <EditorStoreProvider key={id} snap={query.data.editor.snap_to_grid}>
+      <RoomEditor roomId={id} plan={query.data} />
+    </EditorStoreProvider>
+  )
+}
+
+function WorkspaceSkeleton() {
+  return (
+    <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading the Floorplan">
+      <Skeleton className="h-6 w-48" />
+      <Skeleton className="h-10 w-80" />
+      <Skeleton className="h-[60dvh] w-full" />
+    </div>
+  )
+}
+
+type RemoteNotice = { by: string | null; revision: number | null }
+
+function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
+  useDocumentMeta({ title: `${plan.room.name} · Floorplan` })
+  const preview = useIsPreview()
+  const queryClient = useQueryClient()
+  const { user, hasPermission } = useAuth()
+  const userId = user?.id
+  const store = useEditorStore()
+  const draft = useEditor((s) => s.draft)
+  const mode = useEditor((s) => s.mode)
+  const selection = useEditor((s) => s.selection)
+  const invalid = useEditor((s) => s.invalid)
+  const dirty = useEditor(isDirty)
+  const changes = useEditor((s) => (s.base && s.draft ? countChanges(s.base, s.draft) : 0))
+
+  const editing = mode === 'edit' && !preview && plan.editor.can_edit && plan.layout !== null
+  const canMoveIn = hasPermission('assets.view') && hasPermission('assets.update') && !preview
+
+  const [announcement, setAnnouncement] = useState('')
+  const announce = useCallback(
+    (message: string) =>
+      setAnnouncement((prev) => (prev === message ? `${message}\u00a0` : message)),
+    [],
+  )
+  const [highlight, setHighlight] = useState<Set<string> | null>(null)
+  const [recovered, setRecovered] = useState<StoredDraft | null>(null)
+  const [remote, setRemote] = useState<RemoteNotice | null>(null)
+  const [conflict, setConflict] = useState<{
+    merge: MergeResult
+    current: RoomPlan
+    by: string | null
+  } | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [dialog, setDialog] = useState<'settings' | 'shortcuts' | 'arrange' | null>(null)
+  const [drawer, setDrawer] = useState<'workstations' | 'details' | null>(null)
+  const [editingMembers, setEditingMembers] = useState<Set<string>>(new Set())
+
+  const save = useSaveLayout(roomId)
+  const create = useCreateLayout(roomId)
+  const loaded = useRef<{ version: number | null; revision: number | null } | null>(null)
+  const ownRevision = useRef<number | null>(null)
+
+  /* ── load / reconcile the server's plan ────────────────────────────── */
+
+  useEffect(() => {
+    const doc = docFromPlan(plan)
+    const version = plan.layout?.version ?? null
+    const revision = plan.layout?.revision ?? null
+    const previous = loaded.current
+    const state = store.getState()
+
+    if (previous && previous.version === version && previous.revision === revision) return
+    // Never step backwards: a render can still carry the plan from before this
+    // editor's own save landed in the cache.
+    if (
+      previous &&
+      previous.version === version &&
+      revision !== null &&
+      previous.revision !== null &&
+      revision < previous.revision
+    )
+      return
+    loaded.current = { version, revision }
+
+    // First load, a different version, or no unsaved work: take the server's copy.
+    if (!previous || previous.version !== version || !isDirty(state)) {
+      state.reset(doc, revision)
+      if (previous && revision !== ownRevision.current && doc) {
+        announce(
+          `${plan.layout?.updated_by?.name ?? 'Someone'} updated this Floorplan. You are seeing the latest version.`,
+        )
+      }
+      setRemote(null)
+
+      if (!previous && doc && userId && !preview) {
+        const stored = readDraft(userId, roomId)
+        if (
+          stored &&
+          stored.layoutVersion === version &&
+          countChanges(stored.base, stored.draft) > 0
+        )
+          setRecovered(stored)
+      }
+      return
+    }
+
+    // Unsaved work and a newer server copy: never overwrite — offer to combine.
+    if (revision !== ownRevision.current) {
+      setRemote({ by: plan.layout?.updated_by?.name ?? null, revision })
+    }
+  }, [plan, store, userId, roomId, preview, announce])
+
+  /* ── keep an unsaved draft in this tab ─────────────────────────────── */
+
+  useEffect(() => {
+    if (!userId || preview || !plan.layout) return
+    const state = store.getState()
+    const timer = window.setTimeout(() => {
+      if (state.base && state.draft && state.revision !== null && dirty) {
+        writeDraft(userId, roomId, {
+          layoutVersion: plan.layout!.version,
+          revision: state.revision,
+          base: state.base,
+          draft: state.draft,
+          savedAt: Date.now(),
+        })
+      } else if (!dirty && !recovered) {
+        clearDraft(userId, roomId)
+      }
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [draft, dirty, userId, preview, roomId, plan.layout, store, recovered])
+
+  /* ── realtime ──────────────────────────────────────────────────────── */
+
+  const live = useFloorPlanChannel(roomId, {
+    onPlanChanged: (event) => {
+      if (event.revision !== null && event.revision === ownRevision.current) return
+      void queryClient.invalidateQueries({ queryKey: floorPlanKeys.room(roomId) })
+      void queryClient.invalidateQueries({ queryKey: ['floor-plan', 'rooms'] })
+    },
+    onStatusChanged: (event) => {
+      queryClient.setQueryData<RoomPlan>(floorPlanKeys.room(roomId), (current) =>
+        current ? withStatusChanged(current, event.pc.id, event.pc.status) : current,
+      )
+      announce(`${event.pc.name} is now ${event.pc.status.label}.`)
+    },
+  })
+
+  // DD-16's fallback: not live → refetch now and then, but only while clean.
+  useRoomPlan(roomId, { poll: !live && !dirty && !preview })
+
+  const { members, whisper } = usePresenceChannel<{ id: string; editing: boolean }>(
+    preview ? undefined : `floor-plan.editors.${roomId}`,
+    'editing',
+    (data) =>
+      setEditingMembers((current) => {
+        const next = new Set(current)
+        if (data.editing) next.add(data.id)
+        else next.delete(data.id)
+        return next
+      }),
+  )
+
+  useEffect(() => {
+    if (userId) whisper({ id: userId, editing })
+  }, [editing, members.length, userId, whisper])
+
+  /* ── leaving with unsaved work ─────────────────────────────────────── */
+
+  const guard = useUnsavedChangesGuard(dirty && !preview)
+
+  /* ── helpers ───────────────────────────────────────────────────────── */
+
+  const pcName = useCallback(
+    (id: string) =>
+      [...plan.pcs, ...plan.unplaced].find((pc) => pc.id === id)?.name ?? 'Workstation',
+    [plan.pcs, plan.unplaced],
+  )
+
+  const describeKey = useCallback(
+    (key: ObjectKey): string => {
+      if (key === 'settings') return 'Room size and grid'
+      const id = key.slice(3)
+      if (key.startsWith('pc:')) return pcName(id)
+      const f = store.getState().draft?.fixtures[id] ?? store.getState().base?.fixtures[id]
+      return f
+        ? f.label
+          ? `${FIXTURES[f.kind].label} “${f.label}”`
+          : FIXTURES[f.kind].label
+        : 'Fixture'
+    },
+    [pcName, store],
+  )
+
+  const room = draft
+    ? { width: draft.settings.width, height: draft.settings.height }
+    : { width: 1, height: 1 }
+  const size = plan.workstation_size
+
+  const viewCentre = (): Point => {
+    const { viewport, draft: d } = store.getState()
+    if (!d) return { x: 0, y: 0 }
+    const visible = visibleSize(
+      { width: d.settings.width, height: d.settings.height },
+      viewport.zoom,
+    )
+    return { x: viewport.x + visible.width / 2, y: viewport.y + visible.height / 2 }
   }
 
-  /**
-   * Put every unplaced unit on the grid, in rows, one write at a time. Each
-   * placement goes through the same authorized, versioned call as a drag, and
-   * each next spot is chosen against the units placed so far (including the
-   * server's answer for the previous one), so nothing lands on top of
-   * anything. Stops at the first refusal — it is already shown.
-   */
-  const arrangeUnplaced = async () => {
-    if (!layout || arranging) return
-    setArranging(true)
-    try {
-      let placed = [...plan.pcs]
-      for (const unit of plan.unplaced) {
-        const stored = await placeUnit(unit.id, spotFor(placed), true)
-        placed = [...placed, stored]
+  /* ── edits ─────────────────────────────────────────────────────────── */
+
+  const placePc = (pcId: string, at?: Point) => {
+    const d = store.getState().draft
+    if (!d) return
+    let point =
+      at ??
+      snapAndClamp(viewCentre(), { x: size / 2, y: size / 2 }, room, d.settings.grid_size, true)
+    if (overlapsAny(pcId, point, d.workstations, size)) {
+      const spot = arrangeInRows([pcId], d.workstations, room, {
+        size,
+        grid: d.settings.grid_size,
+        gap: 0,
+      })[pcId]
+      if (!spot) {
+        announce(`No free spot for ${pcName(pcId)} — make the room larger or move something.`)
+        return
       }
-      announce(
-        `${plan.unplaced.length} ${plan.unplaced.length === 1 ? 'unit' : 'units'} arranged on the plan.`,
+      point = spot
+    }
+    store.getState().edit((doc) => ({
+      ...doc,
+      workstations: { ...doc.workstations, [pcId]: { x: point.x, y: point.y, rotation: 0 } },
+    }))
+    store.getState().select([`pc:${pcId}`])
+    announce(
+      `${pcName(pcId)} placed at x ${Math.round(point.x)}, y ${Math.round(point.y)}. Use the arrow keys or drag to move it.`,
+    )
+  }
+
+  const addFixture = (kind: FixtureKind, at?: Point) => {
+    const d = store.getState().draft
+    if (!d) return
+    const preset = FIXTURES[kind]
+    const point =
+      at ??
+      snapAndClamp(
+        viewCentre(),
+        halfExtent(preset.width, preset.height, 0),
+        room,
+        d.settings.grid_size,
+        true,
       )
-    } catch {
-      // Announced and shown by placeUnit.
-    } finally {
-      setArranging(false)
+    const fixture = newFixture(kind, point.x, point.y)
+    store
+      .getState()
+      .edit((doc) => ({ ...doc, fixtures: { ...doc.fixtures, [fixture.id]: fixture } }))
+    store.getState().select([`fx:${fixture.id}`])
+    announce(`${preset.label} added. Drag it, or use the Details panel to size it.`)
+  }
+
+  const onDropItem = (item: DragItem, point: Point) => {
+    if (item.type === 'pc') placePc(item.id, point)
+    else addFixture(item.kind, point)
+  }
+
+  const removeKeys = (keys: ObjectKey[]) => {
+    if (keys.length === 0) return
+    store.getState().edit((doc) => {
+      const workstations = { ...doc.workstations }
+      const fixtures = { ...doc.fixtures }
+      for (const key of keys) {
+        if (key.startsWith('pc:')) delete workstations[key.slice(3)]
+        if (key.startsWith('fx:')) delete fixtures[key.slice(3)]
+      }
+      return { ...doc, workstations, fixtures }
+    })
+    store.getState().select([])
+    announce(
+      keys.length === 1 && keys[0].startsWith('pc:')
+        ? `${pcName(keys[0].slice(3))} removed from the plan. It is still registered to this room.`
+        : `${keys.length} object${keys.length === 1 ? '' : 's'} removed.`,
+    )
+  }
+
+  const rotateKeys = (keys: ObjectKey[], direction: 1 | -1) => {
+    if (keys.length === 0) return
+    let refused = 0
+    store.getState().edit((doc) => {
+      const workstations = { ...doc.workstations }
+      const fixtures = { ...doc.fixtures }
+      for (const key of keys) {
+        const id = key.slice(3)
+        if (key.startsWith('pc:') && workstations[id]) {
+          workstations[id] = {
+            ...workstations[id],
+            rotation: quarterTurn(workstations[id].rotation, direction),
+          }
+        }
+        if (key.startsWith('fx:') && fixtures[id]) {
+          const f = fixtures[id]
+          const next = { ...f, rotation: normalizeRotation(f.rotation + 90 * direction) }
+          if (
+            pointsInsideRoom(
+              corners(next.x, next.y, next.width, next.height, next.rotation),
+              doc.settings,
+            )
+          )
+            fixtures[id] = next
+          else refused++
+        }
+      }
+      return { ...doc, workstations, fixtures }
+    })
+    announce(
+      refused > 0
+        ? `${refused} fixture${refused === 1 ? '' : 's'} could not turn without leaving the room.`
+        : 'Turned.',
+    )
+  }
+
+  const duplicateKeys = (keys: ObjectKey[]) => {
+    const d = store.getState().draft
+    if (!d) return
+    const copies = keys
+      .filter((k) => k.startsWith('fx:'))
+      .map((k) => d.fixtures[k.slice(3)])
+      .filter(Boolean)
+      .map((f) => {
+        const offset = d.settings.grid_size
+        const point = snapAndClamp(
+          { x: f.x + offset, y: f.y + offset },
+          halfExtent(f.width, f.height, f.rotation),
+          room,
+          d.settings.grid_size,
+          false,
+        )
+        return { ...f, id: crypto.randomUUID(), x: point.x, y: point.y }
+      })
+    if (copies.length === 0) return
+    store.getState().edit((doc) => ({
+      ...doc,
+      fixtures: { ...doc.fixtures, ...Object.fromEntries(copies.map((c) => [c.id, c])) },
+    }))
+    store.getState().select(copies.map((c) => `fx:${c.id}` as ObjectKey))
+    announce(`${copies.length === 1 ? 'Fixture' : `${copies.length} fixtures`} duplicated.`)
+  }
+
+  const nudge = (dx: number, dy: number) => {
+    const { draft: d, selection: sel } = store.getState()
+    if (!d || sel.length === 0) return
+    const moved: Record<string, Point> = {}
+    for (const key of sel) {
+      const id = key.slice(3)
+      if (key.startsWith('pc:')) {
+        const w = d.workstations[id]
+        if (!w) continue
+        const next = { x: w.x + dx, y: w.y + dy }
+        if (!boxInsideRoom(workstationBox(next.x, next.y, size), d.settings))
+          return announce('At the edge of the room.')
+        moved[id] = next
+      } else {
+        const f = d.fixtures[id]
+        if (!f) continue
+        if (
+          !pointsInsideRoom(corners(f.x + dx, f.y + dy, f.width, f.height, f.rotation), d.settings)
+        )
+          return announce('At the edge of the room.')
+      }
+    }
+    const statics = Object.fromEntries(
+      Object.entries(d.workstations).filter(([id]) => !(id in moved)),
+    )
+    for (const [id, p] of Object.entries(moved)) {
+      const hit = overlapsAny(id, p, statics, size)
+      if (hit) return announce(`${pcName(id)} would overlap ${pcName(hit)}.`)
+    }
+    store.getState().edit((doc) => {
+      const workstations = { ...doc.workstations }
+      const fixtures = { ...doc.fixtures }
+      for (const key of sel) {
+        const id = key.slice(3)
+        if (key.startsWith('pc:') && workstations[id])
+          workstations[id] = {
+            ...workstations[id],
+            x: workstations[id].x + dx,
+            y: workstations[id].y + dy,
+          }
+        if (key.startsWith('fx:') && fixtures[id])
+          fixtures[id] = { ...fixtures[id], x: fixtures[id].x + dx, y: fixtures[id].y + dy }
+      }
+      return { ...doc, workstations, fixtures }
+    }, 'nudge')
+    if (sel.length === 1) {
+      const id = sel[0].slice(3)
+      const p = sel[0].startsWith('pc:')
+        ? store.getState().draft!.workstations[id]
+        : store.getState().draft!.fixtures[id]
+      if (p) announce(`${describeKey(sel[0])} at x ${Math.round(p.x)}, y ${Math.round(p.y)}.`)
     }
   }
 
-  const startLayout = async (request: LayoutCreateRequest) => {
-    await createLayout.mutateAsync(request)
-    setNewVersionOpen(false)
-    announce('A new layout is active. Units can now be placed on it.')
+  const unplacedIds = useMemo(
+    () =>
+      [...plan.pcs, ...plan.unplaced]
+        .filter((pc) => draft && !(pc.id in draft.workstations))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        .map((pc) => pc.id),
+    [plan.pcs, plan.unplaced, draft],
+  )
+
+  const arrange = (gap: number): number => {
+    const d = store.getState().draft
+    if (!d) return 0
+    const spots = arrangeInRows(unplacedIds, d.workstations, room, {
+      size,
+      grid: d.settings.grid_size,
+      gap,
+    })
+    const count = Object.keys(spots).length
+    if (count === 0) return 0
+    store.getState().edit((doc) => ({
+      ...doc,
+      workstations: {
+        ...doc.workstations,
+        ...Object.fromEntries(
+          Object.entries(spots).map(([id, p]) => [id, { x: p.x, y: p.y, rotation: 0 }]),
+        ),
+      },
+    }))
+    announce(`${count} PC${count === 1 ? '' : 's'} arranged. Undo puts them back.`)
+    return count
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Link
-          to="/app/floor-plan"
-          className="inline-flex items-center gap-1.5 rounded-sm text-muted hover:text-ink"
-        >
-          <ArrowLeft size={15} aria-hidden="true" />
-          Floor plan
-        </Link>
-      </div>
+  const applySettings = (next: LayoutSettings): string | null => {
+    const d = store.getState().draft
+    if (!d) return null
+    const outside =
+      Object.values(d.workstations).filter(
+        (w) => !boxInsideRoom(workstationBox(w.x, w.y, size), next),
+      ).length +
+      Object.values(d.fixtures).filter(
+        (f) => !pointsInsideRoom(corners(f.x, f.y, f.width, f.height, f.rotation), next),
+      ).length
+    if (outside > 0)
+      return `${outside} object${outside === 1 ? ' would' : 's would'} be left outside a room that size. Move them first.`
+    store.getState().edit((doc) => ({ ...doc, settings: next }))
+    announce(`Room set to ${next.width} by ${next.height}, grid ${next.grid_size}.`)
+    return null
+  }
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink-strong">
-            {plan.room.name}
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            {where || plan.room.code}
-            {layout && (
-              <>
-                {' · '}
-                <span className="tnum">
-                  Layout v{layout.version}, {layout.width} × {layout.height}
-                </span>
-              </>
-            )}
-          </p>
+  /* ── saving ────────────────────────────────────────────────────────── */
+
+  const doSave = (onSaved?: () => void) => {
+    const { draft: d, revision } = store.getState()
+    if (!d || revision === null || !plan.layout) return
+    const request = toSaveRequest(d, revision)
+    setSaveError(null)
+
+    save.mutate(
+      { version: plan.layout.version, request },
+      {
+        onSuccess: (saved) => {
+          ownRevision.current = saved.layout?.revision ?? null
+          loaded.current = {
+            version: saved.layout?.version ?? null,
+            revision: saved.layout?.revision ?? null,
+          }
+          store.getState().reset(docFromPlan(saved), saved.layout?.revision ?? null)
+          // Only now does the cache change, so the reconcile effect sees a
+          // revision it already knows is its own.
+          queryClient.setQueryData(floorPlanKeys.room(roomId), saved)
+          if (user) clearDraft(user.id, roomId)
+          setRemote(null)
+          setRecovered(null)
+          announce('Floorplan saved.')
+          onSaved?.()
+        },
+        onError: (error) => {
+          if (!isAxiosError(error))
+            return setSaveError('The Floorplan could not be saved. Try again.')
+          const status = error.response?.status
+          const body = error.response?.data as Partial<LayoutStaleConflict> & {
+            errors?: Record<string, string[]>
+            code?: string
+          }
+
+          if (status === 409 && body?.code === 'layout_stale' && body.current) {
+            const theirs = docFromPlan(body.current)
+            const { base: b, draft: mine } = store.getState()
+            if (theirs && b && mine) {
+              setConflict({
+                merge: merge3(b, mine, theirs),
+                current: body.current,
+                by: body.current.layout?.updated_by?.name ?? null,
+              })
+            }
+            return
+          }
+          if (status === 409) {
+            setSaveError(
+              'This layout is no longer the active one. Reload to see the current Floorplan.',
+            )
+            void queryClient.invalidateQueries({ queryKey: floorPlanKeys.room(roomId) })
+            return
+          }
+          if (status === 422 && body?.errors) {
+            const marks: Partial<Record<ObjectKey, string>> = {}
+            for (const [path, messages] of Object.entries(body.errors)) {
+              const match = /^(workstations|fixtures)\.(\d+)\./.exec(path)
+              if (!match) continue
+              const item =
+                match[1] === 'workstations'
+                  ? request.workstations[Number(match[2])]
+                  : request.fixtures[Number(match[2])]
+              if (!item) continue
+              const key = (
+                match[1] === 'workstations'
+                  ? `pc:${(item as { pc_unit: string }).pc_unit}`
+                  : `fx:${(item as { id: string }).id}`
+              ) as ObjectKey
+              marks[key] = messages[0]
+            }
+            store.getState().setInvalid(marks)
+            const n = Object.keys(marks).length
+            setSaveError(
+              n > 0
+                ? `${n} object${n === 1 ? ' needs' : 's need'} attention before saving — they are outlined in red.`
+                : 'Some changes were refused. Check the layout and try again.',
+            )
+            return
+          }
+          if (status === 403)
+            return setSaveError('You do not have permission to edit this Floorplan.')
+          setSaveError('The Floorplan could not be saved. Check your connection and try again.')
+        },
+      },
+    )
+  }
+
+  const resolveConflict = (choices: Partial<Record<ObjectKey, 'mine' | 'theirs'>>) => {
+    if (!conflict) return
+    const theirs = docFromPlan(conflict.current)
+    if (!theirs || !conflict.current.layout) return
+    queryClient.setQueryData(floorPlanKeys.room(roomId), conflict.current)
+    loaded.current = {
+      version: conflict.current.layout.version,
+      revision: conflict.current.layout.revision,
+    }
+    store
+      .getState()
+      .rebase(theirs, conflict.current.layout.revision, resolveConflicts(conflict.merge, choices))
+    setConflict(null)
+    setRemote(null)
+    doSave()
+  }
+
+  const combineNow = () => {
+    const { base: b, draft: mine } = store.getState()
+    const theirs = docFromPlan(plan)
+    if (!b || !mine || !theirs || !plan.layout) return
+    const merged = merge3(b, mine, theirs)
+    if (merged.conflicts.length > 0) {
+      setConflict({ merge: merged, current: plan, by: remote?.by ?? null })
+      return
+    }
+    loaded.current = { version: plan.layout.version, revision: plan.layout.revision }
+    store.getState().rebase(theirs, plan.layout.revision, merged.doc)
+    setRemote(null)
+    announce(
+      `Combined: ${merged.applied} of your changes carried over onto the latest version. Nothing clashed.`,
+    )
+  }
+
+  const restoreRecovered = () => {
+    if (!recovered || !plan.layout) return
+    const current = docFromPlan(plan)
+    if (!current) return
+    if (recovered.revision === plan.layout.revision) {
+      store.getState().rebase(current, plan.layout.revision, recovered.draft)
+      announce('Your unsaved changes were restored.')
+    } else {
+      const merged = merge3(recovered.base, recovered.draft, current)
+      store.getState().rebase(current, plan.layout.revision, merged.doc)
+      announce(
+        merged.conflicts.length > 0
+          ? `Restored ${merged.applied} changes. ${merged.conflicts.length} clashed with a newer save and were left as saved.`
+          : `Restored ${merged.applied} changes onto the latest version.`,
+      )
+    }
+    store.getState().setMode('edit')
+    setRecovered(null)
+  }
+
+  const discard = () => {
+    const { base: b, revision } = store.getState()
+    store.getState().reset(b, revision)
+    if (user) clearDraft(user.id, roomId)
+    setSaveError(null)
+    announce('Changes discarded.')
+  }
+
+  /* ── keyboard ──────────────────────────────────────────────────────── */
+
+  const handlers = useRef({ doSave, removeKeys, rotateKeys, duplicateKeys, nudge })
+  handlers.current = { doSave, removeKeys, rotateKeys, duplicateKeys, nudge }
+
+  useEffect(() => {
+    if (preview) return
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]'))
+        return
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+
+      const state = store.getState()
+      const mod = event.ctrlKey || event.metaKey
+      const key = event.key
+      const isEditing = state.mode === 'edit' && plan.editor.can_edit && plan.layout !== null
+      const h = handlers.current
+
+      if (mod && key.toLowerCase() === 's') {
+        event.preventDefault()
+        if (isEditing && isDirty(state)) h.doSave()
+        return
+      }
+      if (isEditing && mod && key.toLowerCase() === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) state.redo()
+        else state.undo()
+        return
+      }
+      if (isEditing && mod && key.toLowerCase() === 'y') {
+        event.preventDefault()
+        state.redo()
+        return
+      }
+      if (isEditing && mod && key.toLowerCase() === 'd') {
+        event.preventDefault()
+        h.duplicateKeys(state.selection)
+        return
+      }
+      if (mod || event.altKey) return
+
+      if (key === 'Escape') {
+        if (state.selection.length) state.select([])
+        return
+      }
+      if (key.startsWith('Arrow')) {
+        const dx = key === 'ArrowLeft' ? -1 : key === 'ArrowRight' ? 1 : 0
+        const dy = key === 'ArrowUp' ? -1 : key === 'ArrowDown' ? 1 : 0
+        event.preventDefault()
+        if (isEditing && state.selection.length > 0 && state.draft) {
+          const step = event.shiftKey ? 1 : state.draft.settings.grid_size
+          h.nudge(dx * step, dy * step)
+        } else {
+          state.panByStep(dx, dy)
+        }
+        return
+      }
+      if (isEditing && (key === 'Delete' || key === 'Backspace')) {
+        event.preventDefault()
+        h.removeKeys(state.selection)
+        return
+      }
+      if (isEditing && key.toLowerCase() === 'r') {
+        h.rotateKeys(state.selection, event.shiftKey ? -1 : 1)
+        return
+      }
+      if (key === '+' || key === '=') return state.zoomIn()
+      if (key === '-' || key === '_') return state.zoomOut()
+      if (key.toLowerCase() === 'f' || key === '0') return state.fit()
+      if (key.toLowerCase() === 'g') return state.setShowGrid(!state.showGrid)
+      if (isEditing && key.toLowerCase() === 's') return state.setSnap(!state.snap)
+      if (key === '?') setDialog('shortcuts')
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [preview, store, plan.editor.can_edit, plan.layout])
+
+  /* ── render ────────────────────────────────────────────────────────── */
+
+  const machines = [...plan.pcs, ...plan.unplaced].filter(
+    (pc, i, all) => all.findIndex((p) => p.id === pc.id) === i,
+  )
+  const placedCount = draft ? Object.keys(draft.workstations).length : 0
+  const location = [plan.room.building?.name, plan.room.floor?.name].filter(Boolean).join(' · ')
+
+  const saveState: SaveState = save.isPending
+    ? { kind: 'saving' }
+    : saveError
+      ? { kind: 'failed', message: saveError }
+      : dirty
+        ? { kind: 'unsaved', count: changes }
+        : {
+            kind: 'saved',
+            at: plan.layout?.updated_at ?? null,
+            by: plan.layout?.updated_by?.name ?? null,
+          }
+
+  const activate = (key: ObjectKey) => {
+    if (window.matchMedia?.('(min-width: 80rem)').matches === false) setDrawer('details')
+    void key
+  }
+
+  const selectedPc =
+    selection.length === 1 && selection[0].startsWith('pc:')
+      ? machines.find((pc) => `pc:${pc.id}` === selection[0])
+      : undefined
+
+  const details = draft && (
+    <DetailsPanel
+      plan={plan}
+      doc={draft}
+      selection={selection}
+      editing={editing}
+      invalid={invalid}
+      onEdit={(change, coalesceKey) => store.getState().edit(change, coalesceKey)}
+      onRemove={removeKeys}
+      onDuplicate={duplicateKeys}
+      onRotate={rotateKeys}
+      onClose={() => {
+        store.getState().select([])
+        setDrawer(null)
+      }}
+      onAnnounce={announce}
+    />
+  )
+
+  const workstations = draft && (
+    <WorkstationsPanel
+      plan={plan}
+      doc={draft}
+      editing={editing}
+      canMoveIn={canMoveIn}
+      selection={selection}
+      onAnnounce={announce}
+      onPlace={(pcId) => {
+        placePc(pcId)
+        setDrawer(null)
+      }}
+      onSelect={(pcId) => {
+        store.getState().select([`pc:${pcId}`])
+        const w = store.getState().draft?.workstations[pcId]
+        if (w) store.getState().centreOn(w.x, w.y)
+        setDrawer(null)
+      }}
+    />
+  )
+
+  return (
+    <div className="flex flex-col gap-4">
+      <LiveRegion message={announcement} />
+
+      <header className="flex flex-col gap-3">
+        <nav aria-label="Breadcrumb">
+          <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+            <li>
+              <Link
+                to="/app/floor-plan"
+                className="font-medium text-primary-strong underline-offset-4 hover:underline"
+              >
+                Floorplan
+              </Link>
+            </li>
+            <li aria-hidden="true">
+              <ChevronRight className="size-4" />
+            </li>
+            <li aria-current="page" className="text-ink">
+              {plan.room.name}
+            </li>
+          </ol>
+        </nav>
+
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-ink-strong text-balance">{plan.room.name}</h1>
+            <p className="mt-1 text-base text-muted">
+              {location || plan.room.code}
+              {plan.layout && (
+                <>
+                  {' · '}
+                  <span className="tabular-nums">
+                    {machines.length} in room · {placedCount} placed ·{' '}
+                    {machines.length - placedCount} not placed
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+
+          {plan.layout && (
+            <div className="flex flex-wrap items-center gap-3">
+              {!preview && <LiveStatus live={live} />}
+              <PresenceIndicator members={members} selfId={user?.id} editing={editingMembers} />
+              <SaveStateBadge state={saveState} onRetry={saveError ? () => doSave() : undefined} />
+              {plan.editor.can_edit &&
+                !preview &&
+                (editing ? (
+                  <>
+                    <Button
+                      variant="secondary"
+                      onClick={discard}
+                      disabled={!dirty || save.isPending}
+                    >
+                      Discard
+                    </Button>
+                    <Button onClick={() => doSave()} loading={save.isPending} disabled={!dirty}>
+                      Save
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => store.getState().setMode('view')}
+                      disabled={dirty}
+                    >
+                      Done
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    leftIcon={<Pencil className="size-5" aria-hidden="true" />}
+                    onClick={() => store.getState().setMode('edit')}
+                  >
+                    Edit layout
+                  </Button>
+                ))}
+            </div>
+          )}
         </div>
 
-        {editable && (
-          <div className="flex flex-wrap items-center gap-2">
-            {plan.unplaced.length > 0 && (
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<Rows3 size={16} aria-hidden="true" />}
-                onClick={() => void arrangeUnplaced()}
-                loading={arranging}
+        {plan.layout && machines.length > 0 && (
+          <div
+            role="group"
+            aria-label="Highlight by status"
+            className="flex flex-wrap items-center gap-2"
+          >
+            {PC_STATUS_VALUES.map((value) => {
+              const count = machines.filter((pc) => pc.status.value === value).length
+              const on = highlight?.has(value) ?? false
+              const tone = PC_STATUS_TONE_CLASSES[PC_STATUS[value].tone]
+              const Icon = PC_STATUS[value].icon
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    setHighlight((current) => {
+                      const next = new Set(current ?? [])
+                      if (next.has(value)) next.delete(value)
+                      else next.add(value)
+                      return next.size === 0 ? null : next
+                    })
+                  }
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+                    tone.border,
+                    on ? cn(tone.wash, tone.text) : 'bg-surface text-ink hover:bg-surface-sunken',
+                  )}
+                >
+                  <Icon className={cn('size-4', tone.text)} aria-hidden="true" />
+                  {PC_STATUS[value].label}
+                  <span className="tabular-nums">{count}</span>
+                </button>
+              )
+            })}
+            {highlight && (
+              <button
+                type="button"
+                onClick={() => setHighlight(null)}
+                className="text-sm font-medium text-primary-strong underline-offset-4 hover:underline"
               >
-                Arrange{' '}
-                {plan.unplaced.length === 1
-                  ? 'the unplaced unit'
-                  : `${plan.unplaced.length} unplaced units`}
-              </Button>
+                Show all
+              </button>
             )}
-            <Button
-              variant="secondary"
-              size="sm"
-              leftIcon={<LayoutTemplate size={16} aria-hidden="true" />}
-              onClick={() => setNewVersionOpen(true)}
-            >
-              New layout version
-            </Button>
           </div>
         )}
       </header>
 
-      {/* Movement is announced here (NFR-ACC-004). Always rendered, so the
-          region exists before the first message and is actually read. */}
-      <p role="status" aria-live="polite" className="sr-only" data-testid="floor-plan-announcer">
-        {announcement}
-      </p>
-
-      {layout === null ? (
-        plan.editor.can_edit ? (
-          <Surface className="max-w-2xl p-6">
-            <h2 className="text-base font-semibold text-ink-strong">
-              Create this room’s floor plan
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              {plan.unplaced_count > 0
-                ? `${plan.unplaced_count} ${plan.unplaced_count === 1 ? 'unit is' : 'units are'} in this room and will be ready to place as soon as the plan exists.`
-                : 'Choose the room’s size. Units can be placed once they are registered to this room.'}
-            </p>
-            <div className="mt-5">
-              <CreateLayoutForm onSubmit={startLayout} />
-            </div>
-          </Surface>
-        ) : (
-          <EmptyState
-            icon={<LayoutGrid size={22} />}
-            title="No floor plan for this room yet"
-            description={
-              plan.unplaced_count > 0
-                ? `${plan.unplaced_count} ${plan.unplaced_count === 1 ? 'unit is' : 'units are'} in this room, but the room has no active layout to place them on.`
-                : 'This room has no active layout and no units.'
+      {!plan.layout ? (
+        <div className="rounded-lg border border-border bg-surface">
+          <SetupLayout
+            roomName={plan.room.name}
+            machineCount={machines.length}
+            canEdit={plan.editor.can_edit && !preview}
+            creating={create.isPending}
+            error={create.error}
+            onCreate={(sizeChoice) =>
+              create.mutate(sizeChoice, {
+                onSuccess: () => {
+                  store.getState().setMode('edit')
+                  announce('Floorplan created. Place the room’s PCs from the Workstations panel.')
+                },
+              })
             }
           />
-        )
-      ) : (
+        </div>
+      ) : draft ? (
         <>
-          {!editable && plan.unplaced_count > 0 && (
-            <Alert tone="info">
-              {plan.unplaced_count}{' '}
-              {plan.unplaced_count === 1 ? 'unit in this room is' : 'units in this room are'} not
-              placed on the plan yet.
-            </Alert>
-          )}
-
-          {placeError && (
-            <Alert tone="error" title="That move was not saved">
-              {placeError}
-            </Alert>
-          )}
-
-          <FloorPlanToolbar />
-
-          <section
-            aria-labelledby={cardTitleId}
-            className="overflow-hidden rounded-lg border border-border bg-surface"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border px-4 py-2.5">
-              <h2 id={cardTitleId} className="text-sm font-semibold text-ink-strong">
-                {plan.room.name}
-                {plan.room.floor ? ` — ${plan.room.floor.name}` : ''}
-              </h2>
-              <span
-                className="slashed-zero font-mono text-[11px] text-muted"
-                data-testid="floor-plan-summary"
-              >
-                {plan.pcs.length} {plan.pcs.length === 1 ? 'unit' : 'units'} · {alerts}{' '}
-                {alerts === 1 ? 'alert' : 'alerts'}
+          {recovered && (
+            <Alert tone="info" title="You have unsaved changes from earlier">
+              <span className="block">
+                {countChanges(recovered.base, recovered.draft)} changes were kept in this tab{' '}
+                {new Date(recovered.savedAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                .
               </span>
+              <span className="mt-3 flex flex-wrap gap-3">
+                <Button
+                  size="sm"
+                  leftIcon={<History className="size-4" aria-hidden="true" />}
+                  onClick={restoreRecovered}
+                >
+                  Restore them
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    if (user) clearDraft(user.id, roomId)
+                    setRecovered(null)
+                  }}
+                >
+                  Discard
+                </Button>
+              </span>
+            </Alert>
+          )}
+          {remote && dirty && (
+            <Alert
+              tone="warning"
+              title={`${remote.by ?? 'Someone'} saved this Floorplan while you were editing`}
+            >
+              <span className="block">
+                Your unsaved changes are kept. Combine them with the newer version before saving.
+              </span>
+              <Button size="sm" className="mt-3" onClick={combineNow}>
+                Combine now
+              </Button>
+            </Alert>
+          )}
+          {saveError && <Alert tone="error">{saveError}</Alert>}
+
+          <EditorToolbar
+            editing={editing}
+            hasSelection={selection.length > 0}
+            hasFixtureSelection={selection.some((k) => k.startsWith('fx:'))}
+            unplacedCount={unplacedIds.length}
+            onAddFixture={(kind) => addFixture(kind)}
+            onRotate={() => rotateKeys(store.getState().selection, 1)}
+            onDelete={() => removeKeys(store.getState().selection)}
+            onDuplicate={() => duplicateKeys(store.getState().selection)}
+            onArrange={() => setDialog('arrange')}
+            onSettings={() => setDialog('settings')}
+            onShortcuts={() => setDialog('shortcuts')}
+          />
+
+          <div className="flex flex-wrap gap-2 xl:hidden">
+            <Button
+              size="sm"
+              variant="secondary"
+              leftIcon={<ListTree className="size-4" aria-hidden="true" />}
+              onClick={() => setDrawer('workstations')}
+            >
+              Workstations
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              leftIcon={<PanelRight className="size-4" aria-hidden="true" />}
+              onClick={() => setDrawer('details')}
+            >
+              Details
+            </Button>
+          </div>
+
+          <div className="grid h-[calc(100dvh-12rem)] min-h-120 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_23rem]">
+            <aside
+              aria-label="Workstations panel"
+              className="hidden min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface p-4 xl:flex"
+            >
+              {workstations}
+            </aside>
+
+            <div
+              role="group"
+              aria-label={`Floorplan of ${plan.room.name}, ${placedCount} workstation${placedCount === 1 ? '' : 's'} placed`}
+              aria-describedby="floorplan-help"
+              className={cn(
+                'relative min-h-0 overflow-hidden rounded-lg border bg-surface-sunken',
+                editing ? 'border-primary' : 'border-border',
+              )}
+            >
+              <p id="floorplan-help" className="sr-only">
+                Tab to a workstation and press Enter for its details.
+                {editing
+                  ? ' Arrow keys move the selection; R turns it; Delete removes it; Control+Z undoes.'
+                  : ' Arrow keys pan; plus and minus zoom.'}
+              </p>
+              <FloorPlanCanvas
+                plan={plan}
+                doc={draft}
+                editing={editing}
+                highlight={highlight}
+                onAnnounce={announce}
+                onDropItem={onDropItem}
+                onActivate={activate}
+              />
+              {editing && placedCount === 0 && Object.keys(draft.fixtures).length === 0 && (
+                <div className="pointer-events-none absolute inset-x-4 top-4 flex justify-center">
+                  <p className="pointer-events-auto max-w-md rounded-md border border-border bg-surface px-4 py-3 text-center text-sm text-ink shadow-(--shadow-overlay-sm)">
+                    {unplacedIds.length > 0
+                      ? `Place this room’s ${unplacedIds.length} PC${unplacedIds.length === 1 ? '' : 's'} from the Workstations panel, or `
+                      : 'Add desks, walls and doors from the toolbar. '}
+                    {unplacedIds.length > 0 && (
+                      <button
+                        type="button"
+                        className="font-semibold text-primary-strong underline underline-offset-2"
+                        onClick={() => setDialog('arrange')}
+                      >
+                        arrange them in rows
+                      </button>
+                    )}
+                    {unplacedIds.length > 0 && '.'}
+                  </p>
+                </div>
+              )}
+              {selectedPc && (
+                <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-4 py-2 shadow-(--shadow-overlay-sm) xl:hidden">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-ink-strong">
+                      {selectedPc.name}
+                    </span>
+                    <PcStatusBadge status={selectedPc.status.value} />
+                  </span>
+                  <Button size="sm" variant="secondary" onClick={() => setDrawer('details')}>
+                    Details
+                  </Button>
+                </div>
+              )}
             </div>
 
-            <FloorPlanCanvas
-              key={`${plan.room.id}:${layout.version}`}
-              roomName={plan.room.name}
-              layout={layout}
-              pcs={plan.pcs}
-              editable={editable}
-              snapToGrid={plan.editor.snap_to_grid}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onPlace={placeFromMap}
-              savingIds={saving}
-              announce={announce}
-              framed={false}
-            />
+            <aside
+              aria-label="Details panel"
+              className="hidden min-h-0 overflow-y-auto rounded-lg border border-border bg-surface p-5 xl:block"
+            >
+              {details}
+            </aside>
+          </div>
 
-            {plan.pcs.length > 0 && (
-              <div className="border-t border-border px-4 py-3">
-                <FloorPlanLegend pcs={plan.pcs} />
-              </div>
-            )}
-          </section>
-
-          {editable && (
-            <>
-              <UnplacedUnits
-                units={plan.unplaced}
-                onPlace={(unit) => placeUnplaced(unit.id)}
-                placingId={plan.unplaced.find((unit) => saving.has(unit.id))?.id ?? null}
-              />
-              <PlacementPanel
-                layout={layout}
-                pcs={plan.pcs}
-                unplaced={plan.unplaced}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                snapDefault={plan.editor.snap_to_grid}
-                onPlace={placeUnit}
-              />
-            </>
-          )}
-
-          <PcUnitList roomName={plan.room.name} pcs={plan.pcs} onInspect={setInspectingId} />
-
-          {inspectingId && (
-            <PcInspectorPanel pcId={inspectingId} onClose={() => setInspectingId(null)} />
-          )}
-
-          <ConfirmDialog
-            open={newVersionOpen}
-            onClose={() => setNewVersionOpen(false)}
-            onConfirm={() =>
-              (
-                document.getElementById('new-layout-version') as HTMLFormElement | null
-              )?.requestSubmit()
-            }
-            title="Start a new layout version"
-            description="The new version becomes the active plan with no units on it — positions never carry over between versions, so the current arrangement stays with the current version. You can arrange the units again afterwards."
-            confirmLabel="Create and activate"
-            loading={createLayout.isPending}
+          <Drawer
+            open={drawer === 'workstations'}
+            onClose={() => setDrawer(null)}
+            title="Workstations"
+            size="sm"
           >
-            <CreateLayoutForm id="new-layout-version" onSubmit={startLayout} hideSubmit />
-          </ConfirmDialog>
+            {workstations}
+          </Drawer>
+          <Drawer
+            open={drawer === 'details'}
+            onClose={() => setDrawer(null)}
+            title="Details"
+            size="sm"
+          >
+            {details}
+          </Drawer>
+
+          <LayoutSettingsDialog
+            open={dialog === 'settings'}
+            settings={draft.settings}
+            onClose={() => setDialog(null)}
+            onApply={applySettings}
+          />
+          <ShortcutsDialog open={dialog === 'shortcuts'} onClose={() => setDialog(null)} />
+          <AutoArrangeDialog
+            open={dialog === 'arrange'}
+            count={unplacedIds.length}
+            onClose={() => setDialog(null)}
+            onArrange={arrange}
+          />
+          <ConflictDialog
+            open={conflict !== null}
+            merge={conflict?.merge ?? null}
+            by={conflict?.by ?? null}
+            describe={describeKey}
+            saving={save.isPending}
+            onCancel={() => {
+              if (conflict?.current.layout) {
+                const theirs = docFromPlan(conflict.current)
+                if (theirs) {
+                  queryClient.setQueryData(floorPlanKeys.room(roomId), conflict.current)
+                  loaded.current = {
+                    version: conflict.current.layout.version,
+                    revision: conflict.current.layout.revision,
+                  }
+                  store
+                    .getState()
+                    .rebase(
+                      theirs,
+                      conflict.current.layout.revision,
+                      resolveConflicts(conflict.merge, {}),
+                    )
+                  announce('Combined with the newer version. Review, then save when ready.')
+                }
+              }
+              setConflict(null)
+            }}
+            onResolve={resolveConflict}
+          />
         </>
-      )}
+      ) : null}
+
+      <Modal
+        open={guard.pending !== null}
+        onClose={guard.stay}
+        title="Leave without saving?"
+        description={`You have ${changes} unsaved change${changes === 1 ? '' : 's'} on this Floorplan. If you leave, they stay in this tab and are offered back when you return.`}
+        footer={
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button variant="secondary" onClick={guard.stay}>
+              Stay
+            </Button>
+            <Button variant="secondary" onClick={guard.leave}>
+              Leave
+            </Button>
+            <Button onClick={() => doSave(guard.leave)} loading={save.isPending}>
+              Save and leave
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-muted">Saving applies every change in one go.</p>
+      </Modal>
     </div>
   )
 }
+
+/** Exported for tests: the empty draft used when nothing is loaded. */
+export type { LayoutDoc }

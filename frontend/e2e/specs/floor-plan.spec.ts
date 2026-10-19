@@ -1,548 +1,269 @@
-import { expect, test, type Page } from '@playwright/test'
-import {
-  apiFetch,
-  apiJson,
-  apiStatus,
-  goto,
-  openNavigation,
-  signIn,
-  signOut,
-} from '../fixtures/app'
+import { expect, test, type Locator, type Page } from '@playwright/test'
+import { apiFetch, apiJson, apiStatus, goto, openNavigation, signIn } from '../fixtures/app'
 import { manifest } from '../fixtures/manifest'
 
 /**
- * The Interactive Floor Plan, through a browser — Phase 2.8 / WP-C.
+ * The Floorplan, through a browser — Phase 2.8 (WP-C..G), completed in Phase
+ * 2.11 (SDD DD-101..DD-104).
  *
- * The plan is **Administrator-only**, so the assertions that matter most are the
- * negative ones, and they are made against the real stack: the API's own status
- * codes for a *real* room uuid, and what the URL actually renders — not merely
- * whether a link is hidden. Per-user permission grants (the WP-B trap) are
- * covered where they can be arranged cheaply, in the Pest suite; this file
- * proves the boundary holds end to end for the three seeded roles.
+ * Administrator-only, so the negative assertions are made against the real
+ * stack. Edits go through edit mode and a single Save (`PUT …/layouts/{v}`);
+ * every test that changes the fixture room puts its layout back afterwards,
+ * through the same endpoint, so the next test starts from the seeded plan.
  *
- * The fixture room carries an active layout with a unit in every PC status
- * (`sccit:e2e-fixtures`), so the map is exercised with all six shapes on it.
+ * The fixture room's active layout carries a unit in every PC status plus the
+ * fixture PC (`sccit:e2e-fixtures`).
  */
 
 const room = () => manifest().room
 const mapUrl = () => `/app/floor-plan/rooms/${room().uuid}`
 const apiUrl = () => `/api/admin/floor-plan/rooms/${room().uuid}`
 
-test.describe('floor plan — administrator', () => {
-  test('sees the map: grid, one node per unit, legend and text alternative', async ({ page }) => {
+interface Plan {
+  layout: { version: number; revision: number; width: number; height: number; grid_size: number }
+  pcs: { id: string; name: string; x: number; y: number; rotation: number }[]
+  fixtures: unknown[]
+}
+
+const node = (page: Page, name: string): Locator =>
+  page.locator(`[data-testid="floor-plan-node"][aria-label^="${name},"]`)
+
+async function plan(page: Page): Promise<Plan> {
+  const result = await apiJson<{ data: Plan }>(page, apiUrl())
+  expect(result.status).toBe(200)
+  return result.data.data
+}
+
+/** Put the room back exactly as `original` was, at the current revision. */
+async function restore(page: Page, original: Plan) {
+  const current = await plan(page)
+  const result = await apiFetch(page, `${apiUrl()}/layouts/${current.layout.version}`, 'PUT', {
+    expected_revision: current.layout.revision,
+    settings: {
+      width: original.layout.width,
+      height: original.layout.height,
+      grid_size: original.layout.grid_size,
+    },
+    workstations: original.pcs.map((p) => ({
+      pc_unit: p.id,
+      x: p.x,
+      y: p.y,
+      rotation: p.rotation,
+    })),
+    fixtures: original.fixtures,
+  })
+  expect(result.status).toBe(200)
+}
+
+async function labelPoint(locator: Locator) {
+  const label = (await locator.getAttribute('aria-label')) ?? ''
+  const match = /at x (\d+), y (\d+)/.exec(label)
+  return { x: Number(match?.[1]), y: Number(match?.[2]) }
+}
+
+test.describe('Floorplan — overview', () => {
+  test('lists the fixture room as a card that opens its editor', async ({ page }) => {
+    await signIn(page, 'administrator')
+    await goto(page, '/app/floor-plan')
+
+    await expect(page.getByRole('heading', { name: 'Floorplan', level: 1 })).toBeVisible()
+    const link = page.getByRole('link', { name: room().name, exact: true })
+    await expect(link).toBeVisible()
+    await link.click()
+    await expect(page).toHaveURL(new RegExp(`/app/floor-plan/rooms/${room().uuid}$`))
+  })
+})
+
+test.describe('Floorplan — administrator views a room', () => {
+  test('draws one node per placed unit, with status in words', async ({ page }) => {
     await signIn(page, 'administrator')
     await goto(page, mapUrl())
 
     await expect(page.getByRole('heading', { name: room().name, level: 1 })).toBeVisible()
-    await expect(page.getByTestId('floor-plan-svg')).toBeVisible()
-    await expect(page.getByTestId('floor-plan-grid')).toBeAttached()
-
-    // Three status units (Phase 2.11, DD-100) plus the fixture PC.
     await expect(page.getByTestId('floor-plan-node')).toHaveCount(4)
-
-    // Status is written, not only coloured: every state's label is on the page.
     for (const label of ['Available', 'Pending Repair', 'Needs Fix']) {
-      await expect(page.getByRole('region', { name: 'Legend' }).getByText(label)).toBeVisible()
+      await expect(
+        page.getByRole('group', { name: 'Highlight by status' }).getByText(label),
+      ).toBeVisible()
     }
-    await expect(page.getByRole('table', { name: /Units placed in/ })).toBeVisible()
+    await expect(page.getByText(/does not monitor whether a PC is switched on/)).toBeVisible()
   })
 
-  test('zooms, pans and resets with the toolbar and the keyboard', async ({ page }) => {
+  test('zooms with the toolbar and fits the room again', async ({ page }) => {
     await signIn(page, 'administrator')
     await goto(page, mapUrl())
 
     const svg = page.getByTestId('floor-plan-svg')
-    const initial = await svg.getAttribute('viewBox')
-    expect(initial).toBe('0 0 1000 600')
-
+    const before = await svg.getAttribute('viewBox')
     await page.getByRole('button', { name: 'Zoom in' }).click()
-    await expect(svg).not.toHaveAttribute('viewBox', initial!)
-    await expect(page.getByRole('status').filter({ hasText: '125%' })).toBeVisible()
-
-    await page.getByRole('button', { name: 'Pan right' }).click()
-    const panned = await svg.getAttribute('viewBox')
-    expect(panned).not.toBe(initial)
-
-    // The same controls from the keyboard, on the focused map.
-    await page.getByRole('group', { name: /^Floor plan of/ }).focus()
-    await page.keyboard.press('0')
-    await expect(svg).toHaveAttribute('viewBox', initial!)
-  })
-
-  test('dragging the background pans the view and leaves every unit where it is', async ({
-    page,
-  }) => {
-    await signIn(page, 'administrator')
-    await goto(page, mapUrl())
-
-    const node = page.getByTestId('floor-plan-node').first()
-    const before = await node.getAttribute('transform')
-    const box = (await page.getByTestId('floor-plan-svg').boundingBox())!
-
-    await page.mouse.move(box.x + 20, box.y + 20)
-    await page.mouse.down()
-    await page.mouse.move(box.x + 120, box.y + 90, { steps: 5 })
-    await page.mouse.up()
-
-    await expect(page.getByTestId('floor-plan-svg')).not.toHaveAttribute('viewBox', '0 0 1000 600')
-    expect(await node.getAttribute('transform')).toBe(before)
-  })
-
-  test('the API answers the Administrator, and refuses every write verb', async ({ page }) => {
-    await signIn(page, 'administrator')
-
-    expect(await apiStatus(page, apiUrl())).toBe(200)
-
-    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
-      expect((await apiFetch(page, apiUrl(), method, {})).status, method).toBe(405)
-    }
+    await expect(svg).not.toHaveAttribute('viewBox', before ?? '')
+    await page.getByRole('button', { name: 'Fit the room' }).click()
+    await expect(svg).toHaveAttribute('viewBox', before ?? '')
   })
 })
 
-/**
- * WP-D — placement. Every test here moves a real row in the dev database, so
- * each one puts its unit back through the same API before it ends; the
- * fixture command also re-seeds every position on the next `scripts/e2e.sh`.
- */
-type PlanPayload = {
-  data: {
-    layout: { version: number }
-    pcs: { id: string; name: string; x: number; y: number; updated_at: string }[]
-  }
-}
-
-const positionUrl = (version: number, pcId: string) =>
-  `/api/admin/floor-plan/rooms/${room().uuid}/layouts/${version}/positions/${pcId}`
-
-async function planUnit(page: Page, name: string) {
-  const { data } = await apiJson<PlanPayload>(page, apiUrl())
-  const unit = data.data.pcs.find((pc) => pc.name === name)
-  if (!unit) throw new Error(`Fixture unit "${name}" is not on the plan.`)
-  return { unit, version: data.data.layout.version }
-}
-
-async function putBack(page: Page, name: string, x: number, y: number) {
-  const { unit, version } = await planUnit(page, name)
-  const result = await apiFetch(page, positionUrl(version, unit.id), 'PATCH', { x, y, snap: false })
-  expect(result.status, `restoring ${name}`).toBe(200)
-}
-
-const LABEL_POINT = /at x ([\d.]+), y ([\d.]+)$/
-
-async function labelPoint(page: Page, name: string) {
-  const label = await page
-    .getByRole('button', { name: new RegExp(`^${name},`) })
-    .getAttribute('aria-label')
-  const match = label?.match(LABEL_POINT)
-  if (!match) throw new Error(`No position in the label "${label}".`)
-  return { x: Number(match[1]), y: Number(match[2]) }
-}
-
-test.describe('floor plan — administrator places units (WP-D)', () => {
-  test('drags a unit; the server snaps it, and it is still there after a reload', async ({
-    page,
-  }) => {
+test.describe('Floorplan — administrator edits and saves', () => {
+  test('drags a unit, saves, and it is still there after a reload', async ({ page }) => {
     await signIn(page, 'administrator')
     await goto(page, mapUrl())
-
-    const name = manifest().pc_unit.pc_name
-    const { unit: before } = await planUnit(page, name)
-    const node = page.getByRole('button', { name: new RegExp(`^${name},`) })
-    // `page.mouse` works in viewport coordinates: a unit below the fold would
-    // be "pressed" on the page background, not on the unit.
-    await node.scrollIntoViewIfNeeded()
-    const box = (await node.boundingBox())!
-
-    const saved = page.waitForResponse(
-      (response) =>
-        response.request().method() === 'PATCH' && response.url().includes('/positions/'),
-    )
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(box.x + box.width / 2 + 160, box.y + box.height / 2 - 70, { steps: 8 })
-    // Mid-drag: the unit is lifted and follows the pointer.
-    await expect(node).toHaveAttribute('data-moving', 'true')
-    await page.mouse.up()
-    const response = await saved
-    expect(response.status()).toBe(200)
-    const stored = ((await response.json()) as { data: { x: number; y: number } }).data
-
-    // The server's point: on the 20 px grid, and moved.
-    expect(stored.x % 20).toBe(0)
-    expect(stored.y % 20).toBe(0)
-    expect(stored).not.toEqual({ x: before.x, y: before.y })
-    await expect(page.getByTestId('floor-plan-announcer')).toContainText(`${name} placed at`)
-
-    await page.reload()
-    await expect(page.getByRole('button', { name: new RegExp(`^${name},`) })).toBeVisible()
-    expect(await labelPoint(page, name)).toEqual({ x: stored.x, y: stored.y })
-
-    await putBack(page, name, before.x, before.y)
-  })
-
-  test('moves a unit with the keyboard alone: Enter, arrows, Enter', async ({ page }) => {
-    await signIn(page, 'administrator')
-    await goto(page, mapUrl())
-
-    const name = 'E2E Plan PC 1'
-    const { unit: before } = await planUnit(page, name)
-    const node = page.getByRole('button', { name: new RegExp(`^${name},`) })
-
-    await node.focus()
-    await page.keyboard.press('Enter')
-    await expect(page.getByTestId('floor-plan-announcer')).toContainText(`Moving ${name}`)
-    await page.keyboard.press('ArrowRight')
-    await page.keyboard.press('ArrowRight')
-    await page.keyboard.press('ArrowDown')
-    await page.keyboard.press('Enter')
-
-    const expected = { x: before.x + 40, y: before.y + 20 }
-    await expect(page.getByTestId('floor-plan-announcer')).toContainText(
-      `${name} placed at x ${expected.x}, y ${expected.y}`,
-    )
-
-    await page.reload()
-    await expect(page.getByRole('button', { name: new RegExp(`^${name},`) })).toBeVisible()
-    expect(await labelPoint(page, name)).toEqual(expected)
-
-    await putBack(page, name, before.x, before.y)
-  })
-
-  test('Escape abandons a keyboard move and nothing is saved', async ({ page }) => {
-    await signIn(page, 'administrator')
-    await goto(page, mapUrl())
-
-    const name = 'E2E Plan PC 2'
-    const { unit: before } = await planUnit(page, name)
-    let writes = 0
-    page.on('request', (request) => {
-      if (request.method() === 'PATCH') writes += 1
-    })
-
-    await page.getByRole('button', { name: new RegExp(`^${name},`) }).focus()
-    await page.keyboard.press('Enter')
-    await page.keyboard.press('ArrowDown')
-    await page.keyboard.press('Escape')
-
-    await expect(page.getByTestId('floor-plan-announcer')).toContainText('Move cancelled')
-    expect(await labelPoint(page, name)).toEqual({ x: before.x, y: before.y })
-    expect(writes).toBe(0)
-  })
-
-  test('places a unit by exact coordinates', async ({ page }) => {
-    await signIn(page, 'administrator')
-    await goto(page, mapUrl())
-
-    const name = 'E2E Plan PC 3'
-    const { unit: before } = await planUnit(page, name)
-
-    await page
-      .getByLabel('Unit', { exact: true })
-      .selectOption({ label: `${name} — at x ${before.x}, y ${before.y}` })
-    await page.getByRole('spinbutton', { name: 'X position' }).fill('503')
-    await page.getByRole('spinbutton', { name: 'Y position' }).fill('417')
-    await page.getByRole('button', { name: 'Move unit' }).click()
-
-    // 503,417 on a 20 px grid is 500,420 — the server's answer is what shows.
-    await expect(page.getByTestId('floor-plan-announcer')).toContainText(
-      `${name} placed at x 500, y 420, aligned to the grid`,
-    )
-    expect(await labelPoint(page, name)).toEqual({ x: 500, y: 420 })
-
-    await putBack(page, name, before.x, before.y)
-  })
-
-  test('the write API refuses a point off the canvas and an unknown unit', async ({ page }) => {
-    await signIn(page, 'administrator')
-    await goto(page, mapUrl())
-
-    const { unit, version } = await planUnit(page, 'E2E Plan PC 1')
-
-    expect(
-      (await apiFetch(page, positionUrl(version, unit.id), 'PATCH', { x: 5000, y: 10 })).status,
-    ).toBe(422)
-    expect(
-      (
-        await apiFetch(
-          page,
-          positionUrl(version, '00000000-0000-4000-8000-000000000000'),
-          'PATCH',
-          { x: 10, y: 10 },
-        )
-      ).status,
-    ).toBe(404)
-    expect(
-      (await apiFetch(page, positionUrl(version + 50, unit.id), 'PATCH', { x: 10, y: 10 })).status,
-    ).toBe(404)
-  })
-})
-
-/**
- * WP-E — real-time synchronization between two independently authenticated
- * browsers, over the real stack: app -> Redis -> queue worker -> Reverb ->
- * WebSocket, exactly the path WP-A's own two-browser proof travelled.
- *
- * "Two browsers" here is two independent Playwright `BrowserContext`s — each
- * with its own cookie jar, page and WebSocket connection, signed in
- * separately through the real `/sign-in` form. That is a stronger and more
- * standard isolation boundary for this than two OS processes would be (no
- * shared storage, no shared socket), and it is what a genuinely different
- * browser window of the same administrator would look like. The floor plan is
- * Administrator-only (D2), so both sides are the one seeded administrator
- * account — two sessions of it, not a shared session.
- *
- * Every assertion below polls the live DOM (`expect(...).toHaveText` etc.,
- * Playwright's built-in auto-waiting) and never calls `page.reload()` on the
- * receiving side — a passing assertion is only possible if the update arrived
- * over the socket, not from a fetch this test triggered.
- */
-test.describe('floor plan — real-time synchronization (WP-E)', () => {
-  test('a position change made in one browser appears live in another, without a refresh', async ({
-    browser,
-  }) => {
-    const contextA = await browser.newContext()
-    const contextB = await browser.newContext()
+    const original = await plan(page)
 
     try {
-      const pageA = await contextA.newPage()
-      const pageB = await contextB.newPage()
+      await page.getByRole('button', { name: 'Edit layout' }).click()
+      const unit = node(page, 'E2E Plan PC 1')
+      const start = await labelPoint(unit)
+      const box = (await unit.boundingBox())!
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 4, { steps: 6 })
+      await page.mouse.up()
 
-      // Dev also opens a Vite HMR socket on this same origin; only the one at
-      // /reverb/app/ is Echo's, so frames are captured from that one alone.
-      const socketFramesB: unknown[] = []
-      let reverbSocketSeenB = false
-      pageB.on('websocket', (ws) => {
-        if (!ws.url().includes('/reverb/app/')) return
-        reverbSocketSeenB = true
-        ws.on('framereceived', (frame) => {
-          if (typeof frame.payload !== 'string') return
-          try {
-            socketFramesB.push(JSON.parse(frame.payload) as unknown)
-          } catch {
-            // Pusher's own ping/pong frames are not JSON; ignore them.
-          }
-        })
-      })
+      await expect(page.getByText(/Unsaved changes \(1\)/)).toBeVisible()
+      await page.getByRole('button', { name: 'Save' }).click()
+      await expect(page.getByText(/^Saved/)).toBeVisible()
 
-      await signIn(pageA, 'administrator')
-      await signIn(pageB, 'administrator')
-      await Promise.all([goto(pageA, mapUrl()), goto(pageB, mapUrl())])
+      const moved = await labelPoint(unit)
+      expect(moved.x).not.toBe(start.x)
+      // Snapped: a 40-unit workstation's centre lands on the 20-unit grid.
+      expect(moved.x % 20).toBe(0)
 
-      // Both pages render the same fixture unit before anything happens.
-      const nameA = new RegExp(`^${'E2E Fixture PC'},`)
-      await expect(pageA.getByRole('button', { name: nameA })).toBeVisible()
-      await expect(pageB.getByRole('button', { name: nameA })).toBeVisible()
-
-      // Confirm B actually opened the real Reverb socket and subscribed before
-      // A acts, so a later silent failure to deliver cannot be mistaken for
-      // "too soon".
-      await expect.poll(() => reverbSocketSeenB).toBe(true)
-      await expect
-        .poll(() =>
-          socketFramesB.some((frame) =>
-            isPusherEvent(frame, 'pusher_internal:subscription_succeeded'),
-          ),
-        )
-        .toBe(true)
-
-      const before = await labelPoint(pageA, 'E2E Fixture PC')
-      const nodeA = pageA.getByRole('button', { name: nameA })
-      // `page.mouse` works in viewport coordinates: a node below the fold
-      // would be "pressed" on whatever renders at that point instead.
-      await nodeA.scrollIntoViewIfNeeded()
-      const box = (await nodeA.boundingBox())!
-
-      const saved = pageA.waitForResponse(
-        (response) =>
-          response.request().method() === 'PATCH' && response.url().includes('/positions/'),
+      await page.reload()
+      await expect(node(page, 'E2E Plan PC 1')).toHaveAttribute(
+        'aria-label',
+        new RegExp(`at x ${moved.x}, y ${moved.y}`),
       )
-      await pageA.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-      await pageA.mouse.down()
-      await pageA.mouse.move(box.x + box.width / 2 + 100, box.y + box.height / 2 + 60, { steps: 8 })
-      await pageA.mouse.up()
-      const response = await saved
-      const stored = ((await response.json()) as { data: { x: number; y: number } }).data
-
-      // B updates on its own — no navigation, no reload, from the socket alone.
-      await expect
-        .poll(async () => labelPoint(pageB, 'E2E Fixture PC'), { timeout: 10_000 })
-        .toEqual({ x: stored.x, y: stored.y })
-      await expect(pageB.getByTestId('floor-plan-announcer')).toContainText(
-        'E2E Fixture PC moved to',
-      )
-
-      // The actual frame carried exactly this move and nothing more.
-      const positionFrame = socketFramesB.find((frame) =>
-        isPusherEvent(frame, 'floor-plan.position-updated'),
-      )
-      expect(positionFrame).toBeDefined()
-      const positionData = JSON.parse((positionFrame as { data: string }).data) as {
-        pc: { id: string; x: number; y: number }
-      }
-      expect(positionData.pc.x).toBe(stored.x)
-      expect(positionData.pc.y).toBe(stored.y)
-      expect(JSON.stringify(positionFrame)).not.toContain('serial_number')
-
-      await putBack(pageA, 'E2E Fixture PC', before.x, before.y)
     } finally {
+      await restore(page, original)
+    }
+  })
+
+  test('moves a unit with the keyboard alone and saves with Ctrl+S', async ({ page }) => {
+    await signIn(page, 'administrator')
+    await goto(page, mapUrl())
+    const original = await plan(page)
+
+    try {
+      await page.getByRole('button', { name: 'Edit layout' }).click()
+      const unit = node(page, 'E2E Plan PC 2')
+      const start = await labelPoint(unit)
+      await unit.focus()
+      await page.keyboard.press('Enter')
+      await page.keyboard.press('ArrowDown')
+      await expect(unit).toHaveAttribute(
+        'aria-label',
+        new RegExp(`at x ${start.x}, y ${start.y + 20}`),
+      )
+
+      await page.keyboard.press('Control+s')
+      await expect(page.getByText(/^Saved/)).toBeVisible()
+      expect((await plan(page)).pcs.find((p) => p.name === 'E2E Plan PC 2')?.y).toBe(start.y + 20)
+    } finally {
+      await restore(page, original)
+    }
+  })
+
+  test('discarding leaves the saved layout untouched', async ({ page }) => {
+    await signIn(page, 'administrator')
+    await goto(page, mapUrl())
+    const before = await plan(page)
+
+    await page.getByRole('button', { name: 'Edit layout' }).click()
+    const unit = node(page, 'E2E Plan PC 2')
+    await unit.focus()
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('ArrowRight')
+    await page.getByRole('button', { name: 'Discard' }).click()
+
+    expect((await plan(page)).layout.revision).toBe(before.layout.revision)
+  })
+})
+
+test.describe('Floorplan — two administrators', () => {
+  test('a save made in another browser is combined, never overwritten', async ({ browser }) => {
+    const contextA = await browser.newContext()
+    const contextB = await browser.newContext()
+    const pageA = await contextA.newPage()
+    const pageB = await contextB.newPage()
+
+    await signIn(pageA, 'administrator')
+    await signIn(pageB, 'administrator')
+    await Promise.all([goto(pageA, mapUrl()), goto(pageB, mapUrl())])
+    const original = await plan(pageA)
+
+    try {
+      for (const page of [pageA, pageB])
+        await page.getByRole('button', { name: 'Edit layout' }).click()
+
+      // A moves PC 1 and saves.
+      await node(pageA, 'E2E Plan PC 1').focus()
+      await pageA.keyboard.press('Enter')
+      await pageA.keyboard.press('ArrowDown')
+      await pageA.getByRole('button', { name: 'Save' }).click()
+      await expect(pageA.getByText(/^Saved/)).toBeVisible()
+
+      // B, still on the old revision, moves PC 2 and saves.
+      await node(pageB, 'E2E Plan PC 2').focus()
+      await pageB.keyboard.press('Enter')
+      await pageB.keyboard.press('ArrowDown')
+      await pageB.getByRole('button', { name: 'Save' }).click()
+
+      const dialog = pageB.getByRole('dialog', {
+        name: 'This Floorplan changed while you were editing',
+      })
+      await expect(dialog).toBeVisible({ timeout: 10_000 })
+      await dialog.getByRole('button', { name: 'Save combined layout' }).click()
+      await expect(pageB.getByText(/^Saved/)).toBeVisible()
+
+      const after = await plan(pageB)
+      const before1 = original.pcs.find((p) => p.name === 'E2E Plan PC 1')!
+      const before2 = original.pcs.find((p) => p.name === 'E2E Plan PC 2')!
+      expect(after.pcs.find((p) => p.name === 'E2E Plan PC 1')?.y).toBe(before1.y + 20)
+      expect(after.pcs.find((p) => p.name === 'E2E Plan PC 2')?.y).toBe(before2.y + 20)
+    } finally {
+      await restore(pageA, original)
       await contextA.close()
       await contextB.close()
     }
   })
 
-  test('a PC status change made in one browser appears live in another, without a refresh', async ({
-    browser,
-  }) => {
+  test('a PC status change made in one browser appears live in another', async ({ browser }) => {
     const contextA = await browser.newContext()
     const contextB = await browser.newContext()
 
     try {
       const pageA = await contextA.newPage()
       const pageB = await contextB.newPage()
-
       await signIn(pageA, 'administrator')
       await signIn(pageB, 'administrator')
       await Promise.all([goto(pageA, mapUrl()), goto(pageB, mapUrl())])
 
-      const name = 'E2E Plan PC 3'
-      const nameRe = new RegExp(`^${name},`)
-      await expect(pageB.getByRole('button', { name: nameRe })).toBeVisible()
-
-      const { unit } = await planUnit(pageA, name)
-      // Confirmed by the fixture's own seed order (PcStatus::cases()[2]).
+      const unit = (await plan(pageA)).pcs.find((p) => p.name === 'E2E Plan PC 3')!
+      // Seed order: PcStatus::cases()[2].
       const originalStatus = 'needs_fix'
 
-      const result = await apiJson<{ data: { status: string } }>(
-        pageA,
-        `/api/admin/pc-units/${unit.id}`,
-        'PUT',
-        { status: 'available' },
-      )
-      expect(result.status).toBe(200)
-
-      // B's node relabels itself — status only, no reload — purely from the
-      // PcStatusChanged broadcast.
-      await expect(pageB.getByRole('button', { name: /^E2E Plan PC 3, Available,/ })).toBeVisible({
-        timeout: 10_000,
-      })
-      await expect(pageB.getByTestId('floor-plan-announcer')).toContainText(
-        'E2E Plan PC 3 is now Available',
-      )
-
-      // Restore the fixture's seeded status.
-      const restore = await apiJson<{ data: { status: string } }>(
-        pageA,
-        `/api/admin/pc-units/${unit.id}`,
-        'PUT',
-        { status: originalStatus },
-      )
-      expect(restore.status).toBe(200)
-      await expect(pageB.getByRole('button', { name: /^E2E Plan PC 3, Needs Fix,/ })).toBeVisible({
-        timeout: 10_000,
-      })
-    } finally {
-      await contextA.close()
-      await contextB.close()
-    }
-  })
-})
-
-/** Narrows a decoded Pusher-protocol frame to one carrying a given event name. */
-function isPusherEvent(frame: unknown, event: string): frame is { event: string; data: string } {
-  return (
-    typeof frame === 'object' &&
-    frame !== null &&
-    'event' in frame &&
-    (frame as { event: unknown }).event === event
-  )
-}
-
-/**
- * WP-F — optimistic concurrency (D3), through two independently authenticated
- * browsers, exactly as the requirement names it: "client A updates a PC;
- * client B, holding a stale `expected_updated_at`, is refused with 409 and
- * reconciles."
- *
- * Two Playwright `BrowserContext`s (see the WP-E section above for why this
- * is the real, standard way to model two independent sessions of the one
- * seeded administrator here — the floor plan is Administrator-only, D2).
- */
-test.describe('floor plan — optimistic concurrency (WP-F)', () => {
-  test("client B, holding a stale token, is refused with 409 and reconciles to client A's move — without a reload", async ({
-    browser,
-  }) => {
-    const contextA = await browser.newContext()
-    const contextB = await browser.newContext()
-
-    try {
-      const pageA = await contextA.newPage()
-      const pageB = await contextB.newPage()
-
-      await signIn(pageA, 'administrator')
-      await signIn(pageB, 'administrator')
-
-      const name = 'E2E Plan PC 1'
-      const nameRe = new RegExp(`^${name},`)
-
-      // Both clients "load the plan" at the same moment: the same stored
-      // updated_at token.
-      const { unit: before, version } = await planUnit(pageA, name)
-      await Promise.all([goto(pageA, mapUrl()), goto(pageB, mapUrl())])
-      await expect(pageA.getByRole('button', { name: nameRe })).toBeVisible()
-      await expect(pageB.getByRole('button', { name: nameRe })).toBeVisible()
-
-      // Client A moves it — through the real UI, so its own token updates.
-      const nodeA = pageA.getByRole('button', { name: nameRe })
-      await nodeA.focus()
-      await pageA.keyboard.press('Enter')
-      await pageA.keyboard.press('ArrowRight')
-      await pageA.keyboard.press('ArrowRight')
-      await pageA.keyboard.press('Enter')
-      await expect(pageA.getByTestId('floor-plan-announcer')).toContainText(`${name} placed at`)
-      const afterA = await labelPoint(pageA, name)
-      expect(afterA).not.toEqual({ x: before.x, y: before.y })
-
-      // Client B, still holding the pre-A token, tries to move the SAME unit
-      // directly against the write API (B's own tab never refreshed, so this
-      // is exactly what B's UI would send).
-      const staleResult = await apiJson<{
-        message: string
-        code: string
-        current: { x: number; y: number; updated_at: string }
-      }>(pageB, positionUrl(version, before.id), 'PATCH', {
-        x: afterA.x + 40,
-        y: afterA.y,
-        snap: false,
-        expected_updated_at: before.updated_at,
-      })
-
-      expect(staleResult.status).toBe(409)
-      expect(staleResult.data.code).toBe('position_stale')
-      // The 409 body itself already carries A's move — client B's
-      // reconciliation source, with no extra round trip.
-      expect(staleResult.data.current.x).toBe(afterA.x)
-      expect(staleResult.data.current.y).toBe(afterA.y)
-
-      // B's UI, never told to reload, still shows A's move: whatever
-      // mechanism last synced B's cache (the WP-E broadcast this same drag
-      // triggered) — never a stale, pre-A position.
-      expect(await labelPoint(pageB, name)).toEqual(afterA)
-
-      // B retries with the value the 409 just gave it, and it succeeds.
-      const retried = await apiJson<{ x: number; y: number }>(
-        pageB,
-        positionUrl(version, before.id),
-        'PATCH',
+      expect(
+        (await apiFetch(pageA, `/api/admin/pc-units/${unit.id}`, 'PUT', { status: 'available' }))
+          .status,
+      ).toBe(200)
+      await expect(node(pageB, 'E2E Plan PC 3')).toHaveAttribute(
+        'aria-label',
+        /^E2E Plan PC 3, Available,/,
         {
-          x: afterA.x + 40,
-          y: afterA.y,
-          snap: false,
-          expected_updated_at: staleResult.data.current.updated_at,
+          timeout: 10_000,
         },
       )
-      expect(retried.status).toBe(200)
 
-      await putBack(pageA, name, before.x, before.y)
+      expect(
+        (await apiFetch(pageA, `/api/admin/pc-units/${unit.id}`, 'PUT', { status: originalStatus }))
+          .status,
+      ).toBe(200)
+      await expect(node(pageB, 'E2E Plan PC 3')).toHaveAttribute(
+        'aria-label',
+        /^E2E Plan PC 3, Needs Fix,/,
+        {
+          timeout: 10_000,
+        },
+      )
     } finally {
       await contextA.close()
       await contextB.close()
@@ -550,44 +271,46 @@ test.describe('floor plan — optimistic concurrency (WP-F)', () => {
   })
 })
 
-for (const role of ['technician', 'teacher'] as const) {
-  test.describe(`floor plan — ${role} cannot place units`, () => {
-    test('the write API refuses them with real identifiers', async ({ page }) => {
-      // Arrange as an administrator to learn real identifiers, then switch.
-      await signIn(page, 'administrator')
-      await goto(page, mapUrl())
-      const { unit, version } = await planUnit(page, 'E2E Plan PC 2')
+test.describe('Floorplan — the write path', () => {
+  test('refuses a stale revision with the current plan, and the retired per-unit PATCH is gone', async ({
+    page,
+  }) => {
+    await signIn(page, 'administrator')
+    await goto(page, mapUrl())
+    const current = await plan(page)
 
-      await signOut(page)
-      await signIn(page, role)
-
-      expect(
-        (await apiFetch(page, positionUrl(version, unit.id), 'PATCH', { x: 40, y: 40 })).status,
-      ).toBe(403)
-      // An invented unit gets the identical answer — no oracle.
-      expect(
-        (
-          await apiFetch(
-            page,
-            positionUrl(version, '00000000-0000-4000-8000-000000000000'),
-            'PATCH',
-            { x: 40, y: 40 },
-          )
-        ).status,
-      ).toBe(403)
+    const stale = await apiFetch(page, `${apiUrl()}/layouts/${current.layout.version}`, 'PUT', {
+      expected_revision: current.layout.revision + 99,
+      settings: {
+        width: current.layout.width,
+        height: current.layout.height,
+        grid_size: current.layout.grid_size,
+      },
+      workstations: [],
+      fixtures: [],
     })
+    expect(stale.status).toBe(409)
+    expect(JSON.parse(stale.body).code).toBe('layout_stale')
+
+    const pc = current.pcs[0]
+    const patch = await apiFetch(
+      page,
+      `${apiUrl()}/layouts/${current.layout.version}/positions/${pc.id}`,
+      'PATCH',
+      { x: 40, y: 40 },
+    )
+    expect([404, 405]).toContain(patch.status)
   })
-}
+})
 
 for (const role of ['technician', 'teacher'] as const) {
-  test.describe(`floor plan — ${role} is refused`, () => {
-    test('has no navigation entry, and the URL shows Access denied', async ({ page }) => {
+  test.describe(`Floorplan — ${role} is refused`, () => {
+    test('has no navigation entry, and the URLs show Access denied', async ({ page }) => {
       await signIn(page, role)
 
-      // Open the menu first: against the closed panel this count is always 0.
       const nav = await openNavigation(page)
       await expect(nav.getByRole('link', { name: 'Dashboard' })).toBeVisible()
-      await expect(nav.getByRole('link', { name: /Floor plan/ })).toHaveCount(0)
+      await expect(nav.getByRole('link', { name: /Floorplan/ })).toHaveCount(0)
 
       for (const path of ['/app/floor-plan', mapUrl()]) {
         await goto(page, path)
@@ -596,20 +319,22 @@ for (const role of ['technician', 'teacher'] as const) {
       }
     })
 
-    test('is refused by the API itself, for a real room and an invented one', async ({ page }) => {
+    test('is refused by the API, identically for a real room and an invented one', async ({
+      page,
+    }) => {
       await signIn(page, role)
+      const invented = '/api/admin/floor-plan/rooms/00000000-0000-4000-8000-000000000000'
 
-      // The real uuid is not a credential …
       expect(await apiStatus(page, apiUrl())).toBe(403)
-      // … and the answer is identical for one that does not exist.
-      expect(
-        await apiStatus(page, '/api/admin/floor-plan/rooms/00000000-0000-4000-8000-000000000000'),
-      ).toBe(403)
+      expect(await apiStatus(page, invented)).toBe(403)
+      expect(await apiStatus(page, '/api/admin/floor-plan/rooms')).toBe(403)
+      expect((await apiFetch(page, `${apiUrl()}/layouts/1`, 'PUT', {})).status).toBe(403)
+      expect((await apiFetch(page, `${invented}/layouts/1`, 'PUT', {})).status).toBe(403)
     })
   })
 }
 
-test.describe('floor plan — unauthenticated', () => {
+test.describe('Floorplan — unauthenticated', () => {
   test('is refused by the API and by the route', async ({ page }) => {
     await goto(page, '/sign-in')
 

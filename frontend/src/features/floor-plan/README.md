@@ -1,33 +1,23 @@
-# floor-plan feature
+# floor-plan — the Floorplan (Phase 2.8, completed Phase 2.11)
 
-Frontend for the Interactive Floor Plan (Phase 2.8). **Administrator-only.**
+Administrator-only. Routes: `/app/floor-plan` (overview) and
+`/app/floor-plan/rooms/:id` (editor), both behind `RequireFloorPlan`
+(Administrator role + `floorplan.view`); the server decides every request.
 
-## Delivered (WP-C — read-only visualization)
+| Piece | Where |
+|---|---|
+| Overview: room cards, totals, filters, "New room" (Locations' own form) | `pages/FloorPlanPage.tsx`, `components/RoomCard.tsx`, `components/RoomThumbnail.tsx` |
+| Editor workspace: header, status chips, save state, live + presence, panels, dialogs | `pages/FloorPlanRoomPage.tsx` |
+| SVG canvas: pan/zoom/pinch, drag and group drag, resize/turn handles, drop targets | `components/FloorPlanCanvas.tsx`, `PcNode.tsx`, `FixtureShape.tsx` |
+| Workstations panel (this room / other rooms with a confirmed move) | `components/WorkstationsPanel.tsx` |
+| Details panel (asset record, tickets, repairs; fixture properties) | `components/DetailsPanel.tsx` |
+| Toolbar, dialogs, status badges | `EditorToolbar.tsx`, `EditorDialogs.tsx`, `EditorStatus.tsx`, `SetupLayout.tsx` |
+| Draft model, diff, three-way merge | `lib/layoutDocument.ts` |
+| Geometry (mirrors the server's `LayoutGeometry`) | `lib/geometry.ts` |
+| Per-room editor store (draft, undo/redo, selection, view) | `stores/createEditorStore.ts`, `EditorStoreContext.tsx`, `useEditor.ts` |
+| Unsaved-draft storage (sessionStorage) and leave guard | `lib/draftStorage.ts`, `hooks/useUnsavedChangesGuard.ts` |
+| Realtime notices and presence | `hooks/useFloorPlanChannel.ts`, `@/hooks/usePresenceChannel.ts` |
 
-- `pages/FloorPlanPage` — room picker (rooms come from the Locations directory).
-- `pages/FloorPlanRoomPage` — one room's map, legend, controls and text alternative.
-- `components/FloorPlanCanvas` — SVG, `viewBox` = a window onto the layout in its own
-  pixels; grid as an SVG `<pattern>`; pan (drag, arrow keys, buttons), zoom
-  (buttons, `+`/`-`, Ctrl/⌘ + wheel), reset.
-- `stores/useViewportStore` — Zustand, **view state only** (zoom, pan, layout size).
-  Server data stays in TanStack Query; authorization stays with the backend and the
-  route guard.
-- `guards/RequireFloorPlan` — role **and** permission (mirrors the backend
-  `FloorPlanAccess`); fails closed.
-
-Status is drawn with three channels — a per-status **shape**, the server's **tone**
-(colour) and the server's written **label**. The label/tone come from
-`PcStatus::label()/tone()` in the API payload; nothing here re-derives them.
-
-## Not built yet
-
-Dragging or snapping machines, saving positions, layout create/activate/versioning,
-the PC inspector, live updates over Reverb, minimap, context menus. Later packages.
-
-## Authorization
-
-The backend is authoritative. Every floor-plan endpoint is gated by the **policy**
-ability on `RoomLayout` and by `RoomLayoutService` — never by a `floorplan.*`
-permission string, which a per-user grant could satisfy. The guard, the nav entry and
-the room page (which shows the Forbidden screen on any 401/403) are UX reflections of
-that, not the control.
+PC status colours come from the shared table `@/lib/pcStatus` via
+`PcStatusBadge` — never mapped locally. Nothing here claims a PC is online or
+offline.

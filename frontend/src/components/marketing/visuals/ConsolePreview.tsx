@@ -112,7 +112,7 @@ const navItems = [
   { icon: Ticket, label: 'Tickets', active: true },
   { icon: Boxes, label: 'Assets' },
   { icon: Wrench, label: 'Maintenance' },
-  { icon: Map, label: 'Floor plan' },
+  { icon: Map, label: 'Floorplan' },
   { icon: BarChart3, label: 'Analytics' },
 ]
 

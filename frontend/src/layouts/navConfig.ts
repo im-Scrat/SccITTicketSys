@@ -221,7 +221,7 @@ const ADMINISTRATOR_NAV: NavItem[] = [
   },
   {
     to: '/app/floor-plan',
-    label: 'Floor plan',
+    label: 'Floorplan',
     icon: MapIcon,
     permission: 'floorplan.view',
     group: 'Assets & places',

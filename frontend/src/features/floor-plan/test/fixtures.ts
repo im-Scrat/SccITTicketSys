@@ -1,9 +1,16 @@
-import type { PcStatus, PcStatusValue, PlacedPc, RoomPlan, Tone, UnplacedPc } from '../types'
+import type {
+  Fixture,
+  FloorPlanRoomSummary,
+  PcStatus,
+  PcStatusValue,
+  PlacedPc,
+  RoomPlan,
+  UnplacedPc,
+} from '../types'
 
 /**
- * Test data shaped exactly like the API payload. The label and tone pairs are
- * the ones `PcStatus::label()/tone()` produce on the server — the client never
- * derives them, so tests state them rather than compute them.
+ * Test data shaped exactly like the API payload. Label and tone pairs are the
+ * ones `PcStatus::label()/tone()` produce on the server — stated, not derived.
  */
 const STATUSES: Record<PcStatusValue, PcStatus> = {
   available: { value: 'available', label: 'Available', tone: 'success' },
@@ -31,11 +38,31 @@ export function pc(
     y: 120,
     rotation: 0,
     z_index: 0,
-    // WP-F: the optimistic-concurrency token. Distinct per index by default so
-    // a test that forgets to override it on a second unit doesn't accidentally
-    // share one.
     updated_at: `2026-01-01T00:00:${String(index).padStart(2, '0')}Z`,
     open_ticket: null,
+    ...overrides,
+  }
+}
+
+export function unplacedPc(index: number, value: PcStatusValue = 'available'): UnplacedPc {
+  return {
+    id: `unplaced-uuid-${index}`,
+    name: `PC-U${index}`,
+    unit_code: `LAB-U${index}`,
+    status: STATUSES[value],
+  }
+}
+
+export function fixture(overrides: Partial<Fixture> = {}): Fixture {
+  return {
+    id: 'fixture-uuid-1',
+    kind: 'desk',
+    x: 500,
+    y: 400,
+    width: 80,
+    height: 40,
+    rotation: 0,
+    label: null,
     ...overrides,
   }
 }
@@ -49,23 +76,57 @@ export function roomPlan(overrides: Partial<RoomPlan> = {}): RoomPlan {
       floor: { name: 'Ground floor', floor_number: 1 },
       building: { name: 'Main Building', code: 'MAIN' },
     },
-    layout: { version: 1, width: 1000, height: 600, grid_size: 20 },
+    layout: {
+      version: 1,
+      revision: 3,
+      width: 1000,
+      height: 600,
+      grid_size: 20,
+      updated_at: '2026-10-19T08:00:00+00:00',
+      updated_by: { name: 'Ana Reyes' },
+    },
+    fixtures: [],
+    workstation_size: 40,
     pcs: ALL_STATUS_VALUES.map((value, i) => pc(i + 1, value)),
     unplaced: [],
     unplaced_count: 0,
-    editor: { can_edit: false, snap_to_grid: true },
+    editor: { can_edit: true, snap_to_grid: true },
     ...overrides,
   }
 }
 
-/** A unit of the room that has no position yet. */
-export function unplacedPc(index: number, value: PcStatusValue = 'available'): UnplacedPc {
+export function roomSummary(overrides: Partial<FloorPlanRoomSummary> = {}): FloorPlanRoomSummary {
   return {
-    id: `unplaced-uuid-${index}`,
-    name: `PC-U${index}`,
-    unit_code: `LAB-U${index}`,
-    status: STATUSES[value],
+    id: 'room-uuid-1',
+    name: 'Computer Lab 2',
+    code: 'LAB-2',
+    room_type: { value: 'laboratory', label: 'Laboratory' },
+    is_active: true,
+    capacity: 40,
+    floor: { name: 'Ground floor', floor_number: 1 },
+    building: { name: 'Main Building', code: 'MAIN' },
+    pcs: {
+      total: 3,
+      placed: 2,
+      by_status: [
+        { ...STATUSES.available, count: 1 },
+        { ...STATUSES.pending_repair, count: 1 },
+        { ...STATUSES.needs_fix, count: 1 },
+      ],
+    },
+    layout: {
+      version: 1,
+      revision: 3,
+      width: 1000,
+      height: 600,
+      updated_at: '2026-10-19T08:00:00+00:00',
+      updated_by: { name: 'Ana Reyes' },
+    },
+    preview: {
+      pcs: [[100, 120, 0, 'available']],
+      fixtures: [['desk', 100, 120, 80, 40, 0]],
+      truncated: false,
+    },
+    ...overrides,
   }
 }
-
-export type { Tone }

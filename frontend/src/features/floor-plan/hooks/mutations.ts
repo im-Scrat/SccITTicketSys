@@ -1,199 +1,60 @@
-import { isAxiosError } from 'axios'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { activateRoomLayout, createRoomLayout, placePcUnit } from '../api/floorPlanApi'
-import type {
-  LayoutCreateRequest,
-  PlacedPc,
-  PlacementRequest,
-  PlanLayoutRecord,
-  RoomPlan,
-  StaleWriteConflict,
-  UnplacedPc,
-} from '../types'
+import { updatePcUnit } from '@/features/assets/api/assetsApi'
+import { createRoomLayout, saveRoomLayout } from '../api/floorPlanApi'
+import type { LayoutCreateRequest, PcStatus, RoomPlan, SaveLayoutRequest } from '../types'
 import { floorPlanKeys } from './queries'
 
 /**
- * Create a layout version and make it the room's active one, as one action.
- *
- * Two requests on purpose — the server keeps creation and activation apart so
- * a version can be prepared without disturbing the live map. From the editor's
- * seat, though, "create a floor plan" means "and show it", so the hook does
- * both and only then refetches the plan. If activation fails after creation,
- * an inactive version is left behind; that is harmless (it is invisible and
- * the next attempt simply makes another) and the error is surfaced as-is.
+ * Save the whole layout. The overview is refreshed for its counts and
+ * thumbnail; the room's own cached plan is replaced by the *caller*, after it
+ * has recorded the new revision as its own — updating the cache here first
+ * would let the editor mistake its own save for someone else's.
  */
+export function useSaveLayout(roomId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ version, request }: { version: number; request: SaveLayoutRequest }) =>
+      saveRoomLayout(roomId, version, request),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['floor-plan', 'rooms'] }),
+  })
+}
+
+/** Set up a room's first Floorplan (create and activate in one step). */
 export function useCreateLayout(roomId: string) {
   const queryClient = useQueryClient()
 
-  return useMutation<PlanLayoutRecord, unknown, LayoutCreateRequest>({
-    mutationFn: async (request) => {
-      const created = await createRoomLayout(roomId, request)
-      return activateRoomLayout(roomId, created.version)
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: floorPlanKeys.room(roomId) }),
+  return useMutation({
+    mutationFn: (request: LayoutCreateRequest) =>
+      createRoomLayout(roomId, { ...request, activate: true }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: floorPlanKeys.all }),
   })
-}
-
-export interface PlaceVariables {
-  version: number
-  pcId: string
-  request: PlacementRequest
-  /** Where the unit is shown while the request is in flight (the client's preview). */
-  preview: { x: number; y: number }
-}
-
-interface PlaceContext {
-  /** The unit as it was before this move — to put back if the server refuses. */
-  before: PlacedPc | undefined
-  /** Set when the unit was not on the plan yet. */
-  wasUnplaced: UnplacedPc | undefined
 }
 
 /**
- * Place or move a unit, optimistically.
- *
- * The unit is drawn at the preview straight away, then **reconciled to the
- * server's answer** — the stored point, which may differ from the preview when
- * the server snapped or clamped it. The server is the only coordinate
- * authority; the preview is never kept once the answer arrives.
- *
- * Rollback is **per unit**, not a whole-plan snapshot: two moves can be in
- * flight at once, and restoring a snapshot taken for the first would silently
- * undo the second.
- *
- * A 404 (the unit left the room) or a 409 for a no-longer-active layout means
- * the cached plan is out of date, so it is refetched as well. A 409 for a
- * **stale position** (WP-F, D3 — another admin moved this exact unit since
- * this browser last read it) reconciles straight to the `current` state the
- * server's refusal already carries, rather than a refetch: the server told
- * this browser the truth in the same response, so asking again would only
- * spend a round trip confirming it.
+ * Move a PC registered elsewhere into this room — the **existing** asset room
+ * change (`PUT /admin/pc-units/{uuid}` with `room`, gated by `assets.update`
+ * and audited), never a Floorplan write. Its old room's plan releases it
+ * (DD-104); here it arrives unplaced.
  */
-export function usePlacePcUnit(roomId: string) {
+export function useMovePcToRoom(roomId: string) {
   const queryClient = useQueryClient()
-  const key = floorPlanKeys.room(roomId)
 
-  return useMutation<PlacedPc, unknown, PlaceVariables, PlaceContext>({
-    mutationFn: ({ version, pcId, request }) => placePcUnit(roomId, version, pcId, request),
-
-    onMutate: async ({ pcId, preview }) => {
-      await queryClient.cancelQueries({ queryKey: key })
-      const plan = queryClient.getQueryData<RoomPlan>(key)
-      const before = plan?.pcs.find((pc) => pc.id === pcId)
-      const wasUnplaced = plan?.unplaced.find((pc) => pc.id === pcId)
-
-      const optimistic: PlacedPc | undefined = before
-        ? { ...before, ...preview }
-        : wasUnplaced
-          ? // A never-placed unit has no updated_at yet; the placeholder here
-            // is overwritten by the server's real value in onSuccess/onError
-            // before anything could read it back as an expected_updated_at.
-            {
-              ...wasUnplaced,
-              ...preview,
-              rotation: 0,
-              z_index: 0,
-              updated_at: new Date().toISOString(),
-              // Unknown until the server answers; the real value arrives in onSuccess.
-              open_ticket: null,
-            }
-          : undefined
-
-      if (optimistic) {
-        queryClient.setQueryData<RoomPlan>(key, (current) =>
-          current ? withPlaced(current, optimistic) : current,
-        )
-      }
-
-      return { before, wasUnplaced }
-    },
-
-    onError: (error, { pcId }, context) => {
-      const conflict = staleWriteConflict(error)
-
-      queryClient.setQueryData<RoomPlan>(key, (current) => {
-        if (!current) return current
-        // The server already told us the truth — reconcile to exactly that,
-        // rather than the (now equally stale) pre-drag snapshot.
-        if (conflict) return withPlaced(current, conflict.current)
-        if (!context) return current
-        if (context.before) return withPlaced(current, context.before)
-        if (context.wasUnplaced) return withUnplaced(current, context.wasUnplaced)
-        return withoutUnit(current, pcId)
-      })
-
-      const status = isAxiosError(error) ? error.response?.status : undefined
-      if (!conflict && (status === 404 || status === 409)) {
-        void queryClient.invalidateQueries({ queryKey: key })
-      }
-    },
-
-    onSuccess: (placed) => {
-      queryClient.setQueryData<RoomPlan>(key, (current) =>
-        current ? withPlaced(current, placed) : current,
-      )
-    },
+  return useMutation({
+    mutationFn: (pcId: string) => updatePcUnit(pcId, { room: roomId }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: floorPlanKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ['assets'] }),
+      ]),
   })
 }
 
-/** The plan with this unit placed (or moved) — and no longer listed as unplaced. */
-export function withPlaced(plan: RoomPlan, placed: PlacedPc): RoomPlan {
-  const exists = plan.pcs.some((pc) => pc.id === placed.id)
-  const unplaced = plan.unplaced.filter((pc) => pc.id !== placed.id)
-
+/** Merge a live status change into the cached plan — status is never part of the draft. */
+export function withStatusChanged(plan: RoomPlan, pcId: string, status: PcStatus): RoomPlan {
   return {
     ...plan,
-    pcs: exists ? plan.pcs.map((pc) => (pc.id === placed.id ? placed : pc)) : [...plan.pcs, placed],
-    unplaced,
-    unplaced_count: unplaced.length,
+    pcs: plan.pcs.map((pc) => (pc.id === pcId ? { ...pc, status } : pc)),
+    unplaced: plan.unplaced.map((pc) => (pc.id === pcId ? { ...pc, status } : pc)),
   }
-}
-
-/**
- * The plan with one unit's status updated in place — wherever it currently
- * sits (placed or unplaced), leaving its position untouched. Used both by the
- * WP-E broadcast reconciliation and available for a future direct fetch of
- * the same shape, so a status merge is written once.
- */
-export function withStatusChanged(
-  plan: RoomPlan,
-  changed: Pick<PlacedPc, 'id' | 'name' | 'unit_code' | 'status'>,
-): RoomPlan {
-  let touched = false
-
-  const pcs = plan.pcs.map((pc) => {
-    if (pc.id !== changed.id) return pc
-    touched = true
-    return { ...pc, name: changed.name, unit_code: changed.unit_code, status: changed.status }
-  })
-
-  const unplaced = plan.unplaced.map((pc) => {
-    if (pc.id !== changed.id) return pc
-    touched = true
-    return { ...pc, name: changed.name, unit_code: changed.unit_code, status: changed.status }
-  })
-
-  // The unit is neither placed nor unplaced on *this* layout (a different
-  // room, or a machine this viewer's plan never listed) — nothing to merge.
-  return touched ? { ...plan, pcs, unplaced } : plan
-}
-
-function withUnplaced(plan: RoomPlan, unit: UnplacedPc): RoomPlan {
-  const pcs = plan.pcs.filter((pc) => pc.id !== unit.id)
-  const unplaced = plan.unplaced.some((pc) => pc.id === unit.id)
-    ? plan.unplaced
-    : [...plan.unplaced, unit].sort((a, b) => a.name.localeCompare(b.name))
-
-  return { ...plan, pcs, unplaced, unplaced_count: unplaced.length }
-}
-
-function withoutUnit(plan: RoomPlan, pcId: string): RoomPlan {
-  return { ...plan, pcs: plan.pcs.filter((pc) => pc.id !== pcId) }
-}
-
-/** Narrows a refusal to the WP-F stale-write shape, or null for any other error. */
-function staleWriteConflict(error: unknown): StaleWriteConflict | null {
-  if (!isAxiosError(error) || error.response?.status !== 409) return null
-  const data = error.response.data as Partial<StaleWriteConflict> | undefined
-  return data?.code === 'position_stale' && data.current ? (data as StaleWriteConflict) : null
 }

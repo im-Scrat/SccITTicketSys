@@ -201,30 +201,42 @@ test.describe('accessibility — the floor-plan map', () => {
   })
 
   /**
-   * WP-D — the editor mid-move: units are buttons, one is lifted into keyboard
-   * move mode (selection ring, drop shadow, live-region announcement), and the
-   * numeric placement form is on the page. The states a static audit of the
-   * map would never reach.
+   * Phase 2.11 — the editor in edit mode with a workstation selected: the
+   * toolbar, the fixture palette, the Workstations and Details panels and the
+   * selection outline — the states a static audit of the map never reaches.
    */
-  test('axe: administrator floor-plan map with a unit in move mode', async ({ page }) => {
+  test('axe: administrator Floorplan in edit mode with a workstation selected', async ({
+    page,
+  }) => {
     await signIn(page, 'administrator')
     await auditRoute(
       page,
       `/app/floor-plan/rooms/${manifest().room.uuid}`,
-      'administrator floor-plan map (moving)',
+      'administrator floor-plan editor (selected)',
       async (target) => {
-        const unit = target.getByRole('button', { name: /^E2E Plan PC 1,/ })
+        await target.getByRole('button', { name: 'Edit layout' }).click()
+        const unit = target.locator('[data-testid="floor-plan-node"][aria-label^="E2E Plan PC 1,"]')
         await unit.focus()
         await target.keyboard.press('Enter')
-        await target.keyboard.press('ArrowRight')
-        await expect(unit).toHaveAttribute('data-moving', 'true')
         await expect(
-          target.getByRole('heading', { name: 'Place a unit by position' }),
+          target
+            .getByRole('region', { name: 'Details' })
+            .getByRole('heading', { name: 'E2E Plan PC 1' }),
         ).toBeVisible()
       },
     )
-    // Leave the unit where it was: Escape abandons the move, nothing is sent.
-    await page.keyboard.press('Escape')
+  })
+
+  test('axe: Floorplan overview', async ({ page }) => {
+    await signIn(page, 'administrator')
+    await auditRoute(
+      page,
+      '/app/floor-plan',
+      'administrator floor-plan overview',
+      async (target) => {
+        await expect(target.getByRole('list', { name: 'Rooms' })).toBeVisible()
+      },
+    )
   })
 })
 

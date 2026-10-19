@@ -1,17 +1,28 @@
 import { api } from '@/services/api'
 import type {
+  FloorPlanRoomsParams,
+  FloorPlanRoomsResponse,
   LayoutCreateRequest,
-  PlacedPc,
-  PlacementRequest,
   PlanLayoutRecord,
   RoomPlan,
+  SaveLayoutRequest,
 } from '../types'
 
 /**
- * One room's active layout and the PC units placed on it.
- *
- * The server is the authority on who may call this: a non-administrator gets a
- * 403 whatever the client believes about their permissions.
+ * Every live room with its machines' repair status and its Floorplan's state
+ * — the overview's cards (Phase 2.11).
+ */
+export async function fetchFloorPlanRooms(
+  params: FloorPlanRoomsParams,
+): Promise<FloorPlanRoomsResponse> {
+  const { data } = await api.get<FloorPlanRoomsResponse>('/admin/floor-plan/rooms', { params })
+  return data
+}
+
+/**
+ * One room's active layout, its fixtures and the machines on it. The server is
+ * the authority on who may call this: a non-administrator gets a 403 whatever
+ * the client believes.
  */
 export async function fetchRoomPlan(roomId: string): Promise<RoomPlan> {
   const { data } = await api.get<{ data: RoomPlan }>(`/admin/floor-plan/rooms/${roomId}`)
@@ -19,29 +30,22 @@ export async function fetchRoomPlan(roomId: string): Promise<RoomPlan> {
 }
 
 /**
- * Place or move a unit on a layout version of a room.
- *
- * The answer is the **stored** point — snapped and clamped by the server — and
- * is what the map must show afterwards, not the point that was sent.
+ * Save the whole layout in one transaction (SDD DD-101). Answers with the plan
+ * exactly as stored; a 409 `layout_stale` carries the current plan instead.
  */
-export async function placePcUnit(
+export async function saveRoomLayout(
   roomId: string,
   version: number,
-  pcId: string,
-  request: PlacementRequest,
-): Promise<PlacedPc> {
-  const { data } = await api.patch<{ data: PlacedPc }>(
-    `/admin/floor-plan/rooms/${roomId}/layouts/${version}/positions/${pcId}`,
+  request: SaveLayoutRequest,
+): Promise<RoomPlan> {
+  const { data } = await api.put<{ data: RoomPlan }>(
+    `/admin/floor-plan/rooms/${roomId}/layouts/${version}`,
     request,
   )
   return data.data
 }
 
-/**
- * Start a new layout version for a room (FR-FP-001/008). The server numbers it
- * and returns it **inactive**; nothing is shown on the map until it is
- * activated.
- */
+/** Start a layout version; `activate: true` sets a room's first Floorplan up in one step. */
 export async function createRoomLayout(
   roomId: string,
   request: LayoutCreateRequest,
@@ -49,17 +53,6 @@ export async function createRoomLayout(
   const { data } = await api.post<{ data: PlanLayoutRecord }>(
     `/admin/floor-plan/rooms/${roomId}/layouts`,
     request,
-  )
-  return data.data
-}
-
-/** Make one version the room's active layout. Positions of the previous version stay with it. */
-export async function activateRoomLayout(
-  roomId: string,
-  version: number,
-): Promise<PlanLayoutRecord> {
-  const { data } = await api.post<{ data: PlanLayoutRecord }>(
-    `/admin/floor-plan/rooms/${roomId}/layouts/${version}/activate`,
   )
   return data.data
 }

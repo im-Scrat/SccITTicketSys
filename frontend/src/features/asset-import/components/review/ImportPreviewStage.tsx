@@ -1,6 +1,5 @@
 import { Eye } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useViewportStore } from '@/features/floor-plan/stores/useViewportStore'
 import { usePreviewStore } from '@/stores/usePreviewStore'
 
 const HIGHLIGHT = 'import-value'
@@ -40,13 +39,6 @@ export function ImportPreviewStage({ path, values }: { path: string; values: str
   const show = usePreviewStore((state) => state.show)
   const clear = usePreviewStore((state) => state.clear)
   const [hint, setHint] = useState(false)
-
-  // The floor plan keeps its pan and zoom in a shared store; a preview of a
-  // room plan must not move the administrator's own view.
-  useEffect(() => {
-    const snapshot = useViewportStore.getState()
-    return () => useViewportStore.setState(snapshot, true)
-  }, [])
 
   useEffect(() => {
     if (target.current) show(target.current, path)
