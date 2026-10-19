@@ -267,7 +267,7 @@ jobs:
           set -eu
           sh scripts/smoke.sh --url http://localhost:18090 --email ci.admin@ci.example --password 'Ci-Admin-Passw0rd!'
           curl -sS -i -N --max-time 5 -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
-            -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' -H 'Origin: http://localhost:18090' \
+            -H "Sec-WebSocket-Key: $(openssl rand -base64 16)" -H 'Origin: http://localhost:18090' \
             'http://localhost:18090/reverb/app/cikey?protocol=7&client=js&version=8.4.0' | head -1 | grep -q ' 101 '
           echo "WebSocket upgrade: 101"
           curl -sSI http://localhost:18090/ | grep -qi '^strict-transport-security'
