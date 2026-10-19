@@ -1,11 +1,16 @@
 sequenceDiagram
-  participant A as Admin SPA
-  participant L as AssetPositionService
+  participant A as Editor SPA (Save)
+  participant S as SaveRoomLayout
   participant DB as PostgreSQL
   participant RV as Reverb
-  participant V as Viewer SPA
-  A->>L: PATCH position (snap-to-grid)
-  L->>DB: upsert floor_plan_positions (unique layout+pc)
-  L->>RV: broadcast PositionUpdated
-  RV-->>V: event (or polling fallback)
-  V->>V: re-render PC icon at new pos/status
+  participant V as Other editor SPA
+  A->>S: PUT layout (expected_revision, workstations, fixtures)
+  S->>DB: lock the layout row, compare revision
+  alt revision is stale
+    S-->>A: 409 layout_stale + current plan (editor merges per object)
+  else revision is current
+    S->>DB: write positions + fixtures, revision + 1, audit (one transaction)
+    S->>RV: after commit: RoomPlanChanged (layout_version, revision, cause, by.name)
+    RV-->>V: event (or polling fallback while the draft is clean)
+    V->>V: clean draft refetches, dirty draft offers Combine now
+  end

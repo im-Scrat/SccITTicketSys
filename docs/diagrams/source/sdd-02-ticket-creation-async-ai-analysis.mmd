@@ -10,6 +10,11 @@ sequenceDiagram
   DB-->>L: COMMIT (triggers keep counters)
   L->>Q: dispatch AnalyzeTicketJob
   L-->>B: 201 {ticket resource (uuid)}
+  loop each photo chosen on the form, one at a time (DD-80)
+    B->>L: POST /api/tickets/{uuid}/attachments (one file, throttled)
+    L->>DB: attachments row, file on the private disk
+    L-->>B: 201, or 422/429 (named in the outcome notice, ticket kept)
+  end
   Q->>W: AnalyzeTicketJob
   W->>G: chat(minimized+RAG context)
   G-->>W: analysis

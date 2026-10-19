@@ -95,7 +95,7 @@ manifest the script writes.
 
 | Project | Target | Covers |
 |---|---|---|
-| `e2e` | dev `:8080` | three-role authentication, authorization boundaries, QR workflow |
+| `e2e` | dev `:8080` | three-role authentication, authorization boundaries, QR workflow, notifications, announcements, predictions, and the Floorplan (`floor-plan.spec.ts`: editor moves, save/merge, realtime, refusals; `floor-plan-workflows.spec.ts`: a room from creation to a saved plan, confirmed move-in, fixtures and bounds, undo/redo, leave warning and draft recovery, ticket-driven status) |
 | `a11y` | dev `:8080` | axe-core regression against the committed baseline |
 | `smoke` | prod `:8081` | does the **deployed bundle** boot in a browser |
 
@@ -147,6 +147,17 @@ Two smaller ones: `settle()` waits for the lazy-route spinner
 route exists; and labels are matched with anchored regexes (`/^Password/`)
 because `Field` renders a required marker inside the `<label>`, making its text
 `"Password *"`.
+
+### The specs are type-checked separately
+
+`frontend/e2e/` is compiled by its own `tsconfig.e2e.json`, which no gate runs.
+Check it before committing a spec — an import of a helper that does not exist
+stops Playwright from loading **any** file in the project, not just the one
+that imports it:
+
+```sh
+npx tsc -p tsconfig.e2e.json --noEmit
+```
 
 ### One worker, no retries
 

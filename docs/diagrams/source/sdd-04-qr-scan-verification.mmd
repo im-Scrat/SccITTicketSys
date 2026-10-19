@@ -1,17 +1,25 @@
 sequenceDiagram
   participant B as SPA (camera)
-  participant L as QrService
+  participant L as ScanQrCode
+  participant A as Auth + Policy
   participant DB as PostgreSQL
   B->>L: POST /api/qr/{code}/scan (+geo?)
   L->>DB: lookup qr_codes by code
-  alt unknown
-    L->>DB: qr_scan_logs(invalid)
-    L-->>B: 404 invalid
+  L->>DB: qr_scan_logs(result, scanned_by nullable)
+  alt no session
+    L-->>B: 401 proceed-to-sign-in (no target data)
+    B->>A: sign in, destination = code only
+    A-->>B: session established
+    B->>L: POST /api/qr/{code}/scan (authenticated)
+  end
+  alt unknown / revoked / retired
+    L-->>B: 404 non-disclosing refusal
   else active & resolvable
-    L->>DB: resolve pc_unit|asset (live)
-    L->>DB: qr_scan_logs(success)
-    L-->>B: 200 info panel
-  else revoked/retired/mismatch
-    L->>DB: qr_scan_logs(expired|mismatch)
-    L-->>B: 409 with reason
+    L->>A: authorize scan-scoped view of target
+    alt not authorized
+      A-->>B: 403 refusal
+    else authorized
+      L->>DB: resolve pc_unit (live) + tickets + maintenance
+      L-->>B: 200 scan-scoped PC panel
+    end
   end
