@@ -1,10 +1,13 @@
 name: CI
 
 on:
+  # Every pull request is checked, whatever its base, and so is every push to a
+  # branch that will become one — work is verified before review, not after.
+  # (Until 2026-10-20 only `main` triggered CI, so 82 deployed commits on phase
+  # branches never ran here.)
   push:
-    branches: [main]
+    branches: [main, 'fix/**', 'feature/**', 'release/**']
   pull_request:
-    branches: [main]
   # The browser job is heavy (it builds and boots the whole Compose stack), so
   # it is opt-in rather than on every push. See the `e2e` job below.
   workflow_dispatch:
@@ -195,3 +198,23 @@ jobs:
             frontend/test-results/
             frontend/e2e/.artifacts/
           retention-days: 7
+
+  # ---------------------------------------------------------------
+  #  Secret scan. The repository is public, so a credential in any commit is
+  #  published. Scans the full history (fetch-depth 0) with the default
+  #  gitleaks rules plus the narrow fixture allowlist in .gitleaks.toml.
+  #  Runs the pinned container image: no third-party action, no licence key,
+  #  and --redact keeps any finding's value out of the public job log.
+  # ---------------------------------------------------------------
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks (full history)
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.3 \
+            git /repo --config /repo/.gitleaks.toml --redact --no-banner --verbose

@@ -3,7 +3,11 @@
 #  SccIT — reproducible production deployment (WP-2.7d).
 #
 #      scripts/deploy-prod.sh [--skip-gates] [--skip-backup] [--allow-dirty]
-#                             [--keep N] [--yes]
+#                             [--allow-unmerged] [--keep N] [--yes]
+#
+#  Refuses a commit that origin/main does not contain (D-14) and any
+#  database/Redis password that is empty, a placeholder or a published
+#  development value.
 #
 #  Replaces the ad-hoc `make prod-build && make prod-up && migrate` sequence
 #  that WP-2.6b exposed as unsafe. The difference is not convenience — it is
@@ -36,6 +40,7 @@ set -eu
 SKIP_GATES=0
 SKIP_BACKUP=0
 ALLOW_DIRTY=0
+ALLOW_UNMERGED=0
 ASSUME_YES=0
 KEEP="${SCCIT_RELEASE_KEEP:-5}"
 
@@ -44,6 +49,7 @@ while [ $# -gt 0 ]; do
         --skip-gates)  SKIP_GATES=1; shift ;;
         --skip-backup) SKIP_BACKUP=1; shift ;;
         --allow-dirty) ALLOW_DIRTY=1; shift ;;
+        --allow-unmerged) ALLOW_UNMERGED=1; shift ;;
         --keep) KEEP="${2:?--keep needs a number}"; shift 2 ;;
         --yes|-y) ASSUME_YES=1; shift ;;
         -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
@@ -79,6 +85,44 @@ if [ -n "$DIRTY" ]; then
        Commit first, or pass --allow-dirty to accept an unreproducible release."
     fi
 fi
+
+# Release discipline (owner decision D-14, 2026-10-20): production runs only
+# code that has been reviewed into `main`. A commit that `origin/main` does not
+# contain has not passed the pull-request checks, so it does not ship.
+git -C "$REPO_ROOT" fetch --quiet origin main 2>/dev/null || warn "could not fetch origin/main — checking against the local copy"
+if ! git -C "$REPO_ROOT" merge-base --is-ancestor HEAD origin/main 2>/dev/null; then
+    if [ "$ALLOW_UNMERGED" -eq 1 ]; then
+        warn "--allow-unmerged: $SHA is NOT on origin/main — this release bypasses review"
+    else
+        die "$SHA is not contained in origin/main. Merge it through a pull request first,
+       or pass --allow-unmerged to deploy unreviewed code deliberately."
+    fi
+fi
+
+# Credentials (2026-10-20): this repository is public and once documented the
+# development passwords, which production also ran on. Refuse to deploy while
+# any database or Redis password is empty, a placeholder, or one of those
+# published values. Values are compared, never printed.
+env_value() { sed -n "s/^$2=//p" "$1" 2>/dev/null | tail -1 | tr -d "\"'\r"; }
+weak_secret() {
+    case "$1" in
+        ''|null|scc26|scc26redis|password|secret|postgres|CHANGE_ME*) return 0 ;;
+    esac
+    [ "${#1}" -lt 16 ]
+}
+for pair in "$REPO_ROOT/.env:POSTGRES_PASSWORD" "$REPO_ROOT/.env:REDIS_PASSWORD" \
+            "$REPO_ROOT/backend/.env.production:DB_PASSWORD" "$REPO_ROOT/backend/.env.production:REDIS_PASSWORD"; do
+    file="${pair%:*}"; key="${pair##*:}"
+    if weak_secret "$(env_value "$file" "$key")"; then
+        die "$key in ${file#"$REPO_ROOT"/} is empty, a placeholder, shorter than 16 characters or a
+       published development value. Generate a new one (see docs/OPERATIONS.md, credential rotation)."
+    fi
+done
+[ "$(env_value "$REPO_ROOT/.env" POSTGRES_PASSWORD)" = "$(env_value "$REPO_ROOT/backend/.env.production" DB_PASSWORD)" ] \
+    || die "POSTGRES_PASSWORD (.env) and DB_PASSWORD (backend/.env.production) differ — they must name the same role password."
+[ "$(env_value "$REPO_ROOT/.env" REDIS_PASSWORD)" = "$(env_value "$REPO_ROOT/backend/.env.production" REDIS_PASSWORD)" ] \
+    || die "REDIS_PASSWORD differs between .env and backend/.env.production."
+say "  secrets  database and Redis passwords pass the strength check"
 
 PREVIOUS="$(cat "$RELEASES/current" 2>/dev/null || echo '')"
 if [ -n "$PREVIOUS" ]; then

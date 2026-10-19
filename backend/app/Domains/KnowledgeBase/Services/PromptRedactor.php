@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\KnowledgeBase\Services;
 
+use App\Support\Security\ConfiguredSecrets;
+
 /**
  * Strips personal data from text **before** it leaves for the provider or is
  * written into the embedding store (SRS FR-AI-030, NFR-SEC-013).
@@ -51,28 +53,6 @@ class PromptRedactor
     public const NAME = '[person]';
 
     public const SECRET = '[secret]';
-
-    /**
-     * Configuration entries whose values are credentials of this deployment.
-     * Read at redaction time, so a key rotated at runtime (GeminiCredential
-     * applies the secret file late) is still the one being scrubbed.
-     */
-    private const SECRET_CONFIG_KEYS = [
-        'app.key',
-        'ai.providers.gemini.key',
-        'ai.providers.openai.key',
-        'ai.providers.anthropic.key',
-        'ai.sccit.gemini_inline_key',
-        'database.connections.pgsql.password',
-        'database.redis.default.password',
-        'database.redis.cache.password',
-        'mail.mailers.smtp.password',
-        'broadcasting.connections.reverb.secret',
-        'reverb.apps.apps.0.secret',
-        'services.postmark.token',
-        'services.resend.key',
-        'services.ses.secret',
-    ];
 
     /**
      * Credential shapes, applied in order. The labelled form runs first so the
@@ -155,33 +135,15 @@ class PromptRedactor
     }
 
     /**
-     * The configured credential values, longest first so one secret that
-     * contains another is removed whole. Short values are skipped: a dev
-     * database password of "secret" would otherwise blank an ordinary word.
+     * The configured credential values ({@see ConfiguredSecrets}), longest
+     * first. Prompts use a 12-character floor: a model reading "secret" as
+     * [secret] in a fault description is worse than the risk it removes.
      *
      * @return list<string>
      */
     private function configuredSecrets(): array
     {
-        $values = [];
-
-        foreach (self::SECRET_CONFIG_KEYS as $key) {
-            $value = config($key);
-
-            if (is_string($value) && mb_strlen(trim($value)) >= 12) {
-                $values[] = trim($value);
-
-                // APP_KEY is configured as "base64:<key>"; the bare key is the secret too.
-                if (str_starts_with($value, 'base64:')) {
-                    $values[] = substr(trim($value), 7);
-                }
-            }
-        }
-
-        $values = array_values(array_unique($values));
-        usort($values, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
-
-        return $values;
+        return ConfiguredSecrets::values(12);
     }
 
     /**

@@ -326,3 +326,55 @@ the file is deleted); (2) the first real save only with the school's own
 inventory file, scheduled with the owner, immediately after
 `sh scripts/backup.sh --stack prod --verify`. Never import test data into
 production.
+
+## 7. Credentials and secret handling (2026-10-20)
+
+**This repository is public.** Anything committed is published, including
+history. Until 2026-10-20 production ran on the development passwords that the
+examples document, and `compose.prod.yaml` silently fell back to them when a
+variable was unset. Three things now prevent a repeat:
+
+- `compose.prod.yaml` has **no password fallbacks** — an unset
+  `POSTGRES_PASSWORD` or `REDIS_PASSWORD` stops the stack with a message.
+- `deploy-prod.sh` **refuses to deploy** while either password is empty, a
+  placeholder, shorter than 16 characters or a published development value, or
+  while the root `.env` and `backend/.env.production` disagree. It compares
+  values; it never prints them.
+- CI runs **gitleaks** over the full history on every push and pull request
+  (`.gitleaks.toml` allowlists only the redaction tests' fake fixtures).
+
+### Rotating the database and Redis passwords
+
+```bash
+sh scripts/rotate-prod-credentials.sh
+```
+
+It takes a verified snapshot, keeps the current env files in
+`backups/credentials/<timestamp>/` (gitignored, local), generates two
+40-character passwords without displaying them, runs `ALTER ROLE` through the
+database container's local socket, updates both env files, recreates
+`redis_prod` and every service running the app image, then verifies that
+Laravel reaches PostgreSQL and Redis and runs the smoke test. On failure it
+prints the exact commands to put the previous files back. No data changes:
+the role keeps its name and privileges, and Redis keeps its append-only file.
+
+Delete `backups/credentials/<timestamp>/` once satisfied — it holds the old
+values. Never copy it, or any `.env` file, into the repository.
+
+### Secrets in logs and failed jobs
+
+Production PHP sets `zend.exception_ignore_args = On`, so stack traces carry no
+argument values. On top of that, every log channel runs
+`App\Support\Logging\RedactSecretsProcessor`, and `failed_jobs.exception` is
+written through `App\Support\Queue\RedactingFailedJobProvider`: both replace
+the values listed in `App\Support\Security\ConfiguredSecrets` (app key, DB and
+Redis passwords, SMTP username and password, Reverb and S3 secrets, AI keys)
+with `[redacted]`. `/api/health` reports only `ok`/`error`/`not_used` per
+dependency — the reason goes to the log, never to the anonymous caller.
+
+### Seeders never reset live data
+
+`AdminUserSeeder` creates the first administrator only when that address does
+not exist yet, and `SystemSettingSeeder` writes a setting's value only when the
+setting is new. A re-run of `db:seed --force` therefore cannot reset the
+administrator's password or undo a changed setting.

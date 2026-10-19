@@ -10,6 +10,12 @@
 **/.env
 **/.env.*
 !**/.env.example
+# Secret files: the local Docker secret (secrets/) and Render's secret files,
+# which Render copies into the build-context root (render.com/docs/docker-secrets).
+secrets/
+gemini_api_key
+**/*.pem
+**/*.key
 **/storage/logs/*
 **/*.log
 # Runtime state the app writes under backend/storage on the host (the retired
