@@ -1,0 +1,166 @@
+# =============================================================
+#  Render Blueprint — SccIT FREE-TIER PILOT (synthetic data only).
+#
+#  NOT a production deployment. Render's own documentation: free instances
+#  are for testing and hobby projects — "Do not use them for production
+#  applications" (render.com/docs/free). The pilot uses synthetic accounts and
+#  data; the real production system stays on the local Docker stack until a
+#  separate, approved migration. See docs/RENDER_PILOT.md for every limit,
+#  the manual setup steps and the verification checklist.
+#
+#  Deployment is deliberately manual:
+#   - autoDeployTrigger: off — a push to `main` deploys nothing;
+#   - after creating the Blueprint, set its Auto Sync to "No" in the
+#     dashboard, so a change to this file is not applied on push either;
+#   - deploys go through .github/workflows/deploy-render.yml, which requires
+#     an approval, checks that CI passed for the exact commit, takes the pilot
+#     backup, and only then calls the deploy hook with ?ref=<sha>.
+#
+#  Values marked `sync: false` are secrets or deployment-specific: Render asks
+#  for them once, when the Blueprint is created. Never commit them.
+# =============================================================
+services:
+  - type: web
+    name: sccit-pilot
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./docker/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /up
+    autoDeployTrigger: "off"
+    envVars:
+      # ---- Application ----
+      - key: APP_NAME
+        value: SccIT
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY            # `php artisan key:generate --show`; never reuse production's
+        sync: false
+      - key: APP_URL            # https://<service>.onrender.com
+        sync: false
+      - key: FRONTEND_URL       # same as APP_URL — email links are built from it
+        sync: false
+      - key: TRUST_PROXIES      # Render's edge is the only way in
+        value: "*"
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: warning
+
+      # ---- Sessions and Sanctum (same origin; host-only Secure cookies) ----
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: SESSION_COOKIE
+        value: sccit_pilot_session
+      - key: SANCTUM_STATEFUL_DOMAINS   # <service>.onrender.com (no scheme)
+        sync: false
+
+      # ---- No Redis on the free tier: cache, queue and sessions in Postgres ----
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: DB_QUEUE_RETRY_AFTER
+        value: "240"
+      - key: AI_GEMINI_CONCURRENCY      # 0 = no Redis funnel; the per-minute limit still applies
+        value: "0"
+
+      # ---- PostgreSQL: external (Render's free Postgres is deleted after 30 days) ----
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST            # Supabase *session pooler* host (IPv4)
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_DATABASE
+        value: postgres
+      - key: DB_USERNAME        # postgres.<project-ref> for the pooler
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSLMODE
+        value: require
+
+      # ---- Files: object storage (the container disk is not durable) ----
+      - key: ATTACHMENTS_DISK
+        value: s3
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_DEFAULT_REGION
+        sync: false
+      - key: AWS_BUCKET
+        sync: false
+      - key: AWS_ENDPOINT       # https://<project-ref>.storage.supabase.co/storage/v1/s3
+        sync: false
+      - key: AWS_USE_PATH_STYLE_ENDPOINT
+        value: "true"
+
+      # ---- Realtime: Reverb inside the container, behind nginx /reverb/app ----
+      - key: BROADCAST_CONNECTION
+        value: reverb
+      - key: REVERB_APP_ID
+        sync: false
+      - key: REVERB_APP_KEY
+        sync: false
+      - key: REVERB_APP_SECRET
+        sync: false
+      - key: REVERB_HOST
+        value: 127.0.0.1
+      - key: REVERB_PORT
+        value: "6001"
+      - key: REVERB_SCHEME
+        value: http
+      - key: REVERB_ALLOWED_ORIGINS     # <service>.onrender.com
+        sync: false
+
+      # ---- Mail: SMTP2GO, port 2525 (free instances block 25/465/587) ----
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        value: mail.smtp2go.com
+      - key: MAIL_PORT
+        value: "2525"
+      - key: MAIL_SCHEME
+        value: smtp
+      - key: MAIL_REQUIRE_TLS
+        value: "true"
+      - key: MAIL_TIMEOUT
+        value: "10"
+      - key: MAIL_EHLO_DOMAIN   # <service>.onrender.com
+        sync: false
+      - key: MAIL_USERNAME      # the SMTP2GO SMTP user for this pilot
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM_ADDRESS  # a sender verified in SMTP2GO
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: SccIT
+      - key: REPORT_EMAIL_DELIVERS_EXTERNALLY   # stays false until a sender DOMAIN is verified
+        value: "false"
+
+      # ---- Free-tier budgets (512 MB): smaller report documents ----
+      - key: REPORT_PAGED_ROW_BUDGET
+        value: "200"
+      - key: REPORT_XLSX_CELL_BUDGET
+        value: "50000"
+
+      # ---- First administrator, used only by the guarded first install ----
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # ---- Start-up switches (see docker/render/entrypoint.sh) ----
+      - key: RUN_MIGRATIONS
+        value: "1"
+      - key: RUN_FIRST_INSTALL  # set to 1 for the first deploy only, then remove
+        value: "0"

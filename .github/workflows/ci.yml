@@ -218,3 +218,61 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.3 \
             git /repo --config /repo/.gitleaks.toml --redact --no-banner --verbose
+
+  # ---------------------------------------------------------------
+  #  The Render pilot image (docker/render/), built and booted the way the
+  #  free tier runs it — 512 MB, 0.1 CPU — against throwaway Postgres
+  #  (pgvector), an S3 stub and Mailpit, then smoke-tested with a real
+  #  sign-in and a WebSocket handshake. Synthetic data; nothing leaves the
+  #  runner. Keeps the pilot packaging from rotting between deploys.
+  # ---------------------------------------------------------------
+  render-image:
+    name: Render image smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build docker/render/Dockerfile
+        run: docker build -f docker/render/Dockerfile -t sccit/render:ci .
+
+      - name: Boot it under free-tier limits
+        run: |
+          set -eu
+          DBPASS="$(openssl rand -hex 16)"
+          docker network create rt
+          docker run -d --name rt_db --network rt -e POSTGRES_PASSWORD="$DBPASS" -e POSTGRES_DB=pilot pgvector/pgvector:pg17
+          docker run -d --name rt_s3 --network rt --network-alias s3mock -e COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS=pilot-files adobe/s3mock
+          docker run -d --name rt_mail --network rt --network-alias mailpit axllent/mailpit
+          for i in $(seq 1 60); do docker exec rt_db pg_isready -U postgres >/dev/null 2>&1 && break; sleep 1; done
+          docker run -d --name rt_app --network rt -p 127.0.0.1:18090:10000 --memory=512m --cpus=0.1 \
+            -e APP_ENV=production -e APP_DEBUG=false -e APP_KEY="base64:$(openssl rand -base64 32)" \
+            -e APP_URL=http://localhost:18090 -e FRONTEND_URL=http://localhost:18090 -e TRUST_PROXIES='*' \
+            -e LOG_CHANNEL=stderr -e SESSION_DRIVER=database -e SESSION_SECURE_COOKIE=false \
+            -e SANCTUM_STATEFUL_DOMAINS=localhost:18090 -e CACHE_STORE=database -e QUEUE_CONNECTION=database \
+            -e DB_QUEUE_RETRY_AFTER=240 -e AI_GEMINI_CONCURRENCY=0 \
+            -e DB_CONNECTION=pgsql -e DB_HOST=rt_db -e DB_PORT=5432 -e DB_DATABASE=pilot -e DB_USERNAME=postgres -e DB_PASSWORD="$DBPASS" \
+            -e ATTACHMENTS_DISK=s3 -e AWS_ACCESS_KEY_ID=ci -e AWS_SECRET_ACCESS_KEY=ci -e AWS_DEFAULT_REGION=us-east-1 \
+            -e AWS_BUCKET=pilot-files -e AWS_ENDPOINT=http://s3mock:9090 -e AWS_USE_PATH_STYLE_ENDPOINT=true \
+            -e BROADCAST_CONNECTION=reverb -e REVERB_APP_ID=1 -e REVERB_APP_KEY=cikey -e REVERB_APP_SECRET="$(openssl rand -hex 12)" \
+            -e REVERB_HOST=127.0.0.1 -e REVERB_PORT=6001 -e REVERB_SCHEME=http -e REVERB_ALLOWED_ORIGINS=localhost \
+            -e MAIL_MAILER=smtp -e MAIL_HOST=mailpit -e MAIL_PORT=1025 -e MAIL_FROM_ADDRESS=noreply@ci.example \
+            -e ADMIN_EMAIL=ci.admin@ci.example -e ADMIN_PASSWORD=Ci-Admin-Passw0rd! \
+            -e RUN_MIGRATIONS=1 -e RUN_FIRST_INSTALL=1 \
+            sccit/render:ci
+          for i in $(seq 1 60); do curl -fsS -o /dev/null --max-time 5 http://localhost:18090/up && break; sleep 5; done
+          docker exec rt_app supervisorctl status
+
+      - name: Smoke test, sign-in, WebSocket, memory
+        run: |
+          set -eu
+          sh scripts/smoke.sh --url http://localhost:18090 --email ci.admin@ci.example --password 'Ci-Admin-Passw0rd!'
+          curl -sS -i -N --max-time 5 -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
+            -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' -H 'Origin: http://localhost:18090' \
+            'http://localhost:18090/reverb/app/cikey?protocol=7&client=js&version=8.4.0' | head -1 | grep -q ' 101 '
+          echo "WebSocket upgrade: 101"
+          curl -sSI http://localhost:18090/ | grep -qi '^strict-transport-security'
+          docker stats --no-stream --format 'memory: {{.MemUsage}}' rt_app
+
+      - name: Container log on failure
+        if: failure()
+        run: docker logs rt_app 2>&1 | tail -150

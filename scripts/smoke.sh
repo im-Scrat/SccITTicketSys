@@ -77,6 +77,10 @@ if [ "$HEALTH_CODE" = "200" ]; then
     for dep in database redis; do
         if grep -q "\"$dep\":\"ok\"" "$TMP/body"; then
             pass "  health: $dep ok"
+        elif [ "$dep" = redis ] && grep -q '"redis":"not_used"' "$TMP/body"; then
+            # A deployment with no Redis (the Render pilot keeps cache, queue
+            # and sessions in Postgres) reports it as not used, not as down.
+            pass "  health: redis not used by this deployment"
         else
             bad "  health: $dep" "not ok"
         fi
