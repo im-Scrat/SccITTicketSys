@@ -47,7 +47,7 @@ export default function OutgoingMailPage() {
 }
 
 const OUTCOMES: Record<string, string> = {
-  ok: 'Connected, encrypted and signed in. No message was sent.',
+  ok: 'Connected. No message was sent.',
   accepted: 'The relay accepted the message.',
   not_smtp: 'Mail is not using an SMTP relay here, so there is nothing to connect to.',
   smtp_auth_failed: 'The relay refused the username or password.',
@@ -120,7 +120,9 @@ function RelayStatus({ config }: { config: MailConfiguration }) {
         {check.isError && <Alert tone="error">{getErrorMessage(check.error)}</Alert>}
         {check.data && (
           <Alert tone={check.data.ok ? 'success' : 'warning'} title="Connection test">
-            {outcomeText(check.data.outcome, check.data.smtp_code)}
+            {check.data.ok && check.data.summary
+              ? check.data.summary
+              : outcomeText(check.data.outcome, check.data.smtp_code)}
           </Alert>
         )}
         {test.isError && <Alert tone="error">{getErrorMessage(test.error)}</Alert>}

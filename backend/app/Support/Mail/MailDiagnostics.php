@@ -81,7 +81,13 @@ final class MailDiagnostics
      * Connect, greet, negotiate TLS and authenticate — then disconnect. No
      * message is sent.
      *
-     * @return array{ok: bool, outcome: string, smtp_code: int|null}
+     * `summary` states only what a successful connection guarantees under the
+     * current configuration: encryption was negotiated if it is *required*
+     * (Symfony refuses otherwise), and credentials were not refused if any are
+     * configured. A Mailpit connection with neither must not read as
+     * "encrypted and signed in".
+     *
+     * @return array{ok: bool, outcome: string, smtp_code: int|null, summary: string|null}
      */
     public function probe(): array
     {
@@ -89,18 +95,18 @@ final class MailDiagnostics
             $mailer = Mail::mailer();
             $transport = $mailer instanceof Mailer ? $mailer->getSymfonyTransport() : null;
         } catch (Throwable $e) {
-            return ['ok' => false, 'outcome' => MailFailure::classify($e), 'smtp_code' => null];
+            return ['ok' => false, 'outcome' => MailFailure::classify($e), 'smtp_code' => null, 'summary' => null];
         }
 
         if (! $transport instanceof SmtpTransport) {
-            return ['ok' => false, 'outcome' => 'not_smtp', 'smtp_code' => null];
+            return ['ok' => false, 'outcome' => 'not_smtp', 'smtp_code' => null, 'summary' => null];
         }
 
         try {
             $transport->start();
             $transport->stop();
 
-            return ['ok' => true, 'outcome' => 'ok', 'smtp_code' => null];
+            return ['ok' => true, 'outcome' => 'ok', 'smtp_code' => null, 'summary' => $this->connectedSummary()];
         } catch (Throwable $e) {
             try {
                 $transport->stop();
@@ -108,7 +114,7 @@ final class MailDiagnostics
                 // Already closed.
             }
 
-            return ['ok' => false, 'outcome' => MailFailure::classify($e), 'smtp_code' => MailFailure::smtpCode($e)];
+            return ['ok' => false, 'outcome' => MailFailure::classify($e), 'smtp_code' => MailFailure::smtpCode($e), 'summary' => null];
         }
     }
 
@@ -134,6 +140,18 @@ final class MailDiagnostics
         } catch (Throwable $e) {
             return ['ok' => false, 'outcome' => MailFailure::classify($e), 'smtp_code' => MailFailure::smtpCode($e), 'message_id' => null];
         }
+    }
+
+    private function connectedSummary(): string
+    {
+        $config = $this->configuration();
+        $encrypted = $config['require_tls'] || $config['scheme'] === 'smtps';
+        $credentials = $config['username_set'] && $config['password_set'];
+
+        return 'Connected'
+            .($encrypted ? ', encryption negotiated' : ', encryption not required by this configuration')
+            .($credentials ? ', credentials accepted' : ', no credentials configured')
+            .'. No message was sent.';
     }
 
     /**

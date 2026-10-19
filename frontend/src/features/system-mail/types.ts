@@ -25,6 +25,8 @@ export interface MailConnectionCheck {
   ok: boolean
   outcome: string
   smtp_code: number | null
+  /** On success: what the connection guarantees under the current configuration. */
+  summary?: string | null
 }
 
 /** POST /api/admin/system/mail/test — one fixed message to the caller. */

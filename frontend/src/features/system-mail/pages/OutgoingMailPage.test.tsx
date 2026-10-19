@@ -83,6 +83,29 @@ describe('OutgoingMailPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('reports a successful connection in the server’s own, configuration-aware words', async () => {
+    const user = userEvent.setup()
+    post.mockResolvedValue({
+      data: {
+        data: {
+          ok: true,
+          outcome: 'ok',
+          smtp_code: null,
+          summary:
+            'Connected, encryption not required by this configuration, no credentials configured. No message was sent.',
+        },
+      },
+    })
+    renderPage({ require_tls: false, username_set: false, password_set: false })
+
+    await user.click(await screen.findByRole('button', { name: /test the connection/i }))
+
+    expect(
+      await screen.findByText(/encryption not required by this configuration/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/encrypted and signed in/)).not.toBeInTheDocument()
+  })
+
   it('sends the test email with no recipient of its own, and says accepted is not delivered', async () => {
     const user = userEvent.setup()
     post.mockResolvedValue({

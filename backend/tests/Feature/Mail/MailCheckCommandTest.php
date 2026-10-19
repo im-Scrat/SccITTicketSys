@@ -97,3 +97,24 @@ it('refuses an invalid --send address before contacting anything', function () {
 
     expect(Mail::mailer()->getSymfonyTransport()->messages())->toHaveCount(0);
 });
+
+it('says only what a successful connection guarantees under the configuration', function () {
+    Mail::extend('accepting_relay', fn () => new class('localhost', 1025) extends EsmtpTransport
+    {
+        public function start(): void {}
+
+        public function stop(): void {}
+    });
+
+    // Mailpit-like: no TLS required, no credentials — must not claim either.
+    config(['mail.mailers.accepting_relay' => ['transport' => 'accepting_relay'], 'mail.default' => 'accepting_relay']);
+    $this->artisan('mail:check')
+        ->expectsOutputToContain('encryption not required by this configuration, no credentials configured')
+        ->assertSuccessful();
+
+    // SMTP2GO-like: TLS required and credentials set.
+    config(['mail.mailers.accepting_relay' => ['transport' => 'accepting_relay', 'require_tls' => true, 'username' => 'u-for-tests', 'password' => 'p-for-tests']]);
+    $this->artisan('mail:check')
+        ->expectsOutputToContain('encryption negotiated, credentials accepted')
+        ->assertSuccessful();
+});
