@@ -288,7 +288,8 @@ test.describe('Floorplan — the Details panel shows the real records', () => {
 
     const panel = details(page)
     await expect(panel.getByRole('heading', { name: pc.pc_name })).toBeVisible()
-    await expect(panel).toContainText('E2E-AT-001')
+    // The asset tag is no longer shown anywhere (owner request 2026-10-19).
+    await expect(panel).not.toContainText('E2E-AT-001')
     await expect(panel).toContainText('E2E-SN-00000001')
     await expect(panel).toContainText('E2E fixture — scanned job')
     await expect(panel.getByRole('link', { name: /Open asset record/ })).toHaveAttribute(

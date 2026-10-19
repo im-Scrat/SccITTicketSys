@@ -26,7 +26,10 @@ class UserFactory extends Factory
             'role_id' => Role::factory(),
             'employee_number' => fake()->unique()->numerify('EMP-#####'),
             'first_name' => fake()->firstName(),
-            'middle_name' => fake()->optional()->firstName(),
+            // None by default: full names include the middle name (2026-10-19), so a
+            // random one would make every test that names a person flaky. A test
+            // about middle names sets one explicitly.
+            'middle_name' => null,
             'last_name' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),

@@ -101,7 +101,7 @@ describe('ProtectedRoute — forced password reset', () => {
     expect(await screen.findByText('dashboard')).toBeInTheDocument()
   })
 
-  it('clears the gate after a successful change and returns to the page asked for', async () => {
+  it('clears the gate after a successful change and lands on the dashboard', async () => {
     authApi.changePassword.mockResolvedValue({ message: 'ok' })
     authApi.fetchCurrentUser.mockResolvedValue(principal(false))
     const user = userEvent.setup()
@@ -113,7 +113,9 @@ describe('ProtectedRoute — forced password reset', () => {
     await user.type(screen.getByLabelText(/^confirm new password/i), 'N3w-Passw0rd!')
     await user.click(screen.getByRole('button', { name: /set new password and continue/i }))
 
-    expect(await screen.findByText('my work')).toBeInTheDocument()
+    // Like sign-in, a completed forced change goes to the dashboard (2026-10-19).
+    expect(await screen.findByText('dashboard')).toBeInTheDocument()
+    expect(screen.queryByText('my work')).not.toBeInTheDocument()
     expect(authApi.changePassword).toHaveBeenCalledOnce()
     // The principal was re-read from the server rather than patched locally.
     expect(authApi.fetchCurrentUser).toHaveBeenCalled()
@@ -134,26 +136,12 @@ describe('ProtectedRoute — forced password reset', () => {
     expect(screen.queryByText('my work')).not.toBeInTheDocument()
   })
 
-  it('returns to a resumed scan with its query string after the change (FR-QR-011)', async () => {
-    renderAt(
-      {
-        pathname: '/change-password',
-        state: { from: { pathname: '/app/qr/PC-AB12CD34EF', search: '?from=scan' } },
-      },
-      false,
-    )
-
-    expect(await screen.findByText('scan panel?from=scan')).toBeInTheDocument()
-  })
-
   it.each([
+    ['a scanned panel', '/app/qr/PC-AB12CD34EF'],
+    ['a workspace page', '/app/work'],
     ['protocol-relative', '//evil.test/app'],
-    // Inside the workspace prefix, so only the shared validator can stop it.
-    ['a backslash inside the workspace', '/app/\\evil.test'],
     ['absolute URL', 'https://evil.test/app'],
-    ['outside the workspace', '/sign-in'],
-    ['a look-alike prefix', '/application'],
-  ])('falls back to the workspace for an unsafe return path (%s)', async (_, pathname) => {
+  ])('goes to the dashboard after the change, whatever was asked for (%s)', async (_, pathname) => {
     renderAt({ pathname: '/change-password', state: { from: { pathname } } }, false)
 
     expect(await screen.findByText('dashboard')).toBeInTheDocument()

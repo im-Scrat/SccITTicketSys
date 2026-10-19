@@ -29,6 +29,14 @@ class HardwareModel extends Model
     /** @use HasFactory<HardwareModelFactory> */
     use HasFactory, SoftDeletes;
 
+    /**
+     * The shared model an asset registered with no catalog model is filed
+     * under (owner request 2026-10-19), so `assets.hardware_model_id` can stay
+     * NOT NULL. It is not a model anyone chooses: the catalog list omits it and
+     * an asset's display name never uses it.
+     */
+    public const UNSPECIFIED = 'Unspecified model';
+
     protected $guarded = ['id'];
 
     protected function casts(): array

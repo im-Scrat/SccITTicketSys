@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
-import { Table, TBody, Td, Th, THead, Tr } from '@/components/ui'
+import { Link, useNavigate } from 'react-router-dom'
+import { isInteractiveTarget, Table, TBody, Td, Th, THead, Tr } from '@/components/ui'
 import { formatMinutes, formatRelative } from '@/lib/datetime'
 import type { TechnicianSummary } from '../types'
 
@@ -21,6 +21,8 @@ export function TechnicianSummaryTable({
   compact = false,
   caption,
 }: TechnicianSummaryTableProps) {
+  const navigate = useNavigate()
+
   return (
     <Table>
       <caption className="sr-only">{caption}</caption>
@@ -71,7 +73,17 @@ export function TechnicianSummaryTable({
       </THead>
       <TBody>
         {technicians.map((person) => (
-          <Tr key={person.id}>
+          // The whole row opens the technician (owner request, 2026-10-19). The
+          // name stays a real link — the keyboard and screen-reader route, and
+          // what middle-click / Ctrl-click open — so a click that began on it
+          // is left to the link rather than navigating twice.
+          <Tr
+            key={person.id}
+            onClick={(event) => {
+              if (isInteractiveTarget(event)) return
+              navigate(`/app/technicians/${person.id}`)
+            }}
+          >
             <Td>
               <Link
                 to={`/app/technicians/${person.id}`}

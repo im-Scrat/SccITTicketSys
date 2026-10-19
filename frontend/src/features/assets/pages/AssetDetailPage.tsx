@@ -179,7 +179,6 @@ export default function AssetDetailPage() {
             <AssetStatusBadge label={asset.status_label} tone={asset.tone} />
             {asset.archived && <Badge tone="neutral">Archived</Badge>}
           </div>
-          <p className="mt-2 font-mono text-base text-muted">{asset.asset_tag}</p>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -285,7 +284,6 @@ export default function AssetDetailPage() {
 function GeneralTab({ asset }: { asset: AssetDetail }) {
   return (
     <dl className="grid gap-x-10 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
-      <Detail label="Asset tag" value={asset.asset_tag} mono />
       <Detail label="Name" value={asset.name ?? `${asset.display_name} (from catalog)`} />
       <Detail label="Serial number" value={asset.serial_number} mono />
       <Detail label="Barcode" value={asset.barcode} mono />

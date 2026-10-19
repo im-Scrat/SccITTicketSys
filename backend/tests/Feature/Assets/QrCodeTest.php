@@ -127,7 +127,7 @@ it('lists the label history including revoked codes', function () {
 });
 
 it('serves the print view and audits the print', function () {
-    $asset = Asset::factory()->create(['asset_tag' => 'PRINT-1']);
+    $asset = Asset::factory()->create(['asset_tag' => 'PRINT-1', 'name' => 'Front printer']);
 
     $this->actingAs($this->admin)->postJson("/api/admin/assets/{$asset->uuid}/qr")->assertCreated();
 
@@ -136,7 +136,9 @@ it('serves the print view and audits the print', function () {
         ->assertOk();
 
     expect($response->json('meta.svg'))->toStartWith('data:image/svg+xml;base64,')
-        ->and($response->json('meta.identifier'))->toBe('PRINT-1');
+        // An asset's label carries its name; its tag is shown nowhere (2026-10-19).
+        ->and($response->json('meta.label'))->toBe('Front printer')
+        ->and($response->json('meta.identifier'))->toBeNull();
 
     // A label leaving the building on a sticker is a real, traceable event.
     expect(ActivityLog::query()

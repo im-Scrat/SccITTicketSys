@@ -79,7 +79,7 @@ it('files a ticket against an asset in its room', function () {
     ]))->assertCreated();
 
     $response->assertJsonPath('data.asset.id', $this->printer->uuid)
-        ->assertJsonPath('data.asset.identifier', 'PRN-0001')
+        ->assertJsonPath('data.asset.identifier', null)
         ->assertJsonPath('data.pc_unit', null);
 
     $ticket = Ticket::query()->latest('id')->firstOrFail();
@@ -210,11 +210,11 @@ it('names the asset on every projection, as a label only on the community card',
     expect($row['asset'])->toBe([
         'id' => $this->printer->uuid,
         'label' => $this->printer->displayName(),
-        'identifier' => 'PRN-0001',
+        'identifier' => null,
     ]);
 
     $card = $this->actingAs($this->otherTeacher)->getJson("/api/tickets/feed/{$uuid}")->assertOk();
-    $card->assertJsonPath('data.asset', ['label' => $this->printer->displayName(), 'identifier' => 'PRN-0001']);
+    $card->assertJsonPath('data.asset', ['label' => $this->printer->displayName(), 'identifier' => null]);
 
     foreach ([
         'feed card' => $card->json(),
@@ -237,7 +237,7 @@ it('gives the assigned technician the asset’s label, never its register data',
 
     $response = $this->actingAs($this->technician)->getJson("/api/tickets/assigned/{$ticket->uuid}")
         ->assertOk()
-        ->assertJsonPath('data.asset.identifier', 'PRN-0001');
+        ->assertJsonPath('data.asset.identifier', null);
 
     $encoded = json_encode($response->json());
     expect($encoded)->not->toContain('SERIALPRINTERSECRET')
@@ -257,7 +257,7 @@ it('names an asset by its archived catalog model on every ticket projection', fu
     $model->delete();
     expect($model->trashed())->toBeTrue();
 
-    $expected = ['label' => $model->model_name, 'identifier' => 'PRN-0001'];
+    $expected = ['label' => $model->model_name, 'identifier' => null];
 
     $created = $this->actingAs($this->teacher)->postJson('/api/tickets', equipmentPayload([
         'room' => $this->room->uuid,

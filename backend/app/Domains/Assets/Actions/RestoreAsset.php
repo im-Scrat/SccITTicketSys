@@ -46,7 +46,7 @@ class RestoreAsset
             ],
             request: $request,
             module: 'assets',
-            description: "Asset {$asset->asset_tag} restored",
+            description: "Asset {$asset->displayName()} restored",
         );
 
         return $asset->refresh()->load([

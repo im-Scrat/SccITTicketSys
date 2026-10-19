@@ -44,11 +44,20 @@ interface WhereIsItPickerProps {
 
 /** The room lookup's ceiling; a list this long may have been cut short. */
 const ROOM_LIMIT = 200
-/** Lists up to this long are read, not searched — a filter box would be clutter. */
+/** Room lists up to this long are read, not searched — a filter box would be clutter. */
 const SEARCH_FROM = 8
 const EQUIPMENT_DEBOUNCE_MS = 250
 
 const LIST = 'overflow-hidden rounded-md border border-border sm:max-h-[26rem] sm:overflow-y-auto'
+/**
+ * The item list is capped and scrolls at every width, phones included: a lab
+ * can hold dozens of PCs, and the owner asked for the list to scroll in place
+ * beside its search box rather than push the rest of the form off-screen.
+ * `overscroll-contain` keeps a flick at the end of the list from scrolling the
+ * page under it.
+ */
+const ITEM_LIST =
+  'overflow-y-auto overscroll-contain rounded-md border border-border max-h-[min(26rem,55dvh)]'
 
 const ROW =
   'flex min-h-15 cursor-pointer items-center gap-3 border-2 border-transparent px-4 py-2.5 transition-colors duration-150 [transition-timing-function:var(--ease-standard)] hover:bg-surface-sunken has-[:focus-visible]:bg-surface-sunken has-[:checked]:border-primary has-[:disabled]:cursor-not-allowed has-[:disabled]:hover:bg-transparent'
@@ -94,7 +103,8 @@ function holdEnter(event: KeyboardEvent<HTMLInputElement>) {
  * draft, or refused by the server — would otherwise sit out of sight while the
  * visible rows show nothing checked. Not `scrollIntoView`: that also scrolls
  * the page, and a restored list loads after the page has settled on the title.
- * On a phone the list is not capped, so there is nothing to scroll.
+ * On a phone the room list is not capped, so there is nothing to scroll; the
+ * item list is capped at every width.
  */
 function revealChecked(box: HTMLElement | null) {
   const row = box?.querySelector('input:checked')?.closest('label')
@@ -682,8 +692,10 @@ function ItemList({
         </p>
       )}
 
-      {total > SEARCH_FROM && (
-        <Field label="Find an item" hint="Type part of its name or its tag.">
+      {/* Always offered once the room has equipment — even a short list is
+          quicker to search than to read on a phone (owner request, 2026-10-19). */}
+      {!loading && total > 0 && (
+        <Field label="Find an item" hint="Type part of its name.">
           <Input
             type="search"
             value={term}
@@ -703,7 +715,7 @@ function ItemList({
       <div
         ref={listRef}
         aria-busy={loading || undefined}
-        className={cn(LIST, 'divide-y divide-border')}
+        className={cn(ITEM_LIST, 'divide-y divide-border')}
       >
         <OptionRow
           name="item"
@@ -771,7 +783,8 @@ function ItemList({
       )}
       {!loading && total > 0 && trimmed && matched === 0 && (
         <p className="measure text-sm text-muted">
-          Nothing here matches “{trimmed}”. Try its tag, or choose “Not about a specific item”.
+          Nothing here matches “{trimmed}”. Try another part of its name, or choose “Not about a
+          specific item”.
         </p>
       )}
     </fieldset>

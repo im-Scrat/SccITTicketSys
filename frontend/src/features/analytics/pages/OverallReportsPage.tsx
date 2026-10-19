@@ -11,6 +11,7 @@ import { InsightsSection } from '../components/overall/InsightsSection'
 import { OverallExtraFilters } from '../components/overall/OverallExtraFilters'
 import { SectionView } from '../components/overall/SectionView'
 import { ReportFilterToolbar } from '../components/ReportFilterToolbar'
+import { TicketOverviewKpis } from '../components/TicketOverviewKpis'
 import { useOverallSection, useReportOptions, useTicketOverview } from '../hooks/queries'
 import { REPORT_PARAM_KEYS, useOverallFilters } from '../hooks/useReportFilters'
 import { useReportsAccess } from '../hooks/useReportsAccess'
@@ -126,6 +127,15 @@ export default function OverallReportsPage() {
             patch={patch}
             canPickEquipment={hasPermission('assets.view')}
           />
+
+          {/* The ticket headline figures for the chosen period — moved here
+              from the administrator's dashboard (owner request, 2026-10-19).
+              Same endpoint and filters the toolbar above already uses. */}
+          {overviewMeta.data && (
+            <section aria-label="Ticket headline figures">
+              <TicketOverviewKpis overview={overviewMeta.data} />
+            </section>
+          )}
 
           {changedSince && (
             <Alert tone="info" title="New activity since this report loaded">

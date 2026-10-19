@@ -68,7 +68,7 @@ class ArchiveAsset
             ],
             request: $request,
             module: 'assets',
-            description: "Asset {$asset->asset_tag} archived",
+            description: "Asset {$asset->displayName()} archived",
         );
 
         return $asset;

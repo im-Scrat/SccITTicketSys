@@ -134,7 +134,7 @@ class LocationMetrics
     public function recentActivity(int $limit = 8): array
     {
         return ActivityLog::query()
-            ->with('user:id,uuid,first_name,last_name')
+            ->with('user:id,uuid,first_name,middle_name,last_name')
             ->where('module', 'locations')
             ->latest('created_at')
             ->orderByDesc('id')

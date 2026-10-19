@@ -14,7 +14,6 @@ import { LocationComparisonPanel } from '../components/LocationComparisonPanel'
 import { OverviewSummary } from '../components/OverviewSummary'
 import { ReportedOverTimePanel } from '../components/ReportedOverTimePanel'
 import { StatusDistributionPanel } from '../components/StatusDistributionPanel'
-import { TicketOverviewKpis } from '../components/TicketOverviewKpis'
 import { useAdminDashboardChannel } from '../hooks/useAdminDashboardChannel'
 
 /**
@@ -138,7 +137,6 @@ export default function AdminDashboard() {
                 />
               ) : (
                 <>
-                  <TicketOverviewKpis overview={data} />
                   <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
                     <div className="flex min-w-0 flex-col xl:col-span-7 [&>section]:flex-1">
                       <ReportedOverTimePanel

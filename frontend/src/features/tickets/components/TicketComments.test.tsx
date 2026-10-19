@@ -29,6 +29,8 @@ function comment(overrides: Partial<TicketComment>): TicketComment {
     edited_at: null,
     author: { id: null, name: 'Maria Santos', role: 'teacher' },
     is_mine: false,
+    can_edit: false,
+    can_remove: false,
     parent_id: null,
     moderated_by: null,
     created_at: '2026-10-13T08:00:00Z',
@@ -159,5 +161,44 @@ describe('TicketComments threads', () => {
     await screen.findByText('Started after the update.')
     expect(screen.queryByRole('button', { name: /^reply to/i })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Add a comment')).not.toBeInTheDocument()
+  })
+})
+
+describe('TicketComments edit and remove', () => {
+  it("offers neither Edit nor Remove on someone else's comment", async () => {
+    renderComments()
+
+    await screen.findByText('Started after the update.')
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
+  })
+
+  it('follows the server: the author inside the window may edit and remove', async () => {
+    serve([comment({ id: 'c-9', body: 'Mine.', is_mine: true, can_edit: true, can_remove: true })])
+    renderComments()
+
+    await screen.findByText('Mine.')
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument()
+  })
+
+  it('hides Edit on your own comment once the server closes the window', async () => {
+    serve([
+      comment({ id: 'c-9', body: 'Mine.', is_mine: true, can_edit: false, can_remove: false }),
+    ])
+    renderComments()
+
+    await screen.findByText('Mine.')
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
+  })
+
+  it('gives a moderating administrator Remove but never Edit', async () => {
+    serve([comment({ id: 'c-9', body: 'Theirs.', can_edit: false, can_remove: true })])
+    renderComments()
+
+    await screen.findByText('Theirs.')
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument()
   })
 })

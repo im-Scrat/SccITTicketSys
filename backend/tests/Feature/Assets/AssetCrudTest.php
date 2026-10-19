@@ -69,6 +69,91 @@ it('falls back to the catalog model name when no asset name is given', function 
         ->assertJsonPath('data.display_name', 'OptiPlex 7090');
 });
 
+/* ---- every field optional (owner request 2026-10-19) ---------------------- */
+
+it('creates an asset with nothing filled in, generating its tag and filing it as unspecified', function () {
+    $response = $this->actingAs($this->admin)->postJson('/api/admin/assets', [])->assertCreated();
+
+    $asset = Asset::query()->where('uuid', $response->json('data.id'))->firstOrFail();
+
+    expect($asset->asset_tag)->toBe(sprintf('AST-%06d', $asset->id))
+        ->and($asset->hardwareModel->model_name)->toBe(HardwareModel::UNSPECIFIED)
+        ->and($asset->displayName())->toBe('Unnamed asset');
+
+    // The placeholder model is never presented as a model.
+    $response->assertJsonPath('data.model', null)
+        ->assertJsonPath('data.display_name', 'Unnamed asset');
+});
+
+it('treats a blank asset tag as not given', function () {
+    $response = $this->actingAs($this->admin)->postJson('/api/admin/assets', ['asset_tag' => '   ', 'name' => 'Spare monitor'])
+        ->assertCreated();
+
+    expect($response->json('data.asset_tag'))->toStartWith('AST-');
+});
+
+it('gives every generated tag its own value, stepping past one already taken', function () {
+    $next = (int) (Asset::query()->max('id') ?? 0) + 1;
+    // Someone imported a tag that looks generated, for the id the next asset will get.
+    Asset::factory()->create(['asset_tag' => sprintf('AST-%06d', $next + 1)]);
+
+    $first = $this->actingAs($this->admin)->postJson('/api/admin/assets', ['name' => 'One'])->assertCreated();
+    $second = $this->actingAs($this->admin)->postJson('/api/admin/assets', ['name' => 'Two'])->assertCreated();
+
+    expect($first->json('data.asset_tag'))->not->toBe($second->json('data.asset_tag'))
+        ->and(Asset::query()->pluck('asset_tag')->duplicates()->all())->toBe([]);
+});
+
+it('files a model described under "Other" in the catalog, and reuses it next time', function () {
+    $first = $this->actingAs($this->admin)->postJson('/api/admin/assets', ['hardware_model_other' => ' Epson EB-X51 '])
+        ->assertCreated()
+        ->assertJsonPath('data.model.name', 'Epson EB-X51')
+        ->assertJsonPath('data.display_name', 'Epson EB-X51');
+
+    $this->actingAs($this->admin)->postJson('/api/admin/assets', ['hardware_model_other' => 'Epson EB-X51'])->assertCreated();
+
+    expect(HardwareModel::query()->where('model_name', 'Epson EB-X51')->count())->toBe(1);
+
+    // It is now a catalog model anyone can choose; the placeholder is not.
+    $models = collect($this->actingAs($this->admin)->getJson('/api/admin/assets/catalog')->assertOk()->json('data.models'))
+        ->pluck('label');
+    expect($models)->toContain('Epson EB-X51')
+        ->and($models)->not->toContain(HardwareModel::UNSPECIFIED);
+    expect($first->json('data.model.id'))->toBeInt();
+});
+
+it('refuses a chosen and a described model together', function () {
+    $model = HardwareModel::factory()->create();
+
+    $this->actingAs($this->admin)->postJson('/api/admin/assets', [
+        'hardware_model' => $model->id,
+        'hardware_model_other' => 'Something else',
+    ])->assertStatus(422)->assertJsonValidationErrors('hardware_model_other');
+});
+
+it('lets an administrator describe or clear the model later', function () {
+    $asset = Asset::factory()->create();
+
+    $this->actingAs($this->admin)->putJson("/api/admin/assets/{$asset->uuid}", ['hardware_model_other' => 'Acer V206'])
+        ->assertOk()
+        ->assertJsonPath('data.model.name', 'Acer V206');
+
+    $this->actingAs($this->admin)->putJson("/api/admin/assets/{$asset->uuid}", ['hardware_model' => null, 'hardware_model_other' => null])
+        ->assertOk()
+        ->assertJsonPath('data.model', null);
+});
+
+it('refuses anyone but an administrator to edit an asset', function () {
+    $asset = Asset::factory()->create(['name' => 'Kept']);
+
+    foreach (['technician', 'teacher'] as $role) {
+        $this->actingAs(userWithRole($role))->putJson("/api/admin/assets/{$asset->uuid}", ['name' => 'Changed'])
+            ->assertForbidden();
+    }
+
+    expect($asset->fresh()->name)->toBe('Kept');
+});
+
 it('rejects a duplicate asset tag or serial number', function () {
     $existing = Asset::factory()->create(['asset_tag' => 'DUPE-1', 'serial_number' => 'SN-DUPE']);
     $model = HardwareModel::factory()->create();

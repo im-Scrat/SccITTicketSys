@@ -47,6 +47,49 @@ it('rejects a duplicate code', function () {
     ])->assertStatus(422)->assertJsonValidationErrors(['code']);
 });
 
+it('derives a unique code from the name when none is given', function () {
+    $admin = userWithRole('administrator');
+
+    $this->actingAs($admin)->postJson('/api/admin/buildings', ['name' => 'Science Hall'])
+        ->assertCreated()
+        ->assertJsonPath('data.code', 'SCIENCE-HALL');
+
+    // A second building of the same name gets the next free suffix.
+    $this->actingAs($admin)->postJson('/api/admin/buildings', ['name' => 'Science Hall', 'code' => ''])
+        ->assertCreated()
+        ->assertJsonPath('data.code', 'SCIENCE-HALL-2');
+});
+
+it('counts archived buildings when deriving a code', function () {
+    $admin = userWithRole('administrator');
+    Building::factory()->create(['code' => 'ANNEX'])->delete();
+
+    $this->actingAs($admin)->postJson('/api/admin/buildings', ['name' => 'Annex'])
+        ->assertCreated()
+        ->assertJsonPath('data.code', 'ANNEX-2');
+});
+
+it('falls back to BLDG for a name a slug cannot keep', function () {
+    $admin = userWithRole('administrator');
+
+    $this->actingAs($admin)->postJson('/api/admin/buildings', ['name' => '★★★'])
+        ->assertCreated()
+        ->assertJsonPath('data.code', 'BLDG');
+});
+
+it('keeps the code when an edit sends none', function () {
+    $admin = userWithRole('administrator');
+    $building = Building::factory()->create(['name' => 'Old name', 'code' => 'KEEP-ME']);
+
+    $this->actingAs($admin)->putJson("/api/admin/buildings/{$building->uuid}", ['name' => 'New name'])
+        ->assertOk()
+        ->assertJsonPath('data.code', 'KEEP-ME');
+
+    $this->actingAs($admin)->putJson("/api/admin/buildings/{$building->uuid}", ['name' => 'Newer', 'code' => ''])
+        ->assertOk()
+        ->assertJsonPath('data.code', 'KEEP-ME');
+});
+
 it('updates a building and stamps updated_by', function () {
     $admin = userWithRole('administrator');
     $building = Building::factory()->create(['name' => 'Old name']);

@@ -1135,7 +1135,9 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
           >
             <aside
               aria-label="Workstations panel"
-              className="hidden min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface p-4 xl:flex"
+              // Scrolls as a whole when the window is short: the list inside
+              // keeps a minimum height, so it can never collapse out of reach.
+              className="hidden min-h-0 flex-col overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface p-4 xl:flex"
             >
               {workstations}
             </aside>

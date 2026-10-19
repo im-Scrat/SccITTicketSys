@@ -61,8 +61,7 @@ export default function MyAssetsPage() {
                   <Badge tone="outline">{asset.status_label}</Badge>
                 </div>
                 <p className="mt-1 text-sm text-muted">
-                  {asset.asset_tag}
-                  {asset.room ? ` · ${asset.room.name}` : ''}
+                  {asset.room ? asset.room.name : 'No room'}
                   {asset.building ? `, ${asset.building.name}` : ''}
                 </p>
               </div>

@@ -351,7 +351,6 @@ function PcDetails({
         ) : (
           <Facts
             rows={[
-              ['Asset tag', pc.asset_tag],
               ['Hostname', pc.hostname && <span className="font-mono">{pc.hostname}</span>],
               [
                 'IP address',

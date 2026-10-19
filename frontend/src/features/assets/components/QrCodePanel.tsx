@@ -177,7 +177,8 @@ export function QrCodePanel({
  * sticker.
  */
 function openPrintWindow(payload: {
-  meta: { svg: string; label: string; identifier: string; location: string | null }
+  /** `identifier` is a PC's unit code; an asset has none (its tag is not shown). */
+  meta: { svg: string; label: string; identifier: string | null; location: string | null }
   data: { code: string }
 }) {
   const printWindow = window.open('', '_blank', 'width=520,height=680')
@@ -189,7 +190,7 @@ function openPrintWindow(payload: {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>QR label — ${escapeHtml(identifier)}</title>
+<title>QR label — ${escapeHtml(identifier ?? label)}</title>
 <style>
   @page { margin: 12mm; }
   body {
@@ -207,7 +208,7 @@ function openPrintWindow(payload: {
 </head>
 <body>
   <img src="${svg}" alt="QR code ${escapeHtml(payload.data.code)}">
-  <div class="identifier">${escapeHtml(identifier)}</div>
+  ${identifier ? `<div class="identifier">${escapeHtml(identifier)}</div>` : ''}
   <div class="name">${escapeHtml(label)}</div>
   ${location ? `<div class="location">${escapeHtml(location)}</div>` : ''}
   <div class="code">${escapeHtml(payload.data.code)}</div>

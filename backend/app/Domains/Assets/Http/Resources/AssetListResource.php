@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Assets\Http\Resources;
 
 use App\Models\Asset;
+use App\Models\HardwareModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -25,6 +26,8 @@ class AssetListResource extends JsonResource
     public function toArray(Request $request): array
     {
         $model = $this->hardwareModel;
+        // "Unspecified model" is a filing placeholder, never shown as a model.
+        $modelName = $model !== null && $model->model_name !== HardwareModel::UNSPECIFIED ? $model->model_name : null;
         $component = $model?->component;
         $room = $this->currentRoom;
         $building = $room?->floor?->building;
@@ -45,7 +48,7 @@ class AssetListResource extends JsonResource
             'category' => $component?->component_type?->value,
             'category_label' => $component?->component_type?->label(),
             'manufacturer' => $component?->manufacturer?->name,
-            'model' => $model?->model_name,
+            'model' => $modelName,
 
             'supplier' => $this->whenLoaded('supplier', fn (): ?string => $this->supplier?->name),
 

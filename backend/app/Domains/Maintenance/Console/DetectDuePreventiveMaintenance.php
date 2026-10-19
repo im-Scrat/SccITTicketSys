@@ -105,7 +105,7 @@ class DetectDuePreventiveMaintenance extends Command
     private function openScheduled(): Builder
     {
         return MaintenanceRecord::query()
-            ->with(['type:id,name,slug', 'technician:id,uuid,first_name,last_name', 'pcUnit:id,unit_code,pc_name'])
+            ->with(['type:id,name,slug', 'technician:id,uuid,first_name,middle_name,last_name', 'pcUnit:id,unit_code,pc_name'])
             ->whereIn('status', array_map(
                 static fn ($status): string => $status->value,
                 MaintenanceVisibility::OPEN_STATUSES,

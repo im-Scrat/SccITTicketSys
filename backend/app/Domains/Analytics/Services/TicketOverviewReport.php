@@ -319,7 +319,7 @@ final class TicketOverviewReport
                 'status:id,slug,name',
                 'reportedRoom:id,code,name',
                 'pcUnit:id,unit_code',
-                'asset:id,asset_tag',
+                'asset:id,name,hardware_model_id',
             ])
             ->reorder()
             ->orderBy('tickets.created_at')
@@ -359,7 +359,7 @@ final class TicketOverviewReport
                 (string) ($ticket->priority->name ?? ''),
                 (string) ($ticket->status->name ?? ''),
                 (string) ($ticket->reportedRoom->code ?? ''),
-                (string) ($ticket->pcUnit->unit_code ?? $ticket->asset->asset_tag ?? ''),
+                (string) ($ticket->pcUnit->unit_code ?? $ticket->asset?->displayName() ?? ''),
                 $ticket->created_at?->setTimezone(SchoolClock::TIMEZONE)->format('Y-m-d H:i') ?? '',
                 $ticket->resolved_at?->setTimezone(SchoolClock::TIMEZONE)->format('Y-m-d H:i') ?? '',
                 $ticket->duplicate_of_id !== null ? 'Yes' : '',

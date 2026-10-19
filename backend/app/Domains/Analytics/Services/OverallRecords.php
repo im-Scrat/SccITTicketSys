@@ -14,6 +14,7 @@ use App\Enums\PcStatus;
 use App\Enums\ProblemArea;
 use App\Enums\ReportRecordsTable;
 use App\Enums\RoomType;
+use App\Models\Asset;
 use App\Models\User;
 use App\Support\SchoolClock;
 use Carbon\CarbonImmutable;
@@ -42,7 +43,9 @@ final class OverallRecords
         'repairs' => ['completed' => 'm.completed_at', 'type' => 'mt.name'],
         'replacements' => ['replaced' => 'replaced_at_sort'],
         'pc_units' => ['code' => 'p.unit_code', 'registered' => 'p.created_at', 'warranty' => 'p.warranty_expiration'],
-        'assets' => ['code' => 'a.asset_tag', 'registered' => 'a.created_at', 'warranty' => 'a.warranty_expiration'],
+        // `code` is kept as the sort key for compatibility; for assets it now
+        // sorts by name, since the asset tag is no longer shown (2026-10-19).
+        'assets' => ['code' => 'asset_name', 'registered' => 'a.created_at', 'warranty' => 'a.warranty_expiration'],
         'rooms' => ['problems' => 'problems', 'code' => 'r.code'],
     ];
 
@@ -131,7 +134,7 @@ final class OverallRecords
     {
         $query = $this->maintenance->repairs($filters)
             ->leftJoin('rooms as r', 'r.id', '=', DB::raw('COALESCE(p.room_id, a.current_room_id)'))
-            ->select(['m.id', 'm.uuid', 'm.completed_at', 'm.downtime_minutes', 'm.labor_hours', 'mt.name as type', DB::raw(MaintenanceClass::sqlCase().' as class'), DB::raw('COALESCE(p.unit_code, a.asset_tag) as target'), 'r.code as room']);
+            ->select(['m.id', 'm.uuid', 'm.completed_at', 'm.downtime_minutes', 'm.labor_hours', 'mt.name as type', DB::raw(MaintenanceClass::sqlCase().' as class'), DB::raw('COALESCE(p.unit_code, '.Asset::displayNameSql('a').') as target'), 'r.code as room']);
 
         return [$query, $this->columns([['completed', 'Completed'], ['type', 'Type'], ['class', 'Class'], ['target', 'Equipment', 'code'], ['room', 'Room now', 'code'], ['downtime', 'Downtime (h)', 'number'], ['labour', 'Labour (h)', 'number']]),
             fn (object $r): array => [
@@ -146,7 +149,7 @@ final class OverallRecords
     private function replacements(OverallReportFilters $filters): array
     {
         $query = $this->maintenance->replacements($filters)
-            ->select(['hr.id', 'm.uuid as record_uuid', 'hr.quantity', DB::raw('COALESCE(hr.replaced_at, hr.created_at) as replaced_at_sort'), DB::raw(ReplacementAttribution::typeSql().' as type'), DB::raw(ReplacementAttribution::basisSql().' as basis'), 'hcn.name as fitted', DB::raw('COALESCE(p.unit_code, a.asset_tag) as target')]);
+            ->select(['hr.id', 'm.uuid as record_uuid', 'hr.quantity', DB::raw('COALESCE(hr.replaced_at, hr.created_at) as replaced_at_sort'), DB::raw(ReplacementAttribution::typeSql().' as type'), DB::raw(ReplacementAttribution::basisSql().' as basis'), 'hcn.name as fitted', DB::raw('COALESCE(p.unit_code, '.Asset::displayNameSql('a').') as target')]);
 
         return [$query, $this->columns([['replaced', 'Replaced'], ['type', 'Failed part'], ['basis', 'Identified by'], ['fitted', 'Fitted'], ['quantity', 'Qty', 'number'], ['target', 'Equipment', 'code']]),
             fn (object $r): array => [
@@ -183,14 +186,14 @@ final class OverallRecords
             ->leftJoin('rooms as r', 'r.id', '=', 'a.current_room_id')
             ->leftJoin('hardware_models as hm', 'hm.id', '=', 'a.hardware_model_id')
             ->leftJoin('hardware_components as hc', 'hc.id', '=', 'hm.hardware_component_id')
-            ->select(['a.id', 'a.uuid', 'a.asset_tag', 'a.name', 'a.status', 'a.warranty_expiration', 'a.created_at', 'hc.component_type', 'r.code as room']);
+            ->select(['a.id', 'a.uuid', DB::raw(Asset::displayNameSql('a').' as asset_name'), 'a.status', 'a.warranty_expiration', 'a.created_at', 'hc.component_type', 'r.code as room']);
         if ($filters->equipmentType === 'asset') {
             $query->where('a.uuid', $filters->equipmentUuid);
         }
 
-        return [$query, $this->columns([['code', 'Asset tag', 'code'], ['name', 'Name'], ['category', 'Category'], ['room', 'Room', 'code'], ['status', 'Status'], ['warranty', 'Warranty until'], ['registered', 'Registered']]),
+        return [$query, $this->columns([['code', 'Name'], ['category', 'Category'], ['room', 'Room', 'code'], ['status', 'Status'], ['warranty', 'Warranty until'], ['registered', 'Registered']]),
             fn (object $r): array => [
-                'row' => [(string) $r->asset_tag, (string) ($r->name ?? ''), $r->component_type !== null ? (ComponentType::tryFrom((string) $r->component_type)?->label() ?? (string) $r->component_type) : '—', (string) ($r->room ?? '—'), AssetStatus::tryFrom((string) $r->status)?->label() ?? (string) $r->status, $r->warranty_expiration !== null ? substr((string) $r->warranty_expiration, 0, 10) : '—', $this->local($r->created_at, 'Y-m-d')],
+                'row' => [(string) $r->asset_name, $r->component_type !== null ? (ComponentType::tryFrom((string) $r->component_type)?->label() ?? (string) $r->component_type) : '—', (string) ($r->room ?? '—'), AssetStatus::tryFrom((string) $r->status)?->label() ?? (string) $r->status, $r->warranty_expiration !== null ? substr((string) $r->warranty_expiration, 0, 10) : '—', $this->local($r->created_at, 'Y-m-d')],
                 'link' => ['path' => '/app/assets/'.$r->uuid, 'query' => []],
             ], 'a.id'];
     }

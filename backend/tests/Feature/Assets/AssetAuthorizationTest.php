@@ -128,6 +128,7 @@ it('lets technicians and teachers reach the narrow lookup through their own work
 it('returns labels only from the lookup, never operational data', function () {
     $asset = Asset::factory()->create([
         'asset_tag' => 'SECRET-1',
+        'name' => 'Staff printer',
         'purchase_price' => 1999.99,
     ]);
 
@@ -136,11 +137,14 @@ it('returns labels only from the lookup, never operational data', function () {
         ->assertOk()
         ->json('data');
 
-    $row = collect($payload)->firstWhere('identifier', 'SECRET-1');
+    $row = collect($payload)->firstWhere('id', $asset->uuid);
 
+    // Named by its name alone: the asset tag is no longer shown (2026-10-19).
     expect($row)->not->toBeNull()
         ->and(array_keys($row))->toEqualCanonicalizing(['id', 'label', 'identifier', 'location'])
-        ->and($row['id'])->toBe($asset->uuid);
+        ->and($row['label'])->toBe('Staff printer')
+        ->and($row['identifier'])->toBeNull();
+    expect(json_encode($payload))->not->toContain('SECRET-1');
 
     // Nothing operational leaks, whatever the caller does with the response.
     $encoded = json_encode($payload);
@@ -151,17 +155,17 @@ it('returns labels only from the lookup, never operational data', function () {
 });
 
 it('excludes retired and disposed equipment from the lookup', function () {
-    Asset::factory()->create(['asset_tag' => 'LIVE-1', 'status' => 'in_stock']);
-    Asset::factory()->create(['asset_tag' => 'GONE-1', 'status' => 'disposed']);
-    Asset::factory()->create(['asset_tag' => 'GONE-2', 'status' => 'retired']);
+    Asset::factory()->create(['name' => 'LIVE-1', 'status' => 'in_stock']);
+    Asset::factory()->create(['name' => 'GONE-1', 'status' => 'disposed']);
+    Asset::factory()->create(['name' => 'GONE-2', 'status' => 'retired']);
 
-    $identifiers = collect(
+    $labels = collect(
         $this->actingAs(userWithRole('teacher'))->getJson('/api/lookups/assets')->json('data')
-    )->pluck('identifier');
+    )->pluck('label');
 
-    expect($identifiers)->toContain('LIVE-1')
-        ->and($identifiers)->not->toContain('GONE-1')
-        ->and($identifiers)->not->toContain('GONE-2');
+    expect($labels)->toContain('LIVE-1')
+        ->and($labels)->not->toContain('GONE-1')
+        ->and($labels)->not->toContain('GONE-2');
 });
 
 it('allows an administrator through the whole module', function () {

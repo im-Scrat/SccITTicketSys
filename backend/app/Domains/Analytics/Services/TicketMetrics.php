@@ -130,12 +130,13 @@ class TicketMetrics
             ->join('ticket_statuses', 'ticket_statuses.id', '=', 'tickets.current_status_id')
             ->whereNull('tickets.deleted_at')
             ->where('ticket_statuses.is_open', true)
-            ->groupBy('users.id', 'users.uuid', 'users.first_name', 'users.last_name')
+            ->groupBy('users.id', 'users.uuid', 'users.first_name', 'users.middle_name', 'users.last_name')
             ->orderByDesc(DB::raw('count(tickets.id)'))
             ->limit($limit)
             ->select([
                 'users.uuid',
                 'users.first_name',
+                'users.middle_name',
                 'users.last_name',
                 DB::raw('count(tickets.id) as aggregate'),
             ])
@@ -143,7 +144,7 @@ class TicketMetrics
 
         return $rows->map(fn (object $row): array => [
             'id' => (string) $row->uuid,
-            'name' => trim($row->first_name.' '.$row->last_name),
+            'name' => implode(' ', array_filter([$row->first_name, $row->middle_name, $row->last_name], fn ($part): bool => trim((string) $part) !== '')),
             'count' => (int) $row->aggregate,
         ])->all();
     }

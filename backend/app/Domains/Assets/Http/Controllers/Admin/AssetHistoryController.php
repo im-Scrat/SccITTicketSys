@@ -97,19 +97,19 @@ class AssetHistoryController extends Controller
             ->where('pc_unit_id', $pcUnit->getKey())
             ->with([
                 'type:id,name,slug,is_preventive',
-                'technician:id,uuid,first_name,last_name',
-                'createdBy:id,uuid,first_name,last_name',
+                'technician:id,uuid,first_name,middle_name,last_name',
+                'createdBy:id,uuid,first_name,middle_name,last_name',
                 'ticket:id,uuid,ticket_number,title',
                 'pcUnit:id,uuid,unit_code,pc_name,room_id,status,current_condition',
                 'pcUnit.room:id,uuid,name,floor_id',
                 'pcUnit.room.floor:id,uuid,name,floor_number,building_id',
                 'pcUnit.room.floor.building:id,uuid,name,code',
                 'checklists' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
-                'checklists.completedBy:id,uuid,first_name,last_name',
+                'checklists.completedBy:id,uuid,first_name,middle_name,last_name',
                 'images' => fn ($q) => $q->orderBy('created_at')->orderBy('id'),
-                'images.uploadedBy:id,uuid,first_name,last_name',
+                'images.uploadedBy:id,uuid,first_name,middle_name,last_name',
                 'notes' => fn ($q) => $q->orderByDesc('created_at')->orderByDesc('id'),
-                'notes.technician:id,uuid,first_name,last_name',
+                'notes.technician:id,uuid,first_name,middle_name,last_name',
                 'hardwareReplacements' => fn ($q) => $q->orderByDesc('replaced_at')->orderByDesc('id'),
                 'hardwareReplacements.oldComponent',
                 'hardwareReplacements.newComponent',
@@ -146,7 +146,7 @@ class AssetHistoryController extends Controller
     private function auditTrail(Model $subject): AnonymousResourceCollection
     {
         $logs = ActivityLog::query()
-            ->with('user:id,uuid,first_name,last_name')
+            ->with('user:id,uuid,first_name,middle_name,last_name')
             ->where('subject_type', $subject->getMorphClass())
             ->where('subject_id', $subject->getKey())
             ->orderByDesc('created_at')

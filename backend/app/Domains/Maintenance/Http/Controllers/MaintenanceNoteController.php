@@ -37,7 +37,7 @@ class MaintenanceNoteController extends Controller
 
         return MaintenanceNoteResource::collection(
             $record->notes()
-                ->with('technician:id,uuid,first_name,last_name')
+                ->with('technician:id,uuid,first_name,middle_name,last_name')
                 ->orderByDesc('created_at')
                 ->orderByDesc('id')
                 ->get(),
@@ -72,7 +72,7 @@ class MaintenanceNoteController extends Controller
             description: "Note added to {$record->title}",
         );
 
-        return (new MaintenanceNoteResource($note->load('technician:id,uuid,first_name,last_name')))
+        return (new MaintenanceNoteResource($note->load('technician:id,uuid,first_name,middle_name,last_name')))
             ->response()
             ->setStatusCode(201);
     }

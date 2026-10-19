@@ -56,7 +56,7 @@ class DuplicateFinder
         $query = Ticket::query()
             ->with([
                 'status', 'priority', 'category',
-                'reporter:id,uuid,first_name,last_name',
+                'reporter:id,uuid,first_name,middle_name,last_name',
                 'pcUnit:id,uuid,unit_code,pc_name,room_id',
                 'pcUnit.room:id,uuid,name,floor_id',
                 'pcUnit.room.floor:id,uuid,name,building_id',

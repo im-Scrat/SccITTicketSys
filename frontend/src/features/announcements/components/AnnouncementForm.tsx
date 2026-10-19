@@ -1,5 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { applyServerErrors, getErrorMessage } from '@/features/auth/lib/serverErrors'
+import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Field } from '@/components/ui/Field'
@@ -9,11 +12,16 @@ import { Textarea } from '@/components/ui/Textarea'
 import { type AnnouncementForm as FormValues, announcementSchema } from '../schemas'
 import type { Announcement } from '../types'
 
+/** Save only, or save and then publish (which notifies the audience). */
+export type AnnouncementIntent = 'save' | 'publish'
+
 interface AnnouncementFormProps {
   announcement?: Announcement
-  onSubmit: (values: FormValues) => Promise<void> | void
+  onSubmit: (values: FormValues, intent: AnnouncementIntent) => Promise<void> | void
   onCancel: () => void
   submitting?: boolean
+  /** Which button the pending save came from, so only that one spins. */
+  pendingIntent?: AnnouncementIntent | null
 }
 
 /** `datetime-local` wants `YYYY-MM-DDTHH:mm`, not an ISO string with a zone. */
@@ -29,11 +37,16 @@ function toLocalInput(iso: string | null | undefined): string {
  *
  * ── Saving is not publishing ───────────────────────────────────────────────
  *
- * There is no "active" switch on this form, and that absence is the feature.
- * Publication is a separate action on the list, so an administrator editing a
- * live announcement cannot notify the school a second time by pressing Save
- * (decision D7). The copy below says so, because a form that silently declines
- * to do something has to explain itself.
+ * There is no "active" switch on this form, and that absence is the feature:
+ * an administrator editing a live announcement cannot notify the school a
+ * second time by pressing Save (decision D7).
+ *
+ * A new announcement, or a draft, can be **published straight from the form**
+ * (owner request, 2026-10-19): "Publish" saves and then calls the same publish
+ * action as the list's button. It is a separate, explicitly named button and
+ * never what Enter does. Enter saves a draft, so a stray keypress notifies no
+ * one. A published announcement has no Publish here; "Notify again" stays on
+ * the list, behind its confirmation.
  *
  * ── Plain text, deliberately ───────────────────────────────────────────────
  *
@@ -46,10 +59,13 @@ export function AnnouncementForm({
   onSubmit,
   onCancel,
   submitting = false,
+  pendingIntent = null,
 }: AnnouncementFormProps) {
+  const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(announcementSchema),
@@ -63,8 +79,25 @@ export function AnnouncementForm({
     },
   })
 
+  // A new announcement or an unpublished draft may go out from here.
+  const canPublish = !announcement || !announcement.is_active
+
+  const submit = (intent: AnnouncementIntent) =>
+    handleSubmit(async (values) => {
+      setFormError(null)
+      try {
+        await onSubmit(values, intent)
+      } catch (error) {
+        if (!applyServerErrors(error, setError)) {
+          setFormError(getErrorMessage(error, 'The announcement could not be saved. Try again.'))
+        }
+      }
+    })
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+    <form onSubmit={submit('save')} noValidate className="flex flex-col gap-4">
+      {formError && <Alert tone="error">{formError}</Alert>}
+
       <Field label="Title" error={errors.title?.message} required>
         <Input autoComplete="off" {...register('title')} />
       </Field>
@@ -108,14 +141,40 @@ export function AnnouncementForm({
       <Checkbox label="Pin to the top of the list" {...register('is_pinned')} />
 
       <p className="text-xs text-muted">
-        Saving does not notify anyone. A new announcement is created as a draft, and editing a
-        published one leaves its audience undisturbed — use <strong>Publish</strong> or{' '}
-        <strong>Notify again</strong> when you want people told.
+        {canPublish ? (
+          <>
+            <strong>Publish</strong> notifies the audience now. <strong>Save draft</strong> keeps it
+            unpublished and notifies no one.
+          </>
+        ) : (
+          <>
+            Saving changes leaves the audience undisturbed — use <strong>Notify again</strong> on
+            the list when you want people told.
+          </>
+        )}
       </p>
 
-      <div className="flex items-center gap-3">
-        <Button type="submit" variant="primary" size="sm" loading={submitting}>
-          {announcement ? 'Save changes' : 'Create draft'}
+      <div className="flex flex-wrap items-center gap-3">
+        {canPublish && (
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            loading={submitting && pendingIntent === 'publish'}
+            disabled={submitting && pendingIntent !== 'publish'}
+            onClick={submit('publish')}
+          >
+            {announcement ? 'Save and publish' : 'Publish'}
+          </Button>
+        )}
+        <Button
+          type="submit"
+          variant={canPublish ? 'secondary' : 'primary'}
+          size="sm"
+          loading={submitting && pendingIntent !== 'publish'}
+          disabled={submitting && pendingIntent === 'publish'}
+        >
+          {announcement ? 'Save changes' : 'Save draft'}
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={submitting}>
           Cancel

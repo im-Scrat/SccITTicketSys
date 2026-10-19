@@ -23,6 +23,21 @@ import type { RoomPlan } from '../types'
 
 type Placement = 'all' | 'unplaced' | 'placed'
 
+/*
+ * The panel is narrow (about 18rem beside the canvas), so nothing in it may
+ * need a sideways scroll to be read (owner report, 2026-10-19). Long names and
+ * unit codes wrap — anywhere, since a code is one unbroken word — and a row
+ * wraps its button onto its own line when the details and the button do not
+ * both fit, instead of the button sliding over the text. On a tall window the
+ * list scrolls inside the panel and the filters stay put; on a short one it
+ * keeps at least 10rem and the whole panel scrolls instead, so a row (and its
+ * button) can never be squeezed to nothing behind the filters.
+ */
+const LIST =
+  '-mx-1 flex min-h-40 shrink-0 flex-col overflow-y-auto overflow-x-hidden px-1 [@media(min-height:56rem)]:min-h-0 [@media(min-height:56rem)]:shrink'
+const ROW = 'flex flex-wrap items-start gap-x-3 gap-y-2 border-b border-border py-3 last:border-b-0'
+const DETAILS = 'min-w-0 grow basis-44 [overflow-wrap:anywhere]'
+
 interface WorkstationsPanelProps {
   plan: RoomPlan
   doc: LayoutDoc
@@ -60,6 +75,7 @@ export function WorkstationsPanel(props: WorkstationsPanelProps) {
         ]}
         value={tab}
         onChange={(value) => setTab(value as 'room' | 'other')}
+        fill
       />
       {tab === 'room' || !props.canMoveIn ? <InThisRoom {...props} /> : <OtherRooms {...props} />}
     </section>
@@ -132,10 +148,7 @@ function InThisRoom({ plan, doc, editing, selection, onPlace, onSelect }: Workst
             : 'No PCs match these filters.'}
         </p>
       ) : (
-        <ul
-          className="-mx-1 flex min-h-0 flex-col overflow-y-auto px-1"
-          aria-label="PCs in this room"
-        >
+        <ul className={LIST} aria-label="PCs in this room">
           {rows.map((pc) => {
             const placed = pc.id in doc.workstations
             const isSelected = selection.includes(`pc:${pc.id}`)
@@ -145,18 +158,15 @@ function InThisRoom({ plan, doc, editing, selection, onPlace, onSelect }: Workst
                 key={pc.id}
                 draggable={draggable}
                 onDragStart={draggable ? (e) => startDrag(e, { type: 'pc', id: pc.id }) : undefined}
-                className={cn(
-                  'group flex items-center gap-3 border-b border-border py-3 last:border-b-0',
-                  isSelected && 'bg-primary-subtle/50',
-                )}
+                className={cn('group', ROW, isSelected && 'bg-primary-subtle/50')}
               >
                 {draggable && (
                   <GripVertical
-                    className="size-4 shrink-0 cursor-grab text-faint"
+                    className="mt-0.5 size-4 shrink-0 cursor-grab text-faint"
                     aria-hidden="true"
                   />
                 )}
-                <div className="min-w-0 flex-1">
+                <div className={DETAILS}>
                   {placed ? (
                     <button
                       type="button"
@@ -166,7 +176,7 @@ function InThisRoom({ plan, doc, editing, selection, onPlace, onSelect }: Workst
                       {pc.name}
                     </button>
                   ) : (
-                    <span className="text-sm font-semibold text-ink-strong">{pc.name}</span>
+                    <span className="block text-sm font-semibold text-ink-strong">{pc.name}</span>
                   )}
                   <span className="block font-mono text-xs text-muted">{pc.unit_code}</span>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -178,6 +188,7 @@ function InThisRoom({ plan, doc, editing, selection, onPlace, onSelect }: Workst
                   <Button
                     size="sm"
                     variant="secondary"
+                    className="shrink-0 self-start"
                     aria-label={`Place ${pc.name}`}
                     leftIcon={<Plus className="size-4" aria-hidden="true" />}
                     onClick={() => onPlace(pc.id)}
@@ -256,17 +267,11 @@ function OtherRooms({ plan, onAnnounce }: WorkstationsPanelProps) {
       ) : (list.data?.data.length ?? 0) === 0 ? (
         <p className="py-6 text-center text-sm text-muted">No other PCs match.</p>
       ) : (
-        <ul
-          className="-mx-1 flex min-h-0 flex-col overflow-y-auto px-1"
-          aria-label="PCs in other rooms"
-        >
+        <ul className={LIST} aria-label="PCs in other rooms">
           {list.data!.data.map((pc) => (
-            <li
-              key={pc.id}
-              className="flex items-center gap-3 border-b border-border py-3 last:border-b-0"
-            >
-              <div className="min-w-0 flex-1">
-                <span className="text-sm font-semibold text-ink-strong">{pc.pc_name}</span>
+            <li key={pc.id} className={ROW}>
+              <div className={DETAILS}>
+                <span className="block text-sm font-semibold text-ink-strong">{pc.pc_name}</span>
                 <span className="block font-mono text-xs text-muted">{pc.unit_code}</span>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <PcStatusBadge status={pc.status} />
@@ -283,6 +288,7 @@ function OtherRooms({ plan, onAnnounce }: WorkstationsPanelProps) {
               <Button
                 size="sm"
                 variant="secondary"
+                className="shrink-0 self-start"
                 aria-label={`Move ${pc.pc_name} here`}
                 leftIcon={<ArrowRightToLine className="size-4" aria-hidden="true" />}
                 onClick={() => setMoving(pc)}

@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { OVERVIEW } from '../overviewFixtures'
 import type { OverallSectionResponse } from '../types'
 import OverallReportsPage from './OverallReportsPage'
 
@@ -143,6 +144,24 @@ beforeEach(() => {
 })
 
 describe('OverallReportsPage', () => {
+  it('shows the ticket headline figures, each linked to the list it counts', () => {
+    hooks.useTicketOverview.mockReturnValue({ data: OVERVIEW })
+    renderAt('/app/reports?section=repairs')
+
+    const figures = screen.getByRole('region', { name: 'Ticket headline figures' })
+    const reported = within(figures).getByRole('link', { name: /^Reported: 12\./ })
+    expect(reported).toHaveAttribute(
+      'href',
+      '/app/tickets/manage?tab=directory&reported_from=2026-10-01&reported_to=2026-10-18',
+    )
+    expect(reported).toHaveAccessibleName(/3 more than 1–18 Sep 2026, up 33%/)
+    expect(within(figures).getByText('Daily average')).toBeInTheDocument()
+    expect(within(figures).getByRole('link', { name: /^Still open: 5\./ })).toBeInTheDocument()
+    // Resolved in period is an event count: no list can match it exactly.
+    expect(within(figures).queryByRole('link', { name: /Resolved in period/ })).toBeNull()
+    expect(within(figures).getByText('Resolved in period')).toBeInTheDocument()
+  })
+
   it('reads the section from the URL and fetches only that section', () => {
     renderAt('/app/reports?section=repairs&period=year')
 

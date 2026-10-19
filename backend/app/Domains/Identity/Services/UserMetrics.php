@@ -94,7 +94,7 @@ class UserMetrics
     public function recentLogins(int $limit = 6): array
     {
         return LoginHistory::query()
-            ->with('user:id,uuid,first_name,last_name')
+            ->with('user:id,uuid,first_name,middle_name,last_name')
             ->whereNotNull('user_id')
             ->where('login_status', 'success')
             ->latest('login_at')
@@ -121,7 +121,7 @@ class UserMetrics
     public function recentActions(int $limit = 8): array
     {
         return ActivityLog::query()
-            ->with('user:id,uuid,first_name,last_name')
+            ->with('user:id,uuid,first_name,middle_name,last_name')
             ->latest('created_at')
             ->limit($limit)
             ->get()

@@ -69,7 +69,7 @@ class CompleteChecklistItem
                 );
             }
 
-            return $item->refresh()->load('completedBy:id,uuid,first_name,last_name');
+            return $item->refresh()->load('completedBy:id,uuid,first_name,middle_name,last_name');
         });
     }
 }

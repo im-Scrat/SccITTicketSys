@@ -116,9 +116,9 @@ test.describe('predictive maintenance — administrator', () => {
     await expect(page).toHaveURL(new RegExp(`${LIST}/${withWindow().uuid}$`))
     await expect(page.getByRole('heading', { level: 1, name: withWindow().issue })).toBeVisible()
 
-    // PC, asset tag and where it sits.
+    // PC and where it sits. Its asset tag is no longer shown (2026-10-19).
     await expect(page.getByText(/E2E Fixture PC/).first()).toBeVisible()
-    await expect(page.getByText(/E2E-AT-001/)).toBeVisible()
+    await expect(page.getByText(/E2E-AT-001/)).toHaveCount(0)
     await expect(page.getByText(/E2E Verification Lab/).first()).toBeVisible()
 
     // Risk, confidence, the model's reading and the evidence it rests on.

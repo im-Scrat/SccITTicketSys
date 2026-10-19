@@ -33,18 +33,21 @@ export const conditionValues = ['working', 'faulty', 'for_repair', 'decommission
 /** Phase 2.11 (DD-100) — the three repair statuses, from the shared table. */
 export const pcStatusValues = PC_STATUS_VALUES
 
+/** The catalog-model select's "none chosen" and "Other — describe it" values. */
+export const NO_MODEL_VALUE = 0
+export const OTHER_MODEL_VALUE = -1
+
+/*
+ * Every field is optional (owner request, 2026-10-19). There is no asset tag:
+ * the server generates one internally and it is not shown anywhere. With no
+ * catalog model the asset is filed under "Unspecified model"; "Other" describes
+ * a model that is not in the catalog yet, and the server files it there.
+ */
 export const assetSchema = z
   .object({
-    asset_tag: z
-      .string()
-      .min(1, 'Asset tag is required.')
-      .max(255, 'Use 255 characters or fewer.')
-      .regex(
-        /^[A-Za-z0-9][A-Za-z0-9 _/-]*$/,
-        'Use letters, numbers, spaces, hyphens, slashes or underscores.',
-      ),
     name: optionalText(255),
-    hardware_model: z.number({ message: 'Choose a catalog model.' }).int().positive(),
+    hardware_model: z.number().int().min(OTHER_MODEL_VALUE).catch(NO_MODEL_VALUE),
+    hardware_model_other: optionalText(255),
     supplier: optionalText(255),
     room: optionalText(64),
     technician: optionalText(64),
@@ -101,7 +104,6 @@ export const pcUnitSchema = z
         'Use letters, numbers, spaces, hyphens, slashes or underscores.',
       ),
     pc_name: z.string().min(1, 'PC name is required.').max(255),
-    asset_tag: optionalText(255),
     hostname: optionalText(255),
     serial_number: optionalText(255),
     brand: optionalText(255),

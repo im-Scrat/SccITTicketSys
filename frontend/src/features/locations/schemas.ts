@@ -8,13 +8,11 @@ import { z } from 'zod'
 
 const optionalText = (max: number) => z.string().max(max).optional().or(z.literal(''))
 
+// No code field: the name is enough (owner request, 2026-10-19). The server
+// derives a unique code from the name for a new building and leaves an existing
+// building's code as it is.
 export const buildingSchema = z.object({
   name: z.string().min(1, 'Name is required.').max(255),
-  code: z
-    .string()
-    .min(1, 'Code is required.')
-    .max(50, 'Use 50 characters or fewer.')
-    .regex(/^[A-Za-z0-9][A-Za-z0-9 _-]*$/, 'Use letters, numbers, spaces, hyphens or underscores.'),
   description: optionalText(2000),
   address: optionalText(2000),
 })

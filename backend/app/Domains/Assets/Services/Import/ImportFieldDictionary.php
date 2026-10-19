@@ -231,9 +231,11 @@ final class ImportFieldDictionary
      */
     public static function required(ImportEntityType $type): array
     {
+        // An asset's tag is optional (2026-10-19): a register that carries tags
+        // still imports them, and a row without one gets a generated tag.
         return $type === ImportEntityType::PcUnit
             ? ['unit_code', 'name']
-            : ['asset_tag', 'category', 'model'];
+            : ['category', 'model'];
     }
 
     /**

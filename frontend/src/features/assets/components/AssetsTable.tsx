@@ -54,13 +54,6 @@ export function AssetsTable({
                 />
               </Th>
               <SortableTh
-                label="Asset tag"
-                column="asset_tag"
-                sort={sort}
-                direction={direction}
-                onSort={onSort}
-              />
-              <SortableTh
                 label="Name"
                 column="name"
                 sort={sort}
@@ -114,17 +107,9 @@ export function AssetsTable({
                   <Checkbox
                     checked={selected.has(asset.id)}
                     onChange={() => onToggle(asset.id)}
-                    label={`Select ${asset.asset_tag}`}
+                    label={`Select ${asset.name}`}
                     labelHidden
                   />
-                </Td>
-                <Td className="font-mono text-sm font-semibold text-ink-strong">
-                  {asset.asset_tag}
-                  {asset.archived && (
-                    <Badge tone="neutral" className="ml-2">
-                      Archived
-                    </Badge>
-                  )}
                 </Td>
                 <Td>
                   <button
@@ -134,6 +119,11 @@ export function AssetsTable({
                   >
                     {asset.name}
                   </button>
+                  {asset.archived && (
+                    <Badge tone="neutral" className="ml-2">
+                      Archived
+                    </Badge>
+                  )}
                   {asset.manufacturer && (
                     <span className="block text-xs text-muted">
                       {asset.manufacturer}
@@ -168,7 +158,7 @@ export function AssetsTable({
                     type="button"
                     onClick={() => onOpen(asset.id)}
                     className="flex size-12 items-center justify-center rounded-md text-muted hover:bg-surface-sunken hover:text-ink"
-                    aria-label={`Open ${asset.asset_tag}`}
+                    aria-label={`Open ${asset.name}`}
                   >
                     <ChevronRight size={28} aria-hidden="true" />
                   </button>
@@ -194,7 +184,7 @@ export function AssetsTable({
                 <Checkbox
                   checked={selected.has(asset.id)}
                   onChange={() => onToggle(asset.id)}
-                  label={`Select ${asset.asset_tag}`}
+                  label={`Select ${asset.name}`}
                   labelHidden
                 />
                 <button
@@ -209,7 +199,6 @@ export function AssetsTable({
             </div>
 
             <dl className="mt-4 grid gap-3">
-              <Row label="Asset tag" value={asset.asset_tag} mono />
               <Row label="Category" value={asset.category_label ?? '—'} />
               <Row
                 label="Room"

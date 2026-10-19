@@ -75,7 +75,8 @@ export async function createUser(payload: CreateUserPayload): Promise<UserDetail
 
 export interface UpdateUserPayload {
   first_name: string
-  middle_name?: string
+  /** `null` clears it; leaving the key out would keep the old one. */
+  middle_name?: string | null
   last_name: string
   email: string
   employee_number?: string

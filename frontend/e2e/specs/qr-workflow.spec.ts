@@ -60,28 +60,29 @@ test.describe('QR scan entry', () => {
   })
 
   /**
-   * The FR-QR-011 resume, end to end.
-   *
-   * This test was a recorded `test.fail()` throughout WP-2.7d: the destination
-   * was computed correctly and then overwritten, because `SignInPage` and
-   * `GuestRoute` both navigated and the guard ran last —
-   * `[login 200] -> /app/qr/… -> /app`. The guard now owns the decision alone
-   * (F-1), so the annotation is gone and this asserts the real requirement.
+   * The FR-QR-011 resume, end to end — as amended on 2026-10-19: every sign-in
+   * lands on the dashboard, and the dashboard offers the scanned PC.
    */
-  test('the scanned destination survives sign-in and opens the panel', async ({ page }) => {
+  test('the scanned destination survives sign-in and is offered on the dashboard', async ({
+    page,
+  }) => {
     const { qr } = fixtures()
 
     await goto(page, qr.scan_path)
     await expect(page).toHaveURL(/\/sign-in/)
 
-    // Signing in from here must resume the scan, not land on the dashboard.
     await signIn(page, 'technician')
+
+    // Sign-in lands on the dashboard (owner decision 2026-10-19), which offers
+    // the scanned PC; following the offer opens its panel.
+    await expect(page).toHaveURL(/\/app$/)
+    await page.getByRole('button', { name: 'Continue to the PC you scanned' }).click()
 
     await expect(page).toHaveURL(new RegExp(`/app/qr/${qr.code}$`))
     expect(await apiStatus(page, `/api/qr/${qr.code}/panel`)).toBe(200)
   })
 
-  test('the stored scan is consumed by sign-in and cannot be replayed', async ({ page }) => {
+  test('the stored scan is spent once followed and cannot be replayed', async ({ page }) => {
     const { qr } = fixtures()
 
     const stored = () => page.evaluate(() => sessionStorage.getItem('sccit.pendingScan'))
@@ -93,9 +94,13 @@ test.describe('QR scan entry', () => {
     expect(await stored()).toBe(qr.code)
 
     await signIn(page, 'technician')
+    await page.getByRole('button', { name: 'Continue to the PC you scanned' }).click()
+    // Let the panel finish loading: signing out under its in-flight requests
+    // lets a late response re-issue the session cookie.
+    await expect(page).toHaveURL(new RegExp(`/app/qr/${qr.code}$`))
+    await settle(page)
 
-    // Consumed on use: a scan is spent once, so the next sign-in in this tab
-    // lands on the workspace rather than replaying it.
+    // Spent on use: the next sign-in in this tab offers nothing to replay.
     expect(await stored()).toBeNull()
 
     await signOut(page)
@@ -103,6 +108,9 @@ test.describe('QR scan entry', () => {
     await signIn(page, 'technician')
 
     await expect(page).toHaveURL(/\/app$/)
+    await expect(page.getByRole('button', { name: 'Continue to the PC you scanned' })).toHaveCount(
+      0,
+    )
   })
 
   test('a signed-in technician scanning a label goes straight to the panel', async ({ page }) => {
@@ -203,6 +211,10 @@ test.describe('QR sign-in resume — outcomes and safety', () => {
     await goto(page, qr.scan_path)
     await expect(page).toHaveURL(/\/sign-in/)
     await signIn(page, 'administrator')
+    // Sign-in lands on the dashboard (owner decision 2026-10-19), which offers
+    // the scanned PC; following the offer opens its panel.
+    await expect(page).toHaveURL(/\/app$/)
+    await page.getByRole('button', { name: 'Continue to the PC you scanned' }).click()
 
     await expect(page).toHaveURL(new RegExp(`/app/qr/${qr.code}$`))
     await expect(page.getByText(pc_unit.unit_code).first()).toBeVisible()
@@ -220,6 +232,10 @@ test.describe('QR sign-in resume — outcomes and safety', () => {
     await goto(page, `/qr/${label.code}`)
     await expect(page).toHaveURL(/\/sign-in/)
     await signIn(page, 'technician')
+    // Sign-in lands on the dashboard (owner decision 2026-10-19), which offers
+    // the scanned PC; following the offer opens its panel.
+    await expect(page).toHaveURL(/\/app$/)
+    await page.getByRole('button', { name: 'Continue to the PC you scanned' }).click()
 
     await expect(page).toHaveURL(new RegExp(`/app/qr/${label.code}$`))
     await expect(
@@ -238,6 +254,10 @@ test.describe('QR sign-in resume — outcomes and safety', () => {
     await goto(page, `/qr/${label.code}`)
     await expect(page).toHaveURL(/\/sign-in/)
     await signIn(page, 'technician')
+    // Sign-in lands on the dashboard (owner decision 2026-10-19), which offers
+    // the scanned PC; following the offer opens its panel.
+    await expect(page).toHaveURL(/\/app$/)
+    await page.getByRole('button', { name: 'Continue to the PC you scanned' }).click()
 
     await expect(page).toHaveURL(new RegExp(`/app/qr/${label.code}$`))
     await expect(page.getByRole('heading', { name: 'This label is out of date' })).toBeVisible()
@@ -271,11 +291,14 @@ test.describe('QR sign-in resume — outcomes and safety', () => {
 
       await signIn(page, 'technician')
 
-      // Discarded as malformed (not a code), so the visitor lands on the
-      // workspace — on this origin.
+      // Sign-in lands on the dashboard regardless, and a malformed value is
+      // not a code, so nothing is offered to follow — and nothing leaves this origin.
       const url = new URL(page.url())
       expect(url.hostname).toBe('localhost')
       expect(url.pathname).toBe('/app')
+      await expect(
+        page.getByRole('button', { name: 'Continue to the PC you scanned' }),
+      ).toHaveCount(0)
     })
   }
 
@@ -294,7 +317,7 @@ test.describe('QR sign-in resume — outcomes and safety', () => {
     expect(url.pathname).toBe('/app')
   })
 
-  test('a scan survives sign-in and a forced password change, and resumes', async ({ page }) => {
+  test('a scan survives sign-in and a forced password change, and is offered', async ({ page }) => {
     const { qr } = fixtures()
     const id = stamp().toLowerCase()
     const email = `e2e.forced.${id}@sccit.test`
@@ -330,15 +353,21 @@ test.describe('QR sign-in resume — outcomes and safety', () => {
     await page.getByLabel(/^confirm new password/i).fill('Forced-Passw0rd!2')
     await page.getByRole('button', { name: /set new password and continue/i }).click()
 
-    // Back on the scanned machine — refused, because this new technician has
-    // no work on it, which proves the panel (not the dashboard) was reached.
+    // The change lands on the dashboard too; the scan is still offered there.
+    // Sign-in lands on the dashboard (owner decision 2026-10-19), which offers
+    // the scanned PC; following the offer opens its panel.
+    await expect(page).toHaveURL(/\/app$/)
+    await page.getByRole('button', { name: 'Continue to the PC you scanned' }).click()
+
+    // Refused, because this new technician has no work on it, which proves the
+    // panel (not the dashboard) was reached.
     await expect(page).toHaveURL(new RegExp(`/app/qr/${qr.code}$`))
     await expect(
       page.getByRole('heading', { name: 'You have no assigned work on this machine' }),
     ).toBeVisible()
   })
 
-  test('signing in returns to the protected page that asked for it, query included', async ({
+  test('signing in lands on the dashboard, not the protected page that asked for it', async ({
     page,
   }) => {
     await goto(page, '/app/notifications?filter=unread')
@@ -346,6 +375,7 @@ test.describe('QR sign-in resume — outcomes and safety', () => {
 
     await signIn(page, 'technician')
 
-    await expect(page).toHaveURL(/\/app\/notifications\?filter=unread$/)
+    // Owner decision 2026-10-19: every successful sign-in goes to the dashboard.
+    await expect(page).toHaveURL(/\/app$/)
   })
 })

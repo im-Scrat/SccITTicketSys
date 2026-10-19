@@ -171,6 +171,9 @@ class AssetOptions
     {
         return HardwareModel::query()
             ->with('component.manufacturer')
+            // The filing placeholder for assets registered with no model is
+            // not something anyone chooses (owner request 2026-10-19).
+            ->where('model_name', '!=', HardwareModel::UNSPECIFIED)
             ->orderBy('model_name')
             ->get()
             ->map(static fn (HardwareModel $model): array => [
@@ -245,7 +248,7 @@ class AssetOptions
      * disposed assets are excluded — you cannot report a fault on something that
      * has left the estate.
      *
-     * @return list<array{id: string, label: string, asset_tag: string, location: string|null}>
+     * @return list<array{id: string, label: string, location: string|null}>
      */
     public function lookupAssets(?string $search = null): array
     {
@@ -266,8 +269,8 @@ class AssetOptions
             ->get()
             ->map(fn (Asset $asset): array => [
                 'id' => $asset->uuid,
-                'label' => $asset->displayName().' ('.$asset->asset_tag.')',
-                'asset_tag' => $asset->asset_tag,
+                // The name alone: the asset tag is no longer shown (2026-10-19).
+                'label' => $asset->displayName(),
                 'location' => $this->roomLabel($asset->currentRoom),
             ])
             ->all();
@@ -355,7 +358,7 @@ class AssetOptions
      * The catalog model is loaded with trashed rows so an asset whose model was
      * archived still reads by its model name rather than by its tag twice.
      *
-     * @return list<array{id: string, label: string, asset_tag: string, location: string|null}>
+     * @return list<array{id: string, label: string, location: string|null}>
      */
     public function roomAssets(Room $room, int $limit = self::ROOM_LIMIT): array
     {
@@ -369,8 +372,8 @@ class AssetOptions
             ->get()
             ->map(fn (Asset $asset): array => [
                 'id' => $asset->uuid,
-                'label' => $asset->displayName().' ('.$asset->asset_tag.')',
-                'asset_tag' => $asset->asset_tag,
+                // The name alone: the asset tag is no longer shown (2026-10-19).
+                'label' => $asset->displayName(),
                 'location' => $location,
             ])
             ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)

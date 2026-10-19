@@ -189,8 +189,8 @@ class MaintenanceDirectoryQuery
     {
         $query = MaintenanceRecord::query()->with([
             'type:id,name,slug,is_preventive',
-            'technician:id,uuid,first_name,last_name',
-            'createdBy:id,uuid,first_name,last_name',
+            'technician:id,uuid,first_name,middle_name,last_name',
+            'createdBy:id,uuid,first_name,middle_name,last_name',
             'ticket:id,uuid,ticket_number,title',
             'pcUnit:id,uuid,unit_code,pc_name,room_id,status,current_condition',
             'pcUnit.room:id,uuid,name,floor_id',

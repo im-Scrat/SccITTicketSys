@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Alert, Badge } from '@/components/ui'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { formatDateTime } from '@/lib/datetime'
-import type { SlaPosture, TicketDetail } from '../types'
+import { equipmentText, type SlaPosture, type TicketDetail } from '../types'
 import {
   ReporterChoiceMarker,
   SlaBadge,
@@ -191,11 +191,11 @@ function EquipmentName({
   equipment,
   href,
 }: {
-  equipment: { label: string; identifier: string }
+  equipment: { label: string; identifier: string | null }
   /** Administrators can open the record; everyone else reads the label. */
   href: string | null
 }) {
-  const text = `${equipment.label} (${equipment.identifier})`
+  const text = equipmentText(equipment)
 
   return href ? (
     <Link to={href} className="font-semibold underline">

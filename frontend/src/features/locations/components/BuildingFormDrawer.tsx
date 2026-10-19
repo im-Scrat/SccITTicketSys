@@ -36,7 +36,7 @@ export function BuildingFormDrawer({ open, onClose, building, onSaved }: Buildin
     formState: { errors, isSubmitting },
   } = useForm<BuildingForm>({
     resolver: zodResolver(buildingSchema),
-    defaultValues: { name: '', code: '', description: '', address: '' },
+    defaultValues: { name: '', description: '', address: '' },
   })
 
   useEffect(() => {
@@ -44,7 +44,6 @@ export function BuildingFormDrawer({ open, onClose, building, onSaved }: Buildin
     setFormError(null)
     reset({
       name: building?.name ?? '',
-      code: building?.code ?? '',
       description: building?.description ?? '',
       address: building?.address ?? '',
     })
@@ -54,7 +53,6 @@ export function BuildingFormDrawer({ open, onClose, building, onSaved }: Buildin
     setFormError(null)
     const payload = {
       name: values.name,
-      code: values.code,
       description: values.description || undefined,
       address: values.address || undefined,
     }
@@ -94,15 +92,6 @@ export function BuildingFormDrawer({ open, onClose, building, onSaved }: Buildin
 
         <Field label="Name" error={errors.name?.message} required>
           <Input autoFocus placeholder="Science Hall" {...register('name')} />
-        </Field>
-
-        <Field
-          label="Code"
-          error={errors.code?.message}
-          hint="A short identifier used on labels and reports — e.g. SCI-1."
-          required
-        >
-          <Input placeholder="SCI-1" className="font-mono" {...register('code')} />
         </Field>
 
         <Field label="Address" error={errors.address?.message}>

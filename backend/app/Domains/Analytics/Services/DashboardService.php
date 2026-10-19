@@ -252,7 +252,7 @@ class DashboardService
                 'rows' => array_map(static fn (array $item): array => [
                     'id' => $item['id'],
                     'cells' => [
-                        $item['asset_tag'].' · '.$item['name'],
+                        $item['name'],
                         $item['room'] ?? '—',
                         $item['warranty_expiration'],
                     ],
@@ -269,7 +269,7 @@ class DashboardService
                 'rows' => array_map(static fn (array $item): array => [
                     'id' => $item['id'],
                     'cells' => [
-                        $item['asset_tag'].' · '.$item['name'],
+                        $item['name'],
                         $item['status_label'],
                         $item['at'],
                     ],
@@ -476,7 +476,7 @@ class DashboardService
                 'rows' => array_map(static fn (array $item): array => [
                     'id' => $item['id'],
                     'cells' => [
-                        $item['asset_tag'].' · '.$item['name'],
+                        $item['name'],
                         $item['status_label'],
                         $item['room'] ?? '—',
                     ],
@@ -492,7 +492,7 @@ class DashboardService
                 'rows' => array_map(static fn (array $item): array => [
                     'id' => $item['id'],
                     'cells' => [
-                        $item['asset_tag'].' · '.$item['name'],
+                        $item['name'],
                         $item['status_label'],
                         $item['at'],
                     ],

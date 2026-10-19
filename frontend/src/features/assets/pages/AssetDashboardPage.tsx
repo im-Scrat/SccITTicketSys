@@ -184,8 +184,7 @@ export default function AssetDashboardPage() {
                     {data.warranty_expiring.items.map((item) => (
                       <Tr key={item.id} onClick={() => navigate(`/app/assets/${item.id}`)}>
                         <Td>
-                          <span className="font-mono text-sm">{item.asset_tag}</span>
-                          <span className="block text-sm text-muted">{item.name}</span>
+                          <span className="text-sm font-medium text-ink">{item.name}</span>
                         </Td>
                         <Td className="text-sm">{item.room ?? '—'}</Td>
                         <Td className="text-sm tnum">{formatDate(item.warranty_expiration)}</Td>
@@ -261,7 +260,6 @@ function RecentList({
                   <span className="block text-sm font-semibold text-primary-strong">
                     {asset.name}
                   </span>
-                  <span className="block font-mono text-xs text-muted">{asset.asset_tag}</span>
                 </span>
                 <span className="flex items-center gap-3">
                   <AssetStatusBadge label={asset.status_label} tone={asset.tone} />

@@ -112,7 +112,6 @@ export default function PredictionDetailPage() {
             <p className="mt-1 text-sm text-muted">
               {data.pc_unit?.label ?? 'Unknown PC'}
               {data.pc_unit?.identifier && ` · ${data.pc_unit.identifier}`}
-              {data.pc_unit?.asset_tag && ` · ${data.pc_unit.asset_tag}`}
             </p>
             <p className="mt-1 text-sm text-muted">
               {[data.location?.room, data.location?.floor, data.location?.building]

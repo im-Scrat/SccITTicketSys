@@ -165,9 +165,11 @@ final class EquipmentReportQuery
         $pcs = (clone $base)->join('pc_units as p', 'p.id', '=', 't.pc_unit_id')
             ->groupBy('p.id', 'p.uuid', 'p.unit_code', 'p.pc_name')
             ->get(['p.uuid', 'p.unit_code as code', 'p.pc_name as name', DB::raw("'PC unit' as kind"), DB::raw('count(*) as n')]);
+        // An asset has no code on screen (its tag is no longer shown, 2026-10-19):
+        // the code cell carries its name, and the name cell is left empty.
         $assets = (clone $base)->join('assets as a', 'a.id', '=', 't.asset_id')
-            ->groupBy('a.id', 'a.uuid', 'a.asset_tag', 'a.name')
-            ->get(['a.uuid', 'a.asset_tag as code', 'a.name as name', DB::raw("'Other equipment' as kind"), DB::raw('count(*) as n')]);
+            ->groupBy('a.id', 'a.uuid', 'a.name', 'a.hardware_model_id')
+            ->get(['a.uuid', DB::raw(Asset::displayNameSql('a').' as code'), DB::raw("'' as name"), DB::raw("'Other equipment' as kind"), DB::raw('count(*) as n')]);
 
         $rows = $pcs->concat($assets)->sortBy([['n', 'desc'], ['code', 'asc']])->values()->take(50);
 
@@ -230,12 +232,12 @@ final class EquipmentReportQuery
             }
         }
 
-        $code = $item instanceof PcUnit ? $item->unit_code : $item->asset_tag;
-        $name = $item instanceof PcUnit ? $item->pc_name : (string) $item->name;
+        $code = $item instanceof PcUnit ? $item->unit_code : $item->displayName();
+        $name = $item instanceof PcUnit ? $item->pc_name : $item->displayName();
         $room = $item instanceof PcUnit ? $item->room : $item->currentRoom;
 
         $facts = ReportTable::make('profile', 'Equipment', [['fact', 'Fact'], ['value', 'Value']], array_values(array_filter([
-            ['Code', (string) $code],
+            $item instanceof PcUnit ? ['Code', (string) $code] : null,
             ['Name', $name],
             ['Kind', $item instanceof PcUnit ? 'PC unit' : 'Other equipment'],
             ['Room now', $room !== null ? $room->code.' · '.$room->name.($room->deleted_at !== null ? ' (archived)' : '') : 'No room'],

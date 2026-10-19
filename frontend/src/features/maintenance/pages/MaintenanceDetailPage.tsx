@@ -107,7 +107,12 @@ export default function MaintenanceDetailPage() {
       </header>
 
       <Surface className="grid gap-6 p-6 sm:grid-cols-2 lg:grid-cols-4">
-        <Fact label="Equipment" value={data.target?.identifier ?? '—'} hint={data.target?.label} />
+        <Fact
+          label="Equipment"
+          value={data.target?.identifier ?? '—'}
+          // An asset is identified by its name, so the label would only repeat it.
+          hint={data.target?.label !== data.target?.identifier ? data.target?.label : undefined}
+        />
         <Fact
           label="Location"
           value={data.location?.room ?? '—'}

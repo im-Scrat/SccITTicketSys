@@ -173,7 +173,7 @@ final class ReportDocumentBuilder
     {
         return match ($filters->equipmentType) {
             'pc' => 'PC unit '.(string) PcUnit::withTrashed()->where('uuid', $filters->equipmentUuid)->value('unit_code'),
-            'asset' => 'Asset '.(string) Asset::withTrashed()->where('uuid', $filters->equipmentUuid)->value('asset_tag'),
+            'asset' => 'Asset '.(Asset::withTrashed()->where('uuid', $filters->equipmentUuid)->first()?->displayName() ?? ''),
             default => '',
         };
     }

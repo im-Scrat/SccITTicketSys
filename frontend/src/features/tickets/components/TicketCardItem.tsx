@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { Badge, Button } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { formatRelative } from '@/lib/datetime'
-import type { TicketCard } from '../types'
+import { equipmentText, type TicketCard } from '../types'
 import { TicketPriorityBadge, TicketStatusBadge } from './TicketBadges'
 import { TicketCommentsDialog } from './TicketCommentsDialog'
 import { VoteButton } from './VoteButton'
@@ -135,9 +135,7 @@ export function TicketCardItem({
               <div className="flex items-center gap-2">
                 <Package size={20} aria-hidden="true" />
                 <dt className="sr-only">Affected item</dt>
-                <dd>
-                  {ticket.asset.label} ({ticket.asset.identifier})
-                </dd>
+                <dd>{equipmentText(ticket.asset)}</dd>
               </div>
             )}
 

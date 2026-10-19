@@ -379,7 +379,8 @@ class AssetDirectoryQuery
             ->where(function (QueryBuilder $inner) use ($term): void {
                 $inner->where('users.first_name', 'ILIKE', $term)
                     ->orWhere('users.last_name', 'ILIKE', $term)
-                    ->orWhereRaw("(users.first_name || ' ' || users.last_name) ILIKE ?", [$term]);
+                    ->orWhereRaw("(users.first_name || ' ' || users.last_name) ILIKE ?", [$term])
+                    ->orWhereRaw("concat_ws(' ', users.first_name, users.middle_name, users.last_name) ILIKE ?", [$term]);
             });
     }
 

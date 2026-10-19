@@ -1,6 +1,6 @@
 import { Building2, DoorClosed, Plus } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Button,
@@ -59,10 +59,27 @@ const BUILDING_DEFAULTS: BuildingParams = {
 export default function LocationsPage() {
   useDocumentMeta({ title: 'Locations' })
   const navigate = useNavigate()
-  const { hasPermission } = useAuth()
+  const { hasPermission, hasRole } = useAuth()
   const canCreate = hasPermission('locations.create')
+  // The floor plan is Administrator-only (RequireFloorPlan: role + permission).
+  const canFloorPlan = hasRole('administrator') && hasPermission('floorplan.view')
+  const canSeeAssets = hasPermission('assets.view')
 
-  const [tab, setTab] = useState('rooms')
+  // The tab lives in the url (`?tab=buildings`) so a summary card, Back and a
+  // refresh all land on the same list.
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'buildings' ? 'buildings' : 'rooms'
+  const setTab = (next: string) =>
+    setParams(
+      (previous) => {
+        const updated = new URLSearchParams(previous)
+        if (next === 'buildings') updated.set('tab', 'buildings')
+        else updated.delete('tab')
+        return updated
+      },
+      { replace: true },
+    )
+  const directoryRef = useRef<HTMLDivElement>(null)
   const [roomParams, setRoomParams] = useState<RoomParams>(ROOM_DEFAULTS)
   const [buildingParams, setBuildingParams] = useState<BuildingParams>(BUILDING_DEFAULTS)
   const [roomSearch, setRoomSearch] = useState('')
@@ -122,6 +139,16 @@ export default function LocationsPage() {
     patchRooms({ building: buildingId, floor: floorId, page: 1 })
   }
 
+  /**
+   * A summary card opens the list it counts: the whole estate (no tree scope),
+   * brought into view — on a phone the list sits below the tree.
+   */
+  const showList = (next: 'rooms' | 'buildings') => {
+    setTab(next)
+    if (next === 'rooms') patchRooms({ building: undefined, floor: undefined, page: 1 })
+    directoryRef.current?.scrollIntoView?.({ block: 'start' })
+  }
+
   const roomRows = rooms.data?.data ?? []
   const roomMeta = rooms.data?.meta
   const buildingRows = buildings.data?.data ?? []
@@ -157,7 +184,13 @@ export default function LocationsPage() {
       {metrics.isLoading ? (
         <Skeleton className="h-24" />
       ) : metrics.data ? (
-        <LocationMetricsCards metrics={metrics.data} />
+        <LocationMetricsCards
+          metrics={metrics.data}
+          onShowBuildings={() => showList('buildings')}
+          onShowRooms={() => showList('rooms')}
+          floorsTo={canFloorPlan ? '/app/floor-plan' : undefined}
+          unassignedTo={canSeeAssets ? '/app/assets/list?tab=pc-units&unassigned=1' : undefined}
+        />
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-6">
@@ -175,166 +208,169 @@ export default function LocationsPage() {
           />
         </Surface>
 
-        <Surface className="overflow-hidden">
-          <div className="border-b border-border px-3 pt-2.5">
-            <Tabs
-              tabs={[
-                { value: 'rooms', label: 'Rooms', count: roomMeta?.total },
-                { value: 'buildings', label: 'Buildings', count: buildingMeta?.total },
-              ]}
-              value={tab}
-              onChange={setTab}
-              className="border-b-0"
-            />
-          </div>
+        <div ref={directoryRef} className="min-w-0 scroll-mt-20">
+          <Surface className="overflow-hidden">
+            <div className="px-3 pt-2.5">
+              {/* Pulled to the panel's edges so the tab baseline spans it. */}
+              <Tabs
+                tabs={[
+                  { value: 'rooms', label: 'Rooms', count: roomMeta?.total },
+                  { value: 'buildings', label: 'Buildings', count: buildingMeta?.total },
+                ]}
+                value={tab}
+                onChange={setTab}
+                className="-mx-3 px-3"
+              />
+            </div>
 
-          {tab === 'rooms' ? (
-            <>
-              {/* Search on its own line, filters beneath: the panel shares the
+            {tab === 'rooms' ? (
+              <>
+                {/* Search on its own line, filters beneath: the panel shares the
                   row with the estate tree, so a single-line toolbar would wrap
                   into a ragged stack at common widths. */}
-              <div className="flex flex-col gap-2 border-b border-border p-3">
-                <SearchInput
-                  value={roomSearch}
-                  onChange={setRoomSearch}
-                  placeholder="Search room, code or number…"
-                  aria-label="Search rooms"
-                />
-                {/* A grid, not a flex row: `Select` is width-full by design and
+                <div className="flex flex-col gap-2 border-b border-border p-3">
+                  <SearchInput
+                    value={roomSearch}
+                    onChange={setRoomSearch}
+                    placeholder="Search room, code or number…"
+                    aria-label="Search rooms"
+                  />
+                  {/* A grid, not a flex row: `Select` is width-full by design and
                     the project's `cn` does no conflict resolution, so the layout
                     owns the sizing rather than each control fighting it. */}
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <RoomFilters params={roomParams} onChange={patchRooms} />
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <RoomFilters params={roomParams} onChange={patchRooms} />
+                  </div>
                 </div>
-              </div>
 
-              {scoped && (
-                <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-sunken px-3 py-2">
-                  <p className="text-xs text-muted">
-                    Scoped to {roomParams.floor ? 'a floor' : 'a building'} from the estate tree.
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => patchRooms({ building: undefined, floor: undefined, page: 1 })}
-                  >
-                    Clear scope
-                  </Button>
-                </div>
-              )}
+                {scoped && (
+                  <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-sunken px-3 py-2">
+                    <p className="text-xs text-muted">
+                      Scoped to {roomParams.floor ? 'a floor' : 'a building'} from the estate tree.
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => patchRooms({ building: undefined, floor: undefined, page: 1 })}
+                    >
+                      Clear scope
+                    </Button>
+                  </div>
+                )}
 
-              {rooms.isLoading ? (
-                <div className="flex flex-col gap-2 p-4">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-11" />
-                  ))}
-                </div>
-              ) : rooms.isError ? (
-                <div className="p-4">
-                  <Alert tone="error">We couldn’t load the rooms. Please retry.</Alert>
-                </div>
-              ) : roomRows.length === 0 ? (
-                <EmptyState
-                  className="border-0"
-                  icon={<DoorClosed size={22} />}
-                  title={scoped || roomSearch ? 'No rooms match' : 'No rooms yet'}
-                  description={
-                    scoped || roomSearch
-                      ? 'Adjust the search, filters or scope — or add a room here.'
-                      : 'Add a building and a floor first, then the rooms that sit on it.'
-                  }
-                />
-              ) : (
-                <>
-                  <RoomsTable
-                    rooms={roomRows}
-                    sort={roomParams.sort ?? 'name'}
-                    direction={roomParams.direction ?? 'asc'}
-                    onSort={onRoomSort}
-                    onRowClick={(id) => navigate(`/app/locations/rooms/${id}`)}
-                  />
-                  {roomMeta && (
-                    <Pagination
-                      page={roomMeta.current_page}
-                      lastPage={roomMeta.last_page}
-                      total={roomMeta.total}
-                      from={roomMeta.from}
-                      to={roomMeta.to}
-                      onPage={(page) => patchRooms({ page })}
-                    />
-                  )}
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="flex flex-col gap-2 border-b border-border p-3">
-                <SearchInput
-                  value={buildingSearch}
-                  onChange={setBuildingSearch}
-                  placeholder="Search building, code or address…"
-                  aria-label="Search buildings"
-                />
-                <div className="grid grid-cols-1 gap-2 sm:max-w-[16rem]">
-                  <Select
-                    aria-label="Archived buildings"
-                    value={buildingParams.trashed ?? 'without'}
-                    onChange={(event) =>
-                      setBuildingParams((prev) => ({
-                        ...prev,
-                        trashed: event.target.value as BuildingParams['trashed'],
-                        page: 1,
-                      }))
+                {rooms.isLoading ? (
+                  <div className="flex flex-col gap-2 p-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="h-11" />
+                    ))}
+                  </div>
+                ) : rooms.isError ? (
+                  <div className="p-4">
+                    <Alert tone="error">We couldn’t load the rooms. Please retry.</Alert>
+                  </div>
+                ) : roomRows.length === 0 ? (
+                  <EmptyState
+                    className="border-0"
+                    icon={<DoorClosed size={22} />}
+                    title={scoped || roomSearch ? 'No rooms match' : 'No rooms yet'}
+                    description={
+                      scoped || roomSearch
+                        ? 'Adjust the search, filters or scope — or add a room here.'
+                        : 'Add a building and a floor first, then the rooms that sit on it.'
                     }
-                  >
-                    <option value="without">Hide archived</option>
-                    <option value="with">Include archived</option>
-                    <option value="only">Archived only</option>
-                  </Select>
-                </div>
-              </div>
-
-              {buildings.isLoading ? (
-                <div className="flex flex-col gap-2 p-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-11" />
-                  ))}
-                </div>
-              ) : buildings.isError ? (
-                <div className="p-4">
-                  <Alert tone="error">We couldn’t load the buildings. Please retry.</Alert>
-                </div>
-              ) : buildingRows.length === 0 ? (
-                <EmptyState
-                  className="border-0"
-                  icon={<Building2 size={22} />}
-                  title={buildingSearch ? 'No buildings match' : 'No buildings yet'}
-                  description="A building is the top of the estate — add one, then its floors and rooms."
-                />
-              ) : (
-                <>
-                  <BuildingsTable
-                    buildings={buildingRows}
-                    sort={buildingParams.sort ?? 'name'}
-                    direction={buildingParams.direction ?? 'asc'}
-                    onSort={onBuildingSort}
-                    onRowClick={(id) => navigate(`/app/locations/buildings/${id}`)}
                   />
-                  {buildingMeta && (
-                    <Pagination
-                      page={buildingMeta.current_page}
-                      lastPage={buildingMeta.last_page}
-                      total={buildingMeta.total}
-                      from={buildingMeta.from}
-                      to={buildingMeta.to}
-                      onPage={(page) => setBuildingParams((prev) => ({ ...prev, page }))}
+                ) : (
+                  <>
+                    <RoomsTable
+                      rooms={roomRows}
+                      sort={roomParams.sort ?? 'name'}
+                      direction={roomParams.direction ?? 'asc'}
+                      onSort={onRoomSort}
+                      onRowClick={(id) => navigate(`/app/locations/rooms/${id}`)}
                     />
-                  )}
-                </>
-              )}
-            </>
-          )}
-        </Surface>
+                    {roomMeta && (
+                      <Pagination
+                        page={roomMeta.current_page}
+                        lastPage={roomMeta.last_page}
+                        total={roomMeta.total}
+                        from={roomMeta.from}
+                        to={roomMeta.to}
+                        onPage={(page) => patchRooms({ page })}
+                      />
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2 border-b border-border p-3">
+                  <SearchInput
+                    value={buildingSearch}
+                    onChange={setBuildingSearch}
+                    placeholder="Search building, code or address…"
+                    aria-label="Search buildings"
+                  />
+                  <div className="grid grid-cols-1 gap-2 sm:max-w-[16rem]">
+                    <Select
+                      aria-label="Archived buildings"
+                      value={buildingParams.trashed ?? 'without'}
+                      onChange={(event) =>
+                        setBuildingParams((prev) => ({
+                          ...prev,
+                          trashed: event.target.value as BuildingParams['trashed'],
+                          page: 1,
+                        }))
+                      }
+                    >
+                      <option value="without">Hide archived</option>
+                      <option value="with">Include archived</option>
+                      <option value="only">Archived only</option>
+                    </Select>
+                  </div>
+                </div>
+
+                {buildings.isLoading ? (
+                  <div className="flex flex-col gap-2 p-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} className="h-11" />
+                    ))}
+                  </div>
+                ) : buildings.isError ? (
+                  <div className="p-4">
+                    <Alert tone="error">We couldn’t load the buildings. Please retry.</Alert>
+                  </div>
+                ) : buildingRows.length === 0 ? (
+                  <EmptyState
+                    className="border-0"
+                    icon={<Building2 size={22} />}
+                    title={buildingSearch ? 'No buildings match' : 'No buildings yet'}
+                    description="A building is the top of the estate — add one, then its floors and rooms."
+                  />
+                ) : (
+                  <>
+                    <BuildingsTable
+                      buildings={buildingRows}
+                      sort={buildingParams.sort ?? 'name'}
+                      direction={buildingParams.direction ?? 'asc'}
+                      onSort={onBuildingSort}
+                      onRowClick={(id) => navigate(`/app/locations/buildings/${id}`)}
+                    />
+                    {buildingMeta && (
+                      <Pagination
+                        page={buildingMeta.current_page}
+                        lastPage={buildingMeta.last_page}
+                        total={buildingMeta.total}
+                        from={buildingMeta.from}
+                        to={buildingMeta.to}
+                        onPage={(page) => setBuildingParams((prev) => ({ ...prev, page }))}
+                      />
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </Surface>
+        </div>
       </div>
 
       {canCreate && (

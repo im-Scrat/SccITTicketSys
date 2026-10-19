@@ -199,7 +199,7 @@ export function TicketsTable({
               {/* At most one of the two is set (SDD DD-79). */}
               {(ticket.pc_unit ?? ticket.asset) && (
                 <span className="block font-medium text-ink">
-                  {(ticket.pc_unit ?? ticket.asset)?.identifier}
+                  {ticket.pc_unit?.identifier ?? ticket.asset?.label}
                 </span>
               )}
               <span className="block text-muted">

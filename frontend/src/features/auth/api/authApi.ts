@@ -57,7 +57,8 @@ export async function changePassword(payload: ChangePasswordPayload): Promise<{ 
 
 export interface UpdateProfilePayload {
   first_name: string
-  middle_name?: string
+  /** `null` clears it; leaving the key out would keep the old one. */
+  middle_name?: string | null
   last_name: string
 }
 

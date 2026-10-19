@@ -11,7 +11,8 @@ import { Surface } from '@/components/ui/Surface'
 import { Tabs } from '@/components/ui/Tabs'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { formatDateTime } from '@/lib/datetime'
-import { AnnouncementForm } from '../components/AnnouncementForm'
+import { getErrorMessage } from '@/features/auth/lib/serverErrors'
+import { AnnouncementForm, type AnnouncementIntent } from '../components/AnnouncementForm'
 import {
   useCreateAnnouncement,
   useDeleteAnnouncement,
@@ -63,6 +64,8 @@ export default function AnnouncementManagementPage() {
   const [editing, setEditing] = useState<Announcement | null>(null)
   const [confirmNotify, setConfirmNotify] = useState<Announcement | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Announcement | null>(null)
+  const [pendingIntent, setPendingIntent] = useState<AnnouncementIntent | null>(null)
+  const [publishFailure, setPublishFailure] = useState<string | null>(null)
 
   const active = tab === 'all' ? null : tab === 'published'
   const announcements = useManagedAnnouncements({ active, page })
@@ -82,15 +85,56 @@ export default function AnnouncementManagementPage() {
     setPage(1)
   }
 
-  const submitNew = async (values: FormValues) => {
-    await create.mutateAsync(normalize(values))
-    setComposing(false)
+  /**
+   * Save, then (for "Publish") publish through the same endpoint as the
+   * list's button. Two requests on purpose: the store endpoint never publishes
+   * (decision D7), so a failed publish leaves a safe, saved draft rather than a
+   * half-sent notice. The form closes once the save has succeeded either way,
+   * so pressing Publish again cannot create a second copy; a publish failure is
+   * reported on the page, pointing at the draft's own Publish button.
+   */
+  const save = async (
+    values: FormValues,
+    intent: AnnouncementIntent,
+    write: () => Promise<Announcement>,
+    close: () => void,
+  ) => {
+    setPublishFailure(null)
+    setPendingIntent(intent)
+    try {
+      const saved = await write()
+      close()
+      if (intent === 'publish') {
+        try {
+          await publish.mutateAsync(saved.id)
+        } catch (error) {
+          setPublishFailure(
+            `"${values.title}" was saved as a draft but could not be published. ${getErrorMessage(error)} Use Publish on the draft to try again.`,
+          )
+        }
+      }
+    } finally {
+      setPendingIntent(null)
+    }
   }
 
-  const submitEdit = async (values: FormValues) => {
+  const submitNew = (values: FormValues, intent: AnnouncementIntent) =>
+    save(
+      values,
+      intent,
+      () => create.mutateAsync(normalize(values)),
+      () => setComposing(false),
+    )
+
+  const submitEdit = async (values: FormValues, intent: AnnouncementIntent) => {
     if (!editing) return
-    await update.mutateAsync({ id: editing.id, ...normalize(values) })
-    setEditing(null)
+    const id = editing.id
+    await save(
+      values,
+      intent,
+      () => update.mutateAsync({ id, ...normalize(values) }),
+      () => setEditing(null),
+    )
   }
 
   return (
@@ -112,6 +156,12 @@ export default function AnnouncementManagementPage() {
         )}
       </div>
 
+      {publishFailure && (
+        <Alert tone="error" title="Saved, but not published">
+          {publishFailure}
+        </Alert>
+      )}
+
       {(composing || editing) && (
         <Surface className="p-5">
           <h2 className="text-sm font-semibold text-ink-strong">
@@ -125,7 +175,8 @@ export default function AnnouncementManagementPage() {
                 setComposing(false)
                 setEditing(null)
               }}
-              submitting={create.isPending || update.isPending}
+              submitting={pendingIntent !== null}
+              pendingIntent={pendingIntent}
             />
           </div>
         </Surface>

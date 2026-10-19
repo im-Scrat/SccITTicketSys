@@ -91,7 +91,8 @@ class TicketFeedResource extends JsonResource
             // Phase 2.9 (SDD DD-79): another piece of equipment, the same way.
             'asset' => $asset !== null ? [
                 'label' => $asset->displayName(),
-                'identifier' => $asset->asset_tag,
+                // No identifier for an asset: its tag is not shown (2026-10-19).
+                'identifier' => null,
             ] : null,
             'location' => $room !== null ? [
                 'room' => $room->name,

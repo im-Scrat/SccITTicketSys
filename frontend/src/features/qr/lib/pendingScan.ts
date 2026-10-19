@@ -79,7 +79,9 @@ export function resumePath(code: string): string {
 
 /**
  * Take the stored code, if any, and turn it into a destination — clearing it in
- * the same step so a resumed scan cannot be replayed by a later sign-in.
+ * the same step so a resumed scan cannot be replayed by a later sign-in. Used
+ * by the dashboard's "Continue to the PC you scanned" link (owner decision
+ * 2026-10-19: sign-in itself always lands on the dashboard).
  */
 export function consumePendingScanPath(): string | null {
   const code = readPendingScan()

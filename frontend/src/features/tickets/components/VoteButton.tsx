@@ -59,7 +59,7 @@ export function VoteButton({
     }
   }
 
-  const label = voted ? 'Remove your upvote' : 'Upvote — this affects me too'
+  const label = voted ? 'Remove my upvote' : 'Upvote — this affects me too'
 
   return (
     <button

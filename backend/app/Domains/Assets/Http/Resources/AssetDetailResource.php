@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Assets\Http\Resources;
 
 use App\Models\Asset;
+use App\Models\HardwareModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -56,7 +57,9 @@ class AssetDetailResource extends JsonResource
             'category_group' => $component?->component_type?->group(),
             'manufacturer' => $component?->manufacturer?->name,
             'component' => $component?->name,
-            'model' => $model !== null ? [
+            // Null for the "Unspecified model" placeholder: the form then shows
+            // no model chosen, and the page no model, rather than the placeholder.
+            'model' => $model !== null && $model->model_name !== HardwareModel::UNSPECIFIED ? [
                 'id' => $model->getKey(),
                 'name' => $model->model_name,
                 'number' => $model->model_number,

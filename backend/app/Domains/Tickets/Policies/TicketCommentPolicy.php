@@ -12,17 +12,22 @@ use App\Models\User;
 /**
  * Per-record authorization for ticket comments (SRS FR-TKT-007).
  *
- * Two rules carry most of the weight:
+ * Three rules carry most of the weight:
  *
  *  1. **An internal note is never a requester's to read.** This policy refuses
  *     it, and the comment *query* excludes it as well — an internal note must
  *     not enter a requester's result set at all, rather than being filtered out
  *     of a resource after the fact.
- *  2. **Editing is time-boxed for the author, unlimited for a moderator.** The
- *     author's window comes from `tickets.comment_edit_window_minutes`; an
- *     Administrator may edit or remove any comment at any time, and doing so
- *     stamps `edited_by`/`deleted_by` and writes an audit entry, because
- *     moderating someone else's words is an administrative act.
+ *  2. **Words belong to their author.** Only the author may edit a comment,
+ *     and only inside `tickets.comment_edit_window_minutes`. Nobody — an
+ *     Administrator included — may rewrite someone else's words: an edited
+ *     comment still reads as the author's, so an edit by anyone else would put
+ *     words in their mouth (owner decision, 2026-10-19).
+ *  3. **Removal is the one moderation power.** An Administrator may remove any
+ *     comment at any time — abusive or mistaken content must be able to go — and
+ *     doing so leaves a tombstone, stamps `deleted_by` and writes an audit
+ *     entry, because moderating someone else's words is an administrative act.
+ *     A removal is visible as a removal; an edit would not be.
  */
 class TicketCommentPolicy
 {
@@ -44,24 +49,28 @@ class TicketCommentPolicy
     }
 
     /**
-     * Edit a comment: the author inside the configured window, or an
-     * administrator moderating.
+     * Edit a comment: the author, inside the configured window. There is no
+     * moderator bypass — see rule 2 above.
      */
     public function update(User $actor, TicketComment $comment): bool
     {
-        if ($this->isModerator($actor)) {
-            return true;
-        }
-
-        return $comment->user_id === $actor->getKey()
+        return $comment->deleted_at === null
+            && $comment->user_id === $actor->getKey()
             && $actor->hasPermissionTo('tickets.comment')
             && $this->withinEditWindow($comment);
     }
 
-    /** Remove a comment: same rule as editing. */
+    /**
+     * Remove a comment: the author inside the window, or an administrator
+     * moderating at any time.
+     */
     public function delete(User $actor, TicketComment $comment): bool
     {
-        return $this->update($actor, $comment);
+        if ($comment->deleted_at !== null) {
+            return false;
+        }
+
+        return $this->isModerator($actor) || $this->update($actor, $comment);
     }
 
     /** Is this actor acting as a moderator rather than as the author? */

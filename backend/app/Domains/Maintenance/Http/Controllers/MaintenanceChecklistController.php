@@ -41,7 +41,7 @@ class MaintenanceChecklistController extends Controller
 
         return MaintenanceChecklistResource::collection(
             $record->checklists()
-                ->with('completedBy:id,uuid,first_name,last_name')
+                ->with('completedBy:id,uuid,first_name,middle_name,last_name')
                 ->orderBy('sort_order')
                 ->orderBy('id')
                 ->get(),

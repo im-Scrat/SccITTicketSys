@@ -44,7 +44,7 @@ class MaintenanceEvidenceController extends Controller
 
         return RepairImageResource::collection(
             $record->images()
-                ->with('uploadedBy:id,uuid,first_name,last_name')
+                ->with('uploadedBy:id,uuid,first_name,middle_name,last_name')
                 ->orderBy('created_at')
                 ->orderBy('id')
                 ->get(),

@@ -90,9 +90,19 @@ export interface PcUnitRef {
 /**
  * The other equipment a ticket can name — a printer, a projector — in the same
  * label-only shape as a PC (SDD DD-79). A ticket names at most one item: a PC
- * or an asset, never both.
+ * or an asset, never both. An asset has no identifier: its tag is no longer
+ * shown anywhere (owner request 2026-10-19), so it reads by its name alone.
  */
-export type EquipmentRef = PcUnitRef
+export interface EquipmentRef {
+  id?: string
+  label: string
+  identifier: string | null
+}
+
+/** "Name (code)" when there is a code to show, else just the name. */
+export function equipmentText(equipment: { label: string; identifier: string | null }): string {
+  return equipment.identifier ? `${equipment.label} (${equipment.identifier})` : equipment.label
+}
 
 export interface LocationRef {
   room: string | null
@@ -371,6 +381,10 @@ export interface TicketComment {
   /** `id` is sent to Administrators only (Phase 2.9); null for everyone else. */
   author: { id: string | null; name: string | null; role: string | null } | null
   is_mine: boolean
+  /** The author, inside the edit window. Nobody edits another user's words. */
+  can_edit: boolean
+  /** The author inside the window, or an administrator moderating. */
+  can_remove: boolean
   /** The thread's top-level comment, on a reply; null on a top-level comment. */
   parent_id?: string | null
   /**

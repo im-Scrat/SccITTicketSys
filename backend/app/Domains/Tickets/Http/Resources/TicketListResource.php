@@ -81,7 +81,8 @@ class TicketListResource extends JsonResource
             'asset' => $asset !== null ? [
                 'id' => $asset->uuid,
                 'label' => $asset->displayName(),
-                'identifier' => $asset->asset_tag,
+                // No identifier for an asset: its tag is not shown (2026-10-19).
+                'identifier' => null,
             ] : null,
             'location' => $room !== null ? [
                 'room' => $room->name,

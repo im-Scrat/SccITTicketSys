@@ -52,16 +52,21 @@ const directoryRequests = () =>
     .filter(([url]) => url === '/admin/tickets')
     .map(([, config]) => (config as { params: Record<string, unknown> }).params)
 
+let dashboard: typeof DASHBOARD = DASHBOARD
+let statuses: Array<{ value: string; label: string; is_open: boolean }> = []
+
 beforeEach(() => {
+  dashboard = DASHBOARD
+  statuses = []
   get.mockReset()
   get.mockImplementation((url: string) => {
-    if (url === '/admin/tickets/dashboard') return Promise.resolve({ data: { data: DASHBOARD } })
+    if (url === '/admin/tickets/dashboard') return Promise.resolve({ data: { data: dashboard } })
     if (url === '/tickets/options') {
       return Promise.resolve({
         data: {
           data: {
             categories: API_CATEGORIES,
-            statuses: [],
+            statuses,
             tags: [],
             priorities: [],
             technicians: [],
@@ -105,5 +110,45 @@ describe('TicketManagementPage — boolean tile filters', () => {
 
     expect(await screen.findByText('Missed a response or fix-by deadline')).toBeInTheDocument()
     expect(screen.queryByText('Past the resolution deadline')).toBeNull()
+  })
+})
+
+describe('TicketManagementPage — header and workload', () => {
+  it('offers no Import or Export buttons', async () => {
+    renderPage()
+
+    await screen.findByRole('heading', { name: 'Ticket management' })
+    expect(screen.queryByRole('button', { name: /import/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /export/i })).toBeNull()
+  })
+
+  it('links each "Who is carrying what" row to that technician’s open tickets', async () => {
+    statuses = [
+      { value: 'new', label: 'New', is_open: true },
+      { value: 'in_progress', label: 'In progress', is_open: true },
+      { value: 'closed', label: 'Closed', is_open: false },
+    ]
+    dashboard = {
+      ...DASHBOARD,
+      technician_workload: [{ id: 'tech-1', name: 'Ana Cruz', count: 4 }],
+    } as unknown as typeof DASHBOARD
+    renderPage()
+
+    const link = await screen.findByRole('link', { name: /Ana Cruz: 4 open/ })
+    await waitFor(() => expect(link.getAttribute('href')).toContain('status='))
+    const url = new URL(link.getAttribute('href')!, 'http://x')
+    expect(url.pathname).toBe('/app/tickets/manage')
+    expect(url.searchParams.get('tab')).toBe('directory')
+    expect(url.searchParams.get('technician')).toBe('tech-1')
+    expect(url.searchParams.get('status')).toBe('new,in_progress')
+
+    // Following it opens the directory filtered to exactly those tickets.
+    await userEvent.click(link)
+    await waitFor(() =>
+      expect(directoryRequests().at(-1)).toMatchObject({
+        technician: 'tech-1',
+        status: 'new,in_progress',
+      }),
+    )
   })
 })

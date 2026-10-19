@@ -122,7 +122,9 @@ class MaintenanceListResource extends JsonResource
                 'kind' => 'asset',
                 'id' => $this->asset->uuid,
                 'label' => $this->asset->displayName(),
-                'identifier' => $this->asset->asset_tag,
+                // An asset's tag is no longer shown (owner request 2026-10-19):
+                // it is identified by its name, as everywhere else.
+                'identifier' => $this->asset->displayName(),
             ];
         }
 

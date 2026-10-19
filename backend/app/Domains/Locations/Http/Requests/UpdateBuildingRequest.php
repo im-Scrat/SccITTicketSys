@@ -30,8 +30,10 @@ class UpdateBuildingRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
+            // Optional: left out (or blank), the building keeps its code.
             'code' => [
-                'required',
+                'sometimes',
+                'nullable',
                 'string',
                 'max:50',
                 Rule::unique('buildings', 'code')->ignore($building instanceof Building ? $building->getKey() : null),
@@ -44,7 +46,9 @@ class UpdateBuildingRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if (is_string($this->input('code'))) {
-            $this->merge(['code' => trim($this->string('code')->upper()->value())]);
+            // Blank means "unchanged": UpdateBuilding keeps the current code for null.
+            $code = trim($this->string('code')->upper()->value());
+            $this->merge(['code' => $code === '' ? null : $code]);
         }
     }
 }

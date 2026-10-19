@@ -50,6 +50,14 @@ class TicketCommentResource extends JsonResource
             ] : null,
 
             'is_mine' => $this->user_id === $request->user()?->getKey(),
+
+            // What the caller may do to this comment, decided by the policy the
+            // endpoints enforce — so the client never offers an Edit the server
+            // would refuse (the author's window closing, or an administrator,
+            // who may remove but never rewrite someone else's words).
+            'can_edit' => (bool) $request->user()?->can('update', $this->resource),
+            'can_remove' => (bool) $request->user()?->can('delete', $this->resource),
+
             'parent_id' => $this->whenLoaded('parent', fn (): ?string => $this->parent?->uuid),
 
             // Present on a thread's top-level comment when the listing loaded

@@ -49,7 +49,7 @@ class LocationAuditController extends Controller
     private function timeline(Model $subject): AnonymousResourceCollection
     {
         $logs = ActivityLog::query()
-            ->with('user:id,uuid,first_name,last_name')
+            ->with('user:id,uuid,first_name,middle_name,last_name')
             ->where('subject_type', $subject->getMorphClass())
             ->where('subject_id', $subject->getKey())
             ->orderByDesc('created_at')

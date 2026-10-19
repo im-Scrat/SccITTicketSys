@@ -8,13 +8,13 @@ import type { AuthUser } from '@/features/auth/types'
 import { GuestRoute } from './GuestRoute'
 
 /**
- * The guard that decides where authentication lands you (F-1).
+ * The guard that decides where authentication lands you.
  *
- * The defect these tests lock down was not that the destination was computed
- * wrongly — it was computed correctly and then overwritten, because both this
- * guard and `SignInPage` navigated. The guard now decides alone, so what needs
- * proving here is that it decides *correctly for every entry path*, and that an
- * unauthenticated visitor is still shown the guest page rather than redirected.
+ * It decides alone (F-1: two components navigating was the old defect), and
+ * since 2026-10-19 it always decides the same thing: the visitor's dashboard,
+ * whatever route asked for sign-in and whether or not a label was scanned
+ * first (owner decision). These tests prove that for every entry path, and
+ * that an unauthenticated visitor is still shown the guest page.
  *
  * These are client-side routing assertions. They are not the security control:
  * the API refuses independently, and `ProtectedRoute` plus the per-route role
@@ -81,32 +81,24 @@ describe('GuestRoute', () => {
     expect(await screen.findByText('workspace')).toBeInTheDocument()
   })
 
-  it('returns an authenticated visitor to the protected route that asked for sign-in', async () => {
+  it('sends an authenticated visitor to the dashboard, not the route that asked for sign-in', async () => {
     renderGuard({
       authenticated: true,
       state: { from: { pathname: '/app/tickets/mine', search: '' } },
     })
 
-    expect(await screen.findByText('my tickets')).toBeInTheDocument()
+    expect(await screen.findByText('workspace')).toBeInTheDocument()
+    expect(screen.queryByText('my tickets')).not.toBeInTheDocument()
   })
 
-  it('resumes a scanned label rather than the workspace (FR-QR-011)', async () => {
+  it('sends a visitor who scanned a label to the dashboard, keeping the scan to offer there', async () => {
     rememberPendingScan('PC-E2EFIXTURE')
 
     renderGuard({ authenticated: true })
 
-    expect(await screen.findByText('scanned panel')).toBeInTheDocument()
-  })
-
-  it('lets the scanned label outrank the remembered route', async () => {
-    rememberPendingScan('PC-E2EFIXTURE')
-
-    renderGuard({
-      authenticated: true,
-      state: { from: { pathname: '/app/tickets/mine', search: '' } },
-    })
-
-    expect(await screen.findByText('scanned panel')).toBeInTheDocument()
+    expect(await screen.findByText('workspace')).toBeInTheDocument()
+    expect(screen.queryByText('scanned panel')).not.toBeInTheDocument()
+    expect(sessionStorage.getItem('sccit.pendingScan')).toBe('PC-E2EFIXTURE')
   })
 
   it('never redirects off this origin, whatever router state claims', async () => {
@@ -115,17 +107,6 @@ describe('GuestRoute', () => {
       state: { from: { pathname: 'https://evil.test/steal', search: '' } },
     })
 
-    expect(await screen.findByText('workspace')).toBeInTheDocument()
-  })
-
-  it('consumes the scan, so it is spent once', async () => {
-    rememberPendingScan('PC-E2EFIXTURE')
-
-    const first = renderGuard({ authenticated: true })
-    expect(await screen.findByText('scanned panel')).toBeInTheDocument()
-    first.unmount()
-
-    renderGuard({ authenticated: true })
     expect(await screen.findByText('workspace')).toBeInTheDocument()
   })
 })

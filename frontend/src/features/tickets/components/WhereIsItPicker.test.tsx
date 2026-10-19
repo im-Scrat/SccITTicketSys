@@ -389,6 +389,29 @@ describe('WhereIsItPicker — items', () => {
     expect(within(group).getByRole('group', { name: /other equipment/i })).toBeInTheDocument()
   })
 
+  it('offers "Find an item" even for a short list, and filters as you type', async () => {
+    renderPicker()
+    await userEvent.click(await roomRadio(/lab a/i))
+    await itemRadio(/pc 01/i)
+
+    const search = screen.getByRole('searchbox', { name: 'Find an item' })
+    await userEvent.type(search, 'epson')
+
+    expect(within(itemGroup()).getByRole('radio', { name: /epson projector/i })).toBeInTheDocument()
+    expect(within(itemGroup()).queryByRole('radio', { name: /pc 01/i })).not.toBeInTheDocument()
+  })
+
+  it('scrolls the item list in place at every width', async () => {
+    renderPicker()
+    await userEvent.click(await roomRadio(/lab a/i))
+    const radio = await itemRadio(/pc 01/i)
+
+    // The box holding the rows is capped and scrolls — not only from `sm` up.
+    const box = radio.closest('[aria-busy], .overflow-y-auto') as HTMLElement
+    expect(box.className).toMatch(/(^|\s)overflow-y-auto(\s|$)/)
+    expect(box.className).toMatch(/(^|\s)max-h-\[/)
+  })
+
   it('records a PC as pc:<uuid> and other equipment as asset:<uuid> — one answer, never both', async () => {
     renderPicker()
     await userEvent.click(await roomRadio(/lab a/i))

@@ -17,7 +17,7 @@ import { TicketTimeline } from '../components/TicketTimeline'
 import { VoteButton } from '../components/VoteButton'
 import { useTicket, useTicketAiAnalysis } from '../hooks/queries'
 import { type ReportOutcome, readReportOutcome } from '../reportOutcome'
-import { isFullTicket, type TicketCard } from '../types'
+import { equipmentText, isFullTicket, type TicketCard } from '../types'
 
 /**
  * One ticket, as the person who reported it — or anyone in the community — sees
@@ -276,9 +276,7 @@ function CommunityView({
             {ticket.asset && (
               <div className="flex gap-2">
                 <dt>Affected item</dt>
-                <dd className="text-ink">
-                  {ticket.asset.label} ({ticket.asset.identifier})
-                </dd>
+                <dd className="text-ink">{equipmentText(ticket.asset)}</dd>
               </div>
             )}
             {ticket.location?.room && (

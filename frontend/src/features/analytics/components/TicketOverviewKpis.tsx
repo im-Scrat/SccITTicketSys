@@ -7,6 +7,10 @@ import type { TicketOverview } from '@/features/analytics/types'
  * The overview's headline figures (Phase 2.10): Reported, Daily average, Still
  * open, Resolved in period. One row, sized by its own width like KpiRow.
  *
+ * Shown on Overall reports, under the report filters that scope them. They
+ * moved there from the administrator's dashboard (owner request, 2026-10-19):
+ * period figures belong with the period being reported on.
+ *
  * Changes are written in words ("3 more than 1–18 Sep 2026, up 33%") with a
  * neutral tone — a rise in reports is not a failure and a fall is not a win,
  * so no red or green judgement. A percentage appears only when the server

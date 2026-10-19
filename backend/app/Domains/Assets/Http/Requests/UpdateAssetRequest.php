@@ -41,7 +41,10 @@ class UpdateAssetRequest extends FormRequest
         return [
             'asset_tag' => ['sometimes', 'required', 'string', 'max:255', Rule::unique('assets', 'asset_tag')->ignore($id)],
             'name' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'hardware_model' => ['sometimes', 'required', 'integer', Rule::exists('hardware_models', 'id')->whereNull('deleted_at')],
+            // Optional like on create: null files the asset under "Unspecified
+            // model", and "Other" (a described model) is filed in the catalog.
+            'hardware_model' => ['sometimes', 'nullable', 'integer', Rule::exists('hardware_models', 'id')->whereNull('deleted_at')],
+            'hardware_model_other' => ['sometimes', 'nullable', 'string', 'max:255', 'prohibits:hardware_model'],
             'supplier' => ['sometimes', 'nullable', 'string', Rule::exists('suppliers', 'name')->whereNull('deleted_at')],
 
             'serial_number' => ['sometimes', 'nullable', 'string', 'max:255', Rule::unique('assets', 'serial_number')->ignore($id)],
@@ -115,6 +118,7 @@ class UpdateAssetRequest extends FormRequest
         return [
             'asset_tag.unique' => 'That asset tag is already in use.',
             'serial_number.unique' => 'That serial number is already recorded against another asset.',
+            'hardware_model_other.prohibits' => 'Choose a catalog model or describe another one, not both.',
         ];
     }
 
@@ -122,6 +126,11 @@ class UpdateAssetRequest extends FormRequest
     {
         if (is_string($this->input('asset_tag'))) {
             $this->merge(['asset_tag' => trim($this->string('asset_tag')->upper()->value())]);
+        }
+
+        if (is_string($this->input('hardware_model_other'))) {
+            $other = trim($this->string('hardware_model_other')->value());
+            $this->merge(['hardware_model_other' => $other === '' ? null : $other]);
         }
     }
 }

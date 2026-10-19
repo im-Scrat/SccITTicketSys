@@ -77,11 +77,30 @@ class Asset extends Model
 
         // The relation is typed non-null (the FK is NOT NULL), but it really can
         // resolve to null: `hardware_models` is soft-deletable, so a retired
-        // catalog entry drops out of the default scope. The asset tag is the
-        // last-resort name — every asset has one, and it is unique.
+        // catalog entry drops out of the default scope. "Unspecified model" is
+        // a filing placeholder, not a name. The asset tag used to be the last
+        // resort; it is no longer shown anywhere (owner request 2026-10-19).
         $model = $this->getRelationValue('hardwareModel');
 
-        return $model instanceof HardwareModel ? $model->model_name : $this->asset_tag;
+        return $model instanceof HardwareModel && $model->model_name !== HardwareModel::UNSPECIFIED
+            ? $model->model_name
+            : 'Unnamed asset';
+    }
+
+    /**
+     * The SQL twin of {@see displayName()} for report queries that read assets
+     * through the query builder: the name, else the (live, specified) catalog
+     * model's name, else "Unnamed asset". `$alias` is the assets table alias;
+     * it is only ever a literal from the calling code, never input.
+     */
+    public static function displayNameSql(string $alias): string
+    {
+        $unspecified = HardwareModel::UNSPECIFIED;
+
+        return "COALESCE(NULLIF(btrim({$alias}.name), ''), "
+            ."(SELECT NULLIF(hm_dn.model_name, '{$unspecified}') FROM hardware_models hm_dn "
+            ."WHERE hm_dn.id = {$alias}.hardware_model_id AND hm_dn.deleted_at IS NULL), "
+            ."'Unnamed asset')";
     }
 
     /** True when a warranty exists and has not yet lapsed. */

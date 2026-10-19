@@ -75,7 +75,12 @@ class User extends Authenticatable
 
     public function fullName(): string
     {
-        return trim("{$this->first_name} {$this->last_name}");
+        // Middle name included when there is one (owner request, 2026-10-19).
+        // Partial eager loads must select `middle_name` too, or it reads as null.
+        return implode(' ', array_filter(
+            [trim((string) $this->first_name), trim((string) $this->middle_name), trim((string) $this->last_name)],
+            fn (string $part): bool => $part !== '',
+        ));
     }
 
     /**

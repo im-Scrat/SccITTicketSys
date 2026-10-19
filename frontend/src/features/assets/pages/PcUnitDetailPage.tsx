@@ -237,7 +237,6 @@ function GeneralTab({ pcUnit }: { pcUnit: PcUnitDetail }) {
     <dl className="grid gap-x-10 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
       <Detail label="Unit code" value={pcUnit.unit_code} mono />
       <Detail label="PC name" value={pcUnit.pc_name} />
-      <Detail label="Asset tag" value={pcUnit.asset_tag} mono />
       <Detail label="Hostname" value={pcUnit.hostname} mono />
       <Detail label="Serial number" value={pcUnit.serial_number} mono />
       <Detail label="Brand" value={pcUnit.brand} />
@@ -304,9 +303,6 @@ function InstalledTab({ pcUnit }: { pcUnit: PcUnitDetail }) {
                 </Link>
               ) : (
                 '—'
-              )}
-              {row.asset && (
-                <span className="block font-mono text-xs text-muted">{row.asset.asset_tag}</span>
               )}
             </Td>
             <Td className="text-sm text-muted">{row.asset?.category_label ?? '—'}</Td>

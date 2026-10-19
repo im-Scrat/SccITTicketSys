@@ -31,6 +31,9 @@ class HardwareComponent extends Model
     /** @use HasFactory<HardwareComponentFactory> */
     use HasFactory, SoftDeletes;
 
+    /** The shared component that typed ("Other") and unspecified models are filed under. */
+    public const OTHER_MANUAL = 'Other (manually entered)';
+
     protected $guarded = ['id'];
 
     protected function casts(): array

@@ -127,7 +127,7 @@ final class FloorPlanOverviewQuery
         $layouts = RoomLayout::query()
             ->whereIn('room_id', $roomIds)
             ->where('is_active', true)
-            ->with('updatedBy:id,first_name,last_name')
+            ->with('updatedBy:id,first_name,middle_name,last_name')
             ->get();
 
         if ($layouts->isEmpty()) {

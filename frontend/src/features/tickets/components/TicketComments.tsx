@@ -11,7 +11,6 @@ import {
   Skeleton,
   Textarea,
 } from '@/components/ui'
-import { useAuth } from '@/features/auth/hooks/useAuth'
 import { cn } from '@/lib/cn'
 import { formatRelative } from '@/lib/datetime'
 import { getErrorMessage } from '@/features/auth/lib/serverErrors'
@@ -66,8 +65,6 @@ export function TicketComments({
   canCommentInternal,
   readOnly = false,
 }: TicketCommentsProps) {
-  const { hasRole } = useAuth()
-  const isAdministrator = hasRole('administrator')
   const composerId = useId()
   const replyFieldId = useId()
 
@@ -192,13 +189,16 @@ export function TicketComments({
     onSaveEdit: saveEdit,
     onCancelEdit: () => setEditing(null),
     saving: update.isPending,
-    onEdit: comment.is_mine
+    // The server decides who may touch a comment (author inside the edit
+    // window; an administrator may remove but never edit someone else's) and
+    // says so per comment — the buttons follow that, not a guess from roles.
+    onEdit: comment.can_edit
       ? () => {
           setEditing(comment)
           setEditBody(comment.body ?? '')
         }
       : undefined,
-    onRemove: comment.is_mine || isAdministrator ? () => setDeleting(comment) : undefined,
+    onRemove: comment.can_remove ? () => setDeleting(comment) : undefined,
     onReply,
   })
 

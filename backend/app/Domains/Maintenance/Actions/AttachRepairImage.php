@@ -88,7 +88,7 @@ class AttachRepairImage
             description: "Repair evidence added to {$record->title}",
         );
 
-        return $image->load('uploadedBy:id,uuid,first_name,last_name');
+        return $image->load('uploadedBy:id,uuid,first_name,middle_name,last_name');
     }
 
     /**

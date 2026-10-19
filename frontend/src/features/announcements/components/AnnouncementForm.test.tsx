@@ -10,10 +10,10 @@ import type { Announcement } from '../types'
  * Two properties matter more than the field wiring, and both are decisions
  * rather than conveniences:
  *
- *  1. **There is no publish control here.** Saving must never notify an
- *     audience, so the form cannot express publication at all (decision D7).
- *     A test that only checked the happy path would not notice if someone
- *     helpfully added an "Active" switch.
+ *  1. **Saving never publishes.** Publishing is its own, explicitly named
+ *     button (owner request 2026-10-19); "Save draft"/"Save changes" and the
+ *     Enter key never notify an audience, and a published announcement has no
+ *     Publish here at all (decision D7). There is still no "Active" switch.
  *  2. **The window is validated before it is sent.** The database enforces
  *     `ends_at > starts_at` and the API repeats it, but an administrator should
  *     be told in the form rather than by a 422.
@@ -36,7 +36,10 @@ const existing: Announcement = {
   starts_at: null,
   ends_at: null,
   created_at: '2026-09-06T08:00:00+00:00',
+  is_active: true,
 }
+
+const draft: Announcement = { ...existing, id: 'a-2', is_active: false }
 
 describe('what the form offers', () => {
   it('collects the fields FR-NOT-010 names', () => {
@@ -60,19 +63,33 @@ describe('what the form offers', () => {
     expect(screen.getByRole('option', { name: 'Administrators' })).toBeInTheDocument()
   })
 
-  it('has NO publish or active control — saving must not notify anyone', () => {
-    // Decision D7 expressed as an absence. If a later change adds an "Active"
-    // switch here, this fails.
+  it('has no "Active" switch — publication is a button, never a field', () => {
     renderForm()
 
     expect(screen.queryByRole('checkbox', { name: /active|publish/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^publish/i })).not.toBeInTheDocument()
   })
 
-  it('says plainly that saving does not notify', () => {
+  it('offers Publish, Save draft and Cancel on a new announcement', () => {
     renderForm()
 
-    expect(screen.getByText(/saving does not notify anyone/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^publish$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^save draft$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument()
+    expect(screen.getByText(/notifies no one/i)).toBeInTheDocument()
+  })
+
+  it('offers Save and publish on an unpublished draft', () => {
+    renderForm(draft)
+
+    expect(screen.getByRole('button', { name: /^save and publish$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^save changes$/i })).toBeInTheDocument()
+  })
+
+  it('offers no Publish on a published announcement — editing it notifies nobody', () => {
+    renderForm(existing)
+
+    expect(screen.queryByRole('button', { name: /publish/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/leaves the audience undisturbed/i)).toBeInTheDocument()
   })
 
   it('loads an existing announcement for editing', () => {
@@ -83,11 +100,55 @@ describe('what the form offers', () => {
     expect(screen.getByRole('checkbox', { name: /pin to the top/i })).toBeChecked()
     expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument()
   })
+})
 
-  it('labels the submit by what it does — a new announcement is a draft', () => {
-    renderForm()
+describe('which intent each control sends', () => {
+  async function fillIn(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText(/^Title/), 'Lab closed')
+    await user.type(screen.getByLabelText(/^Announcement/), 'Lab 2 is closed today.')
+  }
 
-    expect(screen.getByRole('button', { name: /create draft/i })).toBeInTheDocument()
+  it('publishes from Publish', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderForm()
+
+    await fillIn(user)
+    await user.click(screen.getByRole('button', { name: /^publish$/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit.mock.calls[0][1]).toBe('publish')
+  })
+
+  it('only saves from Save draft', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderForm()
+
+    await fillIn(user)
+    await user.click(screen.getByRole('button', { name: /^save draft$/i }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit.mock.calls[0][1]).toBe('save')
+  })
+
+  it('only saves on Enter — a stray keypress never notifies anyone', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderForm()
+
+    await fillIn(user)
+    await user.type(screen.getByLabelText(/^Title/), '{Enter}')
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit.mock.calls[0][1]).toBe('save')
+  })
+
+  it('does not publish an invalid announcement', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderForm()
+
+    await user.click(screen.getByRole('button', { name: /^publish$/i }))
+
+    expect(await screen.findByText(/give the announcement a title/i)).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 })
 
@@ -96,7 +157,7 @@ describe('validation', () => {
     const user = userEvent.setup()
     const { onSubmit } = renderForm()
 
-    await user.click(screen.getByRole('button', { name: /create draft/i }))
+    await user.click(screen.getByRole('button', { name: /^save draft$/i }))
 
     expect(await screen.findByText(/give the announcement a title/i)).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
@@ -110,7 +171,7 @@ describe('validation', () => {
     await user.type(screen.getByLabelText(/^Announcement/), 'This should not save.')
     await user.type(screen.getByLabelText(/show from/i), '2026-09-10T09:00')
     await user.type(screen.getByLabelText(/show until/i), '2026-09-08T09:00')
-    await user.click(screen.getByRole('button', { name: /create draft/i }))
+    await user.click(screen.getByRole('button', { name: /^save draft$/i }))
 
     expect(await screen.findByText(/must come after its start/i)).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
@@ -122,7 +183,7 @@ describe('validation', () => {
 
     await user.type(screen.getByLabelText(/^Title/), 'Open ended')
     await user.type(screen.getByLabelText(/^Announcement/), 'No dates at all.')
-    await user.click(screen.getByRole('button', { name: /create draft/i }))
+    await user.click(screen.getByRole('button', { name: /^save draft$/i }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
     expect(onSubmit.mock.calls[0][0]).toMatchObject({

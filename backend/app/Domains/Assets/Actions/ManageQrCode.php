@@ -109,6 +109,6 @@ class ManageQrCode
 
     private function name(Asset|PcUnit $target): string
     {
-        return $target instanceof PcUnit ? $target->unit_code : $target->asset_tag;
+        return $target instanceof PcUnit ? $target->unit_code : $target->displayName();
     }
 }

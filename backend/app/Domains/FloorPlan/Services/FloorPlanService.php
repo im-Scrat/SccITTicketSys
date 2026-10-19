@@ -41,7 +41,7 @@ class FloorPlanService
     public function roomPlan(User $actor, string $roomUuid): RoomPlan
     {
         $room = $this->layouts->room($actor, $roomUuid)->load('floor.building');
-        $layout = $this->layouts->activeLayout($actor, $room)?->load('updatedBy:id,first_name,last_name');
+        $layout = $this->layouts->activeLayout($actor, $room)?->load('updatedBy:id,first_name,middle_name,last_name');
 
         $liveUnits = $room->pcUnits()->count();
 

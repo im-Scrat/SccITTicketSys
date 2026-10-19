@@ -26,9 +26,10 @@ import { rememberPendingScan, resumePath } from '../lib/pendingScan'
  * ── Carrying the destination ───────────────────────────────────────────────
  *
  * An unauthenticated visitor is sent to sign in with the **code** stored, never
- * a URL (FR-QR-011). `resumePath()` rebuilds the destination afterwards from a
- * fixed template, so no query string, referrer or stored value can send anyone
- * off this origin.
+ * a URL (FR-QR-011). Sign-in itself always lands on the dashboard (owner
+ * decision 2026-10-19), which offers "Continue to the PC you scanned";
+ * `resumePath()` rebuilds that destination from a fixed template, so no query
+ * string, referrer or stored value can send anyone off this origin.
  */
 export default function ScanLandingPage() {
   const { code = '' } = useParams<{ code: string }>()

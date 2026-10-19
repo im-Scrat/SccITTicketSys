@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
+import { PendingScanBanner } from '@/features/qr/components/PendingScanBanner'
 import { AdminDashboardSkeleton } from '../components/AdminDashboardSkeleton'
 import TeacherDashboard from './TeacherDashboard'
 import TechnicianDashboard from './TechnicianDashboard'
@@ -27,7 +28,17 @@ export default function DashboardPage() {
   useDocumentMeta({ title: 'Dashboard' })
   const { user } = useAuth()
 
-  switch (user?.role.slug) {
+  return (
+    <>
+      {/* Sign-in always lands here; a label scanned first is offered, not followed. */}
+      <PendingScanBanner />
+      <RoleDashboard role={user?.role.slug} />
+    </>
+  )
+}
+
+function RoleDashboard({ role }: { role: string | undefined }) {
+  switch (role) {
     case 'administrator':
       return (
         <Suspense fallback={<AdminDashboardSkeleton />}>

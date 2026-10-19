@@ -147,7 +147,9 @@ class QrCodeController extends Controller
             ->additional(['meta' => [
                 'svg' => $this->qr->renderDataUri($qrCode, $size),
                 'label' => $target instanceof PcUnit ? $target->pc_name : $target->displayName(),
-                'identifier' => $target instanceof PcUnit ? $target->unit_code : $target->asset_tag,
+                // A PC's unit code is printed under its name; an asset's tag is no
+                // longer shown anywhere (owner request 2026-10-19), so it has none.
+                'identifier' => $target instanceof PcUnit ? $target->unit_code : null,
                 'location' => $qrCode->location_label,
             ]])
             ->response();

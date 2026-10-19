@@ -115,7 +115,7 @@ class AssetHistory
     private function activityEntries(Asset|PcUnit $subject): array
     {
         return ActivityLog::query()
-            ->with('user:id,uuid,first_name,last_name')
+            ->with('user:id,uuid,first_name,middle_name,last_name')
             ->where('subject_type', $subject->getMorphClass())
             ->where('subject_id', $subject->getKey())
             ->orderByDesc('created_at')
@@ -140,7 +140,7 @@ class AssetHistory
     private function statusEntries(Asset $asset): array
     {
         return AssetStatusHistory::query()
-            ->with('changedBy:id,uuid,first_name,last_name')
+            ->with('changedBy:id,uuid,first_name,middle_name,last_name')
             ->where('asset_id', $asset->getKey())
             ->orderByDesc('created_at')
             ->limit(self::PER_SOURCE_CAP)
@@ -180,7 +180,7 @@ class AssetHistory
             ->with([
                 'fromRoom' => fn ($q) => $q->withTrashed()->with(['floor' => fn ($f) => $f->withTrashed()->with('building')]),
                 'toRoom' => fn ($q) => $q->withTrashed()->with(['floor' => fn ($f) => $f->withTrashed()->with('building')]),
-                'transferredBy:id,uuid,first_name,last_name',
+                'transferredBy:id,uuid,first_name,middle_name,last_name',
             ])
             ->where('asset_id', $asset->getKey())
             ->orderByDesc('transferred_at')
@@ -216,7 +216,7 @@ class AssetHistory
     private function installationEntries(Asset $asset): array
     {
         return PcComponentInstallation::query()
-            ->with(['pcUnit' => fn ($q) => $q->withTrashed(), 'installedBy:id,uuid,first_name,last_name'])
+            ->with(['pcUnit' => fn ($q) => $q->withTrashed(), 'installedBy:id,uuid,first_name,middle_name,last_name'])
             ->where('asset_id', $asset->getKey())
             ->orderByDesc('installation_date')
             ->limit(self::PER_SOURCE_CAP)
@@ -253,7 +253,7 @@ class AssetHistory
     {
         return $this->mapMaintenance(
             MaintenanceRecord::query()
-                ->with(['type', 'technician:id,uuid,first_name,last_name'])
+                ->with(['type', 'technician:id,uuid,first_name,middle_name,last_name'])
                 ->where('asset_id', $asset->getKey())
                 ->orderByDesc('maintenance_date')
                 ->limit(self::PER_SOURCE_CAP)
@@ -268,7 +268,7 @@ class AssetHistory
     {
         return $this->mapMaintenance(
             MaintenanceRecord::query()
-                ->with(['type', 'technician:id,uuid,first_name,last_name'])
+                ->with(['type', 'technician:id,uuid,first_name,middle_name,last_name'])
                 ->where('pc_unit_id', $pcUnit->getKey())
                 ->orderByDesc('maintenance_date')
                 ->limit(self::PER_SOURCE_CAP)
@@ -310,7 +310,7 @@ class AssetHistory
         return PcComponentInstallation::query()
             ->with([
                 'asset' => fn ($q) => $q->withTrashed()->with('hardwareModel'),
-                'installedBy:id,uuid,first_name,last_name',
+                'installedBy:id,uuid,first_name,middle_name,last_name',
             ])
             ->where('pc_unit_id', $pcUnit->getKey())
             ->orderByDesc('installation_date')
@@ -348,7 +348,7 @@ class AssetHistory
         $column = $subject instanceof PcUnit ? 'pc_unit_id' : 'asset_id';
 
         return Ticket::query()
-            ->with(['status', 'reporter:id,uuid,first_name,last_name'])
+            ->with(['status', 'reporter:id,uuid,first_name,middle_name,last_name'])
             ->where($column, $subject->getKey())
             ->orderByDesc('created_at')
             ->limit(self::PER_SOURCE_CAP)

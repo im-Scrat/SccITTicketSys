@@ -28,7 +28,9 @@ beforeEach(function () {
 });
 
 /**
- * The identifiers each list returns for one room, in the order returned.
+ * What each list returns for one room, in the order returned: a PC by its unit
+ * code, an asset by its label — an asset has no identifier since its tag stopped
+ * being shown (2026-10-19), so these tests name assets rather than tag them.
  *
  * @param  array<string, mixed>  $query
  * @return array{pc_units: list<string>, assets: list<string>}
@@ -42,7 +44,7 @@ function equipmentIn(mixed $test, Room $room, array $query = []): array
 
     return [
         'pc_units' => array_column($data['pc_units'], 'identifier'),
-        'assets' => array_column($data['assets'], 'identifier'),
+        'assets' => array_column($data['assets'], 'label'),
     ];
 }
 
@@ -51,8 +53,8 @@ it('lists only the chosen room’s equipment', function () {
 
     PcUnit::factory()->create(['room_id' => $this->room->id, 'unit_code' => 'HERE-PC']);
     PcUnit::factory()->create(['room_id' => $elsewhere->id, 'unit_code' => 'THERE-PC']);
-    assetOfType(ComponentType::Printer, ['current_room_id' => $this->room->id, 'asset_tag' => 'HERE-PRN', 'status' => AssetStatus::Deployed->value]);
-    assetOfType(ComponentType::Printer, ['current_room_id' => $elsewhere->id, 'asset_tag' => 'THERE-PRN', 'status' => AssetStatus::Deployed->value]);
+    assetOfType(ComponentType::Printer, ['current_room_id' => $this->room->id, 'name' => 'HERE-PRN', 'status' => AssetStatus::Deployed->value]);
+    assetOfType(ComponentType::Printer, ['current_room_id' => $elsewhere->id, 'name' => 'THERE-PRN', 'status' => AssetStatus::Deployed->value]);
 
     expect(equipmentIn($this, $this->room))->toBe(['pc_units' => ['HERE-PC'], 'assets' => ['HERE-PRN']]);
 });
@@ -75,13 +77,13 @@ it('lists in-service equipment only — never spare stock, retired, disposed or 
     foreach ([...$offered, ...$hidden] as $status) {
         assetOfType(ComponentType::Projector, [
             'current_room_id' => $this->room->id,
-            'asset_tag' => 'PRJ-'.strtoupper($status->value),
+            'name' => 'PRJ-'.strtoupper($status->value),
             'status' => $status->value,
         ]);
     }
     assetOfType(ComponentType::Projector, [
         'current_room_id' => $this->room->id,
-        'asset_tag' => 'PRJ-ARCHIVED',
+        'name' => 'PRJ-ARCHIVED',
         'status' => AssetStatus::Deployed->value,
     ])->delete();
 
@@ -90,8 +92,8 @@ it('lists in-service equipment only — never spare stock, retired, disposed or 
 });
 
 it('leaves out a part fitted inside a PC, but offers one that has been removed', function () {
-    $fitted = assetOfType(ComponentType::Monitor, ['current_room_id' => $this->room->id, 'asset_tag' => 'MON-FITTED', 'status' => AssetStatus::Deployed->value]);
-    $removed = assetOfType(ComponentType::Monitor, ['current_room_id' => $this->room->id, 'asset_tag' => 'MON-REMOVED', 'status' => AssetStatus::Deployed->value]);
+    $fitted = assetOfType(ComponentType::Monitor, ['current_room_id' => $this->room->id, 'name' => 'MON-FITTED', 'status' => AssetStatus::Deployed->value]);
+    $removed = assetOfType(ComponentType::Monitor, ['current_room_id' => $this->room->id, 'name' => 'MON-REMOVED', 'status' => AssetStatus::Deployed->value]);
     $host = PcUnit::factory()->create(['room_id' => $this->room->id]);
 
     PcComponentInstallation::factory()->create(['pc_unit_id' => $host->id, 'asset_id' => $fitted->id]);
@@ -109,7 +111,7 @@ it('offers whole equipment, attached devices and legacy “other”, never inter
     foreach ([ComponentType::Printer, ComponentType::Monitor, ComponentType::Other, ComponentType::Ram, ComponentType::Cpu] as $type) {
         assetOfType($type, [
             'current_room_id' => $this->room->id,
-            'asset_tag' => 'T-'.strtoupper($type->value),
+            'name' => 'T-'.strtoupper($type->value),
             'status' => AssetStatus::Deployed->value,
         ]);
     }
@@ -120,7 +122,6 @@ it('offers whole equipment, attached devices and legacy “other”, never inter
 it('still offers equipment whose catalog model has been archived, by its model name', function () {
     $printer = assetOfType(ComponentType::Printer, [
         'current_room_id' => $this->room->id,
-        'asset_tag' => 'PRN-OLDMODEL',
         'name' => null,
         'status' => AssetStatus::Deployed->value,
     ]);
@@ -132,8 +133,8 @@ it('still offers equipment whose catalog model has been archived, by its model n
         ->assertOk()
         ->json('data.assets.0');
 
-    expect($row['identifier'])->toBe('PRN-OLDMODEL')
-        ->and($row['label'])->toBe($model->model_name.' (PRN-OLDMODEL)');
+    expect($row['identifier'])->toBeNull()
+        ->and($row['label'])->toBe($model->model_name);
 });
 
 it('caps each list at the requested limit', function () {
@@ -165,7 +166,7 @@ it('takes no search parameter, so it cannot be probed on fields it withholds', f
     PcUnit::factory()->create(['room_id' => $this->room->id, 'unit_code' => 'PC-ONE', 'serial_number' => 'SN-PROBE-ME']);
     assetOfType(ComponentType::Printer, [
         'current_room_id' => $this->room->id,
-        'asset_tag' => 'PRN-ONE',
+        'name' => 'PRN-ONE',
         'serial_number' => 'SN-PROBE-ME-TOO',
         'status' => AssetStatus::Deployed->value,
     ]);

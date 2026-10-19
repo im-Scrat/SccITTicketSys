@@ -75,10 +75,10 @@ test.describe('announcements — administrator', () => {
     await page.getByLabel(/^Announcement/).fill('Written and published by the browser suite.')
     await page.getByLabel(/^Audience/).selectOption('teachers')
 
-    await page.getByRole('button', { name: /create draft/i }).click()
+    await page.getByRole('button', { name: /^save draft$/i }).click()
     await settle(page)
 
-    // A new announcement is a draft: composing notifies nobody.
+    // Saved as a draft: composing notifies nobody until Publish.
     const row = page.getByRole('listitem').filter({ hasText: title }).first()
     await expect(row).toBeVisible()
     await expect(row).toContainText('Draft')
@@ -86,6 +86,22 @@ test.describe('announcements — administrator', () => {
     // Publishing is the separate, deliberate act.
     await row.getByRole('button', { name: /^Publish$/ }).click()
     await settle(page)
+    await expect(page.getByRole('listitem').filter({ hasText: title }).first()).toContainText(
+      'Published',
+    )
+  })
+
+  test('publishes straight from the form', async ({ page }) => {
+    await signIn(page, 'administrator')
+    await goto(page, '/app/announcements/manage')
+    await page.getByRole('button', { name: /new announcement/i }).click()
+
+    const title = `Published from the form ${Date.now()}`
+    await page.getByLabel(/^Title/).fill(title)
+    await page.getByLabel(/^Announcement/).fill('Saved and published in one step.')
+    await page.getByRole('button', { name: /^Publish$/ }).click()
+    await settle(page)
+
     await expect(page.getByRole('listitem').filter({ hasText: title }).first()).toContainText(
       'Published',
     )

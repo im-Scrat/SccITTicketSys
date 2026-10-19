@@ -6,7 +6,7 @@ import { applyServerErrors, getErrorMessage } from '@/features/auth/lib/serverEr
 import { useRoomLookup } from '@/hooks/useLocationLookup'
 import { useCreateAsset, useUpdateAsset } from '../hooks/mutations'
 import { useAssetCatalog } from '../hooks/queries'
-import { type AssetForm, assetSchema } from '../schemas'
+import { type AssetForm, assetSchema, NO_MODEL_VALUE, OTHER_MODEL_VALUE } from '../schemas'
 import type { AssetDetail } from '../types'
 
 interface AssetFormDrawerProps {
@@ -23,6 +23,13 @@ interface AssetFormDrawerProps {
  * the LaserJet 4200", not "hardware_model 17". Choosing a category narrows the
  * model list rather than filtering it silently, so the relationship between the
  * two fields is visible.
+ *
+ * **Everything is optional** (owner request, 2026-10-19), and nothing is
+ * marked "(optional)" — there is nothing else. There is no asset tag: the
+ * server generates one internally and it is shown nowhere. A model that is not
+ * in the catalog is chosen as "Other", which opens a text box right under the
+ * select; the server files it in the catalog so the next asset can pick it.
+ * Every detail can be changed later from the asset page (administrators only).
  *
  * **Status and room are absent when editing.** Both have their own audited write
  * paths (status writes `asset_status_history`, a move writes `asset_transfers`),
@@ -46,6 +53,7 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
     handleSubmit,
     reset,
     setError,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<AssetForm>({
     resolver: zodResolver(assetSchema),
@@ -60,9 +68,9 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
     if (asset) {
       setCategory(asset.category ?? '')
       reset({
-        asset_tag: asset.asset_tag,
         name: asset.name ?? '',
-        hardware_model: asset.model?.id ?? 0,
+        hardware_model: asset.model?.id ?? NO_MODEL_VALUE,
+        hardware_model_other: '',
         supplier: asset.supplier?.name ?? '',
         room: asset.room?.id ?? '',
         technician: asset.technician?.id ?? '',
@@ -86,13 +94,19 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
     return category ? all.filter((model) => model.category === category) : all
   }, [catalog.data, category])
 
+  const isOtherModel = watch('hardware_model') === OTHER_MODEL_VALUE
+
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
 
     const payload = {
-      asset_tag: values.asset_tag,
       name: emptyToNull(values.name),
-      hardware_model: values.hardware_model,
+      // One or the other, never both: a chosen model, or a described one.
+      hardware_model: values.hardware_model > 0 ? values.hardware_model : null,
+      hardware_model_other:
+        values.hardware_model === OTHER_MODEL_VALUE
+          ? emptyToNull(values.hardware_model_other)
+          : null,
       supplier: emptyToNull(values.supplier),
       serial_number: emptyToNull(values.serial_number),
       barcode: emptyToNull(values.barcode),
@@ -150,16 +164,12 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
       <form id="asset-form" onSubmit={onSubmit} className="flex flex-col gap-6">
         {formError && <Alert tone="error">{formError}</Alert>}
 
-        <Field label="Asset tag" error={errors.asset_tag?.message} required>
-          <Input {...register('asset_tag')} placeholder="LAB-PRN-01" autoFocus />
-        </Field>
-
         <Field
           label="Asset name"
           error={errors.name?.message}
           hint="Leave blank to use the catalog model name."
         >
-          <Input {...register('name')} placeholder="Lab 3 Front Printer" />
+          <Input {...register('name')} placeholder="Lab 3 Front Printer" autoFocus />
         </Field>
 
         <Field label="Category" hint="Narrows the model list below.">
@@ -173,17 +183,28 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
           </Select>
         </Field>
 
-        <Field label="Catalog model" error={errors.hardware_model?.message} required>
+        <Field label="Catalog model" error={errors.hardware_model?.message}>
           <Select {...register('hardware_model', { valueAsNumber: true })}>
-            <option value={0}>Choose a model…</option>
+            <option value={NO_MODEL_VALUE}>Not specified</option>
             {models.map((model) => (
               <option key={model.value} value={model.value}>
                 {model.manufacturer ? `${model.manufacturer} — ` : ''}
                 {model.label}
               </option>
             ))}
+            <option value={OTHER_MODEL_VALUE}>Other — describe it</option>
           </Select>
         </Field>
+
+        {isOtherModel && (
+          <Field
+            label="Describe the catalog model"
+            error={errors.hardware_model_other?.message}
+            hint="Brand and model, e.g. Epson EB-X51. It is added to the catalog for next time."
+          >
+            <Input {...register('hardware_model_other')} autoFocus />
+          </Field>
+        )}
 
         <Field label="Serial number" error={errors.serial_number?.message}>
           <Input {...register('serial_number')} />
@@ -279,9 +300,9 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
 
 function blankForm(): AssetForm {
   return {
-    asset_tag: '',
     name: '',
-    hardware_model: 0,
+    hardware_model: NO_MODEL_VALUE,
+    hardware_model_other: '',
     supplier: '',
     room: '',
     technician: '',

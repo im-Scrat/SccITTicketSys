@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domains\Assets\Actions\Concerns;
 
+use App\Enums\ComponentType;
+use App\Models\HardwareComponent;
 use App\Models\HardwareModel;
 use App\Models\Room;
 use App\Models\Supplier;
@@ -54,6 +56,48 @@ trait ResolvesAssetReferences
         return $this->present($id)
             ? HardwareModel::query()->find((int) $id)
             : null;
+    }
+
+    /**
+     * The catalog model for an asset form's answer (owner request 2026-10-19):
+     * a model typed into "Other" is looked up or filed in the catalog, a chosen
+     * one is used as is, and no answer at all is the shared "Unspecified model".
+     *
+     * `hardware_models` requires a component, so typed and unspecified models
+     * are filed under one shared `ComponentType::Other` component rather than
+     * inventing one per entry. A typed model then appears in the catalog list
+     * like any other, so the next asset of that model can simply choose it.
+     * Soft-deleted rows are revived rather than duplicated, because the
+     * (component, model_name) unique index still counts them.
+     */
+    protected function resolveFormHardwareModel(mixed $id, mixed $other): HardwareModel
+    {
+        if ($this->present($other)) {
+            return $this->catalogModel(trim((string) $other));
+        }
+
+        return $this->resolveHardwareModel($id) ?? $this->catalogModel(HardwareModel::UNSPECIFIED);
+    }
+
+    private function catalogModel(string $name): HardwareModel
+    {
+        $component = HardwareComponent::withTrashed()->firstOrCreate(
+            ['manufacturer_id' => null, 'name' => HardwareComponent::OTHER_MANUAL],
+            ['component_type' => ComponentType::Other->value],
+        );
+        if ($component->trashed()) {
+            $component->restore();
+        }
+
+        $model = HardwareModel::withTrashed()->firstOrCreate([
+            'hardware_component_id' => $component->getKey(),
+            'model_name' => $name,
+        ]);
+        if ($model->trashed()) {
+            $model->restore();
+        }
+
+        return $model;
     }
 
     /** A value the caller actually supplied, as opposed to null/blank. */

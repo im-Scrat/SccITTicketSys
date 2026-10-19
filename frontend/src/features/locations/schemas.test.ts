@@ -5,21 +5,19 @@ describe('buildingSchema', () => {
   it('accepts a valid building', () => {
     const result = buildingSchema.safeParse({
       name: 'Science Hall',
-      code: 'SCI-1',
       description: '',
       address: '14 Fields Road',
     })
     expect(result.success).toBe(true)
   })
 
-  it('requires a name and a code', () => {
-    const result = buildingSchema.safeParse({ name: '', code: '' })
+  it('requires a name', () => {
+    const result = buildingSchema.safeParse({ name: '' })
     expect(result.success).toBe(false)
   })
 
-  it('rejects a code with punctuation that would not survive a label', () => {
-    const result = buildingSchema.safeParse({ name: 'Hall', code: 'SCI/1' })
-    expect(result.success).toBe(false)
+  it('needs no code — the name is enough', () => {
+    expect(buildingSchema.safeParse({ name: 'Science Hall' }).success).toBe(true)
   })
 })
 

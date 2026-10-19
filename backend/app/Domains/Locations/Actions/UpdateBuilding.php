@@ -24,6 +24,12 @@ class UpdateBuilding
      */
     public function handle(Building $building, array $data, User $actor, Request $request): Building
     {
+        // The edit form no longer sends a code; a missing or blank one means
+        // "keep it", and must not read as a change to null in the audit trail.
+        if (($data['code'] ?? null) === null) {
+            unset($data['code']);
+        }
+
         $changes = [];
 
         foreach (['name', 'code', 'description', 'address'] as $field) {

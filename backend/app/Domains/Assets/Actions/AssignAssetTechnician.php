@@ -58,8 +58,8 @@ class AssignAssetTechnician
             request: $request,
             module: 'assets',
             description: $assigning
-                ? "Asset {$asset->asset_tag} assigned to {$technician->fullName()}"
-                : "Asset {$asset->asset_tag} unassigned".($previous !== null ? " from {$previous->fullName()}" : ''),
+                ? "Asset {$asset->displayName()} assigned to {$technician->fullName()}"
+                : "Asset {$asset->displayName()} unassigned".($previous !== null ? " from {$previous->fullName()}" : ''),
         );
 
         return $asset->refresh()->load('assignedTechnician');

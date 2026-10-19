@@ -1,7 +1,7 @@
-import { Download, Upload } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Alert, Button, EmptyState, Pagination, Skeleton, Tabs } from '@/components/ui'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Alert, EmptyState, Pagination, Skeleton, Tabs } from '@/components/ui'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { TicketMetricsCards } from '../components/TicketMetricsCards'
 import { LinkedFilterChips } from '../components/LinkedFilterChips'
@@ -33,7 +33,9 @@ export default function TicketManagementPage() {
   const navigate = useNavigate()
 
   const [params, setParams] = useSearchParams()
-  const [tab, setTab] = useState(params.get('tab') === 'directory' ? 'directory' : 'triage')
+  // Read from the url, not held in state: a workload row is a link into the
+  // directory, and the tab has to follow the url it lands on (and Back).
+  const tab = params.get('tab') === 'directory' ? 'directory' : 'triage'
   const [search, setSearch] = useState(params.get('search') ?? '')
 
   const options = useTicketOptions()
@@ -99,7 +101,22 @@ export default function TicketManagementPage() {
   /** A metric tile applies its filter *and* switches to the list that shows it. */
   const applyMetricFilter = (changes: Record<string, string | number | null>) => {
     patch({ ...changes, tab: 'directory' })
-    setTab('directory')
+  }
+
+  /**
+   * Where a "Who is carrying what" figure came from: that technician's open
+   * tickets in the directory. The count is `ticket_statuses.is_open` tickets
+   * assigned to them (TicketMetrics::technicianWorkload), so the link carries
+   * the same open statuses and the list totals exactly to the figure.
+   */
+  const openSlugs = (options.data?.statuses ?? [])
+    .filter((status) => status.is_open)
+    .map((status) => status.value)
+    .join(',')
+  const workloadHref = (technicianId: string) => {
+    const next = new URLSearchParams({ tab: 'directory', technician: technicianId })
+    if (openSlugs) next.set('status', openSlugs)
+    return `/app/tickets/manage?${next.toString()}`
   }
 
   const onSort = (column: TicketSortColumn) =>
@@ -114,30 +131,15 @@ export default function TicketManagementPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-6">
-        <div className="measure">
-          <h1 className="text-2xl font-bold text-ink-strong">Ticket management</h1>
-          <p className="mt-2 text-base text-muted">
-            Everything reported across the school: what is unowned, what is running late, and what
-            is waiting on the person who reported it.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          {/*
-            Import and export land in a later phase. Rendered disabled with an
-            explanation rather than hidden: an operator who expects them should
-            find out they are coming, not wonder whether they missed a menu.
-          */}
-          <Button variant="secondary" disabled title="Available in a later phase">
-            <Upload size={32} aria-hidden="true" />
-            Import
-          </Button>
-          <Button variant="secondary" disabled title="Available in a later phase">
-            <Download size={32} aria-hidden="true" />
-            Export
-          </Button>
-        </div>
+      {/* No Import/Export here: tickets are reported through the app, and the
+          placeholder buttons promised a feature with no server behind it
+          (owner request, 2026-10-19). Ticket figures export from Reports. */}
+      <header className="measure">
+        <h1 className="text-2xl font-bold text-ink-strong">Ticket management</h1>
+        <p className="mt-2 text-base text-muted">
+          Everything reported across the school: what is unowned, what is running late, and what is
+          waiting on the person who reported it.
+        </p>
       </header>
 
       {dashboard.isError ? (
@@ -164,10 +166,7 @@ export default function TicketManagementPage() {
           { value: 'directory', label: 'All tickets' },
         ]}
         value={tab}
-        onChange={(value) => {
-          setTab(value)
-          patch({ tab: value === 'directory' ? 'directory' : null, page: null })
-        }}
+        onChange={(value) => patch({ tab: value === 'directory' ? 'directory' : null, page: null })}
       />
 
       {tab === 'triage' ? (
@@ -201,11 +200,18 @@ export default function TicketManagementPage() {
               <h2 className="text-base font-bold text-ink-strong">Who is carrying what</h2>
               <ul className="mt-4 flex flex-col divide-y divide-border rounded-lg border-2 border-border bg-surface">
                 {dashboard.data.technician_workload.map((person) => (
-                  <li key={person.id} className="flex items-center justify-between gap-4 px-6 py-4">
-                    <span className="text-base font-medium text-ink">{person.name}</span>
-                    <span className="text-base font-semibold tnum text-ink-strong">
-                      {person.count} open
-                    </span>
+                  <li key={person.id}>
+                    <Link
+                      to={workloadHref(person.id)}
+                      aria-label={`${person.name}: ${person.count} open — show these tickets`}
+                      className="flex items-center justify-between gap-4 px-6 py-4 transition-colors duration-150 [transition-timing-function:var(--ease-standard)] hover:bg-surface-sunken"
+                    >
+                      <span className="text-base font-medium text-ink">{person.name}</span>
+                      <span className="flex items-center gap-2 text-base font-semibold tnum text-ink-strong">
+                        {person.count} open
+                        <ChevronRight size={20} aria-hidden="true" className="text-muted" />
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ul>

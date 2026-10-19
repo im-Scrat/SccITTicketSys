@@ -68,7 +68,8 @@ export default function AssetsPage() {
         : undefined,
       trashed: (params.get('trashed') as AssetParams['trashed']) ?? 'without',
       import: params.get('import') ?? undefined,
-      sort: (params.get('sort') as AssetSortColumn) ?? 'asset_tag',
+      // By name: the asset tag is no longer shown, so it cannot be the order.
+      sort: (params.get('sort') as AssetSortColumn) ?? 'name',
       direction: (params.get('direction') as 'asc' | 'desc') ?? 'asc',
       page: params.get('page') ? Number(params.get('page')) : 1,
       per_page: PER_PAGE,
@@ -327,7 +328,7 @@ export default function AssetsPage() {
             <>
               <AssetsTable
                 assets={rows}
-                sort={assetParams.sort ?? 'asset_tag'}
+                sort={assetParams.sort ?? 'name'}
                 direction={assetParams.direction ?? 'asc'}
                 onSort={onAssetSort}
                 onOpen={(id) => navigate(`/app/assets/${id}`)}

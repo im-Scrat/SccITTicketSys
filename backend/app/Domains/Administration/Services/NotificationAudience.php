@@ -147,7 +147,7 @@ class NotificationAudience
      * **This method exists because of a real, silent failure.** Several queries
      * in this application eager-load people with an explicit column list, for
      * good reason: `maintenance:detect-due` loads
-     * `technician:id,uuid,first_name,last_name` because those are the only
+     * `technician:id,uuid,first_name,middle_name,last_name` because those are the only
      * columns it prints. A `User` arriving that way has **no `status`
      * attribute at all**, and a plain `$user->status !== UserStatus::Active`
      * comparison reads the missing attribute as null, decides the account is

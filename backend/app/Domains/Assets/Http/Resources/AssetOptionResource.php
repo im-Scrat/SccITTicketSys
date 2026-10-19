@@ -42,7 +42,8 @@ class AssetOptionResource extends JsonResource
         return [
             'id' => $option['id'],
             'label' => $option['label'],
-            'identifier' => $option['asset_tag'] ?? $option['unit_code'] ?? null,
+            // A PC's unit code; an asset has none, since its tag is not shown.
+            'identifier' => $option['unit_code'] ?? null,
             'location' => $option['location'] ?? null,
         ];
     }

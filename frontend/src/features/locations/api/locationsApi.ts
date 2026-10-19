@@ -102,7 +102,8 @@ export async function fetchLocationAudit(
 
 export interface BuildingPayload {
   name: string
-  code: string
+  /** Optional: the server derives one from the name, and keeps it on edit. */
+  code?: string
   description?: string
   address?: string
 }

@@ -100,7 +100,9 @@ function ChangeNameCard() {
     try {
       await updateProfile.mutateAsync({
         ...formValues,
-        middle_name: formValues.middle_name || undefined,
+        // Sent as null when blank so a middle name can be removed: the server
+        // only changes a field whose key is present.
+        middle_name: formValues.middle_name || null,
       })
       setSuccess(true)
     } catch (error) {

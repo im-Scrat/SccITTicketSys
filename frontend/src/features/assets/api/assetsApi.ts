@@ -97,10 +97,15 @@ export async function fetchAudit(
 
 /* --------------------------------------------------------------- writes */
 
+/**
+ * Every field optional (2026-10-19). No asset tag: the server generates one.
+ * `hardware_model` (a catalog id) and `hardware_model_other` (a model described
+ * in words) are mutually exclusive; with neither, the asset has no model.
+ */
 export interface AssetPayload {
-  asset_tag: string
   name?: string | null
-  hardware_model: number
+  hardware_model?: number | null
+  hardware_model_other?: string | null
   supplier?: string | null
   room?: string | null
   technician?: string | null
@@ -277,7 +282,7 @@ export interface QrPrintPayload {
   meta: {
     svg: string
     label: string
-    identifier: string
+    identifier: string | null
     location: string | null
   }
 }

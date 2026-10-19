@@ -16,6 +16,7 @@ import {
   type UpdateProfilePayload,
 } from '../api/authApi'
 import { clearReportDrafts, clearReportDraftsExcept } from '@/features/tickets/hooks/useReportDraft'
+import { clearPendingScan } from '@/features/qr/lib/pendingScan'
 import type { AuthUser, LoginPayload, RegisterPayload } from '../types'
 import { AUTH_USER_KEY } from './useAuth'
 
@@ -82,6 +83,9 @@ export function useLogout() {
       dropPrincipalCache(queryClient)
       clearReportDrafts()
       clearFloorplanDrafts()
+      // A label scanned before signing in is offered on the dashboard; it must
+      // not be offered to the next person at a shared machine.
+      clearPendingScan()
     },
   })
 }

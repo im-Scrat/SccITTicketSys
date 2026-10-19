@@ -10,6 +10,7 @@ use App\Domains\Analytics\Services\OverallRecords;
 use App\Domains\Analytics\Services\OverallReportService;
 use App\Domains\Analytics\Services\ReportsAccess;
 use App\Http\Controllers\Controller;
+use App\Models\Asset;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,11 +68,13 @@ class OverallReportController extends Controller
             ->get(['p.uuid', 'p.unit_code as code', 'p.pc_name as name', 'p.deleted_at', 'r.code as room'])
             ->map(fn (object $r): array => ['value' => 'pc:'.$r->uuid, 'label' => $r->code.' · '.$r->name, 'description' => 'PC unit'.($r->room !== null ? ' · '.$r->room : '').($r->deleted_at !== null ? ' · archived' : ''), 'group' => 'PC units']);
 
+        // Assets are found and labelled by name; the tag is no longer shown (2026-10-19).
+        $name = Asset::displayNameSql('a');
         $assets = DB::table('assets as a')->leftJoin('rooms as r', 'r.id', '=', 'a.current_room_id')
-            ->where(fn ($q) => $q->where('a.asset_tag', 'ilike', $term)->orWhere('a.name', 'ilike', $term))
-            ->orderBy('a.asset_tag')->limit(20)
-            ->get(['a.uuid', 'a.asset_tag as code', 'a.name', 'a.deleted_at', 'r.code as room'])
-            ->map(fn (object $r): array => ['value' => 'asset:'.$r->uuid, 'label' => $r->code.($r->name ? ' · '.$r->name : ''), 'description' => 'Other equipment'.($r->room !== null ? ' · '.$r->room : '').($r->deleted_at !== null ? ' · archived' : ''), 'group' => 'Other equipment']);
+            ->where(fn ($q) => $q->whereRaw("{$name} ilike ?", [$term]))
+            ->orderByRaw($name)->limit(20)
+            ->get(['a.uuid', DB::raw("{$name} as name"), 'a.deleted_at', 'r.code as room'])
+            ->map(fn (object $r): array => ['value' => 'asset:'.$r->uuid, 'label' => (string) $r->name, 'description' => 'Other equipment'.($r->room !== null ? ' · '.$r->room : '').($r->deleted_at !== null ? ' · archived' : ''), 'group' => 'Other equipment']);
 
         return response()->json(['data' => $pcs->concat($assets)->values()]);
     }

@@ -58,7 +58,6 @@ export function PcUnitFormDrawer({ open, onClose, pcUnit, onSaved }: PcUnitFormD
       reset({
         unit_code: pcUnit.unit_code,
         pc_name: pcUnit.pc_name,
-        asset_tag: pcUnit.asset_tag ?? '',
         hostname: pcUnit.hostname ?? '',
         serial_number: pcUnit.serial_number ?? '',
         brand: pcUnit.brand ?? '',
@@ -83,7 +82,6 @@ export function PcUnitFormDrawer({ open, onClose, pcUnit, onSaved }: PcUnitFormD
     const payload = {
       unit_code: values.unit_code,
       pc_name: values.pc_name,
-      asset_tag: emptyToNull(values.asset_tag),
       hostname: emptyToNull(values.hostname),
       serial_number: emptyToNull(values.serial_number),
       brand: emptyToNull(values.brand),
@@ -140,10 +138,6 @@ export function PcUnitFormDrawer({ open, onClose, pcUnit, onSaved }: PcUnitFormD
 
         <Field label="PC name" error={errors.pc_name?.message} required>
           <Input {...register('pc_name')} placeholder="Lab 7 Station 1" />
-        </Field>
-
-        <Field label="Asset tag" error={errors.asset_tag?.message}>
-          <Input {...register('asset_tag')} />
         </Field>
 
         <Field label="Hostname" error={errors.hostname?.message}>
@@ -221,7 +215,6 @@ function blankForm(): PcUnitForm {
   return {
     unit_code: '',
     pc_name: '',
-    asset_tag: '',
     hostname: '',
     serial_number: '',
     brand: '',

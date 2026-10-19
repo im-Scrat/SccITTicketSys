@@ -94,7 +94,7 @@ class TransferAsset
             module: 'assets',
             description: sprintf(
                 'Asset %s moved from %s to %s',
-                $asset->asset_tag,
+                $asset->displayName(),
                 $this->label($from) ?? 'no room',
                 $this->label($target) ?? 'no room',
             ),
