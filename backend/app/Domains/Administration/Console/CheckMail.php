@@ -63,11 +63,11 @@ class CheckMail extends Command
         if (! $this->option('no-connect')) {
             $probe = $diagnostics->probe();
             $ok = $probe['ok'];
-            $this->line(sprintf(
-                'Connection test (no message sent): %s%s',
-                $probe['ok'] ? 'OK — connected, TLS and authentication accepted' : 'FAILED — '.$probe['outcome'],
-                $probe['smtp_code'] !== null ? " (SMTP {$probe['smtp_code']})" : '',
-            ));
+            $this->line($probe['ok']
+                ? 'Connection test: OK — '.$probe['summary']
+                : 'Connection test: FAILED — '.$probe['outcome']
+                    .($probe['smtp_code'] !== null ? " (SMTP {$probe['smtp_code']})" : '')
+                    .'. No message was sent.');
         }
 
         if ($send !== null) {
