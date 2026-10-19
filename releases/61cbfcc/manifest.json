@@ -1,0 +1,25 @@
+{
+  "schema": "sccit.release/1",
+  "release": "61cbfcc",
+  "deployed_at": "2026-10-19T23:09:29Z",
+  "git": {
+    "commit": "61cbfccc94495c455701df2185838b8ae19ca532",
+    "branch": "main",
+    "dirty": false
+  },
+  "images": {
+    "app_tag": "sccit/app:prod-61cbfcc",
+    "web_tag": "sccit/web:prod-61cbfcc",
+    "app_id": "sha256:72aafb7a89728dc0edc6f2e7bcc98f8cf359ec888c9657d967dd787f09d093d5",
+    "web_id": "sha256:31ee0874d84390bc5019f43573a67eaf24ff4a3e092f0e402f45192098ee7a6b"
+  },
+  "database": {
+    "migration_count": "55"
+  },
+  "verification": {
+    "gates": "passed",
+    "smoke": "passed"
+  },
+  "previous_release": "950ef07",
+  "pre_deploy_snapshot": "backups/prod/20261019T230832Z-predeploy-61cbfcc"
+}
