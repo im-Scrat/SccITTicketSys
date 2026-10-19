@@ -5,23 +5,14 @@ declare(strict_types=1);
 namespace App\Domains\Identity\Notifications;
 
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * Sent to an applicant when an Administrator rejects their registration request
  * (SRS FR-AUTH-015). Includes the rejection reason when one was provided.
  */
-class RegistrationRejected extends Notification
+class RegistrationRejected extends AccountMail
 {
     public function __construct(public readonly ?string $reason = null) {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
 
     public function toMail(object $notifiable): MailMessage
     {

@@ -9,12 +9,18 @@ use App\Enums\ReportEmailDeliveryStatus;
 use App\Models\ActivityLog;
 use App\Models\ReportEmailDelivery;
 use App\Models\ReportExport;
+use App\Models\User;
 use Database\Seeders\TicketLookupSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Notifications\Events\NotificationFailed;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Mailer\Exception\TransportException;
+use Symfony\Component\Mailer\Exception\UnexpectedResponseException;
 use Tests\Support\ReportFixtures;
 
 /*
@@ -197,4 +203,45 @@ it('marks copies still queued after a day as failed', function (): void {
     $this->artisan('reports:prune-exports')->assertSuccessful();
 
     expect(ReportEmailDelivery::query()->pluck('failure_code')->unique()->all())->toBe(['stale']);
+});
+
+it('sends to an outside address that has no account, from the system sender, with no reply-to', function (): void {
+    $this->actingAs($this->admin)->postJson('/api/admin/reports/emails', ($this->body)())->assertStatus(202);
+
+    expect(User::query()->where('email', 'auditor@example.org')->exists())->toBeFalse();
+
+    $messages = collect(Mail::mailer()->getSymfonyTransport()->messages())
+        ->map(fn ($sent) => $sent->getOriginalMessage());
+    $outside = $messages->first(fn ($m) => collect($m->getTo())->contains(fn ($a) => $a->getAddress() === 'auditor@example.org'));
+
+    expect($outside)->not->toBeNull()
+        ->and($outside->getFrom()[0]->getAddress())->toBe('noreply@sccit.local')
+        ->and($outside->getReplyTo())->toBe([])
+        ->and(collect($outside->getTo())->map->getAddress()->all())->toBe(['auditor@example.org']);
+});
+
+it('records why a copy failed, by SMTP reply code, and a later success as sent', function (): void {
+    Notification::fake();
+    $this->actingAs($this->admin)->postJson('/api/admin/reports/emails', ($this->body)())->assertStatus(202);
+
+    $delivery = ReportEmailDelivery::query()->where('recipient', 'auditor@example.org')->sole();
+    $notification = new ReportEmailNotification(ReportExport::query()->sole(), $delivery);
+    $fail = fn (Throwable $e) => event(new NotificationFailed(new AnonymousNotifiable, $notification, 'mail', ['exception' => $e]));
+    $code = fn (): ?string => $delivery->fresh()?->failure_code;
+
+    $fail(new TransportException('Failed to authenticate on SMTP server with username "relay-user".', 535));
+    expect($code())->toBe('smtp_auth_failed');
+
+    $fail(new UnexpectedResponseException('Expected response code "250" but got code "550".', 550));
+    expect($code())->toBe('smtp_rejected');
+
+    $fail(new UnexpectedResponseException('Expected response code "250" but got code "421".', 421));
+    expect($code())->toBe('smtp_deferred');
+
+    $fail(new TransportException('Connection could not be established with host "mail.smtp2go.com:2525": timed out'));
+    expect($code())->toBe('connection_failed');
+
+    event(new NotificationSent(new AnonymousNotifiable, $notification, 'mail'));
+    expect($delivery->fresh()?->status)->toBe(ReportEmailDeliveryStatus::Sent)
+        ->and($code())->toBeNull();
 });

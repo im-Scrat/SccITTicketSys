@@ -1,0 +1,112 @@
+name: Backup — Render pilot
+
+# Nightly off-platform backup of the free-tier PILOT (synthetic data).
+#
+# Why it exists: the pilot's database host (Supabase free) keeps no backups and
+# its object storage has no versioning, and Render's own free Postgres is
+# deleted after 30 days. This job is the pilot's only restore point.
+#
+# Why it is built this way — the repository is PUBLIC, so are its job logs and
+# artifacts:
+#  - the dump and the files are encrypted with `age` to a PUBLIC key before
+#    they leave the runner; the private key never touches GitHub (restore runs
+#    on the owner's machine: scripts/pilot-restore-drill.sh);
+#  - the ciphertext goes to a SEPARATE PRIVATE repository, never to this one
+#    and never as a workflow artifact;
+#  - nothing here prints a connection string, key or file listing.
+#
+# Inert until the repository variable PILOT_BACKUP_ENABLED is "true" and the
+# environment `pilot-backup` holds: PILOT_DB_URL, PILOT_S3_ACCESS_KEY_ID,
+# PILOT_S3_SECRET_ACCESS_KEY, BACKUP_AGE_RECIPIENT (public key),
+# BACKUP_REPO (owner/name of the private repository), BACKUP_REPO_TOKEN
+# (fine-grained token: contents read/write on that repository only); and
+# variables PILOT_S3_BUCKET, PILOT_S3_ENDPOINT, PILOT_S3_REGION.
+
+on:
+  schedule:
+    - cron: '30 17 * * *' # 01:30 Asia/Manila
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      PILOT_DB_URL:
+        required: true
+      PILOT_S3_ACCESS_KEY_ID:
+        required: true
+      PILOT_S3_SECRET_ACCESS_KEY:
+        required: true
+      BACKUP_AGE_RECIPIENT:
+        required: true
+      BACKUP_REPO:
+        required: true
+      BACKUP_REPO_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pilot-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Encrypted pilot backup
+    if: vars.PILOT_BACKUP_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: pilot-backup
+    env:
+      STAMP: ${{ github.run_id }}
+    steps:
+      - name: Tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq age >/dev/null
+
+      - name: Dump the database (pg_dump 17, custom format)
+        env:
+          PILOT_DB_URL: ${{ secrets.PILOT_DB_URL }}
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/out"
+          docker run --rm -e PILOT_DB_URL -v "$RUNNER_TEMP/out:/out" postgres:17 \
+            sh -c 'pg_dump --format=custom --no-owner --no-privileges --dbname="$PILOT_DB_URL" --file=/out/database.dump'
+          test -s "$RUNNER_TEMP/out/database.dump"
+
+      - name: Copy the uploaded files
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.PILOT_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.PILOT_S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.PILOT_S3_REGION }}
+        run: |
+          set -eu
+          aws s3 sync "s3://${{ vars.PILOT_S3_BUCKET }}" "$RUNNER_TEMP/files" \
+            --endpoint-url "${{ vars.PILOT_S3_ENDPOINT }}" --only-show-errors
+          tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/out/files.tar.gz" files
+
+      - name: Encrypt (public key only — the private key is not in GitHub)
+        env:
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -eu
+          cd "$RUNNER_TEMP/out"
+          sha256sum database.dump files.tar.gz > SHA256SUMS
+          tar -cf "pilot-$STAMP.tar" database.dump files.tar.gz SHA256SUMS
+          age -r "$BACKUP_AGE_RECIPIENT" -o "pilot-$STAMP.tar.age" "pilot-$STAMP.tar"
+          rm -f database.dump files.tar.gz "pilot-$STAMP.tar"
+          rm -rf "$RUNNER_TEMP/files"
+
+      - name: Store in the private backup repository
+        env:
+          BACKUP_REPO: ${{ secrets.BACKUP_REPO }}
+          BACKUP_REPO_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+        run: |
+          set -eu
+          DAY="$(date -u +%Y-%m-%d)"
+          git clone --quiet --depth 1 "https://x-access-token:${BACKUP_REPO_TOKEN}@github.com/${BACKUP_REPO}.git" "$RUNNER_TEMP/store"
+          mkdir -p "$RUNNER_TEMP/store/pilot/$DAY"
+          mv "$RUNNER_TEMP/out/pilot-$STAMP.tar.age" "$RUNNER_TEMP/store/pilot/$DAY/"
+          cd "$RUNNER_TEMP/store"
+          git config user.name "sccit-backup"
+          git config user.email "sccit-backup@users.noreply.github.com"
+          git add pilot
+          git commit --quiet -m "pilot backup $DAY (run $STAMP)"
+          git push --quiet
+          echo "Encrypted backup stored: pilot/$DAY/pilot-$STAMP.tar.age"

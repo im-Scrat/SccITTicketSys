@@ -15,9 +15,16 @@ class FloorFactory extends Factory
 {
     protected $model = Floor::class;
 
+    /** Next floor number handed out in this process. */
+    private static int $next = 0;
+
     public function definition(): array
     {
-        $number = fake()->numberBetween(1, 10);
+        // A counter, not a random pick: floors are unique per building
+        // (building_id, floor_number), and two random numbers from 1–10 for the
+        // same building collided often enough to fail CI (LocationArchiveTest).
+        // Cycles within 1–200 so the value stays a plausible floor.
+        $number = (self::$next++ % 200) + 1;
 
         return [
             'building_id' => Building::factory(),

@@ -114,8 +114,13 @@ class QrService
             new SvgImageBackEnd,
         ));
 
+        // Encoded from the code and the *current* FRONTEND_URL, not from the
+        // stored `payload`: that column froze the host at issue time (every
+        // production code read http://localhost:8081/qr/…), so a label printed
+        // after a move to a public address pointed back at the old one. The
+        // stored payload stays as the record of what was originally printed.
         return $writer->writeString(
-            $qrCode->payload ?: $qrCode->code,
+            $this->payloadFor($qrCode->code),
             'UTF-8',
             $this->errorCorrectionLevel($errorCorrection),
         );

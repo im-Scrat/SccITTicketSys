@@ -88,3 +88,33 @@ Schedule::command('assets:imports-maintain')
     ->everyFifteenMinutes()
     ->withoutOverlapping()
     ->onOneServer();
+
+/*
+ * Phase 2.7 (WP-2.7e, SRS FR-NOT-008, SDD DD-63) — the daily digest, restored
+ * 2026-10-20. Both this entry and the SLA sweep below were verified live in
+ * September (`schedule:list` resolved the digest to `0 23 * * *` UTC) and were
+ * lost when the workspace was rebuilt from forensic sources (recovery
+ * checkpoint 1debc58 restored the commands but not their schedule).
+ *
+ * Hourly from 07:00 to 10:00 school time rather than once at 07:00: the
+ * command claims each user's day before sending (at-most-once), so later runs
+ * that day send nothing new — but an instance that was asleep or restarting
+ * at 07:00 (the free-tier pilot) still catches up the same morning.
+ */
+Schedule::command('notifications:send-digest')
+    ->timezone(SchoolClock::TIMEZONE)
+    ->hourly()
+    ->between('07:00', '10:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
+/*
+ * Phase 2.7 (WP-2.7a) — SLA at-risk / breached sweep, restored 2026-10-20 (see
+ * above). Hourly, as designed; each crossing is announced once per ticket and
+ * stage (TicketSlaThresholdNotification's dedupe key carries no date), so
+ * extra or catch-up runs never repeat a notification.
+ */
+Schedule::command('tickets:detect-sla')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onOneServer();

@@ -295,7 +295,7 @@ workers.
 queued after 24 hours are marked failed, and request IPs and user agents on
 rows older than 180 days are cleared.
 
-**Email.** Production SMTP points at the Mailpit sink (`:8026`), so emailed
+**Email.** Local production SMTP points at the Mailpit sink (`:8026`) — see §8 for the SMTP2GO configuration — so emailed
 reports are captured there and reach no real mailbox — the dialog says so while
 `REPORT_EMAIL_DELIVERS_EXTERNALLY` is false. **Mailpit keeps a copy of every
 attachment** until its own data is cleared; treat its volume as holding report
@@ -378,3 +378,50 @@ dependency — the reason goes to the log, never to the anonymous caller.
 not exist yet, and `SystemSettingSeeder` writes a setting's value only when the
 setting is new. A re-run of `db:seed --force` therefore cannot reset the
 administrator's password or undo a changed setting.
+
+## 8. Outgoing mail and SMTP2GO (2026-10-20)
+
+**Local production keeps Mailpit** (`mailpit_prod`, UI on `:8026`): nothing it
+captures reaches a real mailbox. The application is ready for a real relay
+through environment variables only — no code differs between Mailpit and
+SMTP2GO:
+
+| Variable | Mailpit (local) | SMTP2GO (pilot / later production) |
+|---|---|---|
+| `MAIL_HOST` / `MAIL_PORT` | `mailpit_prod` / `1025` | `mail.smtp2go.com` / `2525` (Render's free tier blocks 25, 465, 587) |
+| `MAIL_SCHEME` / `MAIL_REQUIRE_TLS` | unset / unset | `smtp` / `true` — STARTTLS mandatory, credentials never in clear |
+| `MAIL_TIMEOUT` | unset (60 s) | `10` |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | unset | an SMTP2GO SMTP user (secret) |
+| `MAIL_FROM_ADDRESS` | `noreply@sccit.local` | a sender verified in SMTP2GO |
+| `MAIL_TEST_REDIRECT_TO` | never | never — sandbox only, and ignored when `APP_ENV=production` |
+
+**Checking a relay without sending.** `php artisan mail:check` prints the
+configuration (credentials only as set / not set), connects, negotiates TLS and
+authenticates, and disconnects without sending. `--send=<address>` sends one
+fixed test message. Where there is no shell (the Render pilot), the
+Administrator page **Outgoing email** does the same; its test message can only
+go to the signed-in administrator.
+
+**Testing SMTP2GO from this laptop** — `scripts/mail-sandbox.sh check` /
+`send <address>` runs `mail:check` in a one-off container with only the
+gitignored `backend/.env.smtp2go.local`, `APP_ENV=local` and a mandatory
+`MAIL_TEST_REDIRECT_TO`. It never touches the production stack, its database
+or its users. The free SMTP2GO plan allows 25 messages an hour until a sender
+domain is verified.
+
+**What "sent" means.** All mail is queued (account emails too, after their
+transaction commits) and retried after 1, 5 and 15 minutes. A report delivery
+row says `sent` when the relay **accepted** the message, or `failed` with
+`smtp_auth_failed`, `smtp_rejected`, `smtp_deferred`, `tls_unavailable`,
+`connection_failed` or `transport_error`. Delivered, bounced and spam-filed are
+visible only in SMTP2GO's Activity log.
+
+**Before real users receive mail** (not yet approved): a sender *domain*
+verified in SMTP2GO (its three CNAME records plus a DMARC record), the
+placeholder user addresses corrected (two are on registrable domains), and
+`REPORT_EMAIL_DELIVERS_EXTERNALLY=true` set deliberately.
+
+**Schedules restored 2026-10-20.** `notifications:send-digest` runs hourly from
+07:00 to 10:00 Asia/Manila (at most one digest per user per day) and
+`tickets:detect-sla` hourly. Both were scheduled in Phase 2.7 and lost in the
+2026-09 workspace rebuild.

@@ -18,6 +18,7 @@ use App\Enums\ReportExportStatus;
 use App\Enums\ReportType;
 use App\Models\ReportExport;
 use App\Models\User;
+use App\Support\Attachments\AttachmentSecurity;
 use App\Support\SchoolClock;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -108,6 +109,7 @@ final class ReportExporter
             'options' => $options,
             'as_of' => $asOf->utc(),
             'dedupe_key' => $key,
+            'disk' => AttachmentSecurity::storageDisk(),
             'request_ip' => $request->ip(),
             'request_user_agent' => mb_substr((string) $request->userAgent(), 0, 512),
         ]);

@@ -57,14 +57,14 @@ class AttachAssetFile
         $mime = AttachmentSecurity::detect($file, AttachmentSecurity::PROFILE_ASSET);
 
         // The stored path is composed here, never taken from the upload.
-        $path = $file->store("{$folder}/{$target->uuid}", 'local');
+        $path = $file->store("{$folder}/{$target->uuid}", $disk = AttachmentSecurity::storageDisk());
 
         $attachment = DB::transaction(fn (): AssetAttachment => AssetAttachment::query()->create([
             'asset_id' => $isPcUnit ? null : $target->getKey(),
             'pc_unit_id' => $isPcUnit ? $target->getKey() : null,
             'uploaded_by' => $actor->getKey(),
             'kind' => AttachmentSecurity::kindFor($mime),
-            'disk' => 'local',
+            'disk' => $disk,
             'storage_path' => $path,
             'original_filename' => $file->getClientOriginalName(),
             'mime_type' => $mime,

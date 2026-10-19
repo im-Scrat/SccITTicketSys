@@ -1,0 +1,35 @@
+name: Keep-alive — Render pilot
+
+# Render spins a free web service down after 15 minutes without traffic, and
+# a spun-down container runs no queue worker and no scheduler
+# (render.com/docs/free). During the school day this request every 10 minutes
+# keeps the pilot awake so queued mail and scheduled sweeps run on time.
+#
+# Window: 06:00–19:59 Asia/Manila (22:00–11:59 UTC) — about 434 instance-hours
+# in a 31-day month, inside the 750 free hours with room for deploys. Round the
+# clock would need 744 of them and leave no margin for a second service or an
+# overlapping deploy. Outside the window the pilot sleeps; queued work runs on
+# the next wake, and every scheduled task is a catch-up sweep.
+#
+# GitHub runs scheduled workflows on a best-effort basis (they can start late),
+# and disables them in a public repository after 60 days without activity.
+#
+# Inert until the repository variable KEEPALIVE_ENABLED is "true" and PILOT_URL
+# is set.
+
+on:
+  schedule:
+    - cron: '*/10 22-23 * * *'
+    - cron: '*/10 0-11 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    if: vars.KEEPALIVE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: GET /up
+        run: curl -fsS -o /dev/null --max-time 120 "${{ vars.PILOT_URL }}/up"

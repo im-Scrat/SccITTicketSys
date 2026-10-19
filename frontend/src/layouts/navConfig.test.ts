@@ -49,7 +49,14 @@ describe('technician navigation', () => {
 
   it('never offers administrator surfaces, even with a per-user grant', () => {
     const items = labels('technician')
-    for (const label of ['Technicians', 'AI settings', 'Floorplan', 'Support requests', 'Users']) {
+    for (const label of [
+      'Technicians',
+      'AI settings',
+      'Outgoing email',
+      'Floorplan',
+      'Support requests',
+      'Users',
+    ]) {
       expect(items).not.toContain(label)
     }
   })
@@ -60,6 +67,7 @@ describe('administrator navigation', () => {
     const items = labels('administrator')
     expect(items).toContain('Technicians')
     expect(items).toContain('AI settings')
+    expect(items).toContain('Outgoing email')
     expect(items).toContain('Ticket management')
     expect(items).not.toContain('My submissions')
   })

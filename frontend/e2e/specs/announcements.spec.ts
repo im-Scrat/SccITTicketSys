@@ -138,6 +138,19 @@ test.describe('announcements — administrator', () => {
 
     await goto(page, '/sign-in')
     await apiLogin(page, 'teacher')
+    // The publish notification is written by a queued job. Count only once it
+    // has arrived — otherwise it lands between the two counts and reads as a
+    // notification caused by the edit (an intermittent CI failure, 2026-10-20).
+    await expect
+      .poll(
+        async () =>
+          JSON.stringify(
+            (await apiJson<{ data: unknown[] }>(page, '/api/notifications?type=announcement')).data
+              .data,
+          ).includes(title),
+        { timeout: 20_000 },
+      )
+      .toBe(true)
     const before = await apiJson<{ data: unknown[] }>(page, '/api/notifications?type=announcement')
     const countBefore = before.data.data.length
     await signOut(page)

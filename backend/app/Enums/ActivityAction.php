@@ -151,6 +151,14 @@ enum ActivityAction: string
     case AiModelRegistered = 'ai_model_registered';
     case AiModelUpdated = 'ai_model_updated';
 
+    /* ------------------------------------ mail delivery checks (2026-10-20) */
+
+    // An administrator tested the outgoing-mail connection (connect, STARTTLS,
+    // authenticate — no message) or sent the fixed test message to their own
+    // address. Properties hold the outcome code only, never server text.
+    case MailConnectionChecked = 'mail_connection_checked';
+    case MailTestSent = 'mail_test_sent';
+
     /* ----------------------------------- knowledge & assistant (WP-Q) */
 
     case KnowledgeArticleCreated = 'knowledge_article_created';
@@ -358,6 +366,8 @@ enum ActivityAction: string
             self::AiSettingsUpdated => 'AI settings updated',
             self::AiModelRegistered => 'AI model registered',
             self::AiModelUpdated => 'AI model updated',
+            self::MailConnectionChecked => 'Mail connection checked',
+            self::MailTestSent => 'Test email sent',
             self::KnowledgeArticleCreated => 'Knowledge article created',
             self::KnowledgeArticleUpdated => 'Knowledge article updated',
             self::KnowledgeArticlePublished => 'Knowledge article published',

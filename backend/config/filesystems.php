@@ -17,6 +17,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Private Upload Disk
+    |--------------------------------------------------------------------------
+    |
+    | Where *new* uploads and generated files are written: ticket, asset,
+    | maintenance and work-support attachments, asset-import sources and report
+    | documents. Every stored row records its own disk, and reads always follow
+    | that column, so changing this value never orphans an existing file.
+    |
+    | `local` (storage/app/private, the sccit_prod_private volume) on the
+    | Docker production stack. `s3` where the container filesystem is not
+    | durable — the Render free-tier pilot, whose disk is lost on every
+    | restart, redeploy or spin-down (render.com/docs/free).
+    |
+    */
+
+    'attachments' => env('ATTACHMENTS_DISK', 'local'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
@@ -55,7 +74,10 @@ return [
             'bucket' => env('AWS_BUCKET'),
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
-            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'use_path_style_endpoint' => (bool) env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            // No `visibility`: S3-compatible stores such as Supabase Storage
+            // reject or ignore ACL headers. The bucket itself must be private;
+            // files are only ever streamed through the authorizing controllers.
             'throw' => false,
             'report' => false,
         ],

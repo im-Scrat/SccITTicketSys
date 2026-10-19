@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domains\Identity\Notifications;
 
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * A free-form message an administrator sends to selected users from the bulk
@@ -13,7 +12,7 @@ use Illuminate\Notifications\Notification;
  * is plain text supplied by the administrator; no templating or links are
  * injected beyond the standard mail shell.
  */
-class AdminMessage extends Notification
+class AdminMessage extends AccountMail
 {
     /**
      * @param  list<string>  $lines
@@ -22,14 +21,6 @@ class AdminMessage extends Notification
         public readonly string $subjectLine,
         public readonly array $lines,
     ) {}
-
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
 
     public function toMail(object $notifiable): MailMessage
     {

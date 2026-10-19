@@ -14,6 +14,7 @@ import {
   LineChart,
   ListChecks,
   type LucideIcon,
+  Mail,
   Map as MapIcon,
   Megaphone,
   PackageCheck,
@@ -260,6 +261,13 @@ const ADMINISTRATOR_NAV: NavItem[] = [
     label: 'AI settings',
     icon: BrainCircuit,
     permission: 'ai.configure',
+    group: 'Administration',
+  },
+  {
+    to: '/app/outgoing-email',
+    label: 'Outgoing email',
+    icon: Mail,
+    permission: 'system.settings.manage',
     group: 'Administration',
   },
 ]

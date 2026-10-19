@@ -52,12 +52,12 @@ class AttachTicketFile
         $mime = AttachmentSecurity::detect($file, AttachmentSecurity::PROFILE_TICKET);
 
         // Composed here, never taken from the upload.
-        $path = $file->store("tickets/{$ticket->uuid}", 'local');
+        $path = $file->store("tickets/{$ticket->uuid}", $disk = AttachmentSecurity::storageDisk());
 
         $attachment = Attachment::query()->create([
             'ticket_id' => $ticket->getKey(),
             'uploaded_by' => $actor->getKey(),
-            'disk' => 'local',
+            'disk' => $disk,
             'storage_path' => $path,
             'original_filename' => $file->getClientOriginalName(),
             'mime_type' => $mime,

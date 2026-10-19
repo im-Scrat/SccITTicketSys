@@ -14,3 +14,9 @@ paths = [
   '''backend/tests/Feature/AI/AssistantDataSafetyTest\.php''',
   '''backend/tests/Feature/Security/SecretRedactionTest\.php''',
 ]
+# The RFC 6455 example Sec-WebSocket-Key ("the sample nonce"), a published
+# constant, not a credential. Used once in ci.yml (commit e0d368e) before the
+# key was generated per run; allowlisted by exact value, never by pattern.
+regexes = [
+  '''dGhlIHNhbXBsZSBub25jZQ==''',
+]

@@ -58,13 +58,13 @@ class AttachRepairImage
         $mime = AttachmentSecurity::detect($file, AttachmentSecurity::PROFILE_MAINTENANCE);
 
         // Composed here, never taken from the upload.
-        $path = $file->store("maintenance/{$record->uuid}", 'local');
+        $path = $file->store("maintenance/{$record->uuid}", $disk = AttachmentSecurity::storageDisk());
 
         $image = RepairImage::query()->create([
             'maintenance_record_id' => $record->getKey(),
             'uploaded_by' => $actor->getKey(),
             'image_type' => $type->value,
-            'disk' => 'local',
+            'disk' => $disk,
             'storage_path' => $path,
             'original_filename' => $file->getClientOriginalName(),
             'mime_type' => $mime,

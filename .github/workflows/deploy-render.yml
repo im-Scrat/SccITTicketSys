@@ -1,0 +1,110 @@
+name: Deploy — Render pilot
+
+# The ONLY way the free-tier pilot is deployed. Render's service has
+# autoDeployTrigger "off" and its Blueprint has Auto Sync "No", so pushing to
+# any branch deploys nothing (render.yaml, docs/RENDER_PILOT.md).
+#
+# Order of checks, each of which stops the deploy:
+#  1  the `render-pilot` environment's required reviewer approves the run;
+#  2  the commit is on origin/main — reviewed, merged code only;
+#  3  every CI check on that exact commit succeeded;
+#  4  a fresh encrypted pilot backup was stored (backup-pilot.yml);
+#  5  only then is the Render deploy hook called, pinned to that commit
+#     (?ref=<sha>), and the public URL smoke-tested once it is live.
+#
+# Requires: environment `render-pilot` (required reviewer: the owner) with
+# secret RENDER_DEPLOY_HOOK, and repository variable PILOT_URL
+# (https://<service>.onrender.com). The backup job's own environment and
+# secrets are described in backup-pilot.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit on main to deploy (full or short SHA)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: deploy-render-pilot
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Approve and verify the commit
+    runs-on: ubuntu-latest
+    environment: render-pilot
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: The commit is on main
+        id: resolve
+        run: |
+          set -eu
+          SHA="$(git rev-parse --verify "${{ inputs.sha }}^{commit}")"
+          git merge-base --is-ancestor "$SHA" origin/main \
+            || { echo "::error::$SHA is not on origin/main — merge it through a pull request first."; exit 1; }
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Every CI check on that commit passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          set -eu
+          RUNS="$(gh api "repos/${{ github.repository }}/commits/$SHA/check-runs?per_page=100" \
+            --jq '[.check_runs[] | select(.name != "Approve and verify the commit" and .name != "Encrypted pilot backup" and .name != "Deploy and smoke-test")]')"
+          TOTAL="$(echo "$RUNS" | jq 'length')"
+          BAD="$(echo "$RUNS" | jq '[.[] | select(.conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral")] | length')"
+          for required in "Backend (Laravel)" "Frontend (React)" "Secret scan (gitleaks)"; do
+            echo "$RUNS" | jq -e --arg n "$required" 'any(.[]; .name == $n and .conclusion == "success")' >/dev/null \
+              || { echo "::error::Required check '$required' has not succeeded on $SHA."; exit 1; }
+          done
+          [ "$BAD" -eq 0 ] || { echo "::error::$BAD check(s) on $SHA did not succeed."; exit 1; }
+          echo "$TOTAL check runs on $SHA, all successful."
+
+  backup:
+    name: Backup before deploy
+    needs: verify
+    uses: ./.github/workflows/backup-pilot.yml
+    secrets: inherit
+
+  deploy:
+    name: Deploy and smoke-test
+    needs: [verify, backup]
+    runs-on: ubuntu-latest
+    environment: render-pilot
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+
+      - name: Trigger the Render deploy, pinned to the commit
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          SHA: ${{ needs.verify.outputs.sha }}
+        run: |
+          set -eu
+          case "$RENDER_DEPLOY_HOOK" in *\?*) SEP='&' ;; *) SEP='?' ;; esac
+          curl -fsS -o /dev/null -X POST "${RENDER_DEPLOY_HOOK}${SEP}ref=${SHA}"
+          echo "Deploy of $SHA requested."
+
+      - name: Wait for the new release, then smoke-test the public URL
+        env:
+          PILOT_URL: ${{ vars.PILOT_URL }}
+        run: |
+          set -eu
+          # A free instance takes ~1 minute to start, and the build comes first.
+          for i in $(seq 1 60); do
+            curl -fsS -o /dev/null --max-time 30 "$PILOT_URL/up" && break
+            sleep 20
+          done
+          sh scripts/smoke.sh --url "$PILOT_URL"

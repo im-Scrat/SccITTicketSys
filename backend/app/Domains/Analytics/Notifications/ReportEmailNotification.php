@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Analytics\Notifications;
 
+use App\Domains\Administration\Notifications\Concerns\RetriesMailDelivery;
 use App\Domains\Administration\Notifications\ProjectNotification;
 use App\Models\ReportEmailDelivery;
 use App\Models\ReportExport;
@@ -31,9 +32,8 @@ use Illuminate\Notifications\Notification;
  */
 class ReportEmailNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
-
-    public int $tries = 3;
+    // Three attempts, waiting 1, 5 and 15 minutes between them.
+    use Queueable, RetriesMailDelivery;
 
     public function __construct(
         public readonly ReportExport $export,

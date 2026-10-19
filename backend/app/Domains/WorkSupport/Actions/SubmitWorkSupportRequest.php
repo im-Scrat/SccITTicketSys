@@ -258,14 +258,16 @@ class SubmitWorkSupportRequest
     {
         $caption = is_string($data['caption'] ?? null) && $data['caption'] !== '' ? $data['caption'] : null;
 
+        $disk = AttachmentSecurity::storageDisk();
+
         foreach ($files as $file) {
             $mime = AttachmentSecurity::detect($file, AttachmentSecurity::PROFILE_MAINTENANCE);
 
             $request->attachments()->create([
                 'uploaded_by' => $actor->getKey(),
                 'kind' => AttachmentSecurity::kindFor($mime),
-                'disk' => 'local',
-                'storage_path' => $file->store("work-support/{$request->uuid}", 'local'),
+                'disk' => $disk,
+                'storage_path' => $file->store("work-support/{$request->uuid}", $disk),
                 'original_filename' => $file->getClientOriginalName(),
                 'mime_type' => $mime,
                 'file_size' => $file->getSize(),
