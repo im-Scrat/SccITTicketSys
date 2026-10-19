@@ -1,6 +1,15 @@
 import { expect, test } from '@playwright/test'
 import { manifest } from '../fixtures/manifest'
-import { apiStatus, goto, settle, signIn, signOut } from '../fixtures/app'
+import {
+  apiFetch,
+  apiJson,
+  apiLogin,
+  apiStatus,
+  goto,
+  settle,
+  signIn,
+  signOut,
+} from '../fixtures/app'
 
 /**
  * QR-verified technician job workflow — browser regression for WP-2.6b.
@@ -85,10 +94,8 @@ test.describe('QR scan entry', () => {
 
     await signIn(page, 'technician')
 
-    // Consumed on use. Asserted on the stored value rather than on the landing
-    // URL deliberately: the redirect itself is subject to the known defect
-    // above, but this invariant — a scan is spent once — holds either way, and
-    // will keep holding after that defect is fixed.
+    // Consumed on use: a scan is spent once, so the next sign-in in this tab
+    // lands on the workspace rather than replaying it.
     expect(await stored()).toBeNull()
 
     await signOut(page)
@@ -152,5 +159,193 @@ test.describe('QR authorization boundary', () => {
     const knownUrl = new URL(page.url()).pathname
 
     expect(unknownUrl).toBe(knownUrl)
+  })
+})
+
+/**
+ * The resume, its failure cases, and its redirect safety (FR-QR-011, DD-48).
+ *
+ * Labels for these cases are issued through the administrator API for a PC of
+ * their own (unique per run), so revoking or archiving them never touches the
+ * fixture label the tests above depend on.
+ */
+test.describe('QR sign-in resume — outcomes and safety', () => {
+  const stamp = () => Date.now().toString(36).toUpperCase()
+
+  /** A fresh PC with an active label; returns its code, uuid and name. */
+  async function issueLabel(page: import('@playwright/test').Page) {
+    const id = stamp()
+    await goto(page, '/sign-in')
+    await apiLogin(page, 'administrator')
+    const pc = await apiJson<{ data: { id: string } }>(page, '/api/admin/pc-units', 'POST', {
+      unit_code: `E2E-QR-${id}`,
+      pc_name: `E2E Label PC ${id}`,
+      status: 'available',
+    })
+    expect(pc.status, 'creating the PC').toBe(201)
+    const qr = await apiJson<{ data: { code: string } }>(
+      page,
+      `/api/admin/pc-units/${pc.data.data.id}/qr`,
+      'POST',
+    )
+    expect(qr.status, 'issuing the label').toBe(201)
+    return { code: qr.data.data.code, uuid: pc.data.data.id, name: `E2E Label PC ${id}` }
+  }
+
+  async function expectNoDisclosure(page: import('@playwright/test').Page, secrets: string[]) {
+    const body = (await page.locator('body').innerText()).toLowerCase()
+    for (const secret of secrets) expect(body).not.toContain(secret.toLowerCase())
+  }
+
+  test('an administrator signing in from a scan lands on that machine', async ({ page }) => {
+    const { qr, pc_unit } = fixtures()
+
+    await goto(page, qr.scan_path)
+    await expect(page).toHaveURL(/\/sign-in/)
+    await signIn(page, 'administrator')
+
+    await expect(page).toHaveURL(new RegExp(`/app/qr/${qr.code}$`))
+    await expect(page.getByText(pc_unit.unit_code).first()).toBeVisible()
+    // The shared status vocabulary (DD-100) — never a connectivity claim.
+    await expect(page.getByText(/Available|Pending Repair|Needs Fix/).first()).toBeVisible()
+    await expectNoDisclosure(page, ['online', 'offline'])
+  })
+
+  test('a technician with no work on the scanned machine is refused after sign-in, naming nothing', async ({
+    page,
+  }) => {
+    const label = await issueLabel(page)
+    await signOut(page)
+
+    await goto(page, `/qr/${label.code}`)
+    await expect(page).toHaveURL(/\/sign-in/)
+    await signIn(page, 'technician')
+
+    await expect(page).toHaveURL(new RegExp(`/app/qr/${label.code}$`))
+    await expect(
+      page.getByRole('heading', { name: 'You have no assigned work on this machine' }),
+    ).toBeVisible()
+    await expectNoDisclosure(page, [label.name, `E2E-QR-`])
+  })
+
+  test('a revoked label resumes to an "out of date" refusal, naming nothing', async ({ page }) => {
+    const label = await issueLabel(page)
+    const revoked = await apiFetch(page, `/api/admin/pc-units/${label.uuid}/qr/revoke`, 'POST', {})
+    expect(revoked.status, `revoking: ${revoked.body}`).toBe(200)
+    await signOut(page)
+
+    // Anonymous: the same answer as any label — sign in — so nothing is disclosed.
+    await goto(page, `/qr/${label.code}`)
+    await expect(page).toHaveURL(/\/sign-in/)
+    await signIn(page, 'technician')
+
+    await expect(page).toHaveURL(new RegExp(`/app/qr/${label.code}$`))
+    await expect(page.getByRole('heading', { name: 'This label is out of date' })).toBeVisible()
+    await expectNoDisclosure(page, [label.name])
+  })
+
+  test('the label of an archived machine is refused as out of date', async ({ page }) => {
+    const label = await issueLabel(page)
+    const archived = await apiFetch(page, `/api/admin/pc-units/${label.uuid}`, 'DELETE')
+    expect(archived.status, `archiving: ${archived.body}`).toBeLessThan(300)
+    await signOut(page)
+
+    await signIn(page, 'technician')
+    await goto(page, `/qr/${label.code}`)
+    await settle(page)
+
+    await expect(page.getByRole('heading', { name: 'This label is out of date' })).toBeVisible()
+    await expectNoDisclosure(page, [label.name])
+  })
+
+  for (const poison of [
+    'https://evil.test/x',
+    '//evil.test/x',
+    '/\\evil.test',
+    'javascript:alert(1)',
+    '/app/qr/../../evil',
+  ]) {
+    test(`a tampered pending scan (${poison}) cannot redirect sign-in`, async ({ page }) => {
+      await goto(page, '/sign-in')
+      await page.evaluate((value) => sessionStorage.setItem('sccit.pendingScan', value), poison)
+
+      await signIn(page, 'technician')
+
+      // Discarded as malformed (not a code), so the visitor lands on the
+      // workspace — on this origin.
+      const url = new URL(page.url())
+      expect(url.hostname).toBe('localhost')
+      expect(url.pathname).toBe('/app')
+    })
+  }
+
+  test('a destination in the sign-in URL is ignored — there is no redirect parameter', async ({
+    page,
+  }) => {
+    await goto(
+      page,
+      '/sign-in?redirect=https://evil.test&next=//evil.test&returnTo=/app/qr/PC-E2EFIXTURE',
+    )
+
+    await signIn(page, 'technician')
+
+    const url = new URL(page.url())
+    expect(url.hostname).toBe('localhost')
+    expect(url.pathname).toBe('/app')
+  })
+
+  test('a scan survives sign-in and a forced password change, and resumes', async ({ page }) => {
+    const { qr } = fixtures()
+    const id = stamp().toLowerCase()
+    const email = `e2e.forced.${id}@sccit.test`
+    const first = 'Forced-Passw0rd!1'
+
+    // A technician an administrator has flagged for a password change.
+    await goto(page, '/sign-in')
+    await apiLogin(page, 'administrator')
+    const created = await apiFetch(page, '/api/admin/users', 'POST', {
+      role: 'technician',
+      first_name: 'Forced',
+      last_name: `Tech ${id}`,
+      email,
+      status: 'active',
+      password: first,
+      password_confirmation: first,
+      force_password_reset: true,
+    })
+    expect(created.status, `creating the account: ${created.body}`).toBe(201)
+    await signOut(page)
+
+    // Scan signed out, then sign in through the form (not the helper: the
+    // change screen deliberately has no workspace shell to wait for).
+    await goto(page, qr.scan_path)
+    await expect(page).toHaveURL(/\/sign-in/)
+    await page.getByLabel(/^Email/).fill(email)
+    await page.getByLabel(/^Password/).fill(first)
+    await page.getByRole('button', { name: /sign in/i }).click()
+
+    await expect(page).toHaveURL(/\/change-password$/)
+    await page.getByLabel(/^current password/i).fill(first)
+    await page.getByLabel(/^new password/i).fill('Forced-Passw0rd!2')
+    await page.getByLabel(/^confirm new password/i).fill('Forced-Passw0rd!2')
+    await page.getByRole('button', { name: /set new password and continue/i }).click()
+
+    // Back on the scanned machine — refused, because this new technician has
+    // no work on it, which proves the panel (not the dashboard) was reached.
+    await expect(page).toHaveURL(new RegExp(`/app/qr/${qr.code}$`))
+    await expect(
+      page.getByRole('heading', { name: 'You have no assigned work on this machine' }),
+    ).toBeVisible()
+  })
+
+  test('signing in returns to the protected page that asked for it, query included', async ({
+    page,
+  }) => {
+    await goto(page, '/app/notifications?filter=unread')
+    await expect(page).toHaveURL(/\/sign-in/)
+
+    await signIn(page, 'technician')
+
+    await expect(page).toHaveURL(/\/app\/notifications\?filter=unread$/)
   })
 })

@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { PageLoader } from '@/components/ui/PageLoader'
 import { useAuth } from '../hooks/useAuth'
+import { workspaceReturnPath } from '../lib/postAuthDestination'
 
 export const FORCED_PASSWORD_PATH = '/change-password'
 
@@ -37,9 +38,11 @@ export function ProtectedRoute() {
   // Leaving the change screen is decided here alone — not also by the page —
   // so a completed change returns the user to what they originally asked for
   // instead of whichever of two competing navigations happened to run last.
+  // The return path goes through the same validator as sign-in, so a scan
+  // resumed after sign-in survives a forced change too (FR-QR-011).
   if (!user?.force_password_reset && onForcedScreen) {
-    const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
-    return <Navigate to={from?.startsWith('/app') ? from : '/app'} replace />
+    const from = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from
+    return <Navigate to={workspaceReturnPath(from)} replace />
   }
 
   return <Outlet />

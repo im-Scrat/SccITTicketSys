@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AUTH_USER_KEY } from '@/features/auth/hooks/useAuth'
 import ForcePasswordChangePage from '@/features/auth/pages/ForcePasswordChangePage'
@@ -44,18 +44,29 @@ function principal(forced: boolean): AuthUser {
   } as unknown as AuthUser
 }
 
-function renderAt(pathname: string, forced: boolean) {
+function Here({ label }: { label: string }) {
+  const { search } = useLocation()
+  return (
+    <p>
+      {label}
+      {search}
+    </p>
+  )
+}
+
+function renderAt(entry: string | { pathname: string; state: unknown }, forced: boolean) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData(AUTH_USER_KEY, principal(forced))
 
   render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[pathname]}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route element={<ProtectedRoute />}>
             <Route path="/change-password" element={<ForcePasswordChangePage />} />
             <Route path="/app" element={<p>dashboard</p>} />
-            <Route path="/app/work" element={<p>my work</p>} />
+            <Route path="/app/work" element={<Here label="my work" />} />
+            <Route path="/app/qr/:code" element={<Here label="scan panel" />} />
           </Route>
           <Route path="/sign-in" element={<p>sign-in form</p>} />
         </Routes>
@@ -121,5 +132,30 @@ describe('ProtectedRoute — forced password reset', () => {
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.queryByText('my work')).not.toBeInTheDocument()
+  })
+
+  it('returns to a resumed scan with its query string after the change (FR-QR-011)', async () => {
+    renderAt(
+      {
+        pathname: '/change-password',
+        state: { from: { pathname: '/app/qr/PC-AB12CD34EF', search: '?from=scan' } },
+      },
+      false,
+    )
+
+    expect(await screen.findByText('scan panel?from=scan')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['protocol-relative', '//evil.test/app'],
+    // Inside the workspace prefix, so only the shared validator can stop it.
+    ['a backslash inside the workspace', '/app/\\evil.test'],
+    ['absolute URL', 'https://evil.test/app'],
+    ['outside the workspace', '/sign-in'],
+    ['a look-alike prefix', '/application'],
+  ])('falls back to the workspace for an unsafe return path (%s)', async (_, pathname) => {
+    renderAt({ pathname: '/change-password', state: { from: { pathname } } }, false)
+
+    expect(await screen.findByText('dashboard')).toBeInTheDocument()
   })
 })
