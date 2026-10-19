@@ -112,10 +112,13 @@ test.describe('Floorplan — administrator edits and saves', () => {
       await page.getByRole('button', { name: 'Edit layout' }).click()
       const unit = node(page, 'E2E Plan PC 1')
       const start = await labelPoint(unit)
+      await unit.scrollIntoViewIfNeeded()
       const box = (await unit.boundingBox())!
+      // Downwards: the seeded units sit side by side in one row, so a move to
+      // the right would land on the next unit and be refused as an overlap.
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
       await page.mouse.down()
-      await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2 + 4, { steps: 6 })
+      await page.mouse.move(box.x + box.width / 2 + 4, box.y + box.height / 2 + 60, { steps: 6 })
       await page.mouse.up()
 
       await expect(page.getByText(/Unsaved changes \(1\)/)).toBeVisible()
@@ -123,8 +126,9 @@ test.describe('Floorplan — administrator edits and saves', () => {
       await expect(page.getByText(/^Saved/)).toBeVisible()
 
       const moved = await labelPoint(unit)
-      expect(moved.x).not.toBe(start.x)
+      expect(moved.y).not.toBe(start.y)
       // Snapped: a 40-unit workstation's centre lands on the 20-unit grid.
+      expect(moved.y % 20).toBe(0)
       expect(moved.x % 20).toBe(0)
 
       await page.reload()

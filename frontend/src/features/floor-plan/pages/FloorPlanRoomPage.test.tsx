@@ -191,6 +191,16 @@ describe('view mode', () => {
     expect(within(details).getByRole('heading', { name: 'PC-01' })).toBeInTheDocument()
   })
 
+  it('lets a keyboard user reach the scrolling Details panel', async () => {
+    renderPage(roomPlan())
+    await screen.findByRole('heading', { level: 1 })
+
+    expect(screen.getByRole('complementary', { name: 'Details panel' })).toHaveAttribute(
+      'tabindex',
+      '0',
+    )
+  })
+
   it('is view-only inside the import review preview', async () => {
     renderPage(roomPlan(), { preview: true })
     await screen.findByRole('heading', { level: 1 })
@@ -223,6 +233,30 @@ describe('editing and saving', () => {
 
     expect(node('PC-01')).toHaveAccessibleName('PC-01, Available, at x 140, y 120')
     expect(screen.getByText('Unsaved changes (1)')).toBeInTheDocument()
+  })
+
+  it('adds a fixture from the "Add fixture" menu, then closes the menu', async () => {
+    await startEditing()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add fixture' }))
+    const menu = screen.getByRole('group', { name: 'Add a fixture' })
+    expect(within(menu).getAllByRole('button')[0]).toHaveFocus()
+    await userEvent.click(within(menu).getByRole('button', { name: 'Desk' }))
+
+    expect(screen.queryByRole('group', { name: 'Add a fixture' })).not.toBeInTheDocument()
+    expect(screen.getByText('Unsaved changes (1)')).toBeInTheDocument()
+  })
+
+  it('closes the fixture menu on Escape and returns focus to its button', async () => {
+    await startEditing()
+    const button = screen.getByRole('button', { name: 'Add fixture' })
+
+    await userEvent.click(button)
+    await userEvent.keyboard('{Escape}')
+
+    expect(screen.queryByRole('group', { name: 'Add a fixture' })).not.toBeInTheDocument()
+    expect(button).toHaveFocus()
+    expect(button).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('cancels a drag that would put two workstations on one spot, and says why', async () => {

@@ -280,6 +280,38 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
 
   const guard = useUnsavedChangesGuard(dirty && !preview)
 
+  /* ── the workspace fills what is left of the viewport ──────────────── */
+
+  // Measured, not a fixed `calc(100dvh - …)`: the header wraps differently at
+  // each width and alerts come and go above the canvas, so only the element's
+  // real top edge says how much height is left. Never below 320px — on a very
+  // short screen the page scrolls rather than the canvas collapsing.
+  const workspace = useRef<HTMLDivElement>(null)
+  const [workspaceHeight, setWorkspaceHeight] = useState<number | null>(null)
+  const hasWorkspace = plan.layout !== null && draft !== null
+
+  useEffect(() => {
+    const el = workspace.current
+    if (!el) return
+    const main = el.closest('main')
+    const measure = () => {
+      const top = el.getBoundingClientRect().top + window.scrollY
+      const gap = main ? parseFloat(getComputedStyle(main).paddingBottom) || 16 : 16
+      setWorkspaceHeight(Math.max(320, Math.floor(window.innerHeight - top - gap)))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    const observer =
+      typeof ResizeObserver === 'undefined' || !el.parentElement
+        ? null
+        : new ResizeObserver(measure)
+    if (observer && el.parentElement) observer.observe(el.parentElement)
+    return () => {
+      window.removeEventListener('resize', measure)
+      observer?.disconnect()
+    }
+  }, [hasWorkspace])
+
   /* ── helpers ───────────────────────────────────────────────────────── */
 
   const pcName = useCallback(
@@ -862,46 +894,32 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
     <div className="flex flex-col gap-4">
       <LiveRegion message={announcement} />
 
-      <header className="flex flex-col gap-3">
-        <nav aria-label="Breadcrumb">
-          <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
-            <li>
-              <Link
-                to="/app/floor-plan"
-                className="font-medium text-primary-strong underline-offset-4 hover:underline"
-              >
-                Floorplan
-              </Link>
-            </li>
-            <li aria-hidden="true">
-              <ChevronRight className="size-4" />
-            </li>
-            <li aria-current="page" className="text-ink">
-              {plan.room.name}
-            </li>
-          </ol>
-        </nav>
-
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-ink-strong text-balance">{plan.room.name}</h1>
-            <p className="mt-1 text-base text-muted">
-              {location || plan.room.code}
-              {plan.layout && (
-                <>
-                  {' · '}
-                  <span className="tabular-nums">
-                    {machines.length} in room · {placedCount} placed ·{' '}
-                    {machines.length - placedCount} not placed
-                  </span>
-                </>
-              )}
-            </p>
+      {/* Compact on purpose: title, actions, counts and the toolbar take about
+          150px, so at 1280×720 the canvas starts above the fold. */}
+      <header className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <nav aria-label="Breadcrumb" className="shrink-0">
+              <ol className="flex items-center gap-1.5 text-sm text-muted">
+                <li>
+                  <Link
+                    to="/app/floor-plan"
+                    className="font-medium text-primary-strong underline-offset-4 hover:underline"
+                  >
+                    Floorplan
+                  </Link>
+                </li>
+                <li aria-hidden="true">
+                  <ChevronRight className="size-4" />
+                </li>
+              </ol>
+            </nav>
+            <h1 className="min-w-0 truncate text-xl font-bold text-ink-strong">{plan.room.name}</h1>
           </div>
 
           {plan.layout && (
-            <div className="flex flex-wrap items-center gap-3">
-              {!preview && <LiveStatus live={live} />}
+            <div className="flex flex-wrap items-center gap-2">
+              {!preview && <LiveStatus live={live} compact />}
               <PresenceIndicator members={members} selfId={user?.id} editing={editingMembers} />
               <SaveStateBadge state={saveState} onRetry={saveError ? () => doSave() : undefined} />
               {plan.editor.can_edit &&
@@ -909,16 +927,23 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
                 (editing ? (
                   <>
                     <Button
+                      size="sm"
                       variant="secondary"
                       onClick={discard}
                       disabled={!dirty || save.isPending}
                     >
                       Discard
                     </Button>
-                    <Button onClick={() => doSave()} loading={save.isPending} disabled={!dirty}>
+                    <Button
+                      size="sm"
+                      onClick={() => doSave()}
+                      loading={save.isPending}
+                      disabled={!dirty}
+                    >
                       Save
                     </Button>
                     <Button
+                      size="sm"
                       variant="ghost"
                       onClick={() => store.getState().setMode('view')}
                       disabled={dirty}
@@ -928,7 +953,8 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
                   </>
                 ) : (
                   <Button
-                    leftIcon={<Pencil className="size-5" aria-hidden="true" />}
+                    size="sm"
+                    leftIcon={<Pencil className="size-4" aria-hidden="true" />}
                     onClick={() => store.getState().setMode('edit')}
                   >
                     Edit layout
@@ -938,53 +964,68 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
           )}
         </div>
 
-        {plan.layout && machines.length > 0 && (
-          <div
-            role="group"
-            aria-label="Highlight by status"
-            className="flex flex-wrap items-center gap-2"
-          >
-            {PC_STATUS_VALUES.map((value) => {
-              const count = machines.filter((pc) => pc.status.value === value).length
-              const on = highlight?.has(value) ?? false
-              const tone = PC_STATUS_TONE_CLASSES[PC_STATUS[value].tone]
-              const Icon = PC_STATUS[value].icon
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() =>
-                    setHighlight((current) => {
-                      const next = new Set(current ?? [])
-                      if (next.has(value)) next.delete(value)
-                      else next.add(value)
-                      return next.size === 0 ? null : next
-                    })
-                  }
-                  className={cn(
-                    'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-                    tone.border,
-                    on ? cn(tone.wash, tone.text) : 'bg-surface text-ink hover:bg-surface-sunken',
-                  )}
-                >
-                  <Icon className={cn('size-4', tone.text)} aria-hidden="true" />
-                  {PC_STATUS[value].label}
-                  <span className="tabular-nums">{count}</span>
-                </button>
-              )
-            })}
-            {highlight && (
-              <button
-                type="button"
-                onClick={() => setHighlight(null)}
-                className="text-sm font-medium text-primary-strong underline-offset-4 hover:underline"
-              >
-                Show all
-              </button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p className="text-sm text-muted">
+            {location || plan.room.code}
+            {plan.layout && (
+              <>
+                {' · '}
+                <span className="tabular-nums">
+                  {machines.length} in room · {placedCount} placed · {machines.length - placedCount}{' '}
+                  not placed
+                </span>
+              </>
             )}
-          </div>
-        )}
+          </p>
+
+          {plan.layout && machines.length > 0 && (
+            <div
+              role="group"
+              aria-label="Highlight by status"
+              className="flex flex-wrap items-center gap-2"
+            >
+              {PC_STATUS_VALUES.map((value) => {
+                const count = machines.filter((pc) => pc.status.value === value).length
+                const on = highlight?.has(value) ?? false
+                const tone = PC_STATUS_TONE_CLASSES[PC_STATUS[value].tone]
+                const Icon = PC_STATUS[value].icon
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      setHighlight((current) => {
+                        const next = new Set(current ?? [])
+                        if (next.has(value)) next.delete(value)
+                        else next.add(value)
+                        return next.size === 0 ? null : next
+                      })
+                    }
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+                      tone.border,
+                      on ? cn(tone.wash, tone.text) : 'bg-surface text-ink hover:bg-surface-sunken',
+                    )}
+                  >
+                    <Icon className={cn('size-4', tone.text)} aria-hidden="true" />
+                    {PC_STATUS[value].label}
+                    <span className="tabular-nums">{count}</span>
+                  </button>
+                )
+              })}
+              {highlight && (
+                <button
+                  type="button"
+                  onClick={() => setHighlight(null)}
+                  className="text-sm font-medium text-primary-strong underline-offset-4 hover:underline"
+                >
+                  Show all
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </header>
 
       {!plan.layout ? (
@@ -1065,28 +1106,33 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
             onArrange={() => setDialog('arrange')}
             onSettings={() => setDialog('settings')}
             onShortcuts={() => setDialog('shortcuts')}
+            end={
+              <span className="flex flex-wrap gap-2 xl:hidden">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  leftIcon={<ListTree className="size-4" aria-hidden="true" />}
+                  onClick={() => setDrawer('workstations')}
+                >
+                  Workstations
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  leftIcon={<PanelRight className="size-4" aria-hidden="true" />}
+                  onClick={() => setDrawer('details')}
+                >
+                  Details
+                </Button>
+              </span>
+            }
           />
 
-          <div className="flex flex-wrap gap-2 xl:hidden">
-            <Button
-              size="sm"
-              variant="secondary"
-              leftIcon={<ListTree className="size-4" aria-hidden="true" />}
-              onClick={() => setDrawer('workstations')}
-            >
-              Workstations
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              leftIcon={<PanelRight className="size-4" aria-hidden="true" />}
-              onClick={() => setDrawer('details')}
-            >
-              Details
-            </Button>
-          </div>
-
-          <div className="grid h-[calc(100dvh-12rem)] min-h-120 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_23rem]">
+          <div
+            ref={workspace}
+            style={workspaceHeight ? { height: workspaceHeight } : undefined}
+            className="grid h-[calc(100dvh-12rem)] min-h-80 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_23rem]"
+          >
             <aside
               aria-label="Workstations panel"
               className="hidden min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface p-4 xl:flex"
@@ -1152,9 +1198,12 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
               )}
             </div>
 
+            {/* Focusable because it scrolls on its own: a keyboard user must be
+                able to reach and scroll a long PC record (WCAG 2.1.1). */}
             <aside
               aria-label="Details panel"
-              className="hidden min-h-0 overflow-y-auto rounded-lg border border-border bg-surface p-5 xl:block"
+              tabIndex={0}
+              className="hidden min-h-0 overflow-y-auto rounded-lg border border-border bg-surface p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus xl:block"
             >
               {details}
             </aside>

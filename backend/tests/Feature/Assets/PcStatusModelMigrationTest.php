@@ -166,15 +166,139 @@ it('refuses a legacy remembered status once migrated (maintenance_records_pc_sta
         ->toThrow(QueryException::class, 'maintenance_records_pc_status_before_check');
 });
 
-it('maps back onto the legacy domain on rollback', function () {
+/**
+ * Every column `down()` must put back, for the given machines and visits.
+ *
+ * @param  list<int>  $pcs
+ * @param  list<int>  $visits
+ * @return array<string, mixed>
+ */
+function statusSnapshot(array $pcs, array $visits = []): array
+{
+    return [
+        'pcs' => DB::table('pc_units')->whereIn('id', $pcs)->orderBy('id')
+            ->get(['id', 'status', 'deleted_at'])->map(fn ($r) => (array) $r)->all(),
+        'visits' => DB::table('maintenance_records')->whereIn('id', $visits)->orderBy('id')
+            ->pluck('pc_status_before', 'id')->all(),
+    ];
+}
+
+it('restores every machine and remembered status exactly on rollback', function () {
+    $archivedAt = now()->subDays(3)->startOfSecond();
+    $pcs = [
+        legacyPc('available'),
+        legacyPc('assigned'),
+        legacyPc('online'),
+        legacyPc('under_maintenance'),
+        legacyPc('offline'),
+        $retired = legacyPc('retired'),
+        $blocked = legacyPc('retired'),
+        $backfilled = legacyPc('assigned'),
+        $trashed = legacyPc('offline', ['deleted_at' => $archivedAt]),
+    ];
+    PcComponentInstallation::factory()->create(['pc_unit_id' => $blocked]);
+    ticketFor($this->reporter, 'in-progress', ['pc_unit_id' => $backfilled]);
+    $technician = userWithRole('technician');
+    $visits = collect(['assigned', 'under_maintenance', 'retired', null])->map(function (?string $before) use ($technician) {
+        $record = maintenanceFor($technician, 'corrective', ['pc_unit_id' => PcUnit::factory()->create()->id]);
+        DB::table('maintenance_records')->where('id', $record->id)->update(['pc_status_before' => $before]);
+
+        return $record->id;
+    })->all();
+    $before = statusSnapshot($pcs, $visits);
+
     pcStatusMigration()->up();
-    $repair = PcUnit::factory()->create(['status' => 'pending_repair']);
-    $broken = PcUnit::factory()->create(['status' => 'needs_fix']);
+
+    expect(rawStatus($backfilled))->toBe('pending_repair')
+        ->and(DB::table('pc_units')->where('id', $retired)->value('deleted_at'))->not->toBeNull();
 
     pcStatusMigration()->down();
 
-    expect(rawStatus($repair->id))->toBe('under_maintenance')
-        ->and(rawStatus($broken->id))->toBe('offline');
+    expect(statusSnapshot($pcs, $visits))->toEqual($before)
+        ->and(rawStatus($backfilled))->toBe('assigned')
+        ->and(DB::table('pc_units')->where('id', $trashed)->value('deleted_at'))->not->toBeNull();
+});
+
+it('audits each restore it makes on rollback', function () {
+    $id = legacyPc('retired');
+    pcStatusMigration()->up();
+
+    pcStatusMigration()->down();
+
+    $rows = ActivityLog::query()->where('subject_id', $id)->where('subject_type', PcUnit::class)
+        ->get()->filter(fn ($log) => ($log->properties['cause'] ?? null) === 'status_model_rollback');
+
+    expect($rows->pluck('action')->all())->toEqualCanonicalizing(['pc_unit_status_changed', 'pc_unit_restored'])
+        ->and($rows->firstWhere('action', 'pc_unit_status_changed')->properties['changes']['status'])
+        ->toEqual(['from' => 'needs_fix', 'to' => 'retired']);
+});
+
+it('does not un-archive a machine the migration did not archive', function () {
+    $id = legacyPc('offline', ['deleted_at' => now()->subDay()]);
+
+    pcStatusMigration()->up();
+    pcStatusMigration()->down();
+
+    expect(DB::table('pc_units')->where('id', $id)->value('deleted_at'))->not->toBeNull()
+        ->and(rawStatus($id))->toBe('offline');
+});
+
+it('does not un-archive a machine that was restored and archived again after the migration', function () {
+    $id = legacyPc('retired');
+    pcStatusMigration()->up();
+    // An administrator restored it, then archived it again: that later archive
+    // is a real decision the rollback must not undo.
+    foreach (['pc_unit_restored', 'pc_unit_archived'] as $action) {
+        ActivityLog::query()->create([
+            'action' => $action, 'module' => 'assets', 'description' => $action,
+            'subject_type' => PcUnit::class, 'subject_id' => $id, 'properties' => [],
+        ]);
+    }
+
+    pcStatusMigration()->down();
+
+    expect(DB::table('pc_units')->where('id', $id)->value('deleted_at'))->not->toBeNull()
+        ->and(rawStatus($id))->toBe('retired');
+});
+
+it('does not rewind a status changed after the migration, only maps it onto the legacy domain', function () {
+    $fixed = legacyPc('offline');
+    $repairing = legacyPc('assigned');
+    pcStatusMigration()->up();
+    DB::table('pc_units')->where('id', $fixed)->update(['status' => 'available']);
+    DB::table('pc_units')->where('id', $repairing)->update(['status' => 'pending_repair']);
+    $later = PcUnit::factory()->create(['status' => 'needs_fix']);
+
+    pcStatusMigration()->down();
+
+    expect(rawStatus($fixed))->toBe('available')
+        ->and(rawStatus($repairing))->toBe('under_maintenance')
+        ->and(rawStatus($later->id))->toBe('offline');
+});
+
+it('stays exact across a redeploy after a rollback', function () {
+    $pcs = [legacyPc('retired'), legacyPc('online'), legacyPc('under_maintenance')];
+    $before = statusSnapshot($pcs);
+
+    pcStatusMigration()->up();
+    pcStatusMigration()->down();
+    pcStatusMigration()->up();
+    pcStatusMigration()->down();
+
+    expect(statusSnapshot($pcs))->toEqual($before);
+});
+
+it('does not undo an already rolled-back run when a later run changed nothing', function () {
+    $id = legacyPc('assigned');
+    pcStatusMigration()->up();
+    pcStatusMigration()->down();
+    // Set by hand under the legacy domain: the next up() has nothing to map.
+    DB::table('pc_units')->where('id', $id)->update(['status' => 'available']);
+
+    pcStatusMigration()->up();
+    pcStatusMigration()->down();
+
+    expect(rawStatus($id))->toBe('available');
 });
 
 it('reads a legacy value through the model without throwing, for the deploy window before migrate', function () {
