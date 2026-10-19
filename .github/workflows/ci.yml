@@ -167,6 +167,11 @@ jobs:
           docker compose exec -T app php artisan key:generate
           docker compose exec -T app php artisan migrate --force
           docker compose exec -T app php artisan db:seed --force
+          # The workers and Reverb started before vendor/ existed and are in
+          # Docker's restart backoff; recreate them now that it does, or every
+          # realtime and queued-notification assertion waits on nothing.
+          docker compose up -d --force-recreate --no-deps queue queue_ai scheduler reverb
+          docker compose ps
 
       - name: E2E suite
         run: sh scripts/e2e.sh --project e2e
