@@ -25,7 +25,7 @@ class UserAuditController extends Controller
         $this->authorize('viewAudit', $user);
 
         $logs = ActivityLog::query()
-            ->with('user:id,uuid,first_name,last_name')
+            ->with('user:id,uuid,first_name,middle_name,last_name')
             ->where(function (Builder $query) use ($user): void {
                 $query->where('user_id', $user->getKey())
                     ->orWhere(function (Builder $inner) use ($user): void {

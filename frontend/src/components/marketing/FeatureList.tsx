@@ -34,7 +34,7 @@ export function FeatureList({
             <Icon size={18} aria-hidden="true" />
           </span>
           <div>
-            <h3 className="text-[15px] font-semibold text-ink-strong">{title}</h3>
+            <h3 className="text-sm font-semibold text-ink-strong">{title}</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted">{body}</p>
           </div>
         </li>

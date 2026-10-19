@@ -68,7 +68,10 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            // Phase 2.9: must exceed the longest job timeout on this connection
+            // (GenerateEmbeddingJob 180 s, AnalyzeTicketJob 150 s). At the old
+            // 90 s a still-running job was handed to a second worker as if lost.
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 240),
             'block_for' => null,
             'after_commit' => false,
         ],

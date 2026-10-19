@@ -1,0 +1,15 @@
+flowchart LR
+  Identity --> Support
+  Locations --> Support
+  Tickets --> Support
+  Assets --> Support
+  Maintenance --> Support
+  KnowledgeBase --> Support
+  Analytics --> Support
+  Administration --> Support
+  FloorPlan --> Locations
+  Tickets -. events .-> KnowledgeBase
+  Maintenance -. events .-> Assets
+  Assets -. events .-> Administration
+  Tickets -. events .-> Administration
+  KnowledgeBase --> AiProvider[(AiProvider→Gemini)]

@@ -26,9 +26,10 @@ SccITTicketSys/
 │   ├── node/     # Node/Vite image
 │   └── postgres/ # init scripts (pgvector)
 ├── docs/         # this documentation
-├── scripts/      # up/down/migrate/fresh/test/backup/restore
+├── scripts/      # gates, deploy/rollback, backup/restore/verify (dev helpers retired)
 ├── .github/workflows/ci.yml
-├── compose.yaml
+├── compose.prod.yaml  # production stack, :8081 — the only stack
+├── compose.yaml       # retired dev stack (2026-10-10), behind the `dev` profile
 ├── Makefile
 └── .env.example
 ```

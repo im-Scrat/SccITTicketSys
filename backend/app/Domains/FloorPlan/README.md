@@ -1,42 +1,41 @@
-# FloorPlan domain — FUTURE MODULE (do NOT implement yet)
+# FloorPlan domain — the Floorplan (Phase 2.8 WP-B..G, completed Phase 2.11)
 
-This domain is an **architecture seam** for the Interactive Floor Plan module.
-Per the project brief it must NOT be built now, but the project must support it
-later **without major refactoring**. This folder reserves its place in the
-domain structure so the module drops in cleanly.
+Administrator-only room layouts: real PC units and layout-only fixtures on a
+per-room, versioned layout, coloured by repair status, edited as a draft and
+saved whole, with live notices and presence over Reverb. "Floorplan" is the
+user-facing name; code and routes keep `floor-plan` / `FloorPlan`.
 
-## Planned services (to be implemented later, not now)
+The SDD is the authority for the decisions (DD-100 status model, DD-101 save
+and merge, DD-102 fixtures and geometry, DD-103 presence, DD-104 position
+release), and `routes/api.php` ("Floorplan — ADMINISTRATOR ONLY") for the
+gates.
 
-These map to `App\Domains\FloorPlan\Services`:
+## What exists
 
-- `BuildingService` — buildings
-- `FloorService` — floors per building
-- `LaboratoryLayoutService` — lab/office room layouts
-- `AssetPositionService` — PC unit positions (x/y, snap-to-grid)
-- `FloorPlanService` — overall plan orchestration
-- `CoordinateService` — coordinate math / transforms
+| Piece | Where |
+|---|---|
+| Room overview (cards: status counts, placed/total, layout state, preview) | `GET /api/admin/floor-plan/rooms` → `FloorPlanOverviewQuery` → `FloorPlanRoomSummaryResource` |
+| Read a room's plan (layout + revision, fixtures, placed/unplaced units) | `GET /api/admin/floor-plan/rooms/{room}` → `FloorPlanService::roomPlan` → `RoomPlanResource` |
+| **Save the whole layout** (workstations, fixtures, size/grid; 409 `layout_stale` on an old revision) | `PUT …/rooms/{room}/layouts/{version}` → `SaveRoomLayout` |
+| Create a layout version (`activate: true` for first-time setup) | `POST …/rooms/{room}/layouts` → `CreateRoomLayout` |
+| Activate a version (positions do **not** carry over) | `POST …/rooms/{room}/layouts/{version}/activate` → `ActivateRoomLayout` |
+| Geometry rules (inside the room; workstations never overlap) | `LayoutGeometry`, mirrored by the frontend's `lib/geometry.ts` |
+| A machine leaving a room releases its place | `ReleasePcUnitPositions` (called by `UpdatePcUnit`, `ReassignRoomOccupants`, `ArchivePcUnit`) |
+| Authorization | `RoomLayoutPolicy` over `FloorPlanAccess`: Administrator **role + permission**; routes gate on policy abilities, never on `can:floorplan.*` |
+| Realtime | `RoomPlanChanged`, `PcStatusChanged` on `floor-plan.room.{uuid}`; presence on `floor-plan.editors.{uuid}` |
+| Defaults | `FloorPlanDefaults` (`WORKSTATION_SIZE` 40, `MAX_FIXTURES` 500, `floor_plan.snap_to_grid`, `floor_plan.default_grid_size`) |
 
-## Planned capabilities
+Retired in Phase 2.11: the per-machine `PATCH …/positions/{pcUnit}`
+(`PlacePcUnit`, `FloorPlanPositionPolicy`, `PositionUpdated`) and
+`CoordinateService` — one write path, one rule set.
 
-Interactive lab/building/floor layouts; drag-and-drop + snap-to-grid PC
-positioning; zoom/pan; save layout positions; real-time position updates;
-status-colored PC icons (Online/Offline/Under Maintenance/Assigned/Available);
-click-to-open info panel (specs, hardware, QR, repair/upgrade history, AI
-prediction, ticket history, maintenance timeline). Admin-only editing.
+## Frontend
 
-Future extensions: network topology visualization, heat maps, asset density,
-AI-predicted failures on the map, indoor navigation.
+`frontend/src/features/floor-plan/` — overview, editor workspace, canvas,
+panels, per-room editor store. See its README.
 
-## Data & real-time readiness (already prepared by the bootstrap)
+## Still future
 
-- **Coordinates** — plain numeric columns suffice for x/y; PostgreSQL is ready.
-  For advanced spatial features (indoor navigation, heat maps) the Postgres
-  image can later enable PostGIS.
-- **Vectors / AI** — `pgvector` is already enabled in the database for the
-  KnowledgeBase RAG features.
-- **Real-time** — "real-time position updates" will use **Laravel Reverb**
-  (first-party WebSockets). Broadcasting config + env placeholders are already
-  in place; enabling it later is `composer require laravel/reverb` +
-  `php artisan install:broadcasting` (see project docs). No real-time code now.
-- **Frontend** — see `frontend/src/features/floor-plan/README.md` for the
-  canvas/DnD/zoom/pan/minimap rendering seam.
+Non-PC equipment on plans, a layout version-history browser, background
+images (column exists, no upload), network topology, heat maps, indoor
+navigation.

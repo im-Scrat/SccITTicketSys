@@ -75,7 +75,23 @@ class User extends Authenticatable
 
     public function fullName(): string
     {
-        return trim("{$this->first_name} {$this->last_name}");
+        // Middle name included when there is one (owner request, 2026-10-19).
+        // Partial eager loads must select `middle_name` too, or it reads as null.
+        return implode(' ', array_filter(
+            [trim((string) $this->first_name), trim((string) $this->middle_name), trim((string) $this->last_name)],
+            fn (string $part): bool => $part !== '',
+        ));
+    }
+
+    /**
+     * The identifier a presence channel reports for this user (Phase 2.11,
+     * SDD DD-103). Laravel's broadcasters fall back to the integer primary key,
+     * which every other member of the channel would then see; the public uuid
+     * is what this project exposes everywhere else (NFR-SEC-001).
+     */
+    public function getAuthIdentifierForBroadcasting(): string
+    {
+        return $this->uuid;
     }
 
     public function isActive(): bool
@@ -92,6 +108,12 @@ class User extends Authenticatable
     public function isAdministrator(): bool
     {
         return $this->role?->slug === 'administrator';
+    }
+
+    /** Whether the user holds the (system) Technician role. */
+    public function isTechnician(): bool
+    {
+        return $this->role?->slug === 'technician';
     }
 
     /**
@@ -157,6 +179,54 @@ class User extends Authenticatable
     public function activityAbout(): MorphMany
     {
         return $this->morphMany(ActivityLog::class, 'subject');
+    }
+
+    /**
+     * The user's in-app notifications (SRS FR-NOT-001; SDD DD-52).
+     *
+     * **This deliberately overrides the `Notifiable` trait's own
+     * `notifications()`.** The framework's version is a morph to
+     * `Illuminate\Notifications\DatabaseNotification`, which expects
+     * `notifiable_type` / `notifiable_id` columns and a uuid primary key — none
+     * of which this project's `notifications` table has. Left in place it would
+     * be a loaded gun: the first person to write `$user->notifications` would
+     * get an SQL error about a column that has never existed here, and would
+     * have no reason to suspect the trait rather than their own code.
+     *
+     * The trait is still worth having for everything else it provides —
+     * `notify()`, `routeNotificationFor()` and the mail routing the Identity
+     * notifications have used since Phase 2.2.
+     *
+     * @return HasMany<Notification, $this>
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class)->latest('created_at');
+    }
+
+    /**
+     * Phase 2.9 — the one private channel a broadcast notification for this
+     * user goes out on: `users.{uuid}`, authorized in routes/channels.php to
+     * this user alone. Replaces the framework default `App.Models.User.{id}`,
+     * which would put an enumerable bigint in a browser-visible channel name
+     * (NFR-SEC-001).
+     */
+    public function receivesBroadcastNotificationsOn(): string
+    {
+        return 'users.'.$this->uuid;
+    }
+
+    /**
+     * Unread notifications — the badge count's relation form.
+     *
+     * Served by the `notifications_unread` partial index, which exists in the
+     * baseline schema for exactly this predicate.
+     *
+     * @return HasMany<Notification, $this>
+     */
+    public function unreadNotifications(): HasMany
+    {
+        return $this->notifications()->whereNull('read_at');
     }
 
     /** @return HasMany<Ticket, $this> */

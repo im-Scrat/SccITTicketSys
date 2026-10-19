@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
@@ -14,16 +14,12 @@ import { useLogin } from '../hooks/useAuthMutations'
 import { applyServerErrors, getAccountStatusError, getErrorMessage } from '../lib/serverErrors'
 import { type LoginForm, loginSchema } from '../schemas'
 
-interface FromState {
-  from?: { pathname?: string }
-}
-
 export default function SignInPage() {
   useDocumentMeta({ title: 'Sign in' })
 
+  // Only for the pending-approval branch below; the success path is the
+  // guard's decision (see the comment in onSubmit).
   const navigate = useNavigate()
-  const location = useLocation()
-  const redirectTo = (location.state as FromState | null)?.from?.pathname ?? '/app'
 
   const [formError, setFormError] = useState<string | null>(null)
   const loginMutation = useLogin()
@@ -46,7 +42,15 @@ export default function SignInPage() {
         password: values.password,
         remember: Boolean(values.remember),
       })
-      navigate(redirectTo, { replace: true })
+      /*
+       * Deliberately no navigation here.
+       *
+       * `GuestRoute` owns where an authenticated visitor goes, and it is still
+       * mounted on this route when the auth state flips. When this page also
+       * navigated, the guard's redirect ran afterwards and overwrote it — the
+       * scanned label and the remembered route were both computed correctly and
+       * then thrown away (SRS FR-QR-011). One decider, not two.
+       */
     } catch (error) {
       const status = getAccountStatusError(error)
       if (status?.code === 'pending') {

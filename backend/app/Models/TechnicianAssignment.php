@@ -9,7 +9,24 @@ use Database\Factories\TechnicianAssignmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $ticket_id
+ * @property int $technician_id
+ * @property int|null $assigned_by
+ * @property AssignmentStatus $status
+ * @property Carbon|null $assigned_at
+ * @property Carbon|null $accepted_at
+ * @property Carbon|null $started_at
+ * @property Carbon|null $completed_at
+ * @property Carbon|null $declined_at
+ * @property string|null $decline_reason
+ * @property string|null $remarks
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 class TechnicianAssignment extends Model
 {
     /** @use HasFactory<TechnicianAssignmentFactory> */

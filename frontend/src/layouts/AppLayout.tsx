@@ -1,51 +1,80 @@
-import {
-  ChevronDown,
-  LayoutDashboard,
-  LogOut,
-  type LucideIcon,
-  UserCheck,
-  Users,
-} from 'lucide-react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { cn } from '@/lib/cn'
+import { ChevronDown, LogOut, UserCog } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { ImportReturnBanner } from '@/features/asset-import/components/review/ImportReturnBanner'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useLogout } from '@/features/auth/hooks/useAuthMutations'
-
-interface NavItem {
-  to: string
-  label: string
-  icon: LucideIcon
-  end?: boolean
-  /** When set, the item only renders if the user holds this permission. */
-  permission?: string
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { to: '/app', label: 'Home', icon: LayoutDashboard, end: true },
-  { to: '/app/users', label: 'Users', icon: Users, permission: 'users.view' },
-  { to: '/app/registrations', label: 'Registrations', icon: UserCheck, permission: 'users.update' },
-]
-
-function navLinkClass({ isActive }: { isActive: boolean }): string {
-  return cn(
-    'flex items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-sm font-medium',
-    isActive ? 'bg-primary-subtle text-primary-strong' : 'text-ink hover:bg-surface-sunken',
-  )
-}
+import { AssistantLauncher } from '@/features/assistant/components/AssistantLauncher'
+import { NotificationMenu } from '@/features/notifications/components/NotificationMenu'
+import { useUserChannel } from '@/features/notifications/hooks/useUserChannel'
+import { AppSidebar, NavMenuButton } from './AppSidebar'
+import { navItemsFor } from './navConfig'
 
 /**
- * Authenticated application shell: top bar + permission-aware left nav. This is
- * the minimal scaffold that hosts the Phase 2.2 authenticated surfaces; future
- * modules add their own nav items and routes without changing the shell.
+ * Authenticated application shell.
+ *
+ * History: Phase 2.5 replaced a permanent left sidebar with a horizontal row of
+ * large labelled targets across the top — a sidebar competed with the content
+ * for the horizontal space large type needs, and a menu hidden behind a
+ * hamburger was "one more thing to discover". That row was 8–13 items wide and
+ * scrolled sideways on narrow screens.
+ *
+ * The client has since asked for the opposite trade, for every role: navigation
+ * lives in a **slide-out sidebar** opened from a floating ☰ button at the
+ * top-left, so the page itself is the full width and the header is one slim
+ * row. What Phase 2.5 was protecting is kept rather than dropped — the button
+ * is the same 60px target as every other control, every item still pairs its
+ * icon with a text label, and the type is the same 18px+ scale.
+ *
+ * The menu is an overlay, not a layout column: opening it never reflows or
+ * shifts the page underneath. While it is open the page is `inert` (a focus
+ * trap that needs no code, and it stops background scrolling being driven from
+ * the keyboard) and the document does not scroll.
  */
 export function AppLayout() {
   const { user, hasPermission } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const logout = useLogout()
 
-  const items = NAV_ITEMS.filter((item) => !item.permission || hasPermission(item.permission))
+  // Phase 2.9: each role has its own navigation (layouts/navConfig.ts).
+  const items = navItemsFor(user?.role.slug, hasPermission)
+
+  // Phase 2.9: the user's own realtime channel — notifications and "your AI
+  // analysis is ready" arrive as pushes while it is live.
+  useUserChannel()
+
+  // The menu is open *for the page it was opened on*: any route change —
+  // a link, the browser's back button, a redirect — closes it, without an
+  // effect to keep two pieces of state in step. Resetting state during render
+  // is React's sanctioned way to derive it from a changing input.
+  const [openAt, setOpenAt] = useState<string | null>(null)
+  if (openAt !== null && openAt !== pathname) setOpenAt(null)
+  const navOpen = openAt !== null
+
+  const toggleRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!navOpen) return
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setOpenAt(null)
+      // Focus may be on a link inside the panel, which is about to go inert.
+      toggleRef.current?.focus()
+    }
+    document.addEventListener('keydown', onKey)
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [navOpen])
 
   const signOut = async () => {
     await logout.mutateAsync().catch(() => undefined)
@@ -53,65 +82,102 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-surface px-4 py-2.5 sm:px-6">
-        <NavLink to="/app" className="rounded-sm" aria-label="SccIT — workspace home">
-          <Logo />
-        </NavLink>
+    <div className="bg-bg">
+      <NavMenuButton
+        ref={toggleRef}
+        open={navOpen}
+        onToggle={() => setOpenAt(navOpen ? null : pathname)}
+      />
+      <AppSidebar
+        open={navOpen}
+        onClose={() => setOpenAt(null)}
+        items={items}
+        roleName={user?.role.name}
+      />
 
-        <div className="ml-auto flex items-center gap-2">
-          <ThemeToggle />
+      <div inert={navOpen} className="flex min-h-dvh flex-col">
+        <header className="sticky top-0 z-20 border-b-2 border-border bg-surface" data-print-hide>
+          <div className="flex w-full items-center gap-3 px-4 py-4 sm:gap-6 sm:px-6 lg:px-10">
+            {/* Reserves the space the fixed menu button floats over, so the
+                logo never sits underneath it. */}
+            <div className="size-15 shrink-0" aria-hidden="true" />
 
-          <details className="group relative">
-            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-surface-sunken [&::-webkit-details-marker]:hidden">
-              <span className="flex size-7 items-center justify-center rounded-full bg-primary-subtle text-xs font-semibold text-primary-strong">
-                {(user?.first_name?.[0] ?? '?').toUpperCase()}
+            <NavLink
+              to="/app"
+              className="flex items-center rounded-md"
+              aria-label="SccIT — workspace home"
+            >
+              {/* Wrapped, not classed: cn() has no tailwind-merge, so `hidden` on
+                  Logo itself would lose to its own `inline-flex`. */}
+              <span className="sm:hidden">
+                <Logo withWordmark={false} />
               </span>
-              <span className="hidden text-left sm:block">
-                <span className="block leading-tight text-ink-strong">{user?.name}</span>
-                <span className="block text-xs capitalize leading-tight text-muted">
-                  {user?.role.name}
-                </span>
+              <span className="hidden sm:inline-flex">
+                <Logo />
               </span>
-              <ChevronDown size={16} className="text-muted" aria-hidden="true" />
-            </summary>
+            </NavLink>
 
-            <div className="absolute right-0 mt-1 w-52 rounded-md border border-border bg-surface p-1 shadow-[var(--shadow-overlay-sm)]">
-              <div className="border-b border-border px-2.5 py-2 sm:hidden">
-                <p className="text-sm text-ink-strong">{user?.name}</p>
-                <p className="text-xs capitalize text-muted">{user?.role.name}</p>
-              </div>
-              <button
-                type="button"
-                onClick={signOut}
-                className="flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-sm text-ink hover:bg-surface-sunken"
-              >
-                <LogOut size={16} aria-hidden="true" />
-                Sign out
-              </button>
+            {/*
+            The header utility cluster, which DESIGN.md §5 already names as
+            where notifications belong: "top bar … holding global search,
+            environment/org switcher, **notifications**, and the user menu."
+
+            Always visible: the header is sticky, so a notification badge can
+            never scroll out of sight — the one thing it must never do.
+          */}
+            <div className="ml-auto flex items-center gap-1 sm:gap-3">
+              <NotificationMenu />
+              <ThemeToggle />
+
+              <details className="group relative">
+                <summary className="flex h-15 cursor-pointer list-none items-center gap-2 rounded-md border border-transparent px-2 text-sm font-semibold hover:border-control-border hover:bg-surface-sunken sm:gap-3 sm:px-4 [&::-webkit-details-marker]:hidden">
+                  <span className="flex size-11 items-center justify-center rounded-full bg-primary-subtle text-base font-bold text-primary-strong">
+                    {(user?.first_name?.[0] ?? '?').toUpperCase()}
+                  </span>
+                  <span className="hidden text-left sm:block">
+                    <span className="block leading-tight text-ink-strong">{user?.name}</span>
+                    <span className="block text-xs font-medium capitalize leading-tight text-muted">
+                      {user?.role.name}
+                    </span>
+                  </span>
+                  <ChevronDown size={24} className="text-muted" aria-hidden="true" />
+                </summary>
+
+                <div className="absolute right-0 z-30 mt-2 w-72 rounded-lg border-2 border-border bg-surface p-2 shadow-[var(--shadow-overlay-md)]">
+                  <div className="border-b border-border px-3 py-3 sm:hidden">
+                    <p className="text-sm font-semibold text-ink-strong">{user?.name}</p>
+                    <p className="text-xs capitalize text-muted">{user?.role.name}</p>
+                  </div>
+                  <NavLink
+                    to="/app/account"
+                    className="flex h-15 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-semibold text-ink hover:bg-surface-sunken"
+                  >
+                    <UserCog size={32} aria-hidden="true" />
+                    Account
+                  </NavLink>
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    className="flex h-15 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-semibold text-ink hover:bg-surface-sunken"
+                  >
+                    <LogOut size={32} aria-hidden="true" />
+                    Sign out
+                  </button>
+                </div>
+              </details>
             </div>
-          </details>
-        </div>
-      </header>
+          </div>
+        </header>
 
-      <div className="mx-auto flex w-full max-w-[76rem] flex-1 flex-col gap-4 px-4 py-5 sm:px-6 md:flex-row md:gap-6">
-        <aside className="md:w-56 md:shrink-0">
-          <nav aria-label="Primary" className="flex gap-1 overflow-x-auto md:flex-col">
-            {items.map((item) => {
-              const Icon = item.icon
-              return (
-                <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
-                  <Icon size={16} aria-hidden="true" />
-                  {item.label}
-                </NavLink>
-              )
-            })}
-          </nav>
-        </aside>
-
-        <main className="min-w-0 flex-1">
+        {/* Full-bleed, single column. Individual pages cap their *prose* at
+            `.measure`; tables and toolbars use the full width. */}
+        <main className="w-full flex-1 px-6 py-10 lg:px-10">
+          <ImportReturnBanner />
           <Outlet />
         </main>
+
+        {/* Phase 2.9: the AI assistant, available on every authenticated page. */}
+        <AssistantLauncher />
       </div>
     </div>
   )

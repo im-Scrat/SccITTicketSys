@@ -14,7 +14,7 @@ export const Textarea = forwardRef<
       ref={ref}
       rows={rows}
       className={cn(
-        'w-full rounded-sm border border-control-border bg-surface px-2.5 py-1.5 text-sm text-ink',
+        'w-full rounded-md border-2 border-control-border bg-surface px-4 py-3 text-sm font-medium text-ink',
         'placeholder:text-muted transition-colors duration-150 [transition-timing-function:var(--ease-standard)]',
         'focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-faint',
         'aria-[invalid=true]:border-danger',

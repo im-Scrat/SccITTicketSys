@@ -8,7 +8,21 @@ use Database\Factories\AiFailurePatternFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int|null $pc_unit_id
+ * @property int|null $hardware_component_id
+ * @property string $pattern_name
+ * @property string|null $detected_problem
+ * @property int $occurrence_count
+ * @property int|null $average_days_between_failures
+ * @property string|null $confidence
+ * @property Carbon|null $last_detected
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 class AiFailurePattern extends Model
 {
     /** @use HasFactory<AiFailurePatternFactory> */

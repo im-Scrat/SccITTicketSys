@@ -1,5 +1,45 @@
 {
   "enabledPlugins": {
     "claude-mem@thedotmack": true
+  },
+  "enabledMcpjsonServers": ["graphify"],
+  "permissions": {
+    "allow": [
+      "mcp__graphify",
+      "mcp__codebase-memory-mcp__search_code",
+      "mcp__codebase-memory-mcp__search_graph",
+      "mcp__codebase-memory-mcp__query_graph",
+      "mcp__codebase-memory-mcp__trace_path",
+      "mcp__codebase-memory-mcp__get_architecture",
+      "mcp__codebase-memory-mcp__get_code_snippet",
+      "mcp__codebase-memory-mcp__get_graph_schema",
+      "mcp__codebase-memory-mcp__index_status",
+      "mcp__codebase-memory-mcp__detect_changes",
+      "mcp__codebase-memory-mcp__list_projects",
+      "mcp__codebase-memory-mcp__index_repository",
+      "mcp__plugin_claude-mem_mcp-search__search",
+      "mcp__plugin_claude-mem_mcp-search__smart_search",
+      "mcp__plugin_claude-mem_mcp-search__memory_search",
+      "mcp__plugin_claude-mem_mcp-search__observation_search",
+      "mcp__plugin_claude-mem_mcp-search__get_observations",
+      "mcp__plugin_claude-mem_mcp-search__timeline",
+      "mcp__plugin_claude-mem_mcp-search__memory_context",
+      "mcp__plugin_claude-mem_mcp-search__session_start_context"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-index-freshness.sh\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
   }
 }

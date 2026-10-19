@@ -122,17 +122,11 @@ export interface UserMetrics {
   }>
 }
 
-export interface ActivityEntry {
-  id: number
-  action: string
-  label: string
-  description: string | null
-  module: string | null
-  actor?: { id: string; name: string } | null
-  properties: Record<string, unknown> | null
-  ip_address: string | null
-  created_at: string | null
-}
+/**
+ * Audit-timeline entry. Moved to `@/types/activity` in Phase 2.4 so every module
+ * shares one shape; re-exported here for this slice's existing imports.
+ */
+export type { ActivityEntry } from '@/types/activity'
 
 export interface RoleOption extends AuthRole {
   description: string | null

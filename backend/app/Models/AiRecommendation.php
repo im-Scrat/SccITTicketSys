@@ -8,7 +8,18 @@ use Database\Factories\AiRecommendationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $ai_analysis_log_id
+ * @property int $step_order
+ * @property string $recommendation
+ * @property bool $is_completed
+ * @property int|null $completed_by
+ * @property Carbon|null $completed_at
+ * @property Carbon|null $created_at
+ */
 class AiRecommendation extends Model
 {
     /** @use HasFactory<AiRecommendationFactory> */

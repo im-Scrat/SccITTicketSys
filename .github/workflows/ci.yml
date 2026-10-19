@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # The browser job is heavy (it builds and boots the whole Compose stack), so
+  # it is opt-in rather than on every push. See the `e2e` job below.
+  workflow_dispatch:
+    inputs:
+      run_browser_suite:
+        description: 'Also run the Playwright E2E + accessibility suites'
+        type: boolean
+        default: false
 
 jobs:
   backend:
@@ -24,6 +32,18 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      # The Gemini concurrency limiter is a Redis funnel shared across worker
+      # processes; GeminiConcurrencyTest proves the cap against a real server,
+      # as the local isolated gate (scripts/lib/isolated-gate.sh) already does.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -62,6 +82,9 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_PASSWORD: ''
         run: vendor/bin/pest
 
   frontend:
@@ -81,6 +104,11 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        # Playwright's own browsers are never used: the suites run against the
+        # Alpine Chromium baked into the node image (docker/node/Dockerfile).
+        # Without this, `npm ci` would download ~400 MB of unusable binaries.
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
         run: npm ci
 
       - name: Lint (ESLint)
@@ -89,8 +117,81 @@ jobs:
       - name: Format check (Prettier)
         run: npm run format:check
 
+      - name: Types (tsc)
+        run: npx tsc -b
+
       - name: Tests (Vitest)
         run: npm run test
 
       - name: Build
         run: npm run build
+
+  # ---------------------------------------------------------------
+  #  Browser verification (WP-2.7d) — opt-in.
+  #
+  #  Runs the committed Playwright suites against a real Compose stack, which
+  #  is the only way they can run: they need nginx, php-fpm, PostgreSQL, Redis
+  #  and the seeded fixtures. That costs several minutes, so it is triggered
+  #  deliberately rather than on every push.
+  #
+  #  Since the local development stack was retired (2026-10-10) this job is the
+  #  only place the e2e/a11y suites still run. compose.yaml's services sit
+  #  behind the `dev` profile so a bare local `docker compose up` cannot
+  #  recreate that stack; here, on a disposable runner, the profile and
+  #  scripts/lib/stack.sh's dev path are enabled on purpose.
+  # ---------------------------------------------------------------
+  e2e:
+    name: Browser E2E + accessibility
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.run_browser_suite
+    env:
+      COMPOSE_PROFILES: dev
+      SCCIT_ALLOW_DEV_STACK: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          cp backend/.env.example backend/.env
+          # backend/.env.example leaves the Reverb app credentials empty; with no
+          # key /api/broadcasting/config answers 503 and the browser falls back
+          # to polling, slower than the realtime specs wait. Throwaway values
+          # for this disposable stack only.
+          for key in REVERB_APP_ID REVERB_APP_KEY REVERB_APP_SECRET; do
+            sed -i "s/^${key}=.*/${key}=$(openssl rand -hex 12)/" backend/.env
+          done
+
+      - name: Start a disposable stack (compose.yaml, dev profile)
+        run: |
+          # compose.yaml bind-mounts backend/ and frontend/ (it was the live
+          # development stack), so nothing installed in an image is visible
+          # there: vendor/ must be installed into the mounted checkout, by the
+          # container's user (uid 1000), which is not the runner's uid.
+          chmod -R a+rwX backend frontend
+          docker compose up -d --build
+          docker compose exec -T app composer install --no-interaction --prefer-dist --no-progress
+          docker compose exec -T app php artisan key:generate
+          docker compose exec -T app php artisan migrate --force
+          docker compose exec -T app php artisan db:seed --force
+          # The workers and Reverb started before vendor/ existed and are in
+          # Docker's restart backoff; recreate them now that it does, or every
+          # realtime and queued-notification assertion waits on nothing.
+          docker compose up -d --force-recreate --no-deps queue queue_ai scheduler reverb
+          docker compose ps
+
+      - name: E2E suite
+        run: sh scripts/e2e.sh --project e2e
+
+      - name: Accessibility suite
+        run: sh scripts/e2e.sh --project a11y
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            frontend/test-results/
+            frontend/e2e/.artifacts/
+          retention-days: 7

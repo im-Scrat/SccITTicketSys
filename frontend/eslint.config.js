@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint'
 import prettier from 'eslint-config-prettier'
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules'] },
+  // Generated output only. `e2e/` itself IS linted — an unchecked test harness
+  // rots faster than the code it guards (WP-2.7d).
+  { ignores: ['dist', 'coverage', 'node_modules', 'test-results', 'playwright-report'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

@@ -14,7 +14,7 @@ export function ErrorPage({ onReset }: { onReset?: () => void }) {
       <h1 className="mt-2 text-2xl font-semibold tracking-[-0.02em] text-ink-strong sm:text-3xl">
         Something went wrong.
       </h1>
-      <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted">
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
         An unexpected error interrupted the page. Reloading usually clears it; if it keeps
         happening, let us know.
       </p>

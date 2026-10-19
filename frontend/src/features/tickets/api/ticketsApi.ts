@@ -1,0 +1,329 @@
+import { api } from '@/services/api'
+import type {
+  CursorPaginated,
+  Paginated,
+  TicketAiAnalysisEnvelope,
+  TicketAttachment,
+  TicketCard,
+  TicketComment,
+  TicketDashboard,
+  TicketDetailEnvelope,
+  TicketOptions,
+  TicketParams,
+  TicketRow,
+  TicketShowEnvelope,
+  TimelineEntry,
+} from '../types'
+
+/** Drop empty values so they never reach the query string as `?search=`. */
+function cleanParams(params: object): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {}
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      out[key] = value as string | number | boolean
+    }
+  }
+  return out
+}
+
+/* --------------------------------------------------------------- requester */
+
+/**
+ * The community feed. Cursor-paginated, so rows arriving mid-scroll cannot
+ * shift what the reader has already passed.
+ */
+export async function fetchFeed(params: TicketParams): Promise<CursorPaginated<TicketCard>> {
+  const { data } = await api.get<CursorPaginated<TicketCard>>('/tickets/feed', {
+    params: cleanParams(params),
+  })
+  return data
+}
+
+export async function fetchMyTickets(params: TicketParams): Promise<Paginated<TicketCard>> {
+  const { data } = await api.get<Paginated<TicketCard>>('/tickets/mine', {
+    params: cleanParams(params),
+  })
+  return data
+}
+
+/**
+ * Similar open reports for a fault being described.
+ *
+ * Text similarity over the stored search vector, boosted for the same machine —
+ * **not** AI. The UI labels it accordingly.
+ */
+export async function fetchDuplicates(params: {
+  search?: string
+  pc_unit?: string
+}): Promise<TicketCard[]> {
+  const { data } = await api.get<{ data: TicketCard[] }>('/tickets/duplicates', {
+    params: cleanParams(params),
+  })
+  return data.data
+}
+
+/**
+ * One ticket.
+ *
+ * The response is either the full record or the restricted card, decided by the
+ * server from the caller's relationship to the ticket. `meta` is absent on a
+ * card, which is how the client tells them apart without guessing.
+ */
+export async function fetchTicket(id: string): Promise<TicketShowEnvelope> {
+  const { data } = await api.get<TicketShowEnvelope>(`/tickets/${id}`)
+  return data
+}
+
+export interface TicketPayload {
+  title: string
+  description: string
+  category: string
+  /**
+   * The reporter's own words for an "Other" category (3–120 characters). Sent
+   * only when the category asks for it; the server refuses it on any other.
+   */
+  category_detail?: string | null
+  /** At most one item: a PC or another asset, never both (SDD DD-79). */
+  pc_unit?: string | null
+  asset?: string | null
+  room?: string | null
+  tags?: string[]
+  /**
+   * Any reporter may choose one (SDD DD-75); omitted, the category's default
+   * applies. A reporter's choice can still be raised by a room's minimum or the
+   * AI. Only IT staff's choice is final.
+   */
+  priority?: string
+}
+
+export async function createTicket(payload: TicketPayload): Promise<TicketDetailEnvelope> {
+  const { data } = await api.post<TicketDetailEnvelope>('/tickets', payload)
+  return data
+}
+
+export async function updateTicket(
+  id: string,
+  payload: Partial<
+    Pick<TicketPayload, 'title' | 'description' | 'category' | 'category_detail' | 'tags'>
+  >,
+): Promise<TicketDetailEnvelope> {
+  const { data } = await api.put<TicketDetailEnvelope>(`/tickets/${id}`, payload)
+  return data
+}
+
+/**
+ * Every lifecycle move goes through this one endpoint — confirm, reopen,
+ * cancel, and every staff transition. The server decides which the caller may
+ * make, and answers 422 naming the reachable states if not.
+ */
+export async function changeTicketStatus(
+  id: string,
+  status: string,
+  remarks?: string,
+): Promise<TicketDetailEnvelope> {
+  const { data } = await api.put<TicketDetailEnvelope>(`/tickets/${id}/status`, { status, remarks })
+  return data
+}
+
+/* ------------------------------------------------ AI troubleshooting (WP-I/J) */
+
+/**
+ * The AI pre-screening for one ticket. Full-visibility callers only (the
+ * reporter, the assigned technician, an administrator) — anyone else is a 403.
+ * `meta.available` is false until the background analysis has run, and stays
+ * false if AI is not configured.
+ */
+/** Phase 2.9 — the History tab. `viewFull` on the server, like the detail. */
+export async function fetchTicketTimeline(id: string): Promise<TimelineEntry[]> {
+  const { data } = await api.get<{ data: TimelineEntry[] }>(`/tickets/${id}/timeline`)
+  return data.data
+}
+
+export async function fetchTicketAiAnalysis(id: string): Promise<TicketAiAnalysisEnvelope> {
+  const { data } = await api.get<TicketAiAnalysisEnvelope>(`/tickets/${id}/ai-analysis`)
+  return data
+}
+
+/**
+ * NOT FIXED — the reporter tried the suggested steps and the fault remains.
+ * Not a status change: the ticket stays open and returns to the unassigned
+ * queue. FIXED needs no function of its own; it is `changeTicketStatus(id,
+ * 'resolved')`.
+ */
+export async function reportTicketNotFixed(
+  id: string,
+  remarks?: string,
+): Promise<TicketDetailEnvelope> {
+  const { data } = await api.post<TicketDetailEnvelope>(`/tickets/${id}/not-fixed`, { remarks })
+  return data
+}
+
+/* ------------------------------------------------------------ participation */
+
+export async function fetchComments(id: string, page = 1): Promise<Paginated<TicketComment>> {
+  const { data } = await api.get<Paginated<TicketComment>>(`/tickets/${id}/comments`, {
+    params: { page },
+  })
+  return data
+}
+
+export async function postComment(
+  id: string,
+  body: string,
+  isInternal = false,
+  parent?: string,
+): Promise<TicketComment> {
+  const { data } = await api.post<{ data: TicketComment }>(`/tickets/${id}/comments`, {
+    body,
+    ...(isInternal ? { is_internal: true } : {}),
+    ...(parent ? { parent } : {}),
+  })
+  return data.data
+}
+
+export async function updateComment(commentId: string, body: string): Promise<TicketComment> {
+  const { data } = await api.put<{ data: TicketComment }>(`/ticket-comments/${commentId}`, { body })
+  return data.data
+}
+
+export async function deleteComment(commentId: string): Promise<void> {
+  await api.delete(`/ticket-comments/${commentId}`)
+}
+
+export async function toggleVote(id: string): Promise<{ voted: boolean; upvote_count: number }> {
+  const { data } = await api.post<{ data: { voted: boolean; upvote_count: number } }>(
+    `/tickets/${id}/vote`,
+  )
+  return data.data
+}
+
+export async function fetchAttachments(id: string): Promise<TicketAttachment[]> {
+  const { data } = await api.get<{ data: TicketAttachment[] }>(`/tickets/${id}/attachments`)
+  return data.data
+}
+
+export async function uploadAttachment(id: string, file: File): Promise<TicketAttachment> {
+  const form = new FormData()
+  form.append('file', file)
+
+  const { data } = await api.post<{ data: TicketAttachment }>(`/tickets/${id}/attachments`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data.data
+}
+
+export async function deleteAttachment(attachmentId: string): Promise<void> {
+  await api.delete(`/tickets/attachments/${attachmentId}`)
+}
+
+/**
+ * Attachments live on a private disk, so an `<img src>` cannot fetch one — the
+ * request has to carry the session. Returns an object URL the caller must
+ * revoke.
+ */
+export async function fetchAttachmentObjectUrl(attachmentId: string): Promise<string> {
+  const { data } = await api.get<Blob>(`/tickets/attachments/${attachmentId}`, {
+    responseType: 'blob',
+  })
+  return URL.createObjectURL(data)
+}
+
+/* ------------------------------------------------------------- technician */
+
+export async function fetchAssignedTickets(params: TicketParams): Promise<Paginated<TicketRow>> {
+  const { data } = await api.get<Paginated<TicketRow>>('/tickets/assigned', {
+    params: cleanParams(params),
+  })
+  return data
+}
+
+/** Completed or handed-on work — readable, never writable (SDD DD-42). */
+export async function fetchAssignmentHistory(params: TicketParams): Promise<Paginated<TicketRow>> {
+  const { data } = await api.get<Paginated<TicketRow>>('/tickets/assigned/history', {
+    params: cleanParams(params),
+  })
+  return data
+}
+
+export async function fetchAssignedTicket(id: string): Promise<TicketDetailEnvelope> {
+  const { data } = await api.get<TicketDetailEnvelope>(`/tickets/assigned/${id}`)
+  return data
+}
+
+export type AssignmentAction = 'accept' | 'decline' | 'start' | 'hold' | 'complete'
+
+export async function respondToAssignment(
+  id: string,
+  action: AssignmentAction,
+  payload: { reason?: string; remarks?: string } = {},
+): Promise<TicketDetailEnvelope> {
+  const { data } = await api.post<TicketDetailEnvelope>(
+    `/tickets/assigned/${id}/${action}`,
+    payload,
+  )
+  return data
+}
+
+/* ---------------------------------------------------------- administration */
+
+export async function fetchTicketDashboard(): Promise<TicketDashboard> {
+  const { data } = await api.get<{ data: TicketDashboard }>('/admin/tickets/dashboard')
+  return data.data
+}
+
+export async function fetchTicketDirectory(params: TicketParams): Promise<Paginated<TicketRow>> {
+  const { data } = await api.get<Paginated<TicketRow>>('/admin/tickets', {
+    params: cleanParams(params),
+  })
+  return data
+}
+
+export async function fetchAdminTicket(id: string): Promise<TicketDetailEnvelope> {
+  const { data } = await api.get<TicketDetailEnvelope>(`/admin/tickets/${id}`)
+  return data
+}
+
+export async function assignTicket(
+  id: string,
+  technician: string,
+  remarks?: string,
+): Promise<TicketDetailEnvelope> {
+  const { data } = await api.post<TicketDetailEnvelope>(`/admin/tickets/${id}/assign`, {
+    technician,
+    remarks,
+  })
+  return data
+}
+
+export async function changePriority(
+  id: string,
+  priority: string,
+  reason?: string,
+): Promise<TicketDetailEnvelope> {
+  const { data } = await api.put<TicketDetailEnvelope>(`/admin/tickets/${id}/priority`, {
+    priority,
+    reason,
+  })
+  return data
+}
+
+export async function markDuplicate(
+  id: string,
+  duplicateOf: string | null,
+): Promise<TicketDetailEnvelope> {
+  const { data } = await api.put<TicketDetailEnvelope>(`/admin/tickets/${id}/duplicate`, {
+    duplicate_of: duplicateOf,
+  })
+  return data
+}
+
+/* ----------------------------------------------------------------- shared */
+
+/**
+ * Role-shaped: a requester receives an empty `technicians`, and priorities
+ * without their SLA minutes.
+ */
+export async function fetchTicketOptions(): Promise<TicketOptions> {
+  const { data } = await api.get<{ data: TicketOptions }>('/tickets/options')
+  return data.data
+}

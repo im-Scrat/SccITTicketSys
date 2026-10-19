@@ -9,7 +9,18 @@ use Database\Factories\AiLearningEventFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int|null $maintenance_record_id
+ * @property int|null $ticket_id
+ * @property int|null $pc_unit_id
+ * @property AiEventType $event_type
+ * @property string|null $event_summary
+ * @property array<string, mixed>|null $payload
+ * @property Carbon|null $created_at
+ */
 class AiLearningEvent extends Model
 {
     /** @use HasFactory<AiLearningEventFactory> */

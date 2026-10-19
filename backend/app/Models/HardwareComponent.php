@@ -11,11 +11,28 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * A typed, generic catalog entry (SRS FR-AST-001) — "Office Laser Printer",
+ * "16 GB DDR4 module" — one level above a specific model.
+ *
+ * @property int $id
+ * @property ComponentType $component_type
+ * @property int|null $manufacturer_id
+ * @property string $name
+ * @property string|null $description
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ */
 class HardwareComponent extends Model
 {
     /** @use HasFactory<HardwareComponentFactory> */
     use HasFactory, SoftDeletes;
+
+    /** The shared component that typed ("Other") and unspecified models are filed under. */
+    public const OTHER_MANUAL = 'Other (manually entered)';
 
     protected $guarded = ['id'];
 

@@ -1,0 +1,11 @@
+flowchart TB
+  I[Internet] -->|TLS| LB[Edge/Nginx TLS+headers]
+  LB --> S[SPA static build]
+  LB --> A1[app #1] & A2[app #2 ...]
+  A1 & A2 --> PGP[(PostgreSQL primary)]
+  PGP -. replica .-> PGR[(read replica opt.)]
+  A1 & A2 --> RP[(Redis)]
+  W1[queue #1] & W2[queue #2] --> PGP
+  W1 & W2 --> GEMp[Gemini]
+  SCHp[scheduler] --> RP
+  BK[Backups → offsite] --> PGP

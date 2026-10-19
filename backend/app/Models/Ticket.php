@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\TicketPrioritySource;
 use App\Enums\TicketSource;
 use App\Support\Concerns\HasUuidRouteKey;
 use Database\Factories\TicketFactory;
@@ -13,7 +14,54 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property string $ticket_number
+ * @property int $reporter_id
+ * @property int|null $assigned_technician_id
+ * @property int|null $room_id
+ * @property int|null $pc_unit_id
+ * @property int|null $asset_id
+ * @property int $category_id
+ * @property string|null $category_detail
+ * @property int $priority_id
+ * @property TicketPrioritySource|null $priority_source
+ * @property int $current_status_id
+ * @property int|null $duplicate_of_id
+ * @property string $title
+ * @property string $description
+ * @property TicketSource $source
+ * @property string|null $ai_summary
+ * @property string|null $ai_confidence
+ * @property int|null $estimated_resolution_minutes
+ * @property bool $technician_required
+ * @property int $upvote_count
+ * @property int $comment_count
+ * @property int $attachment_count
+ * @property Carbon|null $first_response_at
+ * @property Carbon|null $resolved_at
+ * @property Carbon|null $closed_at
+ * @property Carbon|null $reopened_at
+ * @property Carbon|null $response_due_at
+ * @property Carbon|null $resolution_due_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ *
+ * Transient, request-scoped attributes. Not columns — they are attached to the
+ * models of one page before serialization so the work happens once per request
+ * instead of once per row:
+ * @property bool|null $has_voted set by the controllers from a single
+ *                                `whereIn` over the page (FR-TKT-009)
+ * @property array<string, mixed>|null $sla_posture
+ *                                                  set from SlaCalculator so a 20-row
+ *                                                  page is measured against one `now()`
+ */
 class Ticket extends Model
 {
     /** @use HasFactory<TicketFactory> */
@@ -25,6 +73,7 @@ class Ticket extends Model
     {
         return [
             'source' => TicketSource::class,
+            'priority_source' => TicketPrioritySource::class,
             'ai_confidence' => 'decimal:4',
             'technician_required' => 'boolean',
             'first_response_at' => 'datetime',
@@ -34,6 +83,58 @@ class Ticket extends Model
             'response_due_at' => 'datetime',
             'resolution_due_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Where this ticket actually is.
+     *
+     * A ticket can name a room directly, or inherit one from the PC unit it was
+     * reported against — a machine already knows where it lives, so a reporter
+     * who picks a PC does not have to name the room as well. The PC's room wins
+     * when both are present, because the equipment is the more specific answer.
+     *
+     * Resolved here rather than in each of the three ticket projections, which
+     * would otherwise each carry a copy of the same rule.
+     *
+     * A ticket that names another piece of equipment (`asset_id`, SDD DD-79)
+     * deliberately does **not** consult the asset's room: `CreateTicket` stores
+     * the room it was filed in (inheriting the asset's when none was named), and
+     * validation requires a named item to be in the named room, so the stored
+     * room is already the answer. An asset's own `current_room_id` is also not
+     * kept up to date when a part is fitted into a PC, and every room rule —
+     * directory filters, archive blockers, the AI's location block — reads the
+     * stored `room_id`.
+     */
+    public function locationRoom(): ?Room
+    {
+        $pcUnit = $this->getRelationValue('pcUnit');
+
+        if ($pcUnit instanceof PcUnit) {
+            $room = $pcUnit->getRelationValue('room');
+
+            if ($room instanceof Room) {
+                return $room;
+            }
+        }
+
+        $own = $this->getRelationValue('room');
+
+        return $own instanceof Room ? $own : null;
+    }
+
+    /**
+     * The status row, or null if it could not be resolved.
+     *
+     * `current_status_id` is NOT NULL, so the relation is typed non-null — but a
+     * lookup row can be missing from a partially-seeded database, and every
+     * projection reads several fields off it. This keeps that one check in one
+     * place instead of a nullsafe chain per field.
+     */
+    public function statusRow(): ?TicketStatus
+    {
+        $status = $this->getRelationValue('status');
+
+        return $status instanceof TicketStatus ? $status : null;
     }
 
     /** @return BelongsTo<User, $this> */
@@ -54,10 +155,38 @@ class Ticket extends Model
         return $this->belongsTo(Room::class);
     }
 
+    /**
+     * The room the ticket was reported in — the stored `room_id` — **including
+     * an archived room** (Phase 2.10, SDD DD-88).
+     *
+     * `room()` keeps the default scope and so loses an archived room; reports
+     * count tickets by the stored room whatever happened to it since, and the
+     * list a report figure opens has to be able to say where each row was
+     * counted ("Reported in: Lab 2 (archived)").
+     *
+     * @return BelongsTo<Room, $this>
+     */
+    public function reportedRoom(): BelongsTo
+    {
+        return $this->belongsTo(Room::class, 'room_id')->withTrashed();
+    }
+
     /** @return BelongsTo<PcUnit, $this> */
     public function pcUnit(): BelongsTo
     {
         return $this->belongsTo(PcUnit::class);
+    }
+
+    /**
+     * The non-PC equipment this fault is about, if any (SDD DD-79). A ticket
+     * names at most one item — `tickets_equipment_target_check` refuses a row
+     * carrying both this and `pc_unit_id`.
+     *
+     * @return BelongsTo<Asset, $this>
+     */
+    public function asset(): BelongsTo
+    {
+        return $this->belongsTo(Asset::class);
     }
 
     /** @return BelongsTo<TicketCategory, $this> */

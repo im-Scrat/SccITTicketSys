@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+# =============================================================
+#  Disposable backend gate image (scripts/gates.sh --stack isolated).
+#
+#  The repo's own PHP `base` stage (tagged sccit/app:gate-base by the gate) +
+#  the exact source tree under test + dev dependencies from composer.lock.
+#  It is never attached to the dev or production stacks: it talks only to the
+#  gate's own throwaway Postgres/Redis on a private network.
+# =============================================================
+FROM sccit/app:gate-base
+
+COPY --chown=appuser:appuser backend /var/www/html
+USER appuser
+
+# A secret-free .env (from .env.example): some tests read the file directly.
+# Runtime -e variables still win over it — Dotenv never overrides real env.
+RUN composer install --no-interaction --no-progress --prefer-dist \
+    && cp .env.example .env
+
+# The two read-only repo files the CSP/security-header tests read through
+# repoPath() — the dev stack mounts the same paths under /repo.
+USER root
+COPY docker/nginx /repo/docker/nginx
+COPY frontend/index.html /repo/frontend/index.html
+USER appuser

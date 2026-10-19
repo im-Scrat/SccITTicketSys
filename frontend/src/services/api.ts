@@ -1,4 +1,5 @@
 import axios, { type AxiosRequestConfig } from 'axios'
+import type { AuthUser } from '@/features/auth/types'
 import { queryClient } from '@/services/queryClient'
 
 /**
@@ -33,7 +34,10 @@ type RetriableConfig = AxiosRequestConfig & { _csrfRetried?: boolean }
  *  - 419 (CSRF token mismatch) → refresh the cookie and retry once.
  *  - 401 (session lost) → clear the cached principal so route guards redirect;
  *    skipped for the `/user` probe itself to avoid a refetch loop.
- * 403 / 422 pass through for components (Forbidden page, field errors).
+ *  - 403 `password_reset_required` → mark the cached principal as forced, so
+ *    ProtectedRoute moves the user to the change screen. Covers an
+ *    administrator setting the flag mid-session, after `/user` was cached.
+ * Other 403s and 422s pass through for components (Forbidden page, field errors).
  */
 api.interceptors.response.use(
   (response) => response,
@@ -49,6 +53,12 @@ api.interceptors.response.use(
 
     if (status === 401 && !(config?.url ?? '').endsWith('/user')) {
       queryClient.setQueryData(['auth', 'user'], null)
+    }
+
+    if (status === 403 && error?.response?.data?.code === 'password_reset_required') {
+      queryClient.setQueryData<AuthUser | null>(['auth', 'user'], (user) =>
+        user ? { ...user, force_password_reset: true } : user,
+      )
     }
 
     return Promise.reject(error)

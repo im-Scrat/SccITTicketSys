@@ -10,7 +10,24 @@ use Database\Factories\RepairImageFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property int $maintenance_record_id
+ * @property int|null $uploaded_by
+ * @property RepairImageType $image_type
+ * @property string $disk
+ * @property string $storage_path
+ * @property string|null $original_filename
+ * @property string|null $mime_type
+ * @property int|null $file_size
+ * @property string|null $checksum
+ * @property string|null $caption
+ * @property Carbon|null $created_at
+ * @property-read User|null $uploadedBy
+ */
 class RepairImage extends Model
 {
     /** @use HasFactory<RepairImageFactory> */

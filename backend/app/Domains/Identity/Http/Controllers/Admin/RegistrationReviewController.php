@@ -44,7 +44,8 @@ class RegistrationReviewController extends Controller
                         ->orWhere('last_name', 'ILIKE', $term)
                         ->orWhere('email', 'ILIKE', $term)
                         ->orWhere('employee_number', 'ILIKE', $term)
-                        ->orWhereRaw("(first_name || ' ' || last_name) ILIKE ?", [$term]);
+                        ->orWhereRaw("(first_name || ' ' || last_name) ILIKE ?", [$term])
+                        ->orWhereRaw("concat_ws(' ', first_name, middle_name, last_name) ILIKE ?", [$term]);
                 });
             })
             ->when($roleSlug !== '' && $roleSlug !== 'all', function (Builder $query) use ($roleSlug): void {

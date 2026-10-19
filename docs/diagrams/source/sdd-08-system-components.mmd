@@ -1,0 +1,36 @@
+flowchart TB
+  subgraph Client
+    SPA[React 19 SPA<br/>RQ · Zustand · RHF+Zod · Tailwind4]
+  end
+  subgraph Edge
+    NGX[Nginx single origin :8080]
+  end
+  subgraph App["Laravel 13 API"]
+    HTTP[HTTP layer<br/>Controllers · Requests · Resources]
+    DOM[Domains<br/>Services · Actions · Policies · Events]
+    MOD[Eloquent Models 66 + Enums 34]
+    EVT[Events/Listeners]
+  end
+  subgraph Async
+    QUE[Queue Worker]
+    SCH[Scheduler]
+  end
+  subgraph Data
+    PG[(PostgreSQL 17 + pgvector)]
+    RDS[(Redis)]
+    FS[(File storage)]
+  end
+  subgraph External
+    GEM[Gemini API]
+    SMTP[SMTP]
+    RVB[Reverb P4]
+  end
+  SPA-->NGX-->HTTP-->DOM-->MOD-->PG
+  DOM-->EVT-->QUE
+  DOM-->RDS
+  QUE-->GEM
+  QUE-->SMTP
+  QUE-->PG
+  SCH-->QUE
+  MOD-->FS
+  DOM-. P4 .->RVB-->SPA

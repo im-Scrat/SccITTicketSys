@@ -32,11 +32,25 @@ class SystemSettingSeeder extends Seeder
             ['maintenance', 'maintenance.reminder_days', 'Maintenance Reminder (days before)', 7, 'integer', false, false],
             ['qr', 'qr.default_size', 'QR Default Size (px)', 256, 'integer', false, false],
             ['qr', 'qr.error_correction', 'QR Error Correction Level', 'M', 'string', false, false],
+            // Phase 2.9: how long a scan may back a proof-of-work submission.
+            ['qr', 'qr.scan_session_ttl_minutes', 'Scan Valid For Proof Of Work (minutes)', 120, 'integer', false, false],
+            // Ticketing windows (Phase 2.6). All three are deliberately settings
+            // rather than constants: FR-TKT-016 calls the reopen period
+            // "configurable", and a site that resolves tickets slowly needs to
+            // move the auto-close deadline without a deployment.
+            ['tickets', 'tickets.auto_close_days', 'Auto-close Resolved Tickets After (days)', 14, 'integer', false, false],
+            ['tickets', 'tickets.reopen_window_days', 'Reopen Window After Closing (days)', 7, 'integer', false, false],
+            ['tickets', 'tickets.comment_edit_window_minutes', 'Comment Edit Window (minutes)', 15, 'integer', false, false],
             ['floor_plan', 'floor_plan.default_grid_size', 'Floor Plan Grid Size (px)', 20, 'integer', true, false],
             ['floor_plan', 'floor_plan.snap_to_grid', 'Snap To Grid', true, 'boolean', true, false],
             ['notifications', 'notifications.default_channel', 'Default Notification Channel', 'in_app', 'string', false, false],
             ['notifications', 'notifications.digest_enabled', 'Daily Digest Enabled', false, 'boolean', false, false],
             ['ai', 'ai.assistant_enabled', 'AI Assistant Enabled', true, 'boolean', true, false],
+            // Phase 2.9 (D-B): off until AI recommendations have been reviewed
+            // against real tickets; recommendations are recorded either way.
+            ['ai', 'ai.priority_auto_raise', 'AI May Raise Ticket Priority', false, 'boolean', false, false],
+            // Phase 2.10 R5: off until an administrator has read what is sent.
+            ['ai', 'ai.report_narratives_enabled', 'AI Interpretations of Reports', false, 'boolean', false, false],
             ['system', 'system.timezone', 'System Timezone', 'Asia/Manila', 'string', false, true],
             ['system', 'system.date_format', 'Date Format', 'Y-m-d', 'string', true, false],
         ];

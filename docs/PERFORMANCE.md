@@ -3,8 +3,9 @@
 > **Scope & guarantees.** This pass was performed *before* Phase 2.4 as a dedicated
 > performance effort. **No features, business logic, UI, or architecture were
 > changed.** Every change is additive and reversible. The development stack
-> (`compose.yaml`, `http://localhost:8080`, Vite HMR + bind mounts) is **unchanged**
-> and remains the daily driver. A new, fully isolated production-like stack
+> (`compose.yaml`, `http://localhost:8080`, Vite HMR + bind mounts) was left
+> unchanged by this pass — and was later **retired on 2026-10-10**, leaving the
+> production stack as the only one. A new, fully isolated production-like stack
 > (`compose.prod.yaml`, `http://localhost:8081`) was added to serve the app the way
 > production would, and to benchmark dev vs prod.
 

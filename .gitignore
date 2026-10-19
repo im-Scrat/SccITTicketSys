@@ -1,7 +1,16 @@
 # ─── Environment (compose root) ───────────────────────────────
+# F-2 (2026-09-28): `/.env` alone left every OTHER root-level `.env.*` name
+# uncovered — in particular `.env.production`, which is the exact filename a
+# production deployment is most likely to create at the root by analogy with
+# `backend/.env.production` (that one IS covered, by backend/.gitignore).
+# No file at this path has ever existed or been tracked (verified against the
+# full history and the current working tree) — this closes the gap before one
+# does, rather than in response to an actual exposure.
 /.env
 .env.local
 *.local
+.env.*
+!.env.example
 
 # ─── Dependencies ─────────────────────────────────────────────
 node_modules/
@@ -12,6 +21,13 @@ vendor/
 /frontend/.vite/
 /backend/public/build/
 /backend/public/hot
+
+# ─── Python (docs build pipeline) ─────────────────────────────
+__pycache__/
+*.py[cod]
+
+# ─── Scratch (design/QA screenshots, throwaway scripts) ───────
+/frontend/tmp-ally/
 
 # ─── OS / IDE ─────────────────────────────────────────────────
 .DS_Store
@@ -41,3 +57,6 @@ Thumbs.db
 # Note: backend/ and frontend/ get their own .gitignore from
 # the Laravel and Vite scaffolds; this file covers the repo root
 # and anything created before those scaffolds exist.
+
+# Production secret files (Docker Compose secrets) — never committed
+/secrets/*.txt

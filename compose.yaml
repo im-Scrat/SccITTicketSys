@@ -1,6 +1,21 @@
 # =============================================================
-#  SccIT — Development stack (Docker Compose)
+#  SccIT — Development stack (Docker Compose)   ** RETIRED 2026-10-10 **
 #  Project: AI-Powered School IT Asset & Service Management
+#
+#  The owner retired this stack: its containers, network and images were
+#  removed; its volumes (sccit_pgdata, sccit_redisdata, sccit_mailpitdata,
+#  sccit_node_modules) were deliberately kept. Every service below carries
+#  `profiles: ["dev"]`, so a bare `docker compose up` / `build` in the
+#  repository root starts nothing instead of silently recreating this stack
+#  on those kept volumes. (Naming a service explicitly still starts it —
+#  Compose's rule for profiled services — so do not.)
+#
+#  The definition stays for reference and for CI's opt-in browser job, which
+#  builds a disposable copy on the runner with COMPOSE_PROFILES=dev.
+#
+#  The only local stack is compose.prod.yaml — always with -p sccit_prod:
+#      docker compose -p sccit_prod -f compose.prod.yaml ps
+#  See docs/PRODUCTION_DEVELOPER_FILE_MAP.md.
 #
 #  Conventions:
 #    - All resources are prefixed "sccit_" to avoid collisions
@@ -13,6 +28,7 @@ name: sccit
 services:
   # ---------- PostgreSQL 17 (+ pgvector for future RAG) --------
   postgres:
+    profiles: ["dev"]
     image: pgvector/pgvector:pg17
     container_name: sccit_postgres
     restart: unless-stopped
@@ -38,6 +54,7 @@ services:
 
   # ---------- Redis (cache, sessions, queues) -----------------
   redis:
+    profiles: ["dev"]
     image: redis:7-alpine
     container_name: sccit_redis
     restart: unless-stopped
@@ -58,6 +75,7 @@ services:
 
   # ---------- Mailpit (local mail catcher) --------------------
   mailpit:
+    profiles: ["dev"]
     image: axllent/mailpit:latest
     container_name: sccit_mailpit
     restart: unless-stopped
@@ -78,6 +96,7 @@ services:
 
   # ---------- PHP-FPM application (Laravel) -------------------
   app:
+    profiles: ["dev"]
     build:
       context: .
       dockerfile: docker/php/Dockerfile
@@ -91,6 +110,12 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./backend:/var/www/html
+      # Read-only, test-only. The security header suite verifies that the
+      # production CSP's script hash still matches index.html's inline theme
+      # script — a drift that would otherwise break theming in production with
+      # nothing to catch it. Neither path is readable by application code.
+      - ./docker/nginx:/repo/docker/nginx:ro
+      - ./frontend/index.html:/repo/frontend/index.html:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,6 +126,7 @@ services:
 
   # ---------- Nginx (single-origin entrypoint) ---------------
   nginx:
+    profiles: ["dev"]
     image: nginx:1.27-alpine
     container_name: sccit_nginx
     restart: unless-stopped
@@ -112,6 +138,7 @@ services:
     volumes:
       - ./backend:/var/www/html:ro
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/security-headers.dev.conf:/etc/nginx/snippets/security-headers.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/up >/dev/null 2>&1 || exit 1"]
       interval: 15s
@@ -123,11 +150,12 @@ services:
 
   # ---------- Queue worker (reuses the app image) ------------
   queue:
+    profiles: ["dev"]
     image: sccit/app:dev
     container_name: sccit_queue
     restart: unless-stopped
     working_dir: /var/www/html
-    command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=5", "--max-time=3600", "--sleep=3"]
+    command: ["php", "artisan", "queue:work", "--queue=realtime,notifications,default", "--tries=3", "--backoff=5", "--timeout=90", "--max-time=3600", "--sleep=3"]
     # This role runs a worker, not php-fpm, so the image's baked
     # FPM healthcheck doesn't apply — disable it.
     healthcheck:
@@ -144,8 +172,36 @@ services:
     networks:
       - sccit_network
 
+  # ---------- AI worker pool (reuses the app image) ----------
+  # Phase 2.9 — mirrors queue_ai_prod in compose.prod.yaml (see the rationale
+  # there): works only the `ai` queue, so Gemini latency never delays
+  # notifications on `queue`. The GeminiGovernor caps real provider
+  # concurrency; replicas above the cap wait for a slot.
+  queue_ai:
+    profiles: ["dev"]
+    image: sccit/app:dev
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "queue:work", "--queue=ai", "--timeout=170", "--max-time=3600", "--sleep=1"]
+    deploy:
+      replicas: ${AI_WORKERS:-3}
+    healthcheck:
+      disable: true
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      app:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sccit_network
+
   # ---------- Scheduler (reuses the app image) ---------------
   scheduler:
+    profiles: ["dev"]
     image: sccit/app:dev
     container_name: sccit_scheduler
     restart: unless-stopped
@@ -166,8 +222,40 @@ services:
     networks:
       - sccit_network
 
+  # ---------- Reverb (WebSocket server, reuses the app image) -
+  # Internal only: `expose`, never `ports`. Browsers reach it same-origin via
+  # nginx (/reverb/app/… → reverb:6001/app/…); app and queue publish to it
+  # directly over sccit_network at REVERB_HOST=reverb / REVERB_PORT=6001.
+  # 6001 is fixed here beside the nginx upstream that must match it, and is
+  # deliberately not 8080 — that is the host-facing nginx port.
+  reverb:
+    profiles: ["dev"]
+    image: sccit/app:dev
+    container_name: sccit_reverb
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=6001"]
+    # Long-running socket server, not php-fpm: replace the baked FPM check
+    # with "is the port accepting connections".
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 6001) ? 0 : 1);"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    expose:
+      - "6001"
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      app:
+        condition: service_started
+    networks:
+      - sccit_network
+
   # ---------- Node (Vite dev server, HMR) --------------------
   node:
+    profiles: ["dev"]
     build:
       context: .
       dockerfile: docker/node/Dockerfile

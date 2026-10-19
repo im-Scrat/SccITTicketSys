@@ -1,0 +1,21 @@
+sequenceDiagram
+  participant B as Browser SPA
+  participant N as Nginx
+  participant L as Laravel
+  participant R as Redis (session)
+  B->>N: GET /sanctum/csrf-cookie
+  N->>L: proxy
+  L-->>B: Set-Cookie XSRF-TOKEN
+  B->>N: POST /api/login (creds + X-XSRF-TOKEN)
+  N->>L: proxy
+  L->>L: validate, check status=active, verify hash
+  alt success
+    L->>R: create session
+    L->>L: write login_history(success), last_login_*
+    L-->>B: 204 + session cookie
+    B->>L: GET /api/user (auth:sanctum)
+    L-->>B: 200 {user, effective permissions}
+  else failure / lockout
+    L->>L: write login_history(failed|locked_out)
+    L-->>B: 401 (non-disclosing)
+  end

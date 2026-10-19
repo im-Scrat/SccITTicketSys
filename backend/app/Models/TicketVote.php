@@ -8,7 +8,18 @@ use Database\Factories\TicketVoteFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * One upvote (SRS FR-TKT-009). `UNIQUE(ticket_id, user_id)` makes "at most once
+ * per user" a database guarantee, and an `AFTER INSERT OR DELETE` trigger owns
+ * `tickets.upvote_count` — the application never writes that column.
+ *
+ * @property int $id
+ * @property int $ticket_id
+ * @property int $user_id
+ * @property Carbon|null $created_at
+ */
 class TicketVote extends Model
 {
     /** @use HasFactory<TicketVoteFactory> */

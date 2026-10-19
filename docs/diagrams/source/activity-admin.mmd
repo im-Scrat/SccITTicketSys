@@ -1,0 +1,58 @@
+---
+title: "SccIT — Administrator Workflow (Activity Diagram)"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Segoe UI, Helvetica, Arial, sans-serif"
+    fontSize: "14px"
+    lineColor: "#5c677d"
+  flowchart:
+    htmlLabels: true
+    nodeSpacing: 36
+    rankSpacing: 42
+---
+flowchart TD
+    s([Start]) --> login["Log in"]
+    login --> dash["Redirect to Administrator Dashboard —<br/>real-time overview: tickets · technicians ·<br/>assets · inventory · maintenance ·<br/>analytics · notifications · system health;<br/>Reddit-style ticket feed"]
+    dash --> choose{"Select activity"}
+
+    choose -- "Registrations" --> reg["Review pending registration requests"]
+    reg --> regd{"Approve?"}
+    regd -- "Approve" --> rega[("Account → Active")]
+    regd -- "Reject (reason)" --> regr[("Account → Rejected + reason")]
+    rega --> regmail["Email decision to applicant"]
+    regr --> regmail
+    regmail --> dash
+
+    choose -- "Triage & assign" --> ai["Review AI recommendations<br/>(priority · category · summary)"]
+    ai --> ovr{"Override AI decision?"}
+    ovr -- "Yes" --> adj["Adjust priority / category"]
+    ovr -- "No" --> assign
+    adj --> assign["Assign technician"]
+    assign --> asg[("Create assignment;<br/>ticket → Assigned")]
+    asg --> asgn["Notify technician"]
+    asgn --> dash
+
+    choose -- "Configure priority" --> plc["Configure priority laboratories /<br/>offices (system settings)"]
+    plc --> plcd[("Priority-location config saved →<br/>informs AI priority recommendations")]
+    plcd --> dash
+
+    choose -- "Administration & oversight" --> admin["Manage users · roles & permissions ·<br/>assets · locations · floor plans · inventory ·<br/>QR codes · preventive-maintenance schedules ·<br/>procurement · announcements"]
+    admin --> report["View reports · analytics · audit logs;<br/>manage system settings"]
+    report --> dash
+
+    choose -- "Log out" --> logout["Log out"]
+    logout --> e([End])
+
+    classDef se fill:#E4E9F0,stroke:#334155,stroke-width:1.4px,color:#1e293b;
+    classDef act fill:#EAF0FB,stroke:#2E4A86,stroke-width:1.3px,color:#16233c;
+    classDef ai fill:#F1EAFB,stroke:#7048E8,stroke-width:1.3px,color:#3f2a99;
+    classDef data fill:#E6F7EE,stroke:#0CA678,stroke-width:1.3px,color:#0b503c;
+    classDef notif fill:#FDECF3,stroke:#C2255C,stroke-width:1.3px,color:#7a1740;
+    classDef dec fill:#FFF6E6,stroke:#E8901C,stroke-width:1.3px,color:#7a4a06;
+    class s,e se;
+    class login,dash,reg,adj,assign,plc,admin,report,logout act;
+    class ai ai;
+    class rega,regr,asg,plcd data;
+    class regmail,asgn notif;
+    class choose,regd,ovr dec;

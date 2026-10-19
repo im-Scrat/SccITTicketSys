@@ -1,0 +1,18 @@
+sequenceDiagram
+  participant B as SPA
+  participant M as can: middleware
+  participant P as PermissionResolver
+  participant R as Redis
+  B->>M: request (auth:sanctum ok)
+  M->>P: allows(user, "tickets.assign")?
+  P->>R: cached effective set?
+  alt miss
+    P->>P: role.perms ∪ grants − denies
+    P->>R: cache
+  end
+  P-->>M: allow/deny (deny-by-default)
+  alt deny
+    M-->>B: 403
+  else allow
+    M->>M: continue → controller
+  end

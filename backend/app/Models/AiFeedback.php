@@ -8,7 +8,18 @@ use Database\Factories\AiFeedbackFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int|null $ai_recommendation_id
+ * @property int|null $ai_analysis_log_id
+ * @property int $user_id
+ * @property bool|null $was_helpful
+ * @property int|null $rating
+ * @property string|null $feedback
+ * @property Carbon|null $created_at
+ */
 class AiFeedback extends Model
 {
     /** @use HasFactory<AiFeedbackFactory> */

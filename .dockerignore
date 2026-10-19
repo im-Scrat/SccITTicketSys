@@ -6,11 +6,35 @@
 **/vendor
 **/dist
 **/.vite
+**/tmp-ally
 **/.env
 **/.env.*
 !**/.env.example
 **/storage/logs/*
 **/*.log
+# Runtime state the app writes under backend/storage on the host (the retired
+# dev stack bind-mounted backend/). None of it belongs in an image: before this
+# rule every production release baked in 63 leftover user-directory exports
+# (laravel-excel temp files) and stale compiled views. Uploads live on the
+# sccit_prod_storage / sccit_prod_private volumes, never in the image. The
+# .gitignore placeholders are re-included so the directories still exist.
+**/storage/framework/cache/*
+!**/storage/framework/cache/.gitignore
+!**/storage/framework/cache/data
+**/storage/framework/cache/data/*
+!**/storage/framework/cache/data/.gitignore
+**/storage/framework/sessions/*
+!**/storage/framework/sessions/.gitignore
+**/storage/framework/testing/*
+!**/storage/framework/testing/.gitignore
+**/storage/framework/views/*
+!**/storage/framework/views/.gitignore
+**/storage/app/private/*
+!**/storage/app/private/.gitignore
+**/storage/app/public/*
+!**/storage/app/public/.gitignore
+**/storage/fonts/*
+!**/storage/fonts/.gitignore
 # Laravel's public/storage is an absolute symlink into the container FS; it
 # can't be copied into the build context and is recreated by `storage:link`
 # in the production entrypoint at boot.

@@ -1,0 +1,155 @@
+import type { AssetImport, ImportColumn, ImportRow, ImportTarget } from '../types'
+
+/** Test data for the asset-import components (Phase 2.10 R6). */
+
+export const TARGETS: ImportTarget[] = [
+  {
+    key: 'unit_code',
+    label: 'Unit code',
+    group: 'Identity',
+    destination: 'PC unit › Unit code',
+    hint: null,
+    required: true,
+    payload: { pc_unit: 'unit_code', asset: null },
+  },
+  {
+    key: 'name',
+    label: 'Name',
+    group: 'Identity',
+    destination: 'PC unit › Name',
+    hint: null,
+    required: true,
+    payload: { pc_unit: 'pc_name', asset: 'name' },
+  },
+  {
+    key: 'hostname',
+    label: 'Hostname',
+    group: 'Network',
+    destination: 'PC unit › Hostname',
+    hint: null,
+    required: false,
+    payload: { pc_unit: 'hostname', asset: null },
+  },
+  {
+    key: 'notes',
+    label: 'Notes',
+    group: 'Details',
+    destination: 'PC unit › Notes',
+    hint: null,
+    required: false,
+    payload: { pc_unit: 'notes', asset: 'notes' },
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    group: 'Details',
+    destination: 'PC unit › Status',
+    hint: null,
+    required: false,
+    payload: { pc_unit: 'status', asset: 'status' },
+  },
+]
+
+export function column(
+  index: number,
+  header: string,
+  overrides: Partial<ImportColumn> = {},
+): ImportColumn {
+  return {
+    index,
+    letter: String.fromCharCode(65 + index),
+    header,
+    samples: ['sample'],
+    target: null,
+    confidence: 'none',
+    alternatives: [],
+    never_imported: null,
+    quantity: false,
+    ...overrides,
+  }
+}
+
+export function importFixture(overrides: Partial<AssetImport> = {}): AssetImport {
+  return {
+    id: 'imp-1',
+    entity_mode: 'pc_units',
+    entity_mode_label: 'PC units',
+    status: 'mapping',
+    status_label: 'Map columns',
+    outcome: null,
+    outcome_label: null,
+    revision: 2,
+    file: { name: 'lab-inventory.xlsx', extension: 'xlsx', size_bytes: 2048, available: true },
+    duplicate_of: null,
+    source: {
+      sheets: ['Sheet1'],
+      sheet: 'Sheet1',
+      header_row: 1,
+      encoding: null,
+      delimiter: null,
+      columns: 3,
+      template_match: false,
+      error: null,
+      error_code: null,
+    },
+    columns: [
+      column(0, 'PC No.', { target: 'unit_code', confidence: 'synonym' }),
+      column(1, 'Description', { confidence: 'ambiguous', alternatives: ['name', 'notes'] }),
+      column(2, 'Colour'),
+    ],
+    mapping: { '0': 'unit_code' },
+    value_mappings: {},
+    defaults: {},
+    date_order: null,
+    targets: TARGETS,
+    default_options: {
+      category: [],
+      pc_status: [{ value: 'available', label: 'Available' }],
+      asset_status: [],
+      condition: [],
+    },
+    meaning_tables: [],
+    date_summary: { required: false, ambiguous: 0, evidence: null, samples: [] },
+    row_counts: null,
+    total_rows: 3,
+    plan: null,
+    progress: null,
+    result: null,
+    created_by: 'Ada Admin',
+    confirmed_by: null,
+    confirmed_at: null,
+    started_at: null,
+    finished_at: null,
+    stop_requested: false,
+    reviewed_at: null,
+    expires_at: null,
+    created_at: '2026-10-18T02:00:00Z',
+    can: { cancel: true, stop: false, retry: false, download_file: true },
+    ...overrides,
+  }
+}
+
+export function rowFixture(overrides: Partial<ImportRow> = {}): ImportRow {
+  return {
+    row_number: 2,
+    entity_type: 'pc_unit',
+    entity_label: 'PC unit',
+    status: 'needs_review',
+    status_label: 'Needs a decision',
+    is_excluded: false,
+    outcome: null,
+    outcome_label: null,
+    failure_code: null,
+    previous_failure_code: null,
+    issues: [],
+    acknowledged: [],
+    values: { unit_code: 'PC-01', pc_name: 'Front desk' },
+    sources: { unit_code: 'file', pc_name: 'file' },
+    original: { unit_code: 'pc-01', name: 'Front desk' },
+    corrections: {},
+    location: null,
+    catalog: null,
+    created: null,
+    ...overrides,
+  }
+}

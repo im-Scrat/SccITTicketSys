@@ -44,7 +44,8 @@ export function EditUserDrawer({ open, onClose, user }: EditUserDrawerProps) {
     try {
       await update.mutateAsync({
         ...values,
-        middle_name: values.middle_name || undefined,
+        // null, not undefined: a blank field must clear the middle name.
+        middle_name: values.middle_name || null,
         employee_number: values.employee_number || undefined,
         contact_number: values.contact_number || undefined,
       })

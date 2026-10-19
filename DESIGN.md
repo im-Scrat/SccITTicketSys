@@ -53,7 +53,7 @@ typography:
     letterSpacing: "normal"
   body:
     fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "0.875rem"
+    fontSize: "0.9375rem"
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "normal"
@@ -65,7 +65,7 @@ typography:
     letterSpacing: "normal"
   label:
     fontFamily: "Inter, system-ui, sans-serif"
-    fontSize: "0.75rem"
+    fontSize: "0.8125rem"
     fontWeight: 500
     lineHeight: 1.4
     letterSpacing: "0.005em"
@@ -178,15 +178,15 @@ A cool, near-neutral architecture (a whisper of blue at hue 258) with one confid
 
 ### Status (universal — never re-skinned)
 These four hues are safety signals with fixed meaning across every deployment. When a vertical re-brands, `--primary` changes; these do not.
-- **Success / Online** — green `oklch(0.560 0.130 150)`; text `success-strong`, wash `success-subtle`.
-- **Warning / Under Maintenance** — amber `oklch(0.700 0.150 75)`; text `warning-strong`, wash `warning-subtle`.
-- **Danger / Offline / Critical** — red `oklch(0.550 0.200 28)`; text `danger-strong`, wash `danger-subtle`. *(This is the brand seed color, placed in its correct home.)*
+- **Success / Available** — green `oklch(0.560 0.130 150)`; text `success-strong`, wash `success-subtle`.
+- **Warning / Pending Repair** — amber `oklch(0.700 0.150 75)`; text `warning-strong`, wash `warning-subtle`.
+- **Danger / Needs Fix / Critical** — red `oklch(0.550 0.200 28)`; text `danger-strong`, wash `danger-subtle`. *(This is the brand seed color, placed in its correct home.)*
 - **Info** — blue-cyan `oklch(0.450 0.120 235)` text on `info-subtle`; visually distinct from Signal Blue so a re-skin never confuses "brand" with "informational."
 
 ### Named Rules
 **The One Voice Rule.** Signal Blue covers ≤10% of any screen — primary action, current selection, active nav, focus. Its rarity is what makes it read as a signal instead of a theme. If two blue buttons compete on a screen, one of them is wrong.
 
-**The Reserved-Red Rule.** Red is *only* destructive, critical, or offline. It is never a brand color, a decorative accent, an emphasis, or a "look here." A red that doesn't mean danger is a bug.
+**The Reserved-Red Rule.** Red is *only* destructive, critical, or a PC that Needs Fix. It is never a brand color, a decorative accent, an emphasis, or a "look here." A red that doesn't mean danger is a bug.
 
 **The Swap-One-Token Rule.** Brand identity is `--primary` and its derived tints — nothing else. Re-skinning SccIT for a new organization is changing one hue and its four shades. Status colors, neutrals, and type never carry vertical-specific identity. If a screen can't be re-branded by editing one token, it has leaked identity somewhere it shouldn't.
 
@@ -271,16 +271,16 @@ These custom properties are the source of truth; the frontmatter above mirrors t
 **UI / Body Font:** Inter (variable) — with `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif` fallback.
 **Code / ID Font:** JetBrains Mono — with `ui-monospace, "SFMono-Regular", Menlo, monospace` fallback.
 
-**Character:** One neutral, highly legible humanist-grotesque carries the entire UI — headings, labels, body, and dense table data — because a data tool does not need a display face competing for attention; it needs one face that stays crisp at 12px on an aging monitor. The monospace companion is not decoration: asset serial numbers, QR payloads, ticket IDs, IP addresses, and log lines belong in mono so they stay unambiguous and column-aligned. Inter and JetBrains Mono pair on a true contrast axis (proportional vs. monospaced), never two-similar-sans. Both fonts are self-hosted for performance and for networks (schools, government) that block third-party CDNs.
+**Character:** One neutral, highly legible humanist-grotesque carries the entire UI — headings, labels, body, and dense table data — because a data tool does not need a display face competing for attention; it needs one face that stays crisp at 13px on an aging monitor. The monospace companion is not decoration: asset serial numbers, QR payloads, ticket IDs, IP addresses, and log lines belong in mono so they stay unambiguous and column-aligned. Inter and JetBrains Mono pair on a true contrast axis (proportional vs. monospaced), never two-similar-sans. Both fonts are self-hosted for performance and for networks (schools, government) that block third-party CDNs.
 
 ### Hierarchy
-Fixed rem scale (product UIs are viewed at consistent DPI; fluid clamp headings would only wobble in a sidebar). Ratio ≈ 1.2.
+Fixed rem scale (product UIs are viewed at consistent DPI; fluid clamp headings would only wobble in a sidebar). Ratio ≈ 1.2. All sizes are `rem`, so browser zoom and user font-size settings scale the whole system (200% zoom reflows without loss of function). **The document base (`body`) is 16px/lh 1.6** — the comfortable primary-content default; components opt into density with Body/Label below. Sizes are tuned for readability including mild low-vision comfort while holding enterprise density (the smallest UI text is 13px, never 12px).
 - **Display** (600, 1.875rem/30px, lh 1.15, tabular): large dashboard KPI numerals and empty-state figures. Rare.
 - **Headline** (600, 1.5rem/24px, lh 1.25): page titles. One per screen.
 - **Title** (600, 1.125rem/18px, lh 1.3): section and card headers.
-- **Body** (400, 0.875rem/14px, lh 1.5): the default — UI text, table cells, form values. The workhorse.
-- **Body Large** (400, 1rem/16px, lh 1.6): reading-heavy surfaces only (knowledge-base articles, AI troubleshooting answers). Cap prose at 65–75ch.
-- **Label** (500, 0.75rem/12px, lh 1.4): form labels, table column headers, metadata, timestamps. Sentence case by default.
+- **Body** (400, 0.9375rem/15px, lh 1.5): the dense workhorse — UI text, table cells, form values, secondary metadata.
+- **Body Large / Base** (400, 1rem/16px, lh 1.6): the document default and reading-heavy surfaces (knowledge-base articles, AI troubleshooting answers, form field values, prose). Cap prose at 65–75ch.
+- **Label** (500, 0.8125rem/13px, lh 1.4): form labels, table column headers, metadata, timestamps, badges/pills. Sentence case by default.
 - **Code** (400, 0.8125rem/13px, JetBrains Mono, slashed zero): IDs, serials, QR payloads, code, log lines.
 
 ### Named Rules
@@ -325,12 +325,40 @@ Every interactive component ships with the full state set — default, hover, fo
 
 ### Status Pill (signature)
 The vocabulary that ties tickets, assets, maintenance, and the floor plan together. **Subtle wash background + strong same-hue text + an 8px leading dot** — calm, not a saturated fill, and never color-only (the text label carries the meaning). Full radius, Label type, `2px 8px` padding.
-- Online → success · Offline → danger · Under Maintenance → warning · Assigned → Signal Blue (`--primary-subtle` / `--primary-strong`) · Available → neutral (`--surface-sunken` / `--muted`).
+- Generic `StatusPill` (system health, work support): Online → success · Offline → danger · Under maintenance → warning · Assigned → Signal Blue · Available → neutral.
+
+### PC Status Badge (Phase 2.11, SDD DD-100)
+Every PC status on every screen — asset lists, the Floorplan, QR, dashboards, filters — renders through `PcStatusBadge`, reading the one table in `src/lib/pcStatus.ts`. Wash + same-hue **border** + strong text + a lucide icon, so each status also has its own shape.
+- **Available** → success, `CheckCircle2` · **Pending Repair** → warning, `Clock` · **Needs Fix** → danger, `OctagonAlert` · **Unassigned** (derived: the PC has no room) → neutral, `CircleDashed`.
+- Never say a PC is online or offline: there is no telemetry, and these are recorded repair states.
 
 ### Data Table (signature)
 - Header row: `--surface-sunken`, Label type, sticky on scroll. Rows: `--surface`, 1px `--border` between rows, `--ink` cells. Row height 40px comfortable / 32px dense (a density toggle is expected).
 - Hover → `--surface-sunken`; selected → `--primary-subtle` (tone, not a left-stripe). Numeric columns right-aligned and tabular. Zebra striping is off by default; hairlines do the separating.
 - Empty state teaches ("No open tickets. New requests appear here as they arrive.") with the primary next action — never a bare "No data."
+
+### Charts (Phase 2.10, SDD DD-84)
+- **Form first.** A number is a stat card; a trend is a line; a part-to-whole of statuses is a donut beside its legend table; a ranking is an HTML table with bars (names wrap in full, never clipped). Recharts draws only lines, donuts and, later, stacked columns.
+- **Colour.** Statuses keep one colour each in every filter state (`--chart-status-<slug>`, validated in both modes: every mark ≥3:1, worst adjacent colour-blind ΔE 8.5). No red, no purple; closed and cancelled are grey so finished work recedes. Single-series bars use one mark colour (`--chart-bar`) on a neutral track (`--chart-track`).
+- **Comparison.** The current period is a 2px line in `--chart-current`; the comparison is **dashed 6 4** in `--chart-compare`, so the two differ in shape as well as colour. Legend keys show the dash. No area fill.
+- **Type and density.** Axis ticks, legends and labels at 16px, ticks at least ~72px apart, never rotated; compact numbers only on axis ticks from 10,000. The bucket still running has a hollow point.
+- **Honesty.** No data animation. Unknown is a gap, never zero (before records began). A one-day period is a figure in words, not a one-point line. Every chart offers its figures as a table, and the drawing itself is hidden from assistive technology in favour of that table.
+- **CSP.** Colours are passed as `var(--token)` strings; nothing injects a `<style>` element. The build's CSP scan fails the gate otherwise.
+
+### Overlays (Phase 2.10, SDD DD-90)
+- **One layer, two shapes.** Modal (centred) and Drawer (right-anchored) share one overlay layer: focus moves in on open, Tab wraps inside, the page behind is `inert`, Escape closes only the topmost overlay, and focus returns to the opener. Never build a third overlay by hand — use these.
+- **Floating layers.** Tooltip and the Combobox list are portalled and positioned with fixed coordinates set through the CSSOM; inside a dialog they portal into its root, so they are neither clipped nor inert. Stacking: sticky 20, dropdown 30, modal 50, list 60, tooltip 70.
+- **Tooltips supplement, never carry.** A tooltip repeats or explains; anything it says is also reachable another way. It appears on hover (300 ms intent) and keyboard focus, stays while hovered, and Escape hides it without moving focus.
+- **Truncation is the exception.** Text wraps by default; `TruncatedText` cuts only where alignment matters (cells, legends, chips) and then becomes focusable with the full text in a tooltip.
+- **Progress and steps.** Long work shows a labelled ProgressBar with "N of M" in words; multi-step flows show a Stepper (completed steps carry a check; below `sm` it reads "Step 3 of 6 · …"). A failed or stopped run uses the warning tone, never red.
+- **Announcements.** Results that arrive without a focus change go through a LiveRegion mounted before its first message.
+
+### Report documents (Phase 2.10, SDD DD-91/DD-92)
+- **Actions.** Export, Email and Print are secondary buttons with text and icon, beside Refresh; hidden entirely without `reports.export`.
+- **Dialogs show only what applies.** Paper and orientation only for PDF and Word; records only for someone allowed to export them; each format states its purpose in one line.
+- **Honest states.** "Preparing your file" while the server renders, then an automatic download with "Download again"; email statuses read Queued / Sent to mail server / Failed — never "delivered". A capture-sink warning appears while mail does not leave the server.
+- **Outside addresses are a decision, not a default.** They are marked "Outside the school" and need an explicit tick before Send is enabled.
+- **Print.** Always light, the PDF's content and charts, one column at most ~52rem; the paper size is left to the browser's print dialog.
 
 ### Navigation
 - **Primary nav:** left sidebar, `--surface` on `--bg`, collapsible to a 56px icon rail; a drawer on mobile. Items are Body-size with a 16px leading icon.
@@ -342,7 +370,7 @@ The vocabulary that ties tickets, assets, maintenance, and the floor plan togeth
 ### Do:
 - **Do** spend Signal Blue like currency — primary action, current selection, active nav, focus — and let neutrals plus type carry the other ~90% (The One Voice Rule).
 - **Do** build every deployment's brand from the single `--primary` token and its tints (The Swap-One-Token Rule); keep status colors and neutrals vertical-neutral.
-- **Do** reserve red exclusively for destructive/critical/offline (The Reserved-Red Rule).
+- **Do** reserve red exclusively for destructive/critical/Needs Fix (The Reserved-Red Rule).
 - **Do** convey depth with the tonal stack (Canvas → Panel → Recess) and hairlines; use shadow only for floating overlays (The Flat-Plane Rule).
 - **Do** pair every status color with a text label and shape/icon so meaning survives color blindness and grayscale.
 - **Do** give every interactive element a visible 2px focus ring at 2px offset, and a full state set (hover/focus/active/disabled/loading).

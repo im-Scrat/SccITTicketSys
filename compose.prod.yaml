@@ -103,6 +103,15 @@ services:
     volumes:
       # Persist user uploads; shared (read-only) with Nginx so /storage serves.
       - sccit_prod_storage:/var/www/html/storage/app/public
+      # Private attachments — the `local` disk: ticket attachments, repair
+      # photos, work-support and asset files. Before this volume they lived in
+      # the container's own layer and were lost on every recreate (deploy,
+      # rollback). Mounted on every PHP service that may read them, and never
+      # on nginx_prod: these are served only through the controllers that
+      # authorize each download.
+      - sccit_prod_private:/var/www/html/storage/app/private
+    secrets:
+      - gemini_api_key
     depends_on:
       postgres_prod:
         condition: service_healthy
@@ -142,13 +151,16 @@ services:
     container_name: sccit_prod_queue
     restart: unless-stopped
     working_dir: /var/www/html
-    command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=5", "--max-time=3600", "--sleep=3"]
+    command: ["php", "artisan", "queue:work", "--queue=realtime,notifications,default", "--tries=3", "--backoff=5", "--timeout=90", "--max-time=3600", "--sleep=3"]
     env_file:
       - ./backend/.env.production
     healthcheck:
       disable: true
     volumes:
       - sccit_prod_storage:/var/www/html/storage/app/public
+      - sccit_prod_private:/var/www/html/storage/app/private
+    secrets:
+      - gemini_api_key
     depends_on:
       app_prod:
         condition: service_started
@@ -158,6 +170,75 @@ services:
         condition: service_healthy
       mailpit_prod:
         condition: service_started
+    networks:
+      - sccit_prod_network
+
+  # ---------- AI worker pool (reuses the prod app image) -------
+  # Phase 2.9. Works ONLY the `ai` queue (ticket pre-screening, PC-history
+  # predictions, knowledge embeddings), so a slow Gemini call never sits in
+  # front of notifications on queue_prod, and several tickets are analysed at
+  # once — one job per ticket, one ticket per worker. How many may talk to
+  # Gemini simultaneously is capped separately by the app's GeminiGovernor
+  # (AI_GEMINI_CONCURRENCY / AI_GEMINI_RPM in .env.production): replicas above
+  # that cap simply wait for a slot. No container_name, so it can scale.
+  # --timeout stays above AnalyzeTicketJob::$timeout (150 s); the connection's
+  # retry_after (240 s) stays above both.
+  queue_ai_prod:
+    image: sccit/app:prod
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "queue:work", "--queue=ai", "--timeout=170", "--max-time=3600", "--sleep=1"]
+    deploy:
+      replicas: ${AI_WORKERS:-3}
+    env_file:
+      - ./backend/.env.production
+    healthcheck:
+      disable: true
+    volumes:
+      - sccit_prod_storage:/var/www/html/storage/app/public
+      - sccit_prod_private:/var/www/html/storage/app/private
+    secrets:
+      - gemini_api_key
+    depends_on:
+      app_prod:
+        condition: service_started
+      postgres_prod:
+        condition: service_healthy
+      redis_prod:
+        condition: service_healthy
+    networks:
+      - sccit_prod_network
+
+  # ---------- Bulk worker (reuses the prod app image) ----------
+  # Phase 2.10 (SDD DD-93). Works ONLY the `bulk` queue: report documents
+  # (XLSX/CSV/DOCX/PDF) and, from R6, asset imports — work that takes tens of
+  # seconds and up to ~300 MB, which must not sit in front of notifications
+  # on queue_prod or squeeze its 128 MB default. One job at a time, 512 MB,
+  # --timeout=170 above ReportExportJob::$timeout (150 s); the connection's
+  # retry_after (240 s) stays above both. Same private volume, because it
+  # writes the files the app later streams.
+  queue_bulk_prod:
+    image: sccit/app:prod
+    container_name: sccit_prod_queue_bulk
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "-d", "memory_limit=512M", "artisan", "queue:work", "--queue=bulk", "--tries=1", "--timeout=170", "--memory=512", "--max-time=3600", "--sleep=3"]
+    env_file:
+      - ./backend/.env.production
+    healthcheck:
+      disable: true
+    volumes:
+      - sccit_prod_storage:/var/www/html/storage/app/public
+      - sccit_prod_private:/var/www/html/storage/app/private
+    secrets:
+      - gemini_api_key
+    depends_on:
+      app_prod:
+        condition: service_started
+      postgres_prod:
+        condition: service_healthy
+      redis_prod:
+        condition: service_healthy
     networks:
       - sccit_prod_network
 
@@ -174,6 +255,9 @@ services:
       disable: true
     volumes:
       - sccit_prod_storage:/var/www/html/storage/app/public
+      - sccit_prod_private:/var/www/html/storage/app/private
+    secrets:
+      - gemini_api_key
     depends_on:
       app_prod:
         condition: service_started
@@ -182,6 +266,33 @@ services:
       redis_prod:
         condition: service_healthy
       mailpit_prod:
+        condition: service_started
+    networks:
+      - sccit_prod_network
+
+  # ---------- Reverb (WebSocket server, reuses the prod app image) -
+  # Internal only — `expose`, never `ports`: browsers connect same-origin via
+  # nginx_prod at /reverb/app/…; app_prod and queue_prod publish to it at
+  # REVERB_HOST=reverb_prod / REVERB_PORT=6001 over the prod network. The prod
+  # entrypoint runs config:cache first, exactly as for queue_prod.
+  reverb_prod:
+    image: sccit/app:prod
+    container_name: sccit_prod_reverb
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=6001"]
+    env_file:
+      - ./backend/.env.production
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 6001) ? 0 : 1);"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    expose:
+      - "6001"
+    depends_on:
+      app_prod:
         condition: service_started
     networks:
       - sccit_prod_network
@@ -198,5 +309,18 @@ volumes:
     name: sccit_prod_redisdata
   sccit_prod_storage:
     name: sccit_prod_storage
+  # Created empty on first `up`; Docker seeds it from the image's
+  # storage/app/private (appuser:appuser 755), which is what php-fpm runs as.
+  sccit_prod_private:
+    name: sccit_prod_private
   sccit_prod_mailpitdata:
     name: sccit_prod_mailpitdata
+
+secrets:
+  # Read by GeminiCredential at /run/secrets/gemini_api_key inside the
+  # container (WP-O; SDD DD-74). File-based, not env — never baked into
+  # config:cache, never visible to `docker inspect`. Put the raw API key,
+  # no quotes, no trailing newline needed, in the local file below; it is
+  # gitignored and never built into the image.
+  gemini_api_key:
+    file: ./secrets/gemini_api_key.txt

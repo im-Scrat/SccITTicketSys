@@ -1,89 +1,109 @@
 # Development Guide
 
-Day-to-day workflow. Everything runs in Docker; use `make <target>`
-(GNU make), the `scripts/*.sh` files (Git Bash), or raw `docker compose`.
+Day-to-day workflow. **Since 2026-10-10 there is one stack: production, on
+`http://localhost:8081`.** The bind-mounted development stack (`:8080`, Vite
+HMR) was retired, so there is no hot reload on `:8081` — a change reaches the
+site through the quality gate and a rebuild of the production images. To see
+frontend edits live before that, run `npm run dev:live` in `frontend/` and open
+`http://localhost:5173`: Vite on this PC, forwarding to production's API and
+data ([PRODUCTION_DEVELOPER_FILE_MAP.md](PRODUCTION_DEVELOPER_FILE_MAP.md) §1).
+Teammates can use the same preview over Tailscale Serve (tailnet-only), as
+described in that section under "Sharing the preview with the team".
 
-## Start / stop
+Where each feature lives, how the layers connect and which files to open:
+[PRODUCTION_DEVELOPER_FILE_MAP.md](PRODUCTION_DEVELOPER_FILE_MAP.md).
 
-```bash
-make up         # or: docker compose up -d
-make down       # or: docker compose down
-make logs       # tail logs
-make ps         # service status
-```
-
-App → http://localhost:8080 · Mailpit → http://localhost:8025
-
-## Hot reload (HMR)
-
-The Vite dev server runs in the `node` container and is proxied through Nginx.
-Editing files under `frontend/src` reloads the browser automatically (the HMR
-WebSocket is proxied on `:8080`). Edits to `backend/app` are picked up
-immediately (OPcache revalidates in dev).
-
-## Backend (Laravel)
+## The loop
 
 ```bash
-make shell                                   # bash in the app container
-docker compose exec app php artisan migrate
-docker compose exec app php artisan make:... # generators
-make fresh                                   # migrate:fresh
-make psql                                    # psql shell
+# 1. edit source under backend/ and frontend/src/
+sh scripts/gates.sh                                  # 2. full gate, in a disposable environment
+sh scripts/deploy-prod.sh                            # 3. gate -> verified snapshot -> build/tag -> deploy -> migrate -> smoke
+docker compose -p sccit_prod -f compose.prod.yaml ps # 4. check
 ```
 
-Artisan/Composer run **inside** the `app` container (service names like
-`postgres` resolve only on the Docker network).
+`deploy-prod.sh` asks before it changes anything. It refuses a dirty tracked
+tree unless you pass `--allow-dirty`, because the image is built from the
+working tree — uncommitted changes included. Rolling back:
+[OPERATIONS.md](OPERATIONS.md) §3.
 
-## Frontend (React)
+## Inspecting production (read-only)
 
 ```bash
-docker compose exec node npm install <pkg>   # add a dependency
+docker compose -p sccit_prod -f compose.prod.yaml logs -f app_prod
+docker compose -p sccit_prod -f compose.prod.yaml exec -T app_prod php artisan migrate:status
+docker compose -p sccit_prod -f compose.prod.yaml exec -T app_prod php artisan route:list --path=api/tickets
+docker compose -p sccit_prod -f compose.prod.yaml exec postgres_prod psql -U postgres -d school_it_service_management
 ```
 
-After changing `frontend/package.json`, rebuild so the `node_modules` volume
-reseeds: `docker compose up -d --build node`.
+Artisan runs **inside** `app_prod`, whose image has no dev packages (no Pest,
+Pint or PHPStan — those run in the gate). Generators (`php artisan make:*`)
+would write inside the container, not your source tree: create files in the
+editor, following a neighbouring file.
 
 ## Quality gates
 
 ```bash
-make lint     # Pint --test + Larastan + ESLint
-make format   # Pint + Prettier (auto-fix)
-make test     # Pest + Vitest
+sh scripts/gates.sh                  # Pint, PHPStan, Pest, tsc, ESLint, Prettier, Vitest, build
+sh scripts/gates.sh --only backend   # or --only frontend
 ```
 
-Backend tests run against the dedicated `school_it_service_management_test`
-database (configured in `backend/phpunit.xml`). CI runs the same gates —
+`scripts/gates.sh` exports the working tree into a disposable environment with
+its own PostgreSQL and Redis and runs every gate in order, always attempting each
+one. Known flaky tests and the browser suites (now CI-only) are covered in
+[TESTING.md](TESTING.md). CI runs the same gates —
 see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
 ## Database backup / restore
 
 ```bash
-make backup                                   # -> backups/<db>-<ts>.sql.gz
-make restore FILE=backups/<db>-<ts>.sql.gz
+sh scripts/backup.sh --stack prod --verify                       # -> backups/prod/<ts>/, proven restorable
+sh scripts/restore.sh --stack prod --dry-run backups/prod/<ts>   # every check, no change
 ```
 
-## Adding a feature later (the intended flow)
+Snapshots are directories with a manifest, proven in a disposable database —
+see [OPERATIONS.md](OPERATIONS.md) §2. `restore.sh` without `--dry-run`
+overwrites production.
 
-1. Backend: create classes under `app/Domains/<Domain>/...`, routes in
-   `routes/api.php`, migrations in `database/migrations/`.
-2. Frontend: create a slice under `src/features/<feature>/` and call the API
-   via `src/services/api.ts` (Sanctum cookies handled automatically).
-3. Add tests (Pest / Vitest). Run `make lint && make test`.
+## Adding a feature (the intended flow)
 
-## Enabling real-time later (Reverb)
+1. Backend: classes under `backend/app/Domains/<Domain>/` (Actions,
+   Http/{Controllers,Requests,Resources}, Policies, Services), routes in
+   `backend/routes/api.php`, models in `backend/app/Models/`, migrations in
+   `backend/database/migrations/`.
+2. Frontend: a slice under `frontend/src/features/<feature>/` (api, hooks,
+   components, pages, types), routes in `frontend/src/App.tsx`, navigation in
+   `frontend/src/layouts/navConfig.ts`, HTTP through `frontend/src/services/api.ts`.
+3. Tests: `backend/tests/Feature/<Domain>/`, and `*.test.tsx` beside the
+   frontend code. Run `sh scripts/gates.sh`.
+4. Ship: `sh scripts/deploy-prod.sh`.
+
+## Dependencies
+
+Production installs from `backend/composer.lock` and `frontend/package-lock.json`
+when the images are built, so a dependency change is a lock-file change. Make it
+with `scripts/lock-update.sh` (owner decision D7, 2026-10-17), then run the gate:
 
 ```bash
-docker compose exec app composer require laravel/reverb
-docker compose exec app php artisan install:broadcasting
-# set BROADCAST_CONNECTION=reverb + REVERB_* in backend/.env, add a reverb container
+sh scripts/lock-update.sh composer require vendor/package:^1.0
+sh scripts/lock-update.sh composer update vendor/package --with-dependencies
+sh scripts/lock-update.sh npm install package@^1.2
+sh scripts/gates.sh          # installs from the new lock files in fresh images
 ```
+
+The script copies the two manifests into a scratch directory, runs the command
+in a throwaway container (Composer in `sccit/app:gate-base`, the production PHP
+base, so platform checks match production; npm in `node:22-alpine`), with
+`--no-install` / `--package-lock-only` and no package scripts, and copies the
+manifests back. It installs nothing anywhere and prints the advisories of the
+new lock (`composer audit` / `npm audit`). `npm ci` in `frontend/` for the
+editor is still fine: it installs the lock exactly and never edits it.
 
 ## Troubleshooting
 
-- **Port 5432 in use** → stop Windows PostgreSQL (see [ENVIRONMENT.md](ENVIRONMENT.md)).
-- **Port 8080 in use** → change `APP_HOST_PORT` in `.env`.
-- **`/` returns 502** → the `node` container isn't up yet; `docker compose up -d node`.
-- **DB/Redis errors from Laravel** → check `docker compose ps` health and
-  that `backend/.env` host values are `postgres` / `redis`.
-- **Reset everything** → `docker compose down -v` then `up -d --build`
-  (this **deletes** the database volume).
+- **A change doesn't show up** → the image was not rebuilt: `sh scripts/deploy-prod.sh`.
+- **`/up` is not 200** → `docker compose -p sccit_prod -f compose.prod.yaml ps`, then `logs app_prod`.
+- **Port 8081 in use** → set `PROD_HTTP_PORT` in the root `.env`.
+- **Never** `docker compose ... down -v` (deletes the production database), and
+  never a bare `docker compose up` — the retired dev stack is profile-gated and
+  starts nothing.

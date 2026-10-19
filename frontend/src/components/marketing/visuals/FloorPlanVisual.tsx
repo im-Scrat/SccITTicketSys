@@ -1,54 +1,47 @@
 import { Monitor } from 'lucide-react'
+import { PcStatusBadge } from '@/components/ui/PcStatusBadge'
 import { cn } from '@/lib/cn'
-import { StatusPill, type AssetStatus } from '@/components/ui/StatusPill'
+import { PC_STATUS, PC_STATUS_TONE_CLASSES, type PcStatusValue } from '@/lib/pcStatus'
 
 /**
- * A floor-plan canvas fragment: PC units positioned on a room grid and colored
- * by the universal status palette, with a legend. Status is never color-only —
- * each node carries a shape/icon and the legend spells out every state
- * (FR-FP-004). Presentational; exposed as a single labelled image.
+ * A Floorplan canvas fragment: PC units positioned on a room grid and colored
+ * by the product's three PC statuses (Phase 2.11, DD-100), with a legend.
+ * Status is never color-only — the legend spells out every state (FR-FP-004).
+ * Presentational; exposed as a single labelled image.
  */
 
 interface Node {
   id: string
   x: number
   y: number
-  status: AssetStatus
+  status: PcStatusValue
   selected?: boolean
 }
 
 const nodes: Node[] = [
-  { id: 'PC-01', x: 10, y: 18, status: 'online' },
-  { id: 'PC-02', x: 30, y: 18, status: 'online' },
-  { id: 'PC-03', x: 50, y: 18, status: 'assigned' },
-  { id: 'PC-04', x: 70, y: 18, status: 'online' },
+  { id: 'PC-01', x: 10, y: 18, status: 'available' },
+  { id: 'PC-02', x: 30, y: 18, status: 'available' },
+  { id: 'PC-03', x: 50, y: 18, status: 'available' },
+  { id: 'PC-04', x: 70, y: 18, status: 'available' },
   { id: 'PC-05', x: 90, y: 18, status: 'available' },
-  { id: 'PC-06', x: 10, y: 52, status: 'online' },
-  { id: 'PC-07', x: 30, y: 52, status: 'maintenance', selected: true },
-  { id: 'PC-08', x: 50, y: 52, status: 'online' },
-  { id: 'PC-09', x: 70, y: 52, status: 'offline' },
-  { id: 'PC-10', x: 90, y: 52, status: 'online' },
+  { id: 'PC-06', x: 10, y: 52, status: 'available' },
+  { id: 'PC-07', x: 30, y: 52, status: 'pending_repair', selected: true },
+  { id: 'PC-08', x: 50, y: 52, status: 'available' },
+  { id: 'PC-09', x: 70, y: 52, status: 'needs_fix' },
+  { id: 'PC-10', x: 90, y: 52, status: 'available' },
   { id: 'PC-11', x: 20, y: 84, status: 'available' },
-  { id: 'PC-12', x: 40, y: 84, status: 'assigned' },
-  { id: 'PC-13', x: 60, y: 84, status: 'online' },
-  { id: 'PC-14', x: 80, y: 84, status: 'online' },
+  { id: 'PC-12', x: 40, y: 84, status: 'available' },
+  { id: 'PC-13', x: 60, y: 84, status: 'available' },
+  { id: 'PC-14', x: 80, y: 84, status: 'available' },
 ]
 
-const nodeTone: Record<AssetStatus, string> = {
-  online: 'bg-success-subtle text-success-strong',
-  offline: 'bg-danger-subtle text-danger-strong',
-  maintenance: 'bg-warning-subtle text-warning-strong',
-  assigned: 'bg-primary-subtle text-primary-strong',
-  available: 'bg-surface-sunken text-muted',
-}
-
-const legend: AssetStatus[] = ['online', 'assigned', 'maintenance', 'offline', 'available']
+const legend: PcStatusValue[] = ['available', 'pending_repair', 'needs_fix']
 
 export function FloorPlanVisual({ className }: { className?: string }) {
   return (
     <figure
       role="img"
-      aria-label="A lab floor plan with fourteen PC units positioned on a grid, each colored by status: online, assigned, under maintenance, offline, or available."
+      aria-label="A lab Floorplan with fourteen PC units positioned on a grid, each colored by status: available, pending repair, or needs fix."
       className={cn('overflow-hidden rounded-lg border border-border bg-surface', className)}
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
@@ -74,7 +67,8 @@ export function FloorPlanVisual({ className }: { className?: string }) {
             <div
               className={cn(
                 'flex size-8 items-center justify-center rounded-md border transition-transform duration-150 hover:scale-110',
-                nodeTone[node.status],
+                PC_STATUS_TONE_CLASSES[PC_STATUS[node.status].tone].wash,
+                PC_STATUS_TONE_CLASSES[PC_STATUS[node.status].tone].text,
                 node.selected ? 'border-primary ring-2 ring-primary/40' : 'border-border',
               )}
             >
@@ -86,7 +80,7 @@ export function FloorPlanVisual({ className }: { className?: string }) {
                   LAB2-PC-07
                 </p>
                 <p className="mt-0.5 text-[11px] text-warning-strong">
-                  Under maintenance · Ticket #4820
+                  Pending Repair · Ticket #4820
                 </p>
               </div>
             )}
@@ -96,7 +90,7 @@ export function FloorPlanVisual({ className }: { className?: string }) {
 
       <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
         {legend.map((status) => (
-          <StatusPill key={status} status={status} />
+          <PcStatusBadge key={status} status={status} />
         ))}
       </div>
     </figure>

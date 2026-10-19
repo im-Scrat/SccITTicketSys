@@ -44,13 +44,14 @@
 
 Enum user_status { active; inactive; suspended; pending }
 Enum room_type { laboratory; office; storage; server_room; faculty_room; library; other }
-Enum pc_status { available; assigned; online; offline; under_maintenance; retired }
+Enum pc_status { available; pending_repair; needs_fix }   // Phase 2.11, SDD DD-100 — grey "Unassigned" is derived from room_id IS NULL, never stored
 Enum pc_condition { working; faulty; for_repair; decommissioned }
 Enum qr_status { active; inactive; revoked }
 Enum scan_result { success; invalid; expired; mismatch }
 
 Enum ticket_source { web; mobile; email; phone; walk_in; ai }
 Enum ticket_update_type { comment; status_change; priority_change; assignment; ai_analysis; system }
+Enum ticket_priority_source { category; reporter; location; ai; manual }   // Phase 2.9, SDD DD-75 — weakest first
 
 Enum assignment_status { pending; accepted; in_progress; on_hold; completed; declined; reassigned; cancelled }
 Enum maintenance_status { scheduled; in_progress; on_hold; completed; cancelled }
@@ -281,6 +282,7 @@ Table room_layouts {
   grid_size int [not null, default: 20]
   background_image varchar
   is_active boolean [not null, default: true]
+  revision int [not null, default: 1]   // Phase 2.11, SDD DD-101 — whole-layout concurrency token
   created_by bigint
   updated_by bigint
   created_at timestamptz
@@ -296,6 +298,8 @@ Table room_layouts {
   Partial unique index: at most ONE active layout per room
     → CREATE UNIQUE INDEX ... ON room_layouts (room_id) WHERE is_active.
   CHECK (width > 0 AND height > 0 AND grid_size > 0).
+  CHECK room_layouts_revision_check (revision >= 1) — bumped by every accepted save
+  and by a released position (SDD DD-101, DD-104).
   '''
 }
 
@@ -314,7 +318,26 @@ Table floor_plan_positions {
     pc_unit_id
     (room_layout_id, pc_unit_id) [unique]
   }
-  Note: 'Layout-scoped PC positions (replaces pc_units.pos_x/pos_y). Enables versioned layouts and PCs moving between rooms. CHECK (pos_x >= 0 AND pos_y >= 0). Real-time drag updates write here.'
+  Note: 'Layout-scoped PC positions (centre point; replaces pc_units.pos_x/pos_y). Enables versioned layouts and PCs moving between rooms. CHECK (pos_x >= 0 AND pos_y >= 0); CHECK floor_plan_positions_rotation_check (rotation IN (0, 90, 180, 270)) — Phase 2.11. Written only by SaveRoomLayout (whole-layout save) and released by ReleasePcUnitPositions.'
+}
+
+Table floor_plan_fixtures {   // Phase 2.11, SDD DD-102
+  id bigint [pk, increment]
+  uuid uuid [not null]   // client-generated
+  room_layout_id bigint [not null]
+  kind varchar(20) [not null]   // wall, partition, door, window, desk, cabinet, pillar, zone
+  pos_x numeric(10,2) [not null]
+  pos_y numeric(10,2) [not null]
+  width numeric(10,2) [not null]
+  height numeric(10,2) [not null]
+  rotation numeric(5,2) [not null, default: 0]
+  label varchar(60)
+  created_at timestamptz
+  updated_at timestamptz
+  indexes {
+    (room_layout_id, uuid) [unique]
+  }
+  Note: 'Layout-only shapes; no asset identity. CHECKs: kind, size (> 0), position (>= 0), rotation [0, 360), label not blank. Cascade-deleted with the layout; replaced wholesale on save.'
 }
 
 
@@ -444,6 +467,7 @@ Table ticket_categories {
   description text
   default_priority_id bigint
   is_active boolean [not null, default: true]
+  requires_detail boolean [not null, default: false, note: 'Phase 2.9 (SDD DD-77, migration 2026_10_16_120000): a catch-all ("Other") category whose reports must describe the kind of problem in tickets.category_detail. Set for other; also kept on other-common and other-advanced, which 2026_10_16_150000 retired (is_active = false, Client decision 2026-10-16) so the form offers a single Other.']
   sort_order int [not null, default: 0]
   created_at timestamptz
   updated_at timestamptz
@@ -497,8 +521,11 @@ Table tickets {
   assigned_technician_id bigint
   room_id bigint
   pc_unit_id bigint
+  asset_id bigint [note: 'Phase 2.9 (SDD DD-79): a non-PC item (printer, projector, monitor). At most one of pc_unit_id / asset_id.']
   category_id bigint [not null]
+  category_detail varchar(120) [note: 'Phase 2.9 (SDD DD-77): a short description of the kind of problem, given by the reporter under a requires_detail category only.']
   priority_id bigint [not null]
+  priority_source ticket_priority_source [note: 'Phase 2.9 (SDD DD-75): which rule set the priority. varchar(16) + CHECK; NULL = predates the column.']
   current_status_id bigint [not null]
   duplicate_of_id bigint
 
@@ -533,6 +560,7 @@ Table tickets {
     assigned_technician_id
     room_id
     pc_unit_id
+    asset_id [name: 'tickets_asset_id_index']
     category_id
     priority_id
     current_status_id
@@ -548,6 +576,21 @@ Table tickets {
   ai_analysis_logs row. Counter caches maintained by triggers/observers.
   Full-text search: generated tsvector(title, description) + GIN index.
   CHECK (duplicate_of_id <> id). CHECK (ai_confidence BETWEEN 0 AND 1).
+  Phase 2.9 additions (report-a-problem form, SDD DD-75/77/79):
+  • tickets_priority_source_check: priority_source IS NULL OR IN
+    ('category','reporter','location','ai','manual') — the order of
+    authority, weakest first (DD-75). Each widening is its own migration with
+    frozen lists (2026_10_16_100000 added 'reporter'); never rebuild it from
+    the PHP enum.
+  • tickets_equipment_target_check: num_nonnulls(pc_unit_id, asset_id) <= 1 —
+    a ticket names at most one item; <= 1 because location-only tickets are
+    legal. Both columns are ON DELETE SET NULL, and a cascade can only lower
+    the count, so this CHECK never blocks it (2026_10_16_140000).
+  • tickets_category_detail_check: category_detail IS NULL OR
+    category_detail !~ '^[[:space:]]*$' — not blank (POSIX class, not btrim).
+    3–120 characters and "required exactly when the category requires_detail"
+    are enforced by the FormRequests; not part of the full-text search vector
+    (2026_10_16_130000).
   '''
 }
 
@@ -1567,6 +1610,7 @@ Ref: room_layouts.created_by > users.id [delete: set null, update: no action]
 Ref: room_layouts.updated_by > users.id [delete: set null, update: no action]
 Ref: floor_plan_positions.room_layout_id > room_layouts.id [delete: cascade, update: no action]
 Ref: floor_plan_positions.pc_unit_id > pc_units.id [delete: cascade, update: no action]
+Ref: floor_plan_fixtures.room_layout_id > room_layouts.id [delete: cascade, update: no action]
 
 // ── PC Units, Specs, QR ────────────────────────────────────
 Ref: pc_units.room_id > rooms.id [delete: set null, update: no action]
@@ -1587,6 +1631,7 @@ Ref: tickets.reporter_id > users.id [delete: restrict, update: no action]
 Ref: tickets.assigned_technician_id > users.id [delete: set null, update: no action]
 Ref: tickets.room_id > rooms.id [delete: set null, update: no action]
 Ref: tickets.pc_unit_id > pc_units.id [delete: set null, update: no action]
+Ref: tickets.asset_id > assets.id [delete: set null, update: no action]
 Ref: tickets.category_id > ticket_categories.id [delete: restrict, update: no action]
 Ref: tickets.priority_id > ticket_priorities.id [delete: restrict, update: no action]
 Ref: tickets.current_status_id > ticket_statuses.id [delete: restrict, update: no action]

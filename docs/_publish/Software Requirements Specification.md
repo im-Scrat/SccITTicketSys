@@ -1,0 +1,1706 @@
+---
+title: Software Requirements Specification (SRS)
+system: AI-Powered IT Asset & Service Management System (SccIT)
+doc_id: SCCIT-SRS
+version: 1.0
+status: Waiting for Client Approval
+date: 2026-07-17
+author: Engineering (Beemo)
+classification: Internal — Confidential
+standard: Aligned with ISO/IEC/IEEE 29148:2018 (Requirements Engineering)
+owner: Client / Product Owner (project owner · system owner · primary decision-maker)
+---
+
+# Software Requirements Specification
+
+**AI-Powered IT Asset & Service Management System — codename “SccIT”**
+
+> **Authoritative requirements baseline.** This document is the single source of truth for *what* the system must do and *how well* it must do it. It does not prescribe *how* the system is built internally — that is the role of the companion Software Design Description (SDD). Where this SRS and any other artifact disagree, **this SRS governs the requirements**; the DBML (`docs/database/database_design_v2.dbml`) governs the physical data model it references.
+
+---
+
+## Document Control
+
+| Field | Value |
+|---|---|
+| Document ID | SCCIT-SRS |
+| Version | 1.0 |
+| Date | 2026-07-17 |
+| Status | **Waiting for Client Approval** |
+| Standard | ISO/IEC/IEEE 29148:2018 (adapted) |
+| Prepared by | Engineering |
+| Owner / decision authority | Client / Product Owner — project owner, system owner, and primary decision-maker |
+| Related documents | `PRODUCT.md`, `DESIGN.md`, `docs/database/database_architecture_report.md`, `docs/database/database_design_review.md`, `docs/database/database_design_v2.dbml`, `docs/ENVIRONMENT.md`, `docs/PROJECT_STRUCTURE.md`, `docs/diagrams/` (UML sources + rendered figures) |
+
+### Revision History
+
+| Version | Date | Author | Summary |
+|---|---|---|---|
+| 1.0 | 2026-07-17 | Engineering | **Version 1.0 baseline.** Consolidated requirements specification: scope, business objectives, stakeholders, user roles and the seeded permission matrix, system context, the complete functional requirement set (FR-AUTH/USER/LOC/PC/TKT/ASN/MNT/AST/AUD plus AI, QR, floor-plan, dashboard, reporting, notification and settings requirements), non-functional/security/performance/scalability/availability/accessibility requirements, external interfaces, business rules, operational scenarios, the System Use Case Diagram (**Figure 2**) with detailed use-case specifications (**UCS-01…10**) and workflow activity diagrams (**Figures 3–6**), system-wide AI behaviour, data requirements, traceability, acceptance criteria, risks/constraints/assumptions, open decisions, glossary, and Appendices A–B. Product Perspective Block Diagram at **Figure 1**. Status: **Waiting for Client Approval**. |
+| 1.0 | 2026-08-26 | Engineering | **Phase 2.5 — Asset Management** realized against the Version 1.0 baseline (label unchanged). Extended FR-AST-002/005/012 with per-unit asset name, custodianship, attachments, the audited transition map and the unified asset history; added **FR-AST-013** (Administrator-only module with a workflow-authorized narrow equipment lookup), **FR-AST-014** (navigable Asset Management dashboard) and **FR-AST-015** (enterprise search). Recorded the asset lifecycle vocabulary and the widened category domain. Updated the §8.4 seeded permission matrix: `assets.*` is now Administrator-only, withdrawing the Technician `view`/`update`/`transfer` grants. Added acceptance criteria AC-AST-005/005b/006/012/013/014/015, AC-PC-003 and AC-QR-001. |
+| 1.0 | 2026-08-28 | Engineering | **Phase 2.6 — Ticket Management** realized against the Version 1.0 baseline (label unchanged). Rewrote **FR-TKT-013** to the implemented three-role, row-scoped visibility model — a Teacher's own tickets in full plus a restricted community projection of others', a Technician scoped to their own assignments (read outliving the assignment, a decline granting nothing), an Administrator seeing all — and required lists and single-record reads to obey the same rule so a ticket absent from a list is unreachable by identifier. Corrected the §8.4 seeded matrix: the Technician baseline is now `view, update, comment`, with **`assign` and `export` withdrawn** (assign remains grantable per user as FR-ASN-001's documented deputization exception). Added a note explaining that `tickets.view` is a floor rather than a boundary, since all three roles hold it. |
+| 1.0 | 2026-08-28 | Engineering | **QR workflow clarification** recorded against the Version 1.0 baseline (label unchanged), ahead of implementation. Amended **FR-QR-005** (server-side resolution; the panel follows authentication and authorization; every scan attempt is logged) and **FR-QR-007** (QR label management is Administrator-only, resolving a conflict with [FR-AST-013](#108-inventory--asset-lifecycle-fr-ast)); added **FR-QR-010–013** (the identifier is not a credential; destination preservation without open redirect; the scan-scoped PC panel; enumeration and rate-limit resistance). Added **FR-MNT-009–011** (proof of work from the scanned workflow, its required evidence through the single attachment boundary, and row-scoped maintenance visibility) and a new **§10.7.1 FR-WSR-001–013** for technician work support requests, the administrator decision set (approve-and-reschedule, request face-to-face, decline with a required reason) and both tracking surfaces. Extended **FR-NOT-003** with the new triggers, added **DR-020/021**, **UCS-11**, acceptance criteria **AC-QR-010/012, AC-MNT-009, AC-WSR-008**, and open decisions **OI-08–OI-11**. Corrected the stale §8.2 Technician capability prose to match the §8.4 matrix. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-08-28 | Engineering | **QR workflow clarification — Client decisions recorded** against the Version 1.0 baseline (label unchanged). Resolved **OI-08** (authenticated SPA scan entry, code-only destination), **OI-09** (technician support requests are a dedicated job-scoped entity; `procurement_requests` is neither overloaded nor redesigned; exact schema to be approved before implementation), **OI-10** (record the clarification request, not a calendar) and **OI-11** (six controlled statuses — `cancelled` added so a technician may withdraw a request). Amended **FR-WSR-004** to the six-state controlled transition map with no in-place overwrite of prior decisions, and added **FR-WSR-014** (technician withdrawal). Amended **FR-MNT-009** so proof of work attaches to an **existing active** maintenance record and a scan never by itself confers permission to create maintenance work, and added **FR-MNT-012** (duplicate prevention by construction). Restricted **FR-QR-012** to the Client's approved operational field list under a dedicated authorization rule, with purchase price, supplier/procurement, unrelated financial data, unrestricted audit history and custodian records explicitly excluded. Updated **DR-020** accordingly. |
+| 1.0 | 2026-08-28 | Engineering | **WP-2.6 Maintenance Domain — Client decisions recorded** against the Version 1.0 baseline (label unchanged), ahead of implementation. Split **FR-MNT-009** explicitly across the two work packages so neither appears to skip it: the Maintenance-side foundation — technician-initiated corrective maintenance where authorized, an identifiable **active** maintenance record, and the row-scoped authority to work it — is delivered by **WP-2.6**, while the scanned entry point, the proof-of-work submission itself and its scan-bound idempotency ([FR-MNT-012](#107-maintenance-fr-mnt)) remain **WP-2.6b**. Amended **FR-MNT-006** to name the serialized asset *removed* and added **DR-022** for the additive `hardware_replacements.old_asset_id` column, without which [AC-MNT-006](#312-representative-feature-criteria) cannot be satisfied deterministically. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-08-28 | Engineering | **WP-2.6 — Maintenance Domain delivered** against the Version 1.0 baseline (label unchanged). Realized **FR-MNT-001..008, 010 and 011**, and the Maintenance-side half of **FR-MNT-009**: corrective and preventive records against a PC unit and/or asset with an optional ticket link, row-scoped visibility whose list rule and single-record rule are the same rule, an audited five-state lifecycle, checklists issued from the type's template with required-item enforcement before completion, repair evidence through the **existing** attachment trust boundary ([DR-021](#292-data-integrity--constraints)), notes, hardware replacements reconciling the PC's installation history ([DR-022](#292-data-integrity--constraints), [AC-MNT-006](#312-representative-feature-criteria)), preventive due detection on the configured cadence, and the technician and administrator surfaces — verified live for all three roles in development. Carried forward, unchanged and still tracked: the scanned entry and proof-of-work submission with its idempotency ([FR-MNT-009](#107-maintenance-fr-mnt) scan half, [FR-MNT-012](#107-maintenance-fr-mnt)) to WP-2.6b, and notification **delivery** for maintenance triggers ([FR-NOT-003](#22-notification-requirements)) to WP-2.6b/WP-2.7. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-08-30 | Engineering | **WP-2.6b — QR-verified technician job workflow delivered** against the Version 1.0 baseline (label unchanged). Realized **FR-QR-005/006/008..013**, **FR-MNT-009 (scanned half)/010/012**, **FR-WSR-001..011** and **FR-WSR-014**, and acceptance criteria **AC-QR-010/012, AC-MNT-009, AC-WSR-008**: the public scan endpoint that records every attempt and discloses nothing before authentication; destination preservation across sign-in by **code only**; the scan-scoped PC panel under its own authorization rule rather than any `assets.*` permission; proof of work attached to an existing active maintenance record, idempotent on the scan; technician work support requests on the six-state controlled transition map with no client-settable status; the administrator decision set (approve-and-reschedule, request face-to-face, decline with a reason enforced in the application **and** by a database CHECK); technician withdrawal and acknowledgement; authorized retrieval of request evidence through the single attachment trust boundary; and the technician's combined submission history covering proof-of-work records **and** support requests. Verified live for all three roles in development. Recorded as **deferred / carried forward**, not implemented: the notification centre, notification preferences and email delivery; the minimum notification channel and its workflow triggers ([FR-WSR-012](#), partial [FR-NOT-003](#), [DD-52](#)); the procurement bridge ([FR-WSR-013](#)); automatic support-request closure; axe/WCAG regression automation; browser visual regression; the two pre-existing Phase 2.4/2.5 factory-collision test flakes; ticket export ([FR-RPT-004](#)); ticket AI ([FR-AI-*](#)); WP-2.4b; the floor plan; and Phase 2.7. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-09-30 | Engineering | **WP-M — Admin predictive-maintenance reports** realized against the Version 1.0 baseline (label unchanged). Amended **FR-AI-011** to state the Administrator-only review surface, the fields a report shows, the rule that a time window (and a probability) appears only when the evidence supports one, the four-state status with final decisions, and the advisory verdict; extended **FR-NOT-003** with the finding-awaiting-review trigger; and added the **`predictions`** module (`view`, `manage`, Administrator only) to the **§8.4** permission matrix with its note. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-09-30 | Engineering | **WP-P — RAG knowledge indexing** realized against the Version 1.0 baseline (label unchanged). Amended **FR-AI-006** to the client's Source A / Source B split: only published knowledge articles are embedded, transactional records are deliberately kept out of the shared vector index, only `indexed` sources are retrievable, and vector width is validated before storage; and **FR-AI-007** to record that the retrieval service exists while its only consumer (WP-3.3) does not. **FR-AI-005**'s note that only published articles are visible is unchanged and now also governs what may be embedded. No starter knowledge content was authored: no school procedure, institutional contact, escalation policy or official rule was invented, and articles remain whatever an administrator publishes. No provider key was requested or used — every test runs against a deterministic embedding fake. No version label was changed. |
+
+| 1.0 | 2026-09-06 | Engineering | **WP-2.7d — Quality & Operational Foundation delivered** against the Version 1.0 baseline (label unchanged). Recorded against **FR-QR-011** that the destination-preservation requirement's *resume* obligation was defective when first reported delivered — the guest route discarded the pending scan and sent every authenticated visitor to `/app` — and that WP-2.7d corrected it with regression coverage at three levels, converting an expected-failure browser test into a genuine assertion. The open-redirect half of FR-QR-011 was never at risk. No requirement was added or removed and no version label was changed. |
+| 1.0 | 2026-09-06 | Engineering | **WP-2.7a — Notification infrastructure delivered** against the Version 1.0 baseline (label unchanged). Recorded implementation status against **§22**: **FR-NOT-003 is partly satisfied — nine of its twelve triggers are implemented**, with low-stock reorder and procurement approval/rejection blocked on **WP-2.4b** and new announcements deferred to **WP-2.7c**; the requirement is explicitly **not** marked satisfied, and a unit test asserts the two blocked triggers have no topic and no event class so the gap cannot close silently. Recorded the two Client recipient decisions of 2026-09-05: *followed/owned* means **demonstrated participation** (reporter, assigned technician, prior commenters), with an **internal comment narrowing the audience to staff** so a requester is not told that a note they may not read exists; and SLA notifications reach **Administrators plus the assigned technician** and are **notify-only**, leaving **OI-06** open. Marked **FR-NOT-006** satisfied with the structural-facts content rule. Clarified **FR-NOT-002**: in-app delivery is a system obligation and does **not** prevent a user disabling in-app notifications per type, the account-lockout email being the sole forced-channel exception. Corrected **FR-NOT-008**, which named `notifications.digest_enabled` — **a column that has never existed** — to the approved **D1** shape, a third delivery *channel* on `notification_preferences`; the digest remains **unimplemented**, with no migration, no widened CHECK constraint and no scheduled command. Recorded **D5** against **FR-NOT-010/011**: announcement publishing generates an **in-app notification only, with no email**, audience targeting is an authorization boundary rather than a display filter, and no new permission is required. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-09-06 | Engineering | **WP-2.7b — Notification experience delivered** against the Version 1.0 baseline (label unchanged). Recorded **FR-NOT-001, 004 and 005** as satisfied by the delivered surface — the notification centre at `/app/notifications`, the top-bar entry with its unread badge and dropdown panel, individual and bulk read/unread, and filtering by unread state and by type across the nine-value set — and **FR-NOT-002** as satisfied by the opt-out channel x type matrix on `/app/account`. **FR-NOT-003 remains partly satisfied and is not re-marked.** Confirmed **FR-NOT-007** is still Future (P4) and unimplemented: freshness is a 60-second poll while the tab is visible, so the badge may be up to one interval stale and the product does not claim real-time behaviour. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-09-07 | Engineering | **WP-2.7c — Announcements delivered** against the Version 1.0 baseline (label unchanged). Recorded **FR-NOT-010** and **FR-NOT-011** as **satisfied**: administrators compose, publish, withdraw, re-notify and delete audience-targeted announcements, and the targeted audience reads them at `/app/announcements`, pinned first. Rewrote the §22.1 implementation status, which previously stated that no announcement domain code, publishing surface or trigger existed. Updated **FR-NOT-003** from **nine of twelve** to **ten of twelve** implemented triggers, marking trigger 12 (*new announcements*) ✅ implemented; the requirement remains **not** satisfied, because low-stock reorder (trigger 7) and procurement approval/rejection (trigger 8) are still blocked on **WP-2.4b** and their status is unchanged. Recorded how the **D5 (2026-09-05)** no-email guarantee is actually enforced — the announcement notification refuses the email channel in the dispatch path ([SDD DD-66](#)) rather than relying on the opt-out preference gate, which could not have delivered it. Recorded that publication is a named operation rather than a writable field, that audience targeting is enforced at the uuid as well as in the list, and that content is plain text with no attachments, no external URLs and no per-user read receipt. **No new permission** was added and the §8.4 matrix is unchanged. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-09-07 | Engineering | **WP-2.7e — Daily digest delivered** against the Version 1.0 baseline (label unchanged). Recorded **FR-NOT-008** as **satisfied**: the digest was built as the third delivery *channel* **D1 (2026-09-05)** approved, so `notification_preferences.channel` now allows `('in_app', 'email', 'digest')` while `notifications` and `notifications_type_check` stay untouched. Recorded the delivered semantics — **07:00 Asia/Manila** over the previous school-local calendar day as a half-open interval with `app.timezone` unchanged at **UTC**; the digest as a distinct channel that the `email` preference does **not** disable; per-type preferences read through the existing opt-out gate, taking the matrix to **27 cells**; all three roles eligible with **no cross-user aggregation**; **titles only**, never a notification's `message`; and an empty day sending nothing. Recorded that delivery is **at-most-once** — the record commits before the message is sent, uniqueness is enforced by the database on `(user_id, digest_date)`, and **`sent_at` means committed rather than confirmed delivered**. Recorded the seeded `notifications.digest_enabled` **system setting** as unused legacy state: it predates D1, is read by no code, and was neither used nor removed. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-14 | Engineering | **Phase 2.9 — `resolved_at` cleared when a ticket is sent back to work** recorded against the Version 1.0 baseline (label unchanged). Amended **FR-TKT-006**: `resolved_at` is stamped on a move to `resolved` and is now also cleared when a `resolved` ticket moves to anything other than `closed` (previously only a move to `open` cleared it, so a `resolved → in-progress` rework left a stale stamp that made the teacher dashboard's "awaiting confirmation" and "resolved in 30 days" figures disagree with the status-based lists they link to, and kept the SLA clock stopped). A one-off data migration clears the stamp on existing rows in any status other than `resolved` or `closed`. Consequence: a re-worked ticket is SLA-live again against its original deadline. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-14 | Engineering | **Phase 2.9 — threaded comments from the community feed** recorded against the Version 1.0 baseline (label unchanged). Amended **FR-TKT-007**: replies are one level deep (answering a reply joins the same thread), anyone who can see a ticket — a requester reading another's community card included — may comment and reply whatever the ticket's status (Client decision, 2026-10-14; the server never gated comments on status, only the community view did), and a public reply may not answer an internal note. Design recorded as SDD **DD-74**. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-16 | Engineering | **Phase 2.9 — report-a-problem form** recorded against the Version 1.0 baseline (label unchanged). Client decisions 2026-10-16: a reporter, a Teacher included, may choose a priority when reporting — optional, with "Not sure — let the IT team decide" preselected; the top priority level is displayed **"Urgent"** (slug `critical`, level and SLA unchanged); an "Other" category asks for a short description of the kind of problem; photos may be taken or chosen while reporting; the location is named building → room → a PC unit or another **in-service** item in that room; and a room's in-service equipment, server and storage rooms included, is listed to anyone who may report a fault there. Amended **FR-TKT-001/004/008/013**, **FR-AST-013**, **BR-05**, **UCS-02** (steps 2–4, E2 and traceability) and the **Figure 3** caption; added **DR-023/024** and **AC-TKT-001b/c**. FR-TKT-004 now states, for the first time in this document, the priority order of authority recorded in `tickets.priority_source` (Phase 2.9 owner decision D-B, previously recorded only in code, extended with the reporter's choice). The rendered Figure 3 diagram (`activity-teacher`) was not re-rendered and its caption says so. Design recorded as SDD **DD-75..DD-80**. **No new permission** was added and the §8.4 matrix is unchanged. Same day, Client decision: the group-level "Other Common Issues" / "Other Advanced Issues" categories were retired (inactive, not deleted), so the form offers one "Other" under "Other Categories", which asks for a description (DR-024). No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-17 | Engineering | **Phase 2.9 — technician dashboard navigation and assignment lifecycle** recorded against the Version 1.0 baseline (label unchanged). Amended **FR-DSH-004** (every figure links to a list whose total equals it; "due within 4 hours" and "Overdue" named), **FR-ASN-003** (an active assignment ends with a closed or cancelled ticket), **FR-ASN-006** (open / due-soon / Overdue views of the queue) and **FR-TKT-017** (the breach is shown as "Overdue"; the rule is unchanged). No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-18 | Engineering | **Phase 2.10 R1 — Admin Dashboard ticket overview** recorded against the Version 1.0 baseline (label unchanged). Added **FR-DSH-009** (the administrator's filterable ticket overview with drill-downs and table equivalents). Amended **FR-RPT-003** and **UC-11** for owner decision D8 (reports are Administrator-only by role and permission). Figure 2 still shows Technician on UC-11 and is to be redrawn in the Phase 2.10 documentation pass. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-18 | Engineering | **Phase 2.10 R3 — report export, email and print** recorded against the Version 1.0 baseline (label unchanged). Amended **FR-RPT-004** (realized for the ticket overview: PDF, Word, Excel and CSV, rendered on a queue and downloaded by their requester) and added **FR-RPT-008** (emailing a report to any address with safeguards, owner decision D1) and **FR-RPT-009** (a printable view of a report). No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-18 | Engineering | **Phase 2.10 R4 — Overall Reports** recorded against the Version 1.0 baseline (label unchanged). Added **FR-RPT-010** (the Administrator's Overall Reports page: tickets, equipment, repairs and locations, with record tables and documents) and noted in **FR-RPT-001** which of its listed reports it realizes. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-18 | Engineering | **Phase 2.10 R5 — AI interpretations of reports** recorded against the Version 1.0 baseline (label unchanged). Added **FR-RPT-011** (evidence-based, advisory AI interpretations of the overall report, off by default) and extended the **FR-AI-033** disclosure. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-18 | Engineering | **Phase 2.10 R6 — Asset import** recorded against the Version 1.0 baseline (label unchanged). Added **FR-AST-016** (Administrator-only spreadsheet import of PC units and other equipment, reviewed row by row before anything is saved, saved row by row with one stated outcome). No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-18 | Engineering | **Phase 2.10 R7 — Post-import review** recorded against the Version 1.0 baseline (label unchanged). Added **FR-AST-017** (a read-only, live review of every page an import's records now appear on). No requirement was removed and no version label was changed. |
+| 1.0 | 2026-10-19 | Engineering | **Phase 2.11 — Floorplan completion and the PC status model** recorded against the Version 1.0 baseline (label unchanged; SPMP WP-4.1/4.2/4.3 — the conversational "Phase 2.11"). Amended **FR-PC-002** to three repair statuses (Available, Pending Repair, Needs Fix) plus the derived grey Unassigned, no online/offline claims, retired PCs archived, and ticket/repair automation (SDD DD-100); amended **FR-MNT-008** (completing a repair makes the PC Available). Rewrote the §19 introduction and amended **FR-FP-001/003/004/006/007/008** for the Floorplan editor: room overview, fixtures, quarter-turn rotation, undo/redo, the whole-layout save under a revision with per-object merge, presence, leave guard and draft recovery, and position release when a PC leaves a room (SDD DD-101..DD-104). **Corrected the §8.4 matrix and FR-FP-006**: Technicians do not view the floor plan — it has been Administrator-only since Phase 2.8 (WP-B) per the client brief. Updated **UC-12** and **AC-FP-003**. No requirement was removed. |
+| 1.0 | 2026-10-19 | Engineering | **Phase 2.11 follow-up — owner requests of 2026-10-19** recorded against the Version 1.0 baseline (label unchanged). Amended **FR-QR-011** (every sign-in and the end of a forced password change land on the user's own dashboard; a scanned code is offered there as "Continue to the PC you scanned" instead of resumed automatically — the open-redirect guarantee unchanged), with the §18 mandated-order note, a recorded note after the WP-2.7d defect note, step (4) of **UCS-11** and **AC-QR-010** (SDD DD-105). Amended **FR-TKT-007** (only the author edits, within `tickets.comment_edit_window_minutes`; removal by the author within the window or by an Administrator at any time; per-comment edit/remove flags — SDD DD-106) and **FR-TKT-009** (only one's own vote can be withdrawn). Recorded the compose form's **Publish** under **FR-NOT-010** (SDD DD-107). Amended **FR-LOC-001** (name only; code derived — SDD DD-108), **FR-AST-002** and **FR-PC-001** (asset tag internal and hidden, every add-asset field optional, optional catalog model with "Other", display-name fallback — SDD DD-109) and **FR-USER-002** (full name includes the middle name; a middle name can be cleared). No requirement was removed. |
+
+### Conventions used in this document
+
+- **Requirement verbs (RFC 2119 / ISO 29148 sense):** *shall* = mandatory; *should* = recommended; *may* = optional; *will* = statement of fact/intent.
+- **Requirement identifier:** every requirement carries a unique, stable ID (e.g. `FR-TKT-014`). IDs are never reused once assigned.
+- **Class:** `M` = Mandatory (in scope for the release stated under **Rel**); `F` = Future (planned, explicitly **out of current scope**).
+- **Rel (release phase):**
+  - `P2` — Core platform (the next build phase; the MVP baseline).
+  - `P3` — AI & Knowledge Base (Gemini + RAG).
+  - `P4` — Interactive Floor Plan + real-time.
+  - `—` — Future/backlog (not yet scheduled).
+- **Ver (verification method):** `T` Test · `D` Demonstration · `I` Inspection · `A` Analysis. See [§4.5](#45-verification-methods).
+- **Traceability:** requirements trace up to Business Objectives (`BO-n`) and down to data entities and acceptance criteria (see [§30](#30-requirements-traceability-matrix)).
+
+---
+
+## Table of Contents
+
+1. [Executive Summary](#1-executive-summary)
+2. [Purpose](#2-purpose)
+3. [Scope](#3-scope)
+4. [Definitions, Acronyms & Verification Methods](#4-definitions-acronyms--verification-methods)
+5. [Business Objectives](#5-business-objectives)
+6. [Product Overview](#6-product-overview)
+7. [Stakeholders](#7-stakeholders)
+8. [User Roles](#8-user-roles)
+9. [System Context](#9-system-context)
+10. [Functional Requirements](#10-functional-requirements)
+11. [Non-Functional Requirements](#11-non-functional-requirements)
+12. [Security Requirements](#12-security-requirements)
+13. [Performance Requirements](#13-performance-requirements)
+14. [Scalability Requirements](#14-scalability-requirements)
+15. [Availability & Reliability Requirements](#15-availability--reliability-requirements)
+16. [Accessibility Requirements (WCAG 2.2 AA)](#16-accessibility-requirements-wcag-22-aa)
+17. [AI Requirements](#17-ai-requirements)
+18. [QR Code Requirements](#18-qr-code-requirements)
+19. [Interactive Floor Plan Requirements](#19-interactive-floor-plan-requirements)
+20. [Dashboard Requirements](#20-dashboard-requirements)
+21. [Reporting Requirements](#21-reporting-requirements)
+22. [Notification Requirements](#22-notification-requirements)
+23. [System Settings Requirements](#23-system-settings-requirements)
+24. [External Interface Requirements](#24-external-interface-requirements)
+25. [Business Rules](#25-business-rules)
+26. [Operational Scenarios](#26-operational-scenarios)
+27. [Use Cases](#27-use-cases)
+28. [User Stories](#28-user-stories)
+29. [Data Requirements](#29-data-requirements)
+30. [Requirements Traceability Matrix](#30-requirements-traceability-matrix)
+31. [Acceptance Criteria](#31-acceptance-criteria)
+32. [Risks, Constraints & Assumptions](#32-risks-constraints--assumptions)
+33. [Open Issues & Decisions Requiring Client Approval](#33-open-issues--decisions-requiring-client-approval)
+34. [Future Expansion](#34-future-expansion)
+35. [Glossary](#35-glossary)
+36. [Appendix A — Internal Review & Verification Log](#appendix-a--internal-review--verification-log)
+
+### List of Figures
+
+| Figure | Title | Section |
+|---|---|---|
+| **Figure 1** | Product Perspective Block Diagram | [§6.1](#61-product-perspective) |
+| **Figure 2** | System Use Case Diagram | [§27](#27-use-cases) |
+| **Figure 3** | Teacher / Requester Workflow — Activity Diagram | [§27.3](#273-operational-workflow-activity-diagrams) |
+| **Figure 4** | Technician Workflow — Activity Diagram | [§27.3](#273-operational-workflow-activity-diagrams) |
+| **Figure 5** | Administrator Workflow — Activity Diagram | [§27.3](#273-operational-workflow-activity-diagrams) |
+| **Figure 6** | System-Wide AI Behavior — Activity Diagram | [§27.3](#273-operational-workflow-activity-diagrams) |
+
+> Figures are rendered from version-controlled UML sources in `docs/diagrams/`, with high-resolution `.svg`/`.png` committed: the Product Perspective from Mermaid + PlantUML, and the (stickman) Use Case Diagram from PlantUML + a self-contained layout generator.
+
+---
+
+## 1. Executive Summary
+
+SccIT is a **vertical-agnostic IT Service Management (ITSM) and IT Asset Management (ITAM) platform**, deployed first for educational institutions but architected to re-skin for businesses, government offices, hospitals, and other organizations by changing a single brand token. It replaces manual, fragmented IT processes — spreadsheets, email threads, and paper repair logs — with one system in which service requests are resolved faster, assets are tracked accurately across their full lifecycle, preventive maintenance happens before hardware fails, and administrators see the real operational picture at a glance.
+
+The platform serves three role classes on a shared surface: **Administrators** (system owners), **Technicians** (the daily work-queue drivers), and **Teachers/requesters** (occasional, non-technical reporters). It couples a classic ticketing/assignment workflow with a complete asset inventory (serialized assets and quantity-tracked consumables), QR-based physical verification, preventive-maintenance scheduling, an AI-assisted troubleshooting layer (Google Gemini + Retrieval-Augmented Generation over pgvector), a future interactive floor plan, and first-class analytics/reporting.
+
+The **data layer is already implemented and verified** to a production bar: a PostgreSQL 17 relational schema (66 Eloquent models and 34 enum domains) with timezone-correct timestamps, referential integrity with deliberate delete policies, soft deletes on business entities, full-text and vector indexes, tamper-resistant audit logging, and an RBAC model. The **business logic (application) layer has not yet been built** — this SRS defines the requirements for that build and everything that follows.
+
+This document has been reconciled against every available source of truth and an internal review (Appendix A). It records **flagged decisions that would alter the specified business model** (e.g. multi-role users, self-service registration, MFA) as **open issues in [§33](#33-open-issues--decisions-requiring-client-approval)** rather than silently adopting them; the client’s decisions on those items will be folded into version 1.1 before the SDD is authored.
+
+---
+
+## 2. Purpose
+
+### 2.1 Purpose of the system
+SccIT exists to **replace manual, fragmented IT operations with a single, trustworthy system** that (a) cuts busywork, (b) improves mean time to resolution and asset accuracy, and (c) presents administrators with reliable operational truth — all at a level of polish suitable for enterprise procurement.
+
+### 2.2 Purpose of this document
+This SRS specifies the functional and non-functional requirements of SccIT in a complete, consistent, verifiable, and traceable form. Its intended readers and uses are:
+
+| Reader | Use |
+|---|---|
+| Client / product owner | Confirm the system will satisfy the business need; approve scope and phasing. |
+| Engineering | Basis for the Software Design Description (SDD), implementation, and estimation. |
+| QA / test | Basis for test plans; every requirement is written to be verifiable. |
+| Operations / security | Basis for deployment, hardening, backup, and audit review. |
+| Future maintainers | Authoritative record of *why* the system behaves as it does. |
+
+### 2.3 Requirements quality commitment
+Per ISO/IEC/IEEE 29148, every requirement in this document is intended to be **necessary, unambiguous, singular, feasible, verifiable, and traceable**. The set is intended to be **complete, consistent, and free of duplication**. Deviations, gaps, and decisions still owned by the client are listed explicitly in [§32](#32-risks-constraints--assumptions) and [§33](#33-open-issues--decisions-requiring-client-approval).
+
+---
+
+## 3. Scope
+
+### 3.1 Product name
+**SccIT** — AI-Powered IT Asset & Service Management System. (Repository: `SccITTicketSys`.)
+
+### 3.2 In scope
+
+The system provides, across phased releases:
+
+- **Identity & access control** — authentication, three-role RBAC with per-user permission overrides, user lifecycle, session/login history.
+- **Location model** — buildings → floors → rooms (typed: laboratory/office/storage/server room/…), the spatial foundation for asset placement and the floor plan.
+- **Computer (PC unit) management** — PC units as composed configuration items, specifications, installed hardware history.
+- **QR code management & physical verification** — generate, print, and scan QR codes bound to PC units or standalone assets.
+- **IT service ticketing (ITSM)** — full ticket lifecycle: submission, categorization/prioritization, assignment, comments, attachments, votes, status history, SLA tracking, duplicate handling.
+- **Technician workflow & maintenance** — assignment lifecycle, corrective repairs, and **preventive maintenance scheduling** with checklists, repair images, notes, and hardware replacements.
+- **Inventory & asset lifecycle (ITAM)** — hardware catalog (manufacturers → components → models), **serialized assets** and **quantity-tracked consumables**, stock ledger, procurement with approval, transfers, and disposal.
+- **AI assistance** — AI ticket triage/analysis, conversational troubleshooting, a RAG knowledge base, feedback capture; and (opt-in) predictive maintenance and auto-drafted knowledge articles.
+- **Interactive floor plan** — visual, drag-and-drop layout of PCs per room with status-colored icons and click-through info panels *(future phase; groundwork present)*.
+- **Dashboards, analytics & reporting** — role-aware dashboards, KPI widgets, on-demand reports, and data export.
+- **Administration** — notifications & preferences, announcements, centralized system settings/branding, audit & activity logging, planned maintenance windows, and backup history.
+
+### 3.3 Out of scope (this program)
+
+The following are explicitly **not** delivered by SccIT (they may be integrated externally):
+
+- Financial/accounting, payroll, HR, or general ERP functions beyond IT procurement request tracking.
+- Learning-management, student-information, or academic-grading functionality (SccIT is IT-operations software that *happens* to ship for schools first).
+- Endpoint management/RMM agents, automated software deployment, or remote device control.
+- Native mobile applications (the web UI is responsive and works on mobile browsers; `ticket_source = mobile` denotes a mobile *browser*, not a native app).
+- Multi-tenancy / multi-organization isolation in one deployment (see [§32 CON-08](#322-constraints)).
+
+### 3.4 Release phasing (summary)
+
+| Phase | Contents | Class |
+|---|---|---|
+| **P2 — Core** | Identity/RBAC, Locations, PC units, QR, Ticketing, Assignment, Maintenance, Inventory/Assets, Dashboards, Reporting, Notifications, Settings, Audit, Announcements, Backup. | Mandatory |
+| **P3 — AI & Knowledge Base** | AI triage/analysis, conversational assistant, RAG knowledge base, AI feedback. | Mandatory |
+| **P4 — Interactive Floor Plan & Real-time** | Floor plan editor/viewer, drag-drop, snap-to-grid, live position/status updates (Reverb). | Mandatory (later) |
+| **Future** | Predictive maintenance at scale, network topology/heat maps, MFA, multi-role, scheduled reports, multi-tenant. | Future |
+
+> **Note on “AI-Powered” naming.** AI is a core differentiator (P3), but sequenced *after* the core platform because it depends on the ticketing/asset data and on an external provider (Gemini). AI availability degrades gracefully: if AI is disabled or unreachable, every core workflow remains fully usable (see [FR-AI-020](#173-ai-functional-requirements)).
+
+---
+
+## 4. Definitions, Acronyms & Verification Methods
+
+### 4.1 Acronyms
+
+| Acronym | Meaning |
+|---|---|
+| ITSM / ITAM | IT Service Management / IT Asset Management |
+| CI | Configuration Item (e.g. a PC unit composed of parts) |
+| RBAC | Role-Based Access Control |
+| RAG | Retrieval-Augmented Generation |
+| MTTR / FRT | Mean Time To Resolution / First Response Time |
+| SLA | Service Level Agreement |
+| IDOR | Insecure Direct Object Reference |
+| WCAG | Web Content Accessibility Guidelines |
+| SPA | Single-Page Application |
+| RPO / RTO | Recovery Point / Time Objective |
+| FTS | Full-Text Search |
+| HNSW | Hierarchical Navigable Small World (vector index) |
+
+### 4.2 Key domain terms
+See the [Glossary (§35)](#35-glossary) for the full list. Core terms: **Reporter** (role-neutral ticket originator), **PC Unit** (a managed computer), **Asset** (a serialized physical unit), **Consumable** (quantity-tracked stock), **Room** (typed location), **Layout** (a versioned floor-plan canvas for a room).
+
+### 4.3 Requirement statement pattern
+Functional requirements follow: *“The system shall <capability> [for <role>] [when <condition>] [so that <outcome/measure>].”* Non-functional requirements state a **measurable target** and its **verification method**.
+
+### 4.4 Priority & class legend
+`M` Mandatory · `F` Future · `P2/P3/P4/—` release phase (see Conventions).
+
+### 4.5 Verification methods
+- **T (Test):** executed against acceptance criteria (automated test, scripted manual test).
+- **D (Demonstration):** operate the system and observe the result (no measurement instrument).
+- **I (Inspection):** review of artifacts (code, config, schema, UI) against the requirement.
+- **A (Analysis):** modeling, calculation, or load simulation (used for performance/scalability).
+
+---
+
+## 5. Business Objectives
+
+| ID | Business Objective | Success measure (indicative; final targets confirmed at approval) |
+|---|---|---|
+| **BO-01** | Reduce time to resolve IT service requests. | Median MTTR reduced ≥ 30% vs. the current manual baseline within 2 reporting periods after go-live. |
+| **BO-02** | Achieve and maintain accurate asset tracking across the full lifecycle. | ≥ 98% of managed assets have a current status, location, and custodian; physical audit variance < 2%. |
+| **BO-03** | Shift maintenance from reactive to preventive. | ≥ 60% of maintenance events are scheduled/preventive (not ticket-triggered) within 2 periods. |
+| **BO-04** | Give administrators reliable, at-a-glance operational truth. | Core KPIs (open backlog, SLA compliance, asset counts) available on a dashboard with data no older than the last completed transaction. |
+| **BO-05** | Lower the effort and anxiety of reporting a problem for non-technical staff. | A first-time reporter can submit a valid ticket in ≤ 2 minutes without training; AI self-help deflects a measurable share of low-severity tickets. |
+| **BO-06** | Enforce accountability and auditability of IT operations. | 100% of create/update/delete actions on business entities are attributable to a user and recorded in a tamper-resistant audit trail. |
+| **BO-07** | Deliver enterprise-grade quality, security, and accessibility. | WCAG 2.2 AA verified; security requirements ([§12](#12-security-requirements)) met; performance targets ([§13](#13-performance-requirements)) met. |
+| **BO-08** | Remain vertical-agnostic and re-brandable. | A new deployment can be re-branded (name, logo, primary color, locale) via settings only, with **zero code changes**. |
+
+---
+
+## 6. Product Overview
+
+### 6.1 Product perspective
+SccIT is a **new, self-contained web platform** — not a replacement module inside an existing suite. It is a **modular monolith**: a single deployable application organized internally into domains (Tickets, Assets, Maintenance, KnowledgeBase, Analytics, FloorPlan) so future modules drop in without restructuring. It exposes a REST API consumed by a single-page web client.
+
+![SccIT Product Perspective (System Context) Block Diagram](diagrams/product-perspective.png)
+
+**Figure 1. Product Perspective Block Diagram.** A high-level, layered context view of the product and the parties it interacts with, read top to bottom: **External Users → Web Browser → Nginx → React SPA → Laravel Backend → PostgreSQL/Redis → External Services.** **External users** (Administrators, Technicians, Teachers/Requesters) reach the platform through a **web browser** over a single HTTPS origin. **Nginx** is the single-origin edge: it serves the **React 19 single-page application** (Vite build, TanStack Query, design-token styling) and routes `/api`·`/sanctum` traffic to the **Laravel 13 REST API** (a modular monolith running on PHP-FPM). The backend is shown as a set of connected components — **Auth & RBAC, Audit, Notification, AI Services, and the Domain Modules** (Tickets · Assets · Maintenance · Analytics). The backend persists to its **data stores**: **PostgreSQL 17** (+ pgvector) as the system of record and **Redis** for cache, session, and queue. The platform integrates a small set of **external services** — an **email transport** (Mailpit in development, SMTP in production), the **Google Gemini AI provider**, and **QR-code generation/verification**. The whole stack is packaged and run by the **infrastructure layer** (Docker, Nginx, PHP-FPM, Redis-backed queue workers). Node colours denote *architectural tier*, not delivery phase. This is a *product-perspective* view, not a deployment diagram: it deliberately omits replica counts, ports, and container topology (see the SDD Deployment Architecture for those).
+
+### 6.2 Product functions (high level)
+1. Report, triage, assign, and resolve IT service tickets with SLA tracking.
+2. Maintain a complete, auditable inventory of computers, assets, and consumables.
+3. Schedule and record preventive and corrective maintenance.
+4. Verify equipment physically via QR codes.
+5. Assist troubleshooting with AI (triage, chat, knowledge base) grounded in the organization’s own history.
+6. Visualize equipment on interactive floor plans *(future)*.
+7. Surface operational KPIs through dashboards, analytics, and exportable reports.
+8. Administer users, roles, branding, notifications, and system configuration.
+
+### 6.3 Operating environment (summary)
+- **Backend:** Laravel 13 (PHP 8.4) REST API; Laravel Sanctum for SPA authentication.
+- **Frontend:** React 19 + TypeScript + Vite SPA.
+- **Database:** PostgreSQL 17 with the `pgvector`, `citext`, and `pgcrypto` extensions.
+- **Cache/queue:** Redis. **Mail (dev):** Mailpit. **Real-time (future):** Laravel Reverb (WebSockets).
+- **Delivery:** Dockerized; single browser origin fronted by Nginx (`/api` → Laravel, all else → SPA).
+
+See [§24](#24-external-interface-requirements) for full interface requirements and `docs/ENVIRONMENT.md` for environment specifics.
+
+### 6.4 Design & brand constraints
+The user experience is governed by `DESIGN.md` (“The Control Room”): calm, dense, instrument-like; a single brand signal (Signal Blue) on ≤10% of any surface; flat-by-tone elevation; light and dark modes as equal citizens; WCAG 2.2 AA as the floor. These are **binding UI constraints** (see [§16](#16-accessibility-requirements-wcag-22-aa) and [NFR-USB](#116-usability-requirements)).
+
+---
+
+## 7. Stakeholders
+
+| Stakeholder | Interest / concern |
+|---|---|
+| **Client / sponsor (institution leadership)** | Value for money; operational improvement; enterprise-grade quality; procurement-readiness. |
+| **IT Administrator(s)** | Full control and oversight; configuration; analytics; accountability. |
+| **IT Technicians** | Fast, dense, keyboard-efficient work queue; accurate asset/repair data on the floor. |
+| **Teachers / staff (requesters)** | Effortless, low-anxiety problem reporting and status tracking. |
+| **Data Protection / Compliance owner** | PII handling, audit trail, retention, third-party (AI) data flows. |
+| **Security officer** | Authentication, authorization, IDOR/enumeration resistance, tamper-resistant audit. |
+| **Operations / DevOps** | Deployability, backups, availability, observability. |
+| **Development & QA team** | Clear, testable requirements; maintainable architecture. |
+| **Future adopters (other verticals)** | Re-brandability; generic language; no hard-coded “school” identity. |
+| **Provider: Google (Gemini API)** | External AI processor; SLA, cost, and data-governance implications. |
+
+---
+
+## 8. User Roles
+
+Three **system roles** are seeded and non-deletable (`is_system = true`). Authorization is enforced by role plus optional per-user permission overrides (grant/deny). The permission surface is a `module.action` matrix (below), assigned to roles at seed time and adjustable by Administrators at runtime.
+
+### 8.1 Administrator
+Owns the system. Full oversight across sites, buildings, and teams. Capabilities: user & role management, permission assignment, technician assignment oversight, asset & inventory lifecycle, procurement approval, maintenance oversight, analytics/reports, all configuration and branding, audit review, backups, announcements, and (future) floor-plan editing. Administrators hold **all** permissions.
+
+### 8.2 Technician
+The daily driver. Lives in the work queue. Capabilities: view, update and comment on the tickets **assigned to them** ([FR-TKT-013](#105-ticketing--itsm-fr-tkt)); run and complete maintenance (all maintenance permissions); view inventory and adjust stock; view AI output and give AI feedback; view and create knowledge articles; view reports; view the floor plan. Technicians hold **no** `assets.*` or `locations.*` permission — they reach the equipment and the places they work on through their assigned job: the narrow lookups ([FR-AST-013](#108-inventory--asset-lifecycle-fr-ast), [FR-LOC-011](#103-location-management-fr-loc)) and, on site, the scan-scoped PC panel ([FR-QR-012](#18-qr-code-requirements)). Technicians **cannot** create/delete users, manage roles/system settings, delete tickets/assets, dispose assets, assign or export tickets, manage QR labels, or approve procurement unless individually granted (`tickets.assign` is the documented per-user deputization path — [FR-ASN-001](#106-technician-assignment--workflow-fr-asn)).
+
+### 8.3 Teacher / Requester
+Occasional, non-technical end user. Capabilities: create tickets; view **their own** tickets; comment on and upvote tickets; view published knowledge articles; use the AI assistant; give AI feedback. Teachers have **no** administrative or technician capabilities.
+
+### 8.4 Seeded permission matrix (baseline)
+
+| Module | Actions | Administrator | Technician | Teacher |
+|---|---|:--:|:--:|:--:|
+| tickets | view, create, update, delete, assign, comment, vote, export | all | view, update, comment | view, create, comment, vote |
+| locations | view, create, update, delete | all | — | — |
+| assets | view, create, update, delete, transfer, dispose | all | — | — |
+| maintenance | view, create, update, delete, complete | all | all | — |
+| inventory | view, create, update, delete, adjust | all | view, adjust | — |
+| ai | view, configure, feedback | all | view, feedback | view, feedback |
+| knowledge | view, create, update, delete, publish | all | view, create | view |
+| users | view, create, update, delete | all | — | — |
+| roles | view, manage | all | — | — |
+| reports | view, export | all | view | — |
+| floorplan | view, manage | all | — | — |
+| predictions | view, manage | all | — | — |
+| system | settings.manage, backup.manage, audit.view, announcements.manage | all | — | — |
+
+> **Note on the `predictions` module (WP-M).** Predictive-maintenance findings are **Administrator-only** — including `view`. The authorization is the *policy* and requires the Administrator role as well as the permission, so an individual grant of `predictions.*` to a Technician or Teacher opens nothing. `ai.view` (held by all three roles) is unrelated: it governs the AI output on tickets, not these findings.
+>
+> This matrix is the **baseline** (seeded). [FR-USER-010](#102-user--role-management-fr-user) permits Administrators to adjust role permissions and per-user overrides at runtime; the baseline is the tested default.
+>
+> **Note on the `locations` module.** It is **Administrator-only** — every action, including `view`. Managing the estate is site administration, not day-to-day work, so Technicians and Teachers reach no part of the module: no directory, tree, dashboard, detail page or edit control, and no read endpoint behind them.
+>
+> Naming a place inside another workflow is a separate, much narrower need (a Teacher saying where a fault is; a Technician recording where work happened). It is served by the **narrow location lookup** ([FR-LOC-011](#103-location-management-fr-loc)), which is authorized by the permission of the *consuming* workflow — `tickets.create`, `maintenance.view` and the like — and never by a `locations.*` permission. An Administrator may still grant `locations.*` to an individual account through per-user overrides ([FR-USER-004](#102-user--role-management-fr-user)) when a deputy genuinely needs it.
+>
+> **Note on the `assets` module.** The same rule applies, for the same reason: maintaining the equipment register is site administration. `assets.*` is **Administrator-only** — including `view` — so Technicians and Teachers reach no part of the Asset Management module: no dashboard, directory, detail page, history, QR management or edit control, and no read endpoint behind them ([FR-AST-013](#108-inventory--asset-lifecycle-fr-ast)).
+>
+> A Technician interacts with equipment **only through their assigned work**: the ticket they were given, the maintenance record they are completing. A Teacher interacts with it only when reporting a fault. Both are served by the **narrow equipment lookup** (FR-AST-013), authorized by `tickets.*` / `maintenance.*` and never by an `assets.*` permission.
+>
+> *(Withdrawn from the earlier baseline: Technicians previously held `view`, `update` and `transfer`. Those grants are revoked by the permission seeder so existing deployments converge on this matrix.)*
+>
+> **Note on the `tickets` module — the one that does not separate by permission.** All three roles hold `tickets.view`, and deliberately so: a Teacher must report and track, a Technician must work what they are given, and both need the same *ability*. What differs is **which rows** each may reach, and that is decided per record rather than per route ([FR-TKT-013](#105-ticketing--itsm-fr-tkt)). Reading this row as "Technicians and Teachers may see all tickets" would be wrong — the permission is a floor, not the boundary.
+>
+> *(Withdrawn from the Technician baseline in Phase 2.6: `assign` and `export`. Assignment authority is the Administrator's, and export is a whole-directory read that an account which cannot browse the directory must not hold. `tickets.assign` remains grantable **per user** — that is [FR-ASN-001](#106-technician-assignment-fr-asn)'s own "(and permitted Technicians)" exception, for a lead technician distributing workload — so the narrow deputization path stays open without widening the role.)*
+
+---
+
+## 9. System Context
+
+### 9.1 Context
+
+The system context is shown in **Figure 1** ([§6.1](#61-product-perspective)).
+
+### 9.2 External actors & systems
+
+| Actor / system | Role in context |
+|---|---|
+| Teacher / Technician / Administrator | Human users via the SPA. |
+| Google Gemini API | External AI processor for chat completion and text embeddings (P3). Data leaves the organization — governed by [§17.5](#175-ai-data-governance--safety-requirements). |
+| SMTP mail service | Outbound email notifications (Mailpit in dev; real SMTP in production). |
+| Reverb WebSocket service | Real-time channel for live updates (P4). |
+| Object/file storage | Attachment and repair-image storage (local disk by default; pluggable). |
+| Backup target | Destination for database/file backups. |
+
+---
+
+## 10. Functional Requirements
+
+> Notation reminder: **Class** M/F · **Rel** P2/P3/P4/— · **Ver** T/D/I/A. Requirement IDs are stable and unique.
+
+### 10.1 Authentication & Session Management (FR-AUTH)
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-AUTH-001 | Authenticate users by email (case-insensitive) and password using Laravel Sanctum SPA cookie-based sessions over HTTPS. | M | P2 | T |
+| FR-AUTH-002 | Store passwords only as salted bcrypt/argon2 hashes; never store or log plaintext passwords. | M | P2 | I |
+| FR-AUTH-003 | Enforce a configurable password policy: minimum 10 characters with at least three of {lowercase, uppercase, digit, symbol}; reject the 1,000 most common passwords. | M | P2 | T |
+| FR-AUTH-004 | Reject authentication for users whose `status` is not `active` (i.e. `pending`, `rejected`, `suspended`, `inactive`). Credential errors return a **non-disclosing** message; when credentials are valid but the account is not active, the response **may** disclose the account-status reason to the legitimate account holder (e.g. “awaiting administrator approval”) so applicants can learn their registration outcome. | M | P2 | T |
+| FR-AUTH-005 | Record every authentication attempt in `login_history` with outcome (`success`/`failed`/`locked_out`), timestamp, IP (`inet`), user agent, browser, and platform. | M | P2 | T |
+| FR-AUTH-006 | Lock an account for a configurable window (default: 15 minutes) after a configurable number of consecutive failed attempts (default: 5), record the lockout, and notify the user by email. | M | P2 | T |
+| FR-AUTH-007 | Update `last_login_at` and `last_login_ip` on successful authentication. | M | P2 | T |
+| FR-AUTH-008 | Provide a self-service “forgot password” flow using single-use, time-limited reset tokens (`password_reset_tokens`); reset links expire within a configurable period (default 60 minutes). | M | P2 | T |
+| FR-AUTH-009 | Expire idle sessions after a configurable inactivity period (default 8 hours) and support explicit logout that invalidates the session server-side. | M | P2 | T |
+| FR-AUTH-010 | Protect all state-changing requests with CSRF tokens and enforce same-site cookie policy. | M | P2 | I |
+| FR-AUTH-011 | Allow an authenticated user to change their own password after re-entering their current password, invalidating other active sessions on change. | M | P2 | T |
+| FR-AUTH-012 | Support multi-factor authentication (TOTP) as a configurable, per-user or role-enforced second factor. | F | — | T |
+| FR-AUTH-013 | Provide a public **registration-request** workflow: a prospective **Teacher or Technician** (never an Administrator) may submit a registration request. Submitting a request **shall not** create an active account; it creates a user record in `pending` status that **cannot authenticate**. The applicant is shown an “awaiting administrator approval” acknowledgement and may learn the outcome by attempting to sign in (see FR-AUTH-004). | M | P2 | T |
+| FR-AUTH-014 | Allow Administrators (permission `users.update`) to view pending registration requests, review applicant details, and **approve** or **reject** each request. Approval sets the account to `active` and enables sign-in; rejection sets it to `rejected` and records `rejection_reason`, `rejected_by`, and `rejected_at`. Every decision is recorded in the activity/audit trail. | M | P2 | T |
+| FR-AUTH-015 | On an approval decision, email the applicant that their account has been activated; on a rejection decision, email the applicant that the registration was not approved, including the rejection reason when one was provided. | M | P2 | T |
+| FR-AUTH-016 | Enforce account status centrally (a single account-status middleware) on every authenticated request so that `pending`, `rejected`, `suspended`, and `inactive` accounts are consistently denied access with an appropriate explanation, without duplicating the check across controllers. | M | P2 | T |
+
+> **Note.** FR-AUTH-013–016 realize the Client decision on **[§33 OI-02](#33-open-issues--decisions-requiring-client-approval)** (resolved): registration is **request-and-approve**, restricted to Teachers and Technicians. Administrator accounts are provisioned only by existing Administrators (or the documented local dev seeder) and are never self-registerable ([BR-01a](#25-business-rules)). MFA (FR-AUTH-012) remains **Future**.
+
+### 10.2 User & Role Management (FR-USER)
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-USER-001 | Allow Administrators to create, view, update, and soft-delete user accounts. | M | P2 | T |
+| FR-USER-002 | Require, on user creation: role, first name, last name, unique email; and optionally employee number (unique when present), middle name, contact number, profile picture. A user's **full name** is shown as first, middle (when present) and last name; a middle name may be cleared by leaving it blank. *(Amended 2026-10-19.)* | M | P2 | T |
+| FR-USER-003 | Assign exactly one role per user (`Administrator`, `Technician`, or `Teacher`); prevent deletion of the three system roles. | M | P2 | T |
+| FR-USER-004 | Support per-user permission overrides that **grant** or **deny** individual permissions, overriding the role default. | M | P2 | T |
+| FR-USER-005 | Enforce authorization on every API endpoint using the effective permission set (role permissions adjusted by user overrides). | M | P2 | T |
+| FR-USER-006 | Never hard-delete a user referenced by tickets, comments, or history; soft-delete instead and preserve all attributions. | M | P2 | T |
+| FR-USER-007 | Allow Administrators to set a user’s status (`active`/`inactive`/`suspended`/`pending`/`rejected`) and reflect it immediately in access control. | M | P2 | T |
+| FR-USER-008 | Allow a user to view and edit their own profile (name, contact number, profile picture, locale/theme preference) but not their own role or permissions. | M | P2 | T |
+| FR-USER-009 | Record `created_by`/`updated_by` on user records and emit audit entries for account changes. | M | P2 | T |
+| FR-USER-010 | Allow Administrators to view all permissions and adjust the permission set assigned to each non-system aspect of a role at runtime. | M | P2 | T |
+| FR-USER-011 | Allow a user to hold more than one role simultaneously. | F | — | T |
+| FR-USER-012 | Present an administrative **dashboard** at the top of the Users module: totals by status (total/active/pending/suspended/rejected/inactive/archived) and by role (Administrators/Technicians/Teachers), recent registrations, recent sign-in activity, and recent administrative actions. | M | P2 | T |
+| FR-USER-013 | Provide a **server-side** user directory: pagination, search (full name, email, employee number), filtering (status, role, archived visibility), and sorting on a fixed allow-list of columns (name/email/status/role/created/last-login). | M | P2 | T |
+| FR-USER-014 | Support **bulk** administration over a selected set: activate, suspend, reactivate, deactivate, reject, assign role, send notification email, and export. Each bulk mutation validates the per-record policy for every target, is fully audited, and runs transactionally (all-or-nothing). | M | P2 | T |
+| FR-USER-015 | Support **export** of the directory to CSV and true Excel (`.xlsx`), honouring the current search/filter/sort and an allow-listed column subset; exports respect RBAC and never include credential material. | M | P2 | T |
+| FR-USER-016 | Provide administrator **account actions**: send password reset, require password reset at next sign-in (force reset), unlock a locked account, and re-send approval / rejection / password-reset emails. Each action is audited. | M | P2 | T |
+| FR-USER-017 | Provide a complete, chronological **audit timeline** per user (registration, approval, rejection, sign-in/out, failed sign-in, suspension, reactivation, password changes/resets, role changes, permission changes, administrative actions). | M | P2 | T |
+| FR-USER-018 | Enforce **account-safety invariants**: an administrator may not suspend/deactivate/archive their own account, change their own role, or remove their own required permissions; and the system must always retain at least one active Administrator (no demote/suspend/archive of the last active admin). | M | P2 | T |
+| FR-USER-019 | Allow an Administrator to **edit a pending registration** (profile fields and the self-registerable role) before approving or rejecting it. | M | P2 | T |
+
+### 10.3 Location Management (FR-LOC)
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-LOC-001 | Allow Administrators to create, view, update, and soft-delete **buildings** (unique code, name, optional address/description, active flag). The building form asks for the **name only**; the system derives a unique code from the name when none is supplied (archived buildings included), and editing a building without supplying a code keeps its existing code. *(Amended 2026-10-19, owner decision; SDD DD-108.)* | M | P2 | T |
+| FR-LOC-002 | Allow Administrators to manage **floors** within a building; enforce unique `(building, floor_number)`. | M | P2 | T |
+| FR-LOC-003 | Allow Administrators to manage **rooms** within a floor with a `room_type` (laboratory/office/storage/server_room/faculty_room/library/other), unique code, optional room number, capacity (≥ 0), and active flag. | M | P2 | T |
+| FR-LOC-004 | Cascade-soft-delete semantics: deleting a building/floor makes its child floors/rooms unavailable while preserving history; the system shall block deletion where it would orphan in-use PC units/assets/tickets, or reassign them first. | M | P2 | T |
+| FR-LOC-005 | Present rooms, floors, and buildings as selectable location context throughout ticketing, assets, and maintenance. | M | P2 | D |
+| FR-LOC-006 | Present a Location Management surface combining an **estate explorer** (buildings → floors, with per-level counts) and a **server-side directory** for buildings and rooms: pagination, search (building name/code/address; room name/code/number), filtering (room type, availability, archived visibility, and scope to a selected building or floor), and sorting on a fixed allow-list of columns. Selecting a node in the explorer scopes the directory. | M | P2 | T |
+| FR-LOC-007 | Present estate metrics: buildings/floors/rooms totals with active, inactive and archived splits; seated capacity; the room-type mix; and occupancy — PC units placed versus unplaced, rooms holding no PC units, and buildings with no rooms. Metrics shall be computed as database aggregates. | M | P2 | T |
+| FR-LOC-008 | Allow Administrators to take a building or room **out of service** (`is_active = false`) reversibly and without archiving: the record and its history are untouched, but neither it nor — for a building — anything beneath it is offered as location context. Floors carry no separate availability flag; a floor's availability derives from its building. | M | P2 | T |
+| FR-LOC-009 | Where an archive is refused under [FR-LOC-004](#103-location-management-fr-loc), return a machine-readable **blocker report** (counts of live PC units, serialized assets, consumable stock lines and open tickets, plus the specific rooms responsible) and offer **occupant reassignment**: moving a room's live PC units, assets and consumable stock to another room in one transaction. Ticket location is history and is never rewritten — open tickets must be resolved or closed first. | M | P2 | T |
+| FR-LOC-010 | Provide a complete, chronological **audit timeline** per building, floor and room (creation, edits with old→new values, floor moves, activation/deactivation, archive/restore including the cascade counts, and occupant reassignments). | M | P2 | T |
+| FR-LOC-011 | Restrict the **entire Location Management module** — navigation, pages, estate explorer, metrics, directories, building/floor/room detail views, audit timelines and every create/update/activate/deactivate/archive/restore action — to Administrators (`locations.*`), enforced on the server for every request and not merely hidden in the client. Where another workflow needs a location field, expose only a **narrow lookup** confined to that form: it returns the labels of selectable locations (building · floor · room) and nothing else — no counts, capacity, custodianship, timestamps, archived rows or edit affordances — and is authorized by the permission of the workflow that needs it (e.g. `tickets.create`, `maintenance.view`, `assets.transfer`), never by a `locations.*` permission. | M | P2 | T |
+
+### 10.4 PC Unit & Specification Management (FR-PC)
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-PC-001 | Allow Technicians/Administrators to create, view, update, and soft-delete **PC units** with a unique `unit_code`, `pc_name`, optional asset tag/hostname/serial/brand/model, optional room, and network fields (IP `inet`, MAC). The asset tag is kept internally but not shown on the PC-unit form or detail ([FR-AST-002](#108-inventory--asset-lifecycle-fr-ast), amended 2026-10-19). | M | P2 | T |
+| FR-PC-002 | Track PC `status` as one of three repair statuses — **Available** (green), **Pending Repair** (amber: an issue was reported or a repair is under way), **Needs Fix** (red: faulty, needs attention) — and `current_condition` (working/faulty/for_repair/decommissioned). A PC with no room is shown as grey **Unassigned**, derived from the missing room, never stored as a status. The status records repair state only: the system has no telemetry and shall not present a PC as online or offline. A retired PC is archived, not given a status. Tickets and repairs move the status automatically: a ticket that starts awaiting repair moves Available → Pending Repair; when no ticket awaits repair and no repair is active, Pending Repair returns to Available; Needs Fix is set and cleared only by a person. *(Phase 2.11, SDD DD-100.)* | M | P2 | T |
+| FR-PC-003 | Maintain a 1:1 **specification snapshot** (`pc_specifications`) per PC for fast display, editable independently of installed-component history. | M | P2 | T |
+| FR-PC-004 | Maintain an authoritative **component installation history** (`pc_component_installations`) linking serialized assets to a PC, enforcing that a given asset is installed in at most one PC at a time. | M | P2 | T |
+| FR-PC-005 | Enforce `warranty_expiration ≥ purchase_date` when both are present. | M | P2 | T |
+| FR-PC-006 | Present, for any PC unit, a consolidated info view: specs, installed hardware, QR code, ticket history, maintenance timeline, and (P3) AI predictions. | M | P2 | D |
+
+### 10.5 Ticketing / ITSM (FR-TKT)
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-TKT-001 | Allow any authenticated user to create a ticket with title, description, category, and optional priority, room, item of equipment, tags, and attachments. A category flagged as asking for a description (`ticket_categories.requires_detail` — the catch-all "Other" categories) shall require a short description of the kind of problem (`category_detail`, 3–120 characters), and no other category shall accept one. The reporter — a Teacher included — may choose the priority or leave it to the IT team ("Not sure", the default); [FR-TKT-004](#105-ticketing--itsm-fr-tkt) decides how far that choice counts. The location is named as building → room → at most **one** item of equipment in that room: a PC unit or another in-service asset, never both ([FR-AST-013](#108-inventory--asset-lifecycle-fr-ast)). The server shall accept only a room and an item the report form's lookups would offer: a named item shall be in the named room, and an item named without a room shall be in a room the location lookup offers, or in none. A building on its own is never stored. Photos may be added while reporting ([FR-TKT-008](#105-ticketing--itsm-fr-tkt)). | M | P2 | T |
+| FR-TKT-002 | Assign each ticket a unique, human-readable `ticket_number` and an external `uuid` used in all URLs/APIs (never the numeric id). | M | P2 | T |
+| FR-TKT-003 | Set a role-neutral `reporter_id` (the creating user by default) on every ticket; permit Technicians/Administrators to raise a ticket on behalf of another reporter. | M | P2 | T |
+| FR-TKT-004 | Default a new ticket to the seeded default status (`Open`) and derive `response_due_at`/`resolution_due_at` from the selected priority’s SLA minutes. The priority shall follow a fixed **order of authority**, weakest first, and the rule that decided it shall be recorded in `tickets.priority_source`: the category's default (`category`) < the reporter's own choice (`reporter`) < the room's Administrator-configured priority floor, which only ever raises (`location`) < an AI recommendation, which only ever raises, and only while an Administrator has enabled automatic raising and the analysis meets the confidence threshold (`ai`, [FR-AI-010](#173-ai-functional-requirements)) < an explicit choice by IT staff — an Administrator or Technician, when filing or through the priority action — (`manual`), which is not raised to the room floor and is the only source the AI never changes. A reporter's choice below the room's floor is raised to the floor, and the creation audit keeps what was asked for. A requester is offered the priority levels by name, never their SLA minutes, and is not shown the recorded source. | M | P2 | T |
+| FR-TKT-005 | Support the configurable status set (Open, Assigned, In Progress, On Hold, Resolved, Closed, Cancelled) with `is_open`/`is_terminal` semantics, and record every transition in `ticket_status_history` with actor and remarks. | M | P2 | T |
+| FR-TKT-006 | Stamp lifecycle timestamps: `first_response_at` (first technician/admin response), `resolved_at`, `closed_at`, `reopened_at`. `resolved_at` is held only while a ticket is `resolved` or `closed`: moving a `resolved` ticket to any state other than `closed` (a rework, or a reopen) clears it, and resolving it again stamps a fresh time. | M | P2 | T |
+| FR-TKT-007 | Allow threaded comments, including `is_internal` notes visible only to Technicians/Administrators. Threads are **one level deep**: a reply answers a top-level comment, and answering a reply joins the same thread. Any user who can see a ticket — including a requester reading another requester's ticket as a community card — may read its public comments and add comments and replies **whatever the ticket's status**. A public reply shall not answer an internal note. **Only the author may edit a comment**, and only within the configurable edit window (`tickets.comment_edit_window_minutes`, default 15); no one else — Administrators included — may edit another user's comment. A comment may be **removed** by its author within the same window, or by an Administrator at any time as moderation, which leaves a visible "removed" placeholder and is audited. Each comment returned to a user shall state whether that user may edit or remove it, so the interface never offers a refused action. *(Edit/remove rules amended 2026-10-19, owner decision: Administrators may no longer edit others' comments; SDD DD-106.)* | M | P2 | T |
+| FR-TKT-008 | Allow attachments on tickets with server-side validation of MIME type (allow-list) and size (configurable max, default 10 MB), storing files outside the web root with a SHA-256 checksum. A reporter may add photos **while reporting**, taken with the camera or chosen from the device; the report form offers up to five. The ticket shall be created first and each photo then uploaded through this same attachment endpoint and validation, one at a time, so a photo that fails never loses the report; the reporter shall be told which photos did not attach and why, and may add them again from the ticket. Attachment uploads shall be rate-limited per account ([NFR-SEC-009](#12-security-requirements); default 60 per hour). The browser may downscale a large photo and convert it to JPEG before upload; that is a size measure, and nothing shall rely on it to remove image metadata. | M | P2 | T |
+| FR-TKT-009 | Allow authenticated users to upvote a ticket at most once (`ticket_votes` unique per user), maintaining an accurate `upvote_count`. A user may withdraw only their own vote; no user, Administrators included, may remove another user's vote. | M | P2 | T |
+| FR-TKT-010 | Maintain accurate counter caches (`upvote_count`, `comment_count`, `attachment_count`) transactionally so they never drift. | M | P2 | T |
+| FR-TKT-011 | Allow marking a ticket as a duplicate of another (`duplicate_of_id`), preventing self-reference, and surface the canonical ticket. | M | P2 | T |
+| FR-TKT-012 | Provide an append-only activity feed (`ticket_updates`) capturing comments, status/priority changes, assignment, AI analysis, and system events. | M | P2 | T |
+| FR-TKT-013 | Scope every ticket read to the caller, on a permission all three roles hold. A **Teacher** sees the tickets they reported in full, and every other reporter's only as a **restricted community projection** carrying no internal note, technician, SLA, attachment or AI field, no "Other" description and no priority source, and naming equipment (a PC unit or another asset) by label and identifier only. A **Technician** sees only tickets they hold an assignment for — read access outlives the assignment so their own work history stays available, but a *declined* assignment grants nothing; they are refused the community feed rather than shown an empty one. An **Administrator** sees every ticket. The same rule shall govern lists and single-record reads alike, so a ticket absent from a caller's list is equally unreachable by its identifier. | M | P2 | T |
+| FR-TKT-014 | Provide full-text search over ticket title and description (Postgres `tsvector` + GIN) and filterable, sortable, paginated ticket lists (by status, priority, category, technician, room, tag, date range). | M | P2 | T |
+| FR-TKT-015 | Support tags (`tags` + `ticket_tags`) for classification and search. | M | P2 | T |
+| FR-TKT-016 | Allow reopening a Resolved or Closed ticket within a configurable window, stamping `reopened_at` and recording the transition (`Resolved` is non-terminal/awaiting confirmation; `Closed` is terminal). | M | P2 | T |
+| FR-TKT-017 | Detect SLA breach when the current time passes `response_due_at` or `resolution_due_at` on a non-terminal ticket, flag the breach, and raise a notification. A breached ticket is shown to people as **Overdue**; the rule is unchanged. | M | P2 | T |
+| FR-TKT-018 | Automatically escalate a breached ticket (e.g. raise priority / reassign per configurable rules). | F | — | T |
+
+### 10.6 Technician Assignment & Workflow (FR-ASN)
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-ASN-001 | Allow Administrators (and permitted Technicians) to assign a ticket to a technician, creating a `technician_assignments` record and setting `tickets.assigned_technician_id`. | M | P2 | T |
+| FR-ASN-002 | Enforce at most one **active** assignment per ticket (statuses pending/accepted/in_progress/on_hold). | M | P2 | T |
+| FR-ASN-003 | Track the assignment lifecycle with timestamps: assigned, accepted, started, completed, declined (with reason), and support reassignment/cancellation. **An active assignment ends when its ticket is closed or cancelled** — `cancelled`, or `completed` (at the resolution time) when the ticket's own technician resolved it before it closed (DD-83). | M | P2 | T |
+| FR-ASN-004 | Allow an assigned technician to accept, decline (with reason), start, hold, and complete their assignment; reflect the ticket status accordingly. | M | P2 | T |
+| FR-ASN-005 | Notify the technician on assignment and the reporter/administrator on acceptance, decline, and completion. | M | P2 | T |
+| FR-ASN-006 | Provide each technician a personal work queue filtered to their active assignments, ordered by priority and SLA due time, with filtered views for **open**, **due within 4 hours** and **Overdue** tickets that match the dashboard figures of the same names (DD-81). | M | P2 | D |
+
+### 10.7 Maintenance (FR-MNT)
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-MNT-001 | Allow Technicians/Administrators to create maintenance records against a PC unit and/or a standalone asset, optionally linked to a ticket, with a maintenance type. | M | P2 | T |
+| FR-MNT-002 | Support **preventive maintenance with no originating ticket** (`ticket_id` nullable) and a `scheduled_for` date. | M | P2 | T |
+| FR-MNT-003 | Track maintenance status (scheduled/in_progress/on_hold/completed/cancelled) with `started_at`/`completed_at`, and capture diagnosis, root cause, resolution, preventive recommendation, downtime minutes (≥0), labor hours (≥0), and cost (≥0). | M | P2 | T |
+| FR-MNT-004 | Support **checklist templates** and template items per maintenance type, instantiated into per-record checklists with completion tracking (who/when) and required-item enforcement before completion. | M | P2 | T |
+| FR-MNT-005 | Allow attaching repair images typed `before`/`during`/`after`, and free-form maintenance notes. | M | P2 | T |
+| FR-MNT-006 | Record **hardware replacements** during maintenance, referencing the old/new catalog component and the specific serialized asset **removed** (`old_asset_id`, nullable — a replaced part is not always a registered serialized unit) and the specific new serialized asset fitted (`new_asset_id`), with quantity (>0) and optional warranty months (≥0); update the PC’s installation history accordingly, closing the removed asset’s installation and opening one for the asset fitted ([DR-022](#292-data-integrity--constraints)). | M | P2 | T |
+| FR-MNT-007 | Generate preventive-maintenance due reminders based on the configurable default interval (`maintenance.default_interval_days`, default 90) and reminder lead time (`maintenance.reminder_days`, default 7). | M | P2 | T |
+| FR-MNT-008 | Update the target PC unit’s `status`/`current_condition` when maintenance starts, completes or is cancelled: starting work → **Pending Repair** (remembering the prior status); completing → **Available** and condition `working`, unless another repair is still active or a ticket still awaits repair (then Pending Repair); cancelling → the prior status and condition. *(Amended Phase 2.11, SDD DD-100: completion no longer restores the prior status.)* | M | P2 | T |
+| FR-MNT-009 | Allow a Technician to submit **proof that work was performed on a specific PC unit** from the scanned workflow ([FR-QR-008](#18-qr-code-requirements)). The submission shall attach to an **existing active maintenance record** for the scanned unit that the technician is authorized to work — that is the primary and default path. The scan shall **not** by itself confer permission to create maintenance work: a new record may be created from this workflow **only** where the maintenance workflow explicitly supports technician-initiated unscheduled or corrective maintenance **and** the technician holds the ability to create it; otherwise the submission shall be refused with an explanation rather than silently creating a record. Where a record is created, it shall be linked to the originating ticket when the work arose from an assignment, or stand alone when it did not (`maintenance_records.ticket_id` nullable, [FR-MNT-002](#107-maintenance-fr-mnt)). The scan that produced the submission shall be recorded against the record (`qr_scan_logs.maintenance_record_id`). **Work-package split (Client-approved 2026-08-28).** The Maintenance-side foundation this requirement stands on — technician-initiated corrective maintenance for a technician holding `maintenance.create`, an identifiable **active** maintenance record for a unit, and the row-scoped rule that decides whether a given technician may work it ([FR-MNT-011](#107-maintenance-fr-mnt)) — is delivered by **WP-2.6**. The scanned entry point, the proof-of-work submission itself and its scan-bound idempotency ([FR-MNT-012](#107-maintenance-fr-mnt)) are delivered by **WP-2.6b**. Neither package omits the requirement; each owns the half it can verify on its own. | M | P2 | T |
+| FR-MNT-010 | Require, for a proof-of-work submission, at minimum: what was done (resolution text), the outcome status, and at least one item of **evidence** — a repair image typed `before`/`during`/`after` ([FR-MNT-005](#107-maintenance-fr-mnt)). Evidence uploads shall pass through the system’s single attachment trust boundary: server-side type detection against an allow-list, a stored SHA-256 checksum, storage outside the web root, and a re-checked type on download ([NFR-SEC-007](#12-security-requirements), [FR-TKT-008](#105-ticketing--itsm-fr-tkt)). No second upload path shall be introduced for maintenance evidence. | M | P2 | T |
+| FR-MNT-011 | Scope maintenance records by row, not by permission: a Technician shall reach the records they created or were assigned, and no others — in lists **and** by direct identifier — while an Administrator sees all. The rule applied to a list and the rule applied to a single record shall be the same rule ([FR-TKT-013](#105-ticketing--itsm-fr-tkt) establishes the pattern). | M | P2 | T |
+| FR-MNT-012 | Prevent duplicate proof-of-work submissions by construction, not by convention: a repeated scan of the same code, a resubmission of the same scan, or a repeat submission against the same active record shall **update** that record rather than create a second one; the operation shall be idempotent on the scan and constrained by the maintenance workflow so that no sequence of repeated scans or submissions can leave two records describing one physical job. | M | P2 | T |
+
+#### 10.7.1 Technician Work Support Requests (FR-WSR)
+
+A Technician working a specific PC unit frequently cannot finish without something only an Administrator can authorize — a replacement part, consumable stock, a tool, access, or a decision. These requirements specify that request and the Administrator’s response. It is a **job-scoped escalation**, not a general purchasing system: every request is anchored to the PC unit being worked on, and to the ticket and/or maintenance record it arose from. Where an approved request genuinely requires buying something, it links to a procurement request ([FR-AST-008](#108-inventory--asset-lifecycle-fr-ast)) rather than duplicating it.
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-WSR-001 | Allow a Technician to submit a **work support request** from the workflow of a specific PC unit, bound to that unit, and — when the work arose from one — to the related ticket and/or maintenance record. A request unrelated to any ticket shall still be permitted, provided it names a PC unit. | M | P2 | T |
+| FR-WSR-002 | Require, on submission: what is needed (one or more line items — a catalog hardware model or free-text description, quantity > 0), and a **written explanation of why it is needed** to complete the job. Optional supporting evidence may be attached. A request with no items or no explanation shall be refused. | M | P2 | T |
+| FR-WSR-003 | Accept supporting evidence through the system’s single attachment trust boundary only — server-side type detection against an allow-list, a stored checksum, storage outside the web root, and a re-checked type with safe disposition on download ([NFR-SEC-007](#12-security-requirements), [FR-MNT-010](#107-maintenance-fr-mnt)). | M | P2 | T |
+| FR-WSR-004 | Track each request through a controlled status model of exactly `submitted`, `clarification_requested`, `approved`, `declined`, `cancelled` and `closed`. `clarification_requested` returns to `approved` or `declined` after the discussion; `approved` and `declined` are the Administrator’s decisions; `cancelled` is the submitting Technician’s withdrawal ([FR-WSR-014](#1071-technician-work-support-requests-fr-wsr)); `closed` records that the request is finished or its job has completed. **Transitions shall be enforced by a transition map, not by accepting a status field from the client** — an arbitrary status update shall be refused. No prior decision, schedule or workflow state shall be overwritten in place: a superseded value shall remain recoverable from the request’s history ([FR-WSR-011](#1071-technician-work-support-requests-fr-wsr)). | M | P2 | T |
+| FR-WSR-005 | Present Administrators a **request-management surface** — not a bare notification — showing for each request: the submitting technician, the PC unit, the related ticket and maintenance record when applicable, the requested items, the technician’s explanation, any attached evidence and the relevant proof of work, the full decision history, and the current status. | M | P2 | T |
+| FR-WSR-006 | **Decision A — approve and reschedule.** Allow an Administrator to approve a request and set a new date/time for the work. The new schedule shall be written to the related maintenance record’s `scheduled_for` and recorded on the request; the **previous value shall be preserved in the activity history rather than silently overwritten**; the related ticket shall move to a held/awaiting state rather than being resolved or closed; the technician shall be notified; and the technician’s acknowledgement shall be recorded when given. | M | P2 | T |
+| FR-WSR-007 | **Decision B — request a face-to-face discussion.** Allow an Administrator to ask the technician for an in-person explanation, recording that clarification was requested, the reason, the resulting status, and an optional proposed time. The system shall **not** implement a calendar or meeting-scheduling subsystem for this ([OI-10](#33-open-issues--decisions-requiring-client-approval)). | M | P2 | T |
+| FR-WSR-008 | **Decision C — decline.** Allow an Administrator to decline a request, requiring a non-empty explanation enforced **server-side**; a decline without a reason shall be refused. The technician shall be able to see that the request was declined, the Administrator’s explanation, the PC unit, the related job context, and the resulting status. | M | P2 | T |
+| FR-WSR-009 | Give Technicians a dedicated navigation item and page tracking **everything they personally submitted** — proof-of-work records and support requests — with current status, the Administrator’s decision, reschedule details, clarification details, decline explanation, the related PC unit, ticket and maintenance record, and submission history. A technician shall reach their own records and no others, in lists **and** by direct identifier ([FR-MNT-011](#107-maintenance-fr-mnt)). | M | P2 | T |
+| FR-WSR-010 | Give Administrators a dedicated navigation item and page for receiving and managing technician requests, filterable by workflow state: pending review, awaiting clarification, approved/rescheduled, declined, and closed. | M | P2 | T |
+| FR-WSR-011 | Record every submission, decision, reschedule, clarification request, acknowledgement and closure in the activity log with actor, subject, and the before/after values of anything changed ([FR-AUD-001](#109-audit--activity-logging-fr-aud), [FR-AUD-003](#109-audit--activity-logging-fr-aud)). No workflow transition shall occur unlogged. | M | P2 | T |
+| FR-WSR-012 | Notify the Administrator on submission and the Technician on every decision, honouring per-user channel preferences ([FR-NOT-002](#22-notification-requirements), [FR-NOT-003](#22-notification-requirements)). | M | P2 | T |
+| FR-WSR-013 | Link an approved request to a **procurement request** ([FR-AST-008](#108-inventory--asset-lifecycle-fr-ast)) when fulfilment requires purchasing, rather than reimplementing procurement. Approval of a support request shall not by itself constitute procurement approval ([FR-AST-009](#108-inventory--asset-lifecycle-fr-ast)). | M | P2 | T |
+| FR-WSR-014 | Allow the **submitting Technician** to cancel their own request while it is `submitted` or `clarification_requested` — that is, while no Administrator decision has been recorded — moving it to `cancelled` with an optional note. A request that has been approved or declined shall not be cancelled; a cancelled request is terminal and shall not be reopened, a fresh request being submitted instead. An Administrator may cancel on a technician’s behalf, and the actor shall be recorded either way. | M | P2 | T |
+
+> **Why this is not procurement.** `procurement_requests` models a purchasing lifecycle (draft → submitted → approved/rejected → fulfilled/cancelled) with a request number and estimated costs, and it carries no link to a PC unit, ticket or maintenance record. The workflow above is a technician standing at a machine asking for what the job needs, and its decisions include *reschedule* and *discuss in person* — states purchasing does not have. Keeping them separate preserves both vocabularies; [FR-WSR-013](#1071-technician-work-support-requests-fr-wsr) is the bridge where they genuinely meet. See [OI-09](#33-open-issues--decisions-requiring-client-approval).
+
+### 10.8 Inventory & Asset Lifecycle (FR-AST)
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-AST-001 | Maintain a hardware catalog: manufacturers → hardware components (typed, generic) → hardware models (specific SKU, with JSON specifications). | M | P2 | T |
+| FR-AST-002 | Manage **serialized assets** (1 row = 1 physical unit) with unique asset tag, optional per-unit asset name, optional unique serial number, barcode, hardware model, supplier, current room, assigned custodian, status, condition, purchase price/date (≥0), warranty, notes, and attached images/documents. **Every field of the add-asset form is optional.** The **asset tag is an internal identifier**: it is not asked for and not shown anywhere in the interface (forms, tables, detail pages, ticket equipment labels, QR print labels, reports, dashboard widgets, PC-unit form and detail); when none is supplied the system generates one, and it still serves import duplicate detection and stable paging. The catalog model is optional: an "Other — describe it" choice records a typed model in the catalog for reuse, and an asset with no model is filed under a hidden placeholder that is never shown or offered. An asset is displayed by its name, else its catalog model's name, else "Unnamed asset". Editing remains Administrator-only ([FR-AST-013](#108-inventory--asset-lifecycle-fr-ast)). *(Amended 2026-10-19, owner decision; SDD DD-109.)* | M | P2 | T |
+| FR-AST-003 | Manage **quantity-tracked consumables** with unique item code, unit of measure, `quantity_on_hand` (≥0), `reorder_level` (≥0), and unit cost. | M | P2 | T |
+| FR-AST-004 | Record all consumable stock movements in an append-only `stock_transactions` ledger (stock_in/out/adjustment/transfer, non-zero quantity) and keep `quantity_on_hand` consistent with a running `balance_after`. | M | P2 | T |
+| FR-AST-005 | Record every asset status change in `asset_status_history` with actor and reason, written in the same transaction as the change itself so no transition can occur unaudited. Enforce a defined transition map — an illegal move is refused, naming the states that *are* reachable — and treat `disposed` as absorbing. Present a **unified asset history** merging creation, status changes, transfers, component installations and removals, maintenance, tickets and QR events into one chronological stream; no historical record is ever updated or deleted. | M | P2 | T |
+| FR-AST-006 | Support asset transfers between rooms (`asset_transfers`), keeping `assets.current_room_id` in sync. | M | P2 | T |
+| FR-AST-007 | Support asset disposal (`disposal_records`) with method (recycled/sold/donated/destroyed/returned/lost), date, optional approver, document reference, and salvage value (≥0); set the asset status to `disposed`. | M | P2 | T |
+| FR-AST-008 | Provide procurement requests with a unique request number, line items (catalog model or free-text, quantity >0, estimated unit price ≥0), and an approval workflow (draft → submitted → approved/rejected → fulfilled/cancelled) with approver, timestamp, and rejection reason. | M | P2 | T |
+| FR-AST-009 | Restrict procurement approval to Administrators (or a permitted role). | M | P2 | T |
+| FR-AST-010 | Raise a low-stock alert/notification when a consumable’s `quantity_on_hand` reaches or falls below its `reorder_level`. | M | P2 | T |
+| FR-AST-011 | Provide filterable, searchable, paginated lists and detail views for assets, consumables, and catalog entities, with export ([FR-RPT-004](#21-reporting-requirements)). | M | P2 | T |
+| FR-AST-012 | Prevent hard-deletion of catalog/reference entities that are in use (RESTRICT); soft-delete assets/consumables to preserve history. Refuse to archive an asset that is still installed inside a PC, or a PC unit that still holds installed components, returning a machine-readable blocker report; archiving and restoring shall lose no history. | M | P2 | T |
+| FR-AST-013 | Restrict the **entire Asset Management module** — navigation, dashboard, catalog, directories, asset and PC detail pages, specifications, history, audit timelines, attachments, QR management and every create/update/status/transfer/assign/archive/restore action — to Administrators (`assets.*`), enforced on the server for every request and not merely hidden in the client. Where another workflow needs to name a piece of equipment, expose only a **narrow lookup** confined to that form: it returns the labels of live equipment (name, identifier, location) and nothing else — no status, condition, purchase price, supplier, custodian, warranty, timestamps, archived rows or edit affordances — and is authorized by the permission of the workflow that needs it (e.g. `tickets.create`, `maintenance.view`), never by an `assets.*` permission. One variant is **room-scoped**, for the report form ([FR-TKT-001](#105-ticketing--itsm-fr-tkt)): given one room, it returns two label-only lists — the room's PC units (every unit not retired) and its other equipment — and serves only an account that may name both. It lists other equipment only while **in service** (In Service, Maintenance or Out of Service — no new, spare, assigned or in-transit stock) and not fitted inside a PC; it accepts **no search** term; it is rate-limited per account; and it answers a room the location lookup would not offer — unknown, inactive, in an inactive building, or archived — exactly as it answers an empty room. Listing a room's in-service equipment, server and storage rooms included, to anyone who may report a fault there is deliberate (Client decision 2026-10-16). | M | P2 | T |
+| FR-AST-014 | Present an **Asset Management dashboard** as the module's landing surface: totals with per-status counts (total, available, assigned, in service, under maintenance, out of service), warranty expiring inside a configurable window, recently added and recently updated assets, and distributions by status, building, room and category. Every figure shall be navigable — selecting it opens the directory filtered to that figure — and all metrics shall be computed as database aggregates. | M | P2 | T |
+| FR-AST-015 | Provide an **enterprise search** across the asset directory matching a single term against asset name, asset tag, serial number, barcode, PC name, hostname, unit code, manufacturer, catalog model and model number, component name, supplier, building, floor, room, assigned technician, QR code, and the identifiers of components installed in a PC — with server-side pagination, sorting on a fixed allow-list of columns, and filtering by status, condition, category, manufacturer, supplier, location, custodian, warranty window and archived visibility. | M | P2 | T |
+| FR-AST-016 | Allow an Administrator to **import PC units and other equipment from a spreadsheet** (Excel .xlsx or CSV, up to 10 MB and 5,000 rows). The file is checked before it is read (type from its bytes and matching its name; no macros, embedded or active content, external links or zip bombs). The system proposes what each column holds and what each status, condition and category value means, and asks rather than guesses when a header, a value or a date order is ambiguous. **Nothing is saved until the Administrator has reviewed the rows and confirmed**: every row is checked against the same rules as the create forms; duplicates of existing records (case-insensitive, archived records included) and repeats inside the file are skipped, never merged; locations are applied only on an exact room code or an exact building + floor + room, otherwise one decision per location text (a room, or explicitly none); catalog combinations not in the catalog are proposals that need approval and are created only after confirm. Each row saves on its own, through the same create actions as the forms; a row that fails is listed with its reason and can be retried. The import's outcome (complete, partial, no new records, nothing imported, stopped) is computed once and shown in the same words everywhere; partial imports are never labelled complete. An import never updates an existing record. *(Added 2026-10-18, Phase 2.10 R6, owner decisions D3/D5; SDD DD-96–DD-98.)* | S | P2 | T |
+| FR-AST-017 | After an import that created records, show the Administrator **every page those records now appear on** — the PC unit and asset directories (filtered to the import), each record's details (with the views the file filled), the rooms they were placed in, the locations overview, a room's floor plan, the asset dashboard, Overall Reports and the custodian's own list — each only if the Administrator may open it, each as the real page rendered live and **read-only**, with the values that came from the file marked and the counts stated as the page itself reads them. Pages the import cannot change are listed with the reason. Opening a page from the review leads back to it. Closing the review never counts as having reviewed it; "I've reviewed" records only a receipt (who and when), which a retry that adds records asks for again. *(Added 2026-10-18, Phase 2.10 R7; SDD DD-99.)* | S | P3 | T |
+
+> **Asset lifecycle vocabulary.** The `assets.status` domain is
+> `new` · `in_stock` · `reserved` · `deployed` · `in_repair` · `out_of_service` ·
+> `in_transit` · `retired` · `disposed`, presented to operators as **New**,
+> **Available**, **Assigned**, **In Service**, **Maintenance**, **Out of
+> Service**, **In Transit**, **Retired** and **Disposed** respectively. The
+> stored values are the stable contract; the labels are the operational language.
+>
+> **Archived is not a status.** Archiving is a soft delete, orthogonal to the
+> lifecycle: an archived asset retains the status it held when it was archived,
+> which is what makes a restore meaningful ([FR-AST-012](#108-inventory--asset-lifecycle-fr-ast)).
+>
+> **Asset categories.** The `hardware_components.component_type` domain covers
+> whole equipment (`system_unit`, `printer`, `ups`, `network_device`, `scanner`,
+> `projector`), internal components (`cpu`, `motherboard`, `ram`, `gpu`,
+> `storage`, `power_supply`, `network_adapter`, `cooler`, `chassis`), attached
+> devices (`monitor`, `keyboard`, `mouse`, `peripheral`) and `other`.
+
+### 10.9 Audit & Activity Logging (FR-AUD)
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-AUD-001 | Record row-level create/update/delete/restore events on business entities in `audit_logs` with actor, entity reference, and JSON old/new value diffs. | M | P2 | T |
+| FR-AUD-002 | Make `audit_logs` append-only and tamper-resistant (no UPDATE/DELETE via the application; enforced at the database). | M | P2 | I |
+| FR-AUD-003 | Record application-level actions (who did what, in which module, on which subject) in `activity_logs` with IP and user agent. | M | P2 | T |
+| FR-AUD-004 | Allow Administrators (permission `system.audit.view`) to search and filter audit and activity logs by user, entity, action, and date range. | M | P2 | T |
+
+*(QR, AI, Floor Plan, Dashboard, Reporting, Notifications, and Settings functional requirements are specified in their dedicated sections [§18](#18-qr-code-requirements)–[§23](#23-system-settings-requirements).)*
+
+---
+
+## 11. Non-Functional Requirements
+
+### 11.1 Overview
+Non-functional requirements are grouped as: Security ([§12](#12-security-requirements)), Performance ([§13](#13-performance-requirements)), Scalability ([§14](#14-scalability-requirements)), Availability & Reliability ([§15](#15-availability--reliability-requirements)), Accessibility ([§16](#16-accessibility-requirements-wcag-22-aa)), plus Usability, Maintainability, Compatibility/Portability, and Observability below.
+
+### 11.2 Quality attribute priorities
+In case of conflict, resolve in this order: **Security & data integrity → Accessibility & correctness → Availability → Performance → Feature breadth.** (Rationale: this is a production system for a real client whose value is trustworthy history; correctness and accountability outrank speed.)
+
+### 11.3 Usability Requirements (NFR-USB)
+
+| ID | Requirement | Target / measure | Ver |
+|---|---|---|:--:|
+| NFR-USB-001 | A first-time requester shall be able to submit a valid ticket without training. | ≥ 90% task success; ≤ 2 minutes median. | T |
+| NFR-USB-002 | The UI shall conform to the `DESIGN.md` design system (tokens, components, states, spacing). | 100% of components use role tokens; design review passes. | I |
+| NFR-USB-003 | The UI shall provide light and dark themes, both meeting the accessibility contrast targets. | Both themes verified AA. | T |
+| NFR-USB-004 | Every interactive control shall expose the full state set (default, hover, focus-visible, active, disabled, and loading/selected/error where relevant). | Inspection per component. | I |
+| NFR-USB-005 | Data tables shall support sort, filter, pagination, a density toggle, and a teaching empty state. | Demonstration. | D |
+| NFR-USB-006 | The UI shall provide a global command palette / search (⌘K) for navigation and record lookup. | Demonstration. | D |
+| NFR-USB-007 | Numeric columns, IDs, and timestamps shall use tabular figures and consistent formatting per the configured locale/timezone. | Inspection. | I |
+
+### 11.4 Maintainability Requirements (NFR-MTN)
+
+| ID | Requirement | Target / measure | Ver |
+|---|---|---|:--:|
+| NFR-MTN-001 | Backend code shall pass the project quality gate (Pint formatting, Larastan level 6, Pest tests) in CI on every change. | CI green required to merge. | I |
+| NFR-MTN-002 | Frontend code shall pass ESLint, Prettier, TypeScript strict checks, and Vitest in CI. | CI green required to merge. | I |
+| NFR-MTN-003 | Business logic shall be organized by domain (modular monolith) so a new module is added without restructuring existing domains. | Inspection. | I |
+| NFR-MTN-004 | Every closed enumeration domain shall have a single source of truth (a PHP enum mirroring the DB CHECK); user-configurable domains shall be lookup tables. | Inspection. | I |
+| NFR-MTN-005 | Automated test coverage of domain business logic shall be ≥ 80% line coverage for P2 modules. | Coverage report. | A |
+| NFR-MTN-006 | Public API responses shall be versioned and documented (OpenAPI). | Inspection. | I |
+
+### 11.5 Compatibility & Portability Requirements (NFR-CMP)
+
+| ID | Requirement | Target / measure | Ver |
+|---|---|---|:--:|
+| NFR-CMP-001 | The web client shall function on the current and previous major versions of Chrome, Edge, Firefox, and Safari. | Cross-browser test matrix. | T |
+| NFR-CMP-002 | The UI shall be responsive and usable from 360 px (mobile) to ≥ 1920 px (desktop) without horizontal page scroll. | Responsive test. | T |
+| NFR-CMP-003 | The UI shall remain usable and performant on aging, low-spec hardware and small screens common in target environments. | Manual test on a low-spec reference device. | D |
+| NFR-CMP-004 | The system shall run in a Dockerized environment reproducible from `compose.yaml` with a documented clean-rebuild procedure. | Clean rebuild passes. | T |
+| NFR-CMP-005 | Fonts and assets shall be self-hosted (no third-party CDN dependency) to work on networks that block external CDNs. | Inspection. | I |
+| NFR-CMP-006 | The system shall present all user-facing dates/times in the configured system timezone and locale, storing all timestamps in UTC (`timestamptz`). | Test. | T |
+
+### 11.6 Observability Requirements (NFR-OBS)
+
+| ID | Requirement | Target / measure | Ver |
+|---|---|---|:--:|
+| NFR-OBS-001 | The application shall emit structured logs for requests, errors, jobs, and external-provider calls, with correlation identifiers. | Inspection. | I |
+| NFR-OBS-002 | The system shall expose a health/readiness endpoint reporting database, cache, and queue connectivity. | Test. | T |
+| NFR-OBS-003 | AI calls shall record token counts and latency (`prompt_tokens`, `completion_tokens`, `latency_ms`) for cost and performance observability. | Test. | T |
+| NFR-OBS-004 | Failed background jobs shall be captured (failed-jobs store) and retriable without data loss. | Test. | T |
+
+### 11.7 Internationalization (NFR-I18N)
+
+| ID | Requirement | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| NFR-I18N-001 | All user-facing strings shall be externalized (not hard-coded) to permit translation, and language must never be hard-coded to a “school” identity. | M | P2 | I |
+| NFR-I18N-002 | The system shall support additional UI languages via locale resource files. | F | — | T |
+
+---
+
+## 12. Security Requirements
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| NFR-SEC-001 | Expose only opaque external identifiers (`uuid`) in URLs and API responses for user-facing resources; never expose sequential numeric primary keys, to prevent IDOR/enumeration. | M | P2 | T |
+| NFR-SEC-002 | Enforce authorization on every request via RBAC + per-user overrides (policies/gates); deny by default. | M | P2 | T |
+| NFR-SEC-003 | Serve all traffic over HTTPS/TLS; set HSTS, secure/same-site cookies, and standard security headers (CSP, X-Content-Type-Options, X-Frame-Options/frame-ancestors). | M | P2 | I |
+| NFR-SEC-004 | Validate and sanitize all input server-side (form requests); use parameterized queries exclusively (no string-built SQL). | M | P2 | I |
+| NFR-SEC-005 | Store secrets (DB, mail, AI API keys) only in environment/secret stores — never in the database, repository, logs, or client bundle. | M | P2 | I |
+| NFR-SEC-006 | Gate which settings may reach the frontend via `system_settings.is_public`; never send non-public settings (e.g. mail/AI credentials) to the client. | M | P2 | T |
+| NFR-SEC-007 | Store uploaded files outside the web root; validate MIME/extension against an allow-list and enforce a max size; compute and store a SHA-256 checksum. | M | P2 | T |
+| NFR-SEC-008 | Scan uploaded files for malware before they are made available for download. | F | — | T |
+| NFR-SEC-009 | Rate-limit authentication and other sensitive endpoints to resist brute-force and abuse. | M | P2 | T |
+| NFR-SEC-010 | Keep `audit_logs` append-only and tamper-resistant at the database level. | M | P2 | I |
+| NFR-SEC-011 | Concentrate PII in identifiable tables, make it soft-deletable, and support a documented hard-purge on lawful erasure request. | M | P2 | T |
+| NFR-SEC-012 | Enforce least-privilege on the AI surface: only Administrators may configure AI; only permitted roles may view AI output. | M | P3 | T |
+| NFR-SEC-013 | Redact or minimize personal data sent to the external AI provider per [§17.5](#175-ai-data-governance--safety-requirements). | M | P3 | T |
+| NFR-SEC-014 | Escape/encode all rendered user-supplied content to prevent stored/reflected XSS. | M | P2 | T |
+| NFR-SEC-015 | Provide configurable retention/pruning for high-volume logs (`activity_logs`, `audit_logs`, `qr_scan_logs`, `login_history`, `ai_conversation_logs`) that preserves legal-hold requirements. | M | P2 | T |
+| NFR-SEC-016 | Support MFA (TOTP) for privileged accounts. | F | — | T |
+| NFR-SEC-017 | Log all privilege changes (role/permission grants and denies) to the audit trail with actor and before/after. | M | P2 | T |
+
+---
+
+## 13. Performance Requirements
+
+Targets are stated at the 95th percentile (p95) under the nominal load defined in [§14](#14-scalability-requirements), measured server-side unless noted. Final targets confirmed with the client at approval ([§33 OI-05](#33-open-issues--decisions-requiring-client-approval)).
+
+| ID | Requirement | Target (p95) | Ver |
+|---|---|---|:--:|
+| NFR-PERF-001 | Read API endpoints (list/detail) shall respond within a bounded latency. | ≤ 300 ms | A/T |
+| NFR-PERF-002 | Write API endpoints (create/update) shall respond within a bounded latency. | ≤ 600 ms | A/T |
+| NFR-PERF-003 | Initial SPA load (first contentful paint on the reference device) shall be bounded. | ≤ 2.5 s on broadband; ≤ 4 s on the low-spec reference device | T |
+| NFR-PERF-004 | Subsequent in-app navigations shall be near-instant. | ≤ 400 ms perceived | D |
+| NFR-PERF-005 | Full-text ticket/knowledge search shall return the first page. | ≤ 500 ms | A/T |
+| NFR-PERF-006 | AI vector similarity search (RAG retrieval) shall return top-k results. | ≤ 300 ms for k ≤ 10 over the P3 corpus | A |
+| NFR-PERF-007 | Every foreign-key column used in joins/filters shall be indexed; list queries shall not perform sequential scans on large tables. | Query-plan inspection | A |
+| NFR-PERF-008 | Dashboard KPI widgets shall render within a bounded time using counter caches / pre-aggregation rather than live full-table aggregation on hot paths. | ≤ 1 s | A/T |
+| NFR-PERF-009 | An end-to-end AI ticket analysis (excluding provider queue time) shall complete within a bounded time, executed asynchronously so the UI is never blocked. | ≤ 10 s typical; async | T |
+
+---
+
+## 14. Scalability Requirements
+
+Nominal capacity assumptions for a single institutional deployment (basis for performance testing; a deployment may be smaller):
+
+| ID | Requirement | Target | Ver |
+|---|---|---|:--:|
+| NFR-SCAL-001 | Support the nominal data volume: ≥ 5,000 PC units, ≥ 20,000 assets, ≥ 3,000 users, and ≥ 50,000 tickets/year without breaching performance targets. | Meets [§13](#13-performance-requirements) at volume | A |
+| NFR-SCAL-002 | Support ≥ 200 concurrent active users (≥ 50 concurrent technicians) at nominal load within performance targets. | Load test | A |
+| NFR-SCAL-003 | Scale horizontally at the application tier (stateless API behind a load balancer; sessions/cache in Redis). | Design inspection | I |
+| NFR-SCAL-004 | Shape high-volume append-only log tables for future declarative range partitioning by `created_at` (keys chosen now; BRIN indexes in the interim). | Inspection | I |
+| NFR-SCAL-005 | Isolate vector search in a dedicated embedding store (HNSW) so RAG scales independently of OLTP tables. | Inspection | I |
+| NFR-SCAL-006 | Keep list/feed reads O(1) via counter caches rather than per-request aggregation. | Inspection | I |
+| NFR-SCAL-007 | Convert log tables to monthly partitions and introduce analytics materialized views once volume warrants. | F | I |
+
+---
+
+## 15. Availability & Reliability Requirements
+
+| ID | Requirement | Target | Ver |
+|---|---|---|:--:|
+| NFR-AVL-001 | The system shall be available ≥ 99.5% during defined business hours (excluding announced maintenance windows). | Monthly uptime ≥ 99.5% | A |
+| NFR-AVL-002 | Planned downtime shall be scheduled via `maintenance_windows` and communicated to users in advance (banner/announcement). | Demonstration | D |
+| NFR-AVL-003 | The database shall be backed up on a schedule meeting **RPO ≤ 24 h** (target ≤ 1 h with WAL/PITR where supported); backups recorded in `backup_history`. | Test | T |
+| NFR-AVL-004 | The system shall be restorable from backup within **RTO ≤ 4 h**, verified by a documented restore drill. | Restore drill | T |
+| NFR-AVL-005 | External-provider outages (AI, mail) shall degrade gracefully: core workflows remain available; affected actions queue or show a clear, non-blocking error. | Test | T |
+| NFR-AVL-006 | Background jobs shall be idempotent and retriable; a failed job shall not corrupt state or double-apply effects. | Test | T |
+| NFR-AVL-007 | Referential integrity and money/quantity constraints shall be enforced at the database (FK actions, CHECKs) so application bugs cannot silently corrupt data. | Inspection | I |
+
+---
+
+## 16. Accessibility Requirements (WCAG 2.2 AA)
+
+Accessibility is a first-class, verified requirement — not a retrofit. The design system (`DESIGN.md`) has been contrast-verified in both themes.
+
+| ID | Requirement (the system *shall* …) | Target / measure | Ver |
+|---|---|---|:--:|
+| NFR-ACC-001 | Meet **WCAG 2.2 Level AA** across all user-facing screens in both light and dark themes. | Automated + manual audit; 0 AA violations | T |
+| NFR-ACC-002 | Provide text contrast ≥ 4.5:1 for body text and ≥ 3:1 for large text and UI component boundaries/focus indicators. | Contrast check | T |
+| NFR-ACC-003 | Be fully operable by keyboard alone, with a visible focus indicator (2 px ring at 2 px offset) on every focusable element; no keyboard traps. | Keyboard test | T |
+| NFR-ACC-004 | Convey state (status, errors, selection) by text/shape/icon in addition to color — never by color alone. | Inspection | I |
+| NFR-ACC-005 | Honor `prefers-reduced-motion`; motion shall be functional (150–250 ms) and never required to understand state. | Test | T |
+| NFR-ACC-006 | Use semantic structure and ARIA appropriately (landmarks, labels, roles); associate every form control with a label and expose validation errors programmatically. | Screen-reader test | T |
+| NFR-ACC-007 | Support browser zoom/text resize to 200% without loss of content or function. | Test | T |
+| NFR-ACC-008 | Ensure target sizes and drag interactions (incl. the future floor plan) meet WCAG 2.2 target-size and dragging-movement criteria, providing a non-drag alternative. | Test | T |
+| NFR-ACC-009 | Meet the target-size minimum (24×24 CSS px) for pointer targets. | Inspection | I |
+
+---
+
+## 17. AI Requirements
+
+> **Class:** Mandatory, **Rel P3** unless marked otherwise. AI is grounded in the organization’s own data (RAG) and governed by the safety and data-governance rules in [§17.5](#175-ai-data-governance--safety-requirements). AI features are **configurable and default to conservative settings**: predictions, learning, and auto-article generation ship **disabled**.
+
+### 17.1 AI scope
+SccIT integrates Google **Gemini** for (a) **ticket triage/analysis**, (b) a **conversational troubleshooting assistant** grounded in a **RAG knowledge base** over `pgvector`, and (opt-in) (c) **predictive maintenance** and (d) **auto-drafted knowledge articles**. An `ai_models` registry, `ai_system_settings` singleton, and full logging (analysis, conversation, feedback, embeddings) are already modeled.
+
+### 17.2 Seeded AI configuration (baseline)
+- Chat model: **Gemini 1.5 Flash** (`gemini-1.5-flash`), default active.
+- Embedding model: **Gemini text-embedding-004**, **768 dimensions** (must equal `ai_embeddings.embedding` dimension).
+- Confidence threshold: **0.70**. Predictions/learning/auto-articles: **disabled** by default.
+
+### 17.3 AI functional requirements
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-AI-001 | On ticket submission (or on demand), perform AI analysis producing a problem category, severity, estimated resolution minutes, a `technician_required` flag, a summary, and step recommendations, recorded in `ai_analysis_logs` with a confidence score ∈ [0,1]. | M | P3 | T |
+| FR-AI-002 | Cache the latest analysis snapshot on the ticket (`ai_summary`, `ai_confidence`) while retaining full history in `ai_analysis_logs`. | M | P3 | T |
+| FR-AI-003 | Present AI-recommended troubleshooting steps to the reporter and let them mark steps complete (`ai_recommendations.is_completed`, `completed_by`). | M | P3 | T |
+| FR-AI-004 | Provide a conversational assistant that answers troubleshooting questions grounded in retrieved knowledge (RAG), logging each turn in `ai_conversation_logs` grouped by `conversation_id` with token/latency metrics. | M | P3 | T |
+| FR-AI-005 | Maintain a RAG knowledge base (`ai_knowledge_articles`) with draft/published/archived status, full-text search, and vector embeddings; only published articles are visible to Teachers. | M | P3 | T |
+| FR-AI-006 | Generate and store embeddings (`ai_embeddings`, 768-dim) for the **published knowledge articles** — RAG *Source A* — and track indexing state/staleness in `ai_embedding_sources` (pending/processing/indexed/failed/stale) via `content_hash`. The application's own transactional records (tickets, ticket comments, maintenance records — *Source B*) are **not** written to the shared vector index: their visibility is decided per row by their own services, and a shared, unscoped index would be a second path to them that no policy governs; the schema's enum still names them, and no code writes them. Only `published`, non-deleted articles are indexed; an unpublished, archived or deleted article's vectors are removed. Only a source in state `indexed` is retrievable, so an article whose content has changed since it was indexed is *not found* until it is re-indexed. The embedding model's width must equal the column's (768) and every vector is validated before it is stored. *(Amended WP-P; see [DD-71](#40-design-decision-register)–[DD-73](#40-design-decision-register).)* | M | P3 | T |
+| FR-AI-007 | Retrieve top-k relevant context via HNSW cosine similarity to ground assistant/triage responses, and cite the source records used. *(WP-P delivers the retrieval service over Source A: it returns at most one match per published, indexed article — by public uuid and slug, never a numeric id — and nothing else. The conversational assistant that consumes it is WP-3.3, not yet built; retrieval is therefore not yet reachable from any HTTP route.)* | M | P3 | T |
+| FR-AI-008 | Capture user feedback on AI output (`ai_feedback`: helpful flag, 1–5 rating, free text), one feedback per user per recommendation. | M | P3 | T |
+| FR-AI-009 | Suggest possible duplicate tickets using similarity, for human confirmation (never auto-merge). | M | P3 | T |
+| FR-AI-010 | Gate automated AI actions behind the configured confidence threshold; below threshold, present output as advisory only and require human action. | M | P3 | T |
+| FR-AI-011 | When enabled, generate predictive-maintenance predictions per PC (`ai_predictions`: predicted issue, probability ∈ [0,1], horizon days, explanation, status). **Prediction reports are an Administrator-only review surface** — no other role reaches the list or any single report, by list or by uuid. A report shows the PC, its asset tag and location, the machine's repair history now (completed repairs, the most recent repair, previous problems), the components replaced, the repeating problem and detected pattern, the risk, the predicted issue, the confidence, the explanation and the evidence it was generated from, and a recommended preventive action. A **time window is shown only when the evidence statistically supports one**; otherwise it is absent and the report says why, and a probability is shown only when a calibrated model exists (it does not today, so it is absent rather than invented). Status is `pending`, `confirmed`, `dismissed` or `expired`: an Administrator confirms or dismisses a pending finding and the decision is final. Output is advisory (FR-AI-032) — a verdict records the decision and an audit entry and triggers nothing else — and Administrators are notified when a finding awaits review (FR-NOT-003). | F/M-opt | P3 | T |
+| FR-AI-012 | When enabled, detect and maintain failure patterns per PC/component (`ai_failure_patterns`) from learning events (`ai_learning_events`). | F/M-opt | P3 | T |
+| FR-AI-013 | When enabled, auto-draft knowledge articles from resolved tickets/maintenance for human review before publish. | F/M-opt | P3 | T |
+| FR-AI-014 | Allow Administrators to configure the active chat model, embedding model, confidence threshold, and feature toggles via `ai_system_settings`. | M | P3 | T |
+| FR-AI-015 | Register and switch provider models via `ai_models` without code change (Gemini-ready; provider-abstracted). | M | P3 | I |
+
+> **M-opt** = mandatory to *support* (schema + toggle), but shipped **disabled**; enabling is a client decision.
+
+### 17.4 AI reliability requirements
+
+| ID | Requirement | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-AI-020 | If AI is disabled or the provider is unreachable, all non-AI workflows shall remain fully functional; AI surfaces shall show a clear, non-blocking unavailable state. | M | P3 | T |
+| FR-AI-021 | Run AI analysis and embedding generation asynchronously (queued jobs) so user-facing requests are never blocked on the provider. | M | P3 | T |
+| FR-AI-022 | Handle provider errors, timeouts, and rate limits with retry/backoff, and record failures for observability. | M | P3 | T |
+
+### 17.5 AI data governance & safety requirements
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-AI-030 | Send to the external AI provider only the minimum data necessary for the task, and redact/minimize personal data (names, emails, contact numbers) from prompts and embedded content where not essential. | M | P3 | T |
+| FR-AI-031 | Clearly label AI-generated content as AI-generated wherever it is shown. | M | P3 | I |
+| FR-AI-032 | Never allow AI to autonomously perform irreversible or state-changing operations (close/delete tickets, dispose assets, change permissions); AI output is advisory and requires human confirmation. | M | P3 | T |
+| FR-AI-033 | Make external AI processing transparent to Administrators (which model, what data categories) and configurable/disable-able. *(Amended 2026-10-18, Phase 2.10 R5: the disclosure also lists "aggregated report figures with equipment and room codes — no names, ticket text, notes or costs" for AI interpretations of reports.)* | M | P3 | D |
+| FR-AI-034 | Store AI conversation/analysis logs under the same retention and access controls as other PII-bearing data. | M | P3 | I |
+
+---
+
+## 18. QR Code Requirements
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-QR-001 | Generate a QR code bound to **exactly one** target — a PC unit **or** a standalone asset (`num_nonnulls(pc_unit_id, asset_id) = 1`) — with a unique canonical `code` and optional human-readable location label. | M | P2 | T |
+| FR-QR-002 | Store the canonical scannable value in `qr_codes.code`; treat `pc_units.qr_identifier` as a denormalized convenience copy kept in sync. | M | P2 | T |
+| FR-QR-003 | Render a printable QR image at the configured default size (`qr.default_size`, default 256 px) and error-correction level (`qr.error_correction`, default M). | M | P2 | T |
+| FR-QR-004 | Track QR lifecycle status (active/inactive/revoked) and `generated_at`/`last_scanned_at`. | M | P2 | T |
+| FR-QR-005 | On scan, verify the code and resolve the target **server-side**, then — only after the scanning user is authenticated and authorized — return the scan-scoped info panel for that target ([FR-QR-012](#18-qr-code-requirements)); record **every** scan attempt in `qr_scan_logs`, authenticated or not, with result (success/invalid/expired/mismatch), scanner (null when unauthenticated), IP, and optional geolocation (validated: lat ∈ [-90,90], lon ∈ [-180,180]). | M | P2 | T |
+| FR-QR-006 | Classify a scan result deterministically: **success** (active code, resolvable live target); **invalid** (unknown code); **mismatch** (code resolves but points to a different/moved target than claimed); **expired** (code whose status is `inactive`/`revoked` or whose target is `retired`/`disposed`). | M | P2 | T |
+| FR-QR-007 | Allow **Administrators** (`assets.update`) to generate, print, regenerate or revoke a QR code, preserving prior scan history; a regenerated code revokes its predecessor rather than mutating it. QR label management is part of the Administrator-only Asset Management module ([FR-AST-013](#108-inventory--asset-lifecycle-fr-ast)); a Technician may be granted it only by per-user override ([FR-USER-004](#102-user--role-management-fr-user)). | M | P2 | T |
+| FR-QR-008 | Support QR-initiated maintenance: a scan may start/attach a maintenance record for the resolved target (`qr_scan_logs.maintenance_record_id`). | M | P2 | T |
+| FR-QR-009 | Function on standard mobile-browser cameras without a native app. | M | P2 | D |
+| FR-QR-010 | Treat the QR identifier as an **identifier only, never a credential**. Scanning shall grant no access by itself: an unauthenticated scan shall disclose no target information — no name, code, location, status, specification, ticket or maintenance data — and shall offer no submission action. The scan shall be recorded, the scanner sent to authentication, and authorization re-evaluated after sign-in. | M | P2 | T |
+| FR-QR-011 | Preserve the scanned destination across authentication **without accepting a caller-supplied URL**. The system shall carry only the scanned `code` and rebuild the destination itself; it shall never redirect to an absolute URL, a protocol-relative path, or any location outside the application origin, whatever a query string, referrer or session value contains. After sign-in — and at the end of a forced password change — the user shall land on **their own dashboard**, never on the page that asked them to sign in and never directly on the scanned PC. A code scanned while signed out shall be remembered for the browser tab only and offered on the dashboard as **“Continue to the PC you scanned”**, with a Dismiss choice; following or dismissing it spends it, and signing out clears it. If authorization then fails, the refusal shall be shown instead of the panel. *(Amended 2026-10-19, owner decision: automatic resume replaced by a dashboard offer; SDD DD-105.)* | M | P2 | T |
+| FR-QR-012 | Return, to an authenticated and authorized scanner, a **scan-scoped PC panel** — a projection distinct from both the label-only lookup ([FR-AST-013](#108-inventory--asset-lifecycle-fr-ast)) and the Administrator’s asset record, and governed by its **own authorization rule** rather than by any `assets.*` ability. It shall carry only operational information the technician needs to perform authorized technical work, and only where the data model supports it: the PC unit identifier and name; its laboratory/location; its condition and status; the relevant technical specification and installed components; the relevant **active ticket**; the relevant **active maintenance record** and the repair information that job needs; and the applicable checklist or work instructions. It shall **not** carry purchase price, supplier or procurement details, unrelated financial information, unrestricted audit history, custodian or other private administrative records, archived rows, any information outside the technician’s authorized work context, or any edit affordance of the Asset Management module. A Technician’s panel shall be limited to units reachable through their assigned work; an Administrator’s is unrestricted. | M | P2 | T |
+| FR-QR-013 | Resist identifier enumeration and abuse: the scan endpoint shall be rate-limited per client and per account ([NFR-SEC-009](#12-security-requirements)); an unknown, revoked, inactive or retired code shall answer an unauthenticated caller with an indistinguishable non-disclosing refusal while still being classified precisely in `qr_scan_logs` ([FR-QR-006](#18-qr-code-requirements)); and a code shall never be accepted as proof that the scanner is standing in front of the machine — evidence of presence is the submitted proof of work ([FR-WSR-002](#1071-technician-work-support-requests-fr-wsr)), not the scan. | M | P2 | T |
+
+> **The scan is an entry point, not an authorization.** The mandated order is: scan → server-side QR validation → authentication check →
+> sign-in if required → the user's dashboard, offering the originally scanned PC (amended 2026-10-19, FR-QR-011) → authorization check → the scan-scoped panel and the technician
+> actions it permits ([FR-QR-010](#18-qr-code-requirements)–[FR-QR-013](#18-qr-code-requirements)). Each step is separately verifiable, and
+> none of them may be satisfied by possession of the code alone. The primary actor is the **Technician**; the label itself is issued and
+> printed by an **Administrator** ([FR-QR-007](#18-qr-code-requirements)).
+>
+> **FR-QR-011 — defect found and corrected (recorded 2026-09-06, Version 1.0 unchanged).** WP-2.6b delivered the destination-preservation
+> mechanism as specified — the scanned `code` is carried, never a caller-supplied URL — but the requirement's *second* obligation, that the
+> user **resume at the scanned PC unit's workflow after sign-in**, was not met: the guest route sent every authenticated visitor to `/app`,
+> discarding the pending scan. The open-redirect half of the requirement was never at risk; the resume half was silently broken.
+> **WP-2.7d fixed it** and covered it at three levels (34 resolver unit tests, 7 guard component tests, 4 browser tests), converting a
+> browser test that had been running as an expected failure into a genuine assertion. Recorded because the requirement was not satisfied
+> when it was first reported as delivered — and because [SDD §24](#) had predicted this exact failure in writing before it occurred.
+>
+> **FR-QR-011 — automatic resume replaced by a dashboard offer (owner decision, recorded 2026-10-19, Version 1.0 unchanged).** The owner
+> asked that every successful sign-in, and the end of a forced password change, land on the user's own dashboard (`/app`, which renders
+> the role's dashboard) and on no other page. The remembered-page return and the automatic QR resume were therefore withdrawn. The scan is
+> not lost: its **code** (never a URL) stays in the tab's session storage and the dashboard shows a "Continue to the PC you scanned" banner
+> with Dismiss. The open-redirect half of the requirement is unchanged — the link is rebuilt from a fixed template and still passes the
+> shared in-app path validator ([SDD DD-105](#)).
+>
+> **Inconsistency flagged & resolved:** the `scan_result` domain includes `expired`, but `qr_codes` has no explicit expiry timestamp. Resolution: `expired` is defined behaviorally (FR-QR-006) against QR/target status rather than a date. If time-based QR expiry is later required, add `qr_codes.expires_at` (see [§33 OI-04](#33-open-issues--decisions-requiring-client-approval)).
+
+---
+
+## 19. Interactive Floor Plan Requirements
+
+> **Class:** Mandatory, **Rel P4** (later). Delivered in Phase 2.8 (map, placement, realtime, inspector) and completed in Phase 2.11 as the **Floorplan** editor — the user-facing name — with fixtures, a whole-layout save under a revision check, a room overview and presence (SDD DD-101..DD-104). Administrator-only.
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-FP-001 | Allow Administrators to create per-room **layouts** (`room_layouts`) with a canvas width/height (>0) and grid size (>0, default 20 units), an optional background image, versioning, and at most one **active** layout per room; a room's first layout may be created and activated in one step. Provide a room overview listing every live room with its machines' repair status, how many are placed, the layout's state and a thumbnail. | M | P4 | T |
+| FR-FP-002 | Render an interactive canvas showing PC units positioned within the active room layout, with pan and zoom. | M | P4 | D |
+| FR-FP-003 | Allow Administrators, in an explicit edit mode, to place, drag-and-drop, snap-to-grid and rotate (quarter turns) PC workstations and to add, move, resize, rotate, label and delete room **fixtures** (desk, wall, partition, door, window, pillar, cabinet, zone), with undo/redo, and to **save the whole layout in one transaction** under a layout revision check (`room_layouts.revision`): a stale save is refused with the current plan and the editor merges object by object, never silently overwriting. Every shape stays inside the room; workstations never overlap one another; fixtures may overlap anything. Placing a PC never changes its room — a PC from another room is moved only through the audited asset room change, after confirmation. Unsaved work is guarded against leaving and kept in the browser tab. *(Amended Phase 2.11, SDD DD-101/DD-102.)* | M | P4 | T |
+| FR-FP-004 | Color PC workstations by repair `status` (Available green · Pending Repair amber · Needs Fix red) using the universal status palette, with the status in words and its own icon so meaning survives color-blindness; state plainly that the status is recorded, not monitored. | M | P4 | T |
+| FR-FP-005 | Open a click-through info panel for a PC showing specs, installed hardware, QR, ticket history, maintenance timeline, and (if enabled) AI predictions. | M | P4 | D |
+| FR-FP-006 | Restrict the Floorplan to **Administrators**: viewing requires the Administrator role and `floorplan.view`, editing the role and `floorplan.manage` (authorized by policy abilities, so a per-user grant cannot open it to another role). *(Corrected Phase 2.11 to match the client brief and the Phase 2.8 implementation: Technicians do not view the floor plan.)* | M | P4 | T |
+| FR-FP-007 | Reflect saved layout changes and PC status changes to other viewers in real time via Laravel Reverb (a notice; viewers refetch), show other administrators present and editing, say honestly when updates are not live and fall back to periodic refresh, and never replace an editor's unsaved work with a remote change. | M | P4 | T |
+| FR-FP-008 | Preserve position history across layout versions and support a PC moving between rooms without data loss: a PC that leaves a room (moved or archived) gives up its place on that room's active layout, recorded in its own history. | M | P4 | T |
+| FR-FP-009 | Meet accessibility requirements for drag interactions, providing a keyboard/non-drag alternative for placement ([NFR-ACC-008](#16-accessibility-requirements-wcag-22-aa)). | M | P4 | T |
+| FR-FP-010 | Support network-topology visualization, heat maps, asset-density overlays, AI-predicted failures on the map, and indoor navigation. | F | — | — |
+
+---
+
+## 20. Dashboard Requirements
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-DSH-001 | Present a role-aware landing dashboard: Administrators see cross-organization operations; Technicians see their queue and workload; Teachers see their tickets and quick actions. | M | P2 | D |
+| FR-DSH-002 | Support configurable widgets (`dashboard_widgets`) of types counter, line/bar/pie chart, table, list, map, timeline, gauge, with per-user layout and global defaults (`user_id` NULL). | M | P2 | T |
+| FR-DSH-003 | Provide, for Administrators, KPI widgets covering: open-ticket backlog, tickets by status/priority/category, SLA compliance and breaches, MTTR and first-response time, technician workload, assets by status, low-stock consumables, and upcoming preventive maintenance. | M | P2 | D |
+| FR-DSH-004 | Provide, for Technicians, widgets for assigned/active tickets, tickets nearing SLA breach (**due within 4 hours**), tickets that have missed a deadline (**Overdue**) and scheduled maintenance. **Every figure links to the list it counts and each row opens its record; the list's total equals the figure** (DD-81). The maintenance figures count the technician's own work as FR-MNT-011 defines it (assigned *or* opened). | M | P2 | D |
+| FR-DSH-005 | Compute KPI widgets from counter caches / efficient aggregates so the dashboard meets [NFR-PERF-008](#13-performance-requirements). | M | P2 | A |
+| FR-DSH-006 | Allow users to enable/disable and reorder their widgets; persist the arrangement. | M | P2 | T |
+| FR-DSH-007 | Render every chart accessibly (labels, legends, non-color encoding) and with a data-table fallback. | M | P2 | T |
+| FR-DSH-008 | Assemble each dashboard **server-side from the caller's effective permissions**: the role selects the layout, and every widget is included only if the caller holds the permission that widget's data belongs to. A payload shall never contain figures the caller is not entitled to see, so no client-side filtering of privileged data is required. | M | P2 | T |
+| FR-DSH-009 | Provide, for Administrators, a **ticket overview** on the dashboard: tickets reported over time with a comparison period, their current status as a part-to-whole chart with counts and shares, and where problems were reported (laboratories against offices, rooms ranked), filterable by period (day, week, month, year, rolling 7/30/90 days, custom range, since a year), location (all, laboratories, offices, one room) and status; every figure opens the exact list of tickets it counts, and every chart has a table equivalent. *(Phase 2.10 R1; SDD DD-86–DD-89.)* | M | P2 | T |
+
+*(Charts follow the project data-visualization guidance: accessible categorical/sequential palettes, consistent in light and dark.)*
+
+> **Delivered in Phase 2.4:** FR-DSH-001, 003, 004, 005, 007 and 008 — the three role dashboards (Administrator operations, Technician queue, Teacher requests), computed from database aggregates and served through a single permission-gated endpoint. Distributions are rendered as labelled proportional rows whose markup *is* the data table (no charting dependency, no colour-only encoding). **Deferred:** FR-DSH-002 and FR-DSH-006 — per-user widget selection, ordering and persistence; the `dashboard_widgets` table is reserved for them and is untouched.
+
+---
+
+## 21. Reporting Requirements
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-RPT-001 | *(Note 2026-10-18, Phase 2.10 R4: realized by the ticket overview (FR-DSH-009) and Overall Reports (FR-RPT-010) — ticket volume, backlog and timing, maintenance history and recorded cost, asset inventory and warranty; technician performance and valuation remain with their own modules.)* Provide on-demand operational reports: ticket volume/aging/backlog, SLA compliance, MTTR/FRT trends, reopen rate, technician performance, maintenance history and cost, asset inventory and valuation, asset lifecycle/disposal, consumable stock and reorder, and procurement status. | M | P2 | D |
+| FR-RPT-002 | Allow filtering reports by date range, building/floor/room, category/priority/status, technician, and asset attributes; date bucketing shall be timezone-correct. | M | P2 | T |
+| FR-RPT-003 | Restrict report access to permitted roles (`reports.view`) and export to `reports.export`. *(Amended 2026-10-18, owner decision D8: reports require the **Administrator role and** `reports.view`; export, email and print also `reports.export`. The Technician baseline keeps `reports.view`, which grants no report access — SDD DD-89.)* | M | P2 | T |
+| FR-RPT-004 | Export report and list data to CSV and PDF (and XLSX where applicable); exports reflect the active filters. *(Amended 2026-10-18, Phase 2.10 R3: realized for the ticket overview as PDF, Word (DOCX), Excel (XLSX, every record, native charts) and CSV (one records table). Documents are rendered on a queue from the exact filters and instant on screen, belong to their requester (another administrator's answers 404), expire after 72 hours, and carry "Data as of" in Asia/Manila. Ticket record tables also need `tickets.export`; PDF and Word carry at most about 600 rows and say so. SDD DD-91.)* | M | P2 | T |
+| FR-RPT-008 | Allow an Administrator with `reports.export` to email a report document to up to ten addresses, inside or outside the school, with safeguards: identifier-only attachments (no ticket titles, descriptions or notes), explicit confirmation of each outside address checked by the server, a per-administrator daily recipient cap and hourly rate limit, an audit row with the recipients, and honest statuses (Queued / Sent to mail server / Failed — never "delivered"). *(Added 2026-10-18, Phase 2.10 R3, owner decision D1; SDD DD-92.)* | M | P2 | T |
+| FR-RPT-009 | Provide a printable view of a report — the same content as its PDF, always light, opened with the report's filters, audited when requested, with the paper size left to the print dialog. *(Added 2026-10-18, Phase 2.10 R3; SDD DD-91.)* | M | P2 | T |
+| FR-RPT-010 | Provide an Administrator-only **Overall Reports** page with sections for an Overview, Tickets (lifecycle, timing, categories by problem area, priority), Equipment (the register as of today, additions in the period, the equipment with the most problems, and a profile with a merged timeline when one piece of equipment is chosen), Repairs & maintenance (completed repairs by class with effort and coverage, replaced parts by the failed part with the basis of attribution, rule-based recurring patterns and preventive-care candidates, pending AI advisory findings labelled as such) and Locations (problems by room, floor or building; labs versus offices; problem areas by room; problems per PC; repairs by room). Each section states which filters do not apply to it, shows a compact panel instead of charts when there is too little data, and offers server-paginated record tables whose totals equal its figures; documents (FR-RPT-004/008/009) carry every section the viewer may see. Each section also requires its module's read permission. *(Added 2026-10-18, Phase 2.10 R4; SDD DD-94.)* | M | P2 | T |
+| FR-RPT-011 | Allow an Administrator with ticket, equipment and repair access to ask, on demand, for an **advisory AI interpretation** of the overall report answering five questions (replacement drivers, problem locations, failing components, recurring performance problems, preventive-care candidates). The application computes the facts and decides per question whether there is enough recorded data — below that it says so and calls no provider. Only codes and counts are sent: no names, ticket text, notes or costs. Every AI statement must cite the facts it rests on and is withheld if it states a number not in them, derives a quantity, claims certainty or a probability, contains a link or contact instruction, or is more confident than its evidence allows; the screen and documents show the recorded facts first and the interpretation labelled advisory, with the model's confidence never presented as a probability. Interpretations are cached against exactly the data they read and marked out of date when it changes. The feature is off until an administrator switches it on (`ai.report_narratives_enabled`), and requests are rate-limited per administrator. *(Added 2026-10-18, Phase 2.10 R5, owner decision D4; SDD DD-95.)* | S | P2 | T |
+| FR-RPT-005 | Compute reporting metrics from the authoritative history/lifecycle tables (`ticket_status_history`, `asset_status_history`, `stock_transactions`, maintenance records) and ticket lifecycle timestamps. | M | P2 | I |
+| FR-RPT-006 | Provide analytics via materialized views refreshed on a schedule for heavy aggregates. | F | — | A |
+| FR-RPT-007 | Allow saving and scheduling reports for recurring delivery (`report_definitions`, `scheduled_reports`). | F | — | T |
+
+> **Gap flagged:** `report_definitions`/`scheduled_reports` tables are **not** in the current schema (deliberately deferred). Saved/scheduled reports (FR-RPT-006/007) are Future; P2 reporting is on-demand + export.
+
+---
+
+## 22. Notification Requirements
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-NOT-001 | Deliver in-app notifications via a notification center (`notifications`: type, title, message, JSON data, optional action URL, read state) with an unread badge count. | M | P2 | T |
+| FR-NOT-002 | Support delivery channels in-app and email (`notification_channel`), honoring per-user, per-type channel preferences (`notification_preferences`, unique per user+channel+type). | M | P2 | T |
+| FR-NOT-003 | Generate notifications for at least: ticket assigned/reassigned; ticket status change; new comment on a followed/owned ticket; SLA breach/nearing breach; maintenance scheduled/due; **maintenance rescheduled**; low-stock reorder; procurement approval/rejection; **a technician work support request submitted (to Administrators)**; **an Administrator decision on that request — approved with a new schedule, clarification requested, or declined with a reason (to the submitting Technician)**; account lockout; new announcements; **and a predictive-maintenance finding awaiting Administrator review (to Administrators)**. | M | P2 | T |
+| FR-NOT-004 | Mark notifications read/unread individually and in bulk; persist `read_at`. | M | P2 | T |
+| FR-NOT-005 | Respect notification type set (info/success/warning/error/ticket_update/assignment/announcement/maintenance/system) for filtering and display. | M | P2 | T |
+| FR-NOT-006 | Send email notifications through the configured mail transport, with content safe for external delivery (no secrets, minimal PII). | M | P2 | T |
+| FR-NOT-007 | Push in-app notifications in real time via Reverb (with polling fallback). | F | — | T |
+| FR-NOT-008 | Support a daily digest email aggregating unread items, selected per user as a **delivery channel** on `notification_preferences` (`channel = 'digest'`) rather than as a notification type. | M | P2 | T |
+
+> **Implementation status (recorded 2026-09-06, Version 1.0 unchanged).**
+>
+> **FR-NOT-001 / 004 / 005 — satisfied.** WP-2.7a built the `notifications`
+> read/write API and the unread badge count; **WP-2.7b** built the surface: the
+> notification centre at `/app/notifications`, the top-bar entry with its unread
+> badge and dropdown panel, individual and bulk read/unread, and filtering by
+> unread state and by type across the nine-value set FR-NOT-005 names. Freshness
+> is a **60-second poll while the tab is visible** — see FR-NOT-007.
+>
+> **FR-NOT-002 — satisfied, with one clarification that matters.** The channel ×
+> type matrix is **opt-out**: an absent `notification_preferences` row means
+> *enabled*, and the API returns the complete matrix with gaps resolved so no
+> client re-implements that rule. WP-2.7b renders it on `/app/account`.
+> **Delivering in-app is an obligation on the system, not a limit on the user:**
+> a user may disable in-app delivery for any type, and the system must not treat
+> "in-app is the guaranteed channel" as a reason to ignore that choice. The
+> **sole** forced-channel exception is the account-lockout email (the FR-NOT-003
+> lockout trigger), which bypasses the preference gate because a security notice
+> silenced months earlier is a security notice that does not exist.
+>
+> **FR-NOT-003 — partly satisfied. Ten of its twelve triggers are
+> implemented.** WP-2.7c added the twelfth clause, *new announcements*. See the
+> trigger note below; this requirement must **not** be recorded as satisfied
+> while low-stock reorder and procurement approval/rejection remain blocked on
+> WP-2.4b.
+>
+> **FR-NOT-006 — satisfied.** Mail delivery runs through the configured
+> transport (WP-2.7a). Content carries **structural facts only** — identifiers,
+> states and timestamps — and never borrows prose from the record it describes,
+> which is how "no secrets, minimal PII" is enforced rather than merely intended.
+>
+> **FR-NOT-007 — not implemented; unchanged as Future (P4).** There is no
+> Reverb, WebSocket, SSE or browser-push transport in the system. The badge is
+> polled, so its count may be up to one polling interval stale; the product does
+> not claim real-time behaviour.
+>
+> **FR-NOT-008 — satisfied; delivered by WP-2.7e (recorded 2026-09-07).** The
+> decision recorded as **D1 (2026-09-05)** approved digest as a **third delivery
+> channel** rather than a tenth notification type, and that is how it was built:
+> `notification_preferences.channel` now allows `('in_app', 'email', 'digest')`
+> and `notifications` is untouched — a digest aggregates unread rows, it does
+> not create one.
+>
+> **Delivered semantics**, each settled by Client decision before implementation:
+>
+> - **07:00 Asia/Manila, covering the previous school-local calendar day**, as a
+>   half-open `[start, end)` interval. The application's own timezone stays
+>   **UTC**; only the digest's business semantics are school-local, and
+>   `Asia/Manila` observes no daylight saving, so the delivery hour is stable
+>   year-round.
+> - **The digest is a distinct channel.** Switching the `email` channel off does
+>   **not** disable it; the `digest` row of the preference matrix is the sole
+>   opt-in, and that matrix is now 3 × 9 = 27 cells.
+> - **Per-type preferences apply.** `digest × type` means "include this type in
+>   my digest", read through the same opt-out gate as every other channel.
+> - **All three roles** are eligible, active accounts only, and a digest carries
+>   **only that user's own** notifications — no cross-user aggregation exists.
+> - **Content is notification titles only.** The structural-facts rule
+>   (FR-NOT-006) binds harder here than for a single notification, because a
+>   digest is many at once: no `message` body is ever mailed.
+> - **An empty day sends nothing** — no email and no record.
+>
+> **Delivery is at-most-once, deliberately.** SMTP cannot take part in a database
+> transaction, so exactly-once is unavailable: the record is committed *before*
+> the message is sent, which means a crash mid-send costs that user one day's
+> digest rather than risking a duplicate school-wide mailing. Uniqueness is
+> enforced by the database on `(user_id, digest_date)` — not by the scheduler's
+> lock, which only prevents runs overlapping. **`sent_at` therefore records
+> commitment, not confirmed delivery,** and must not be read as proof that mail
+> arrived.
+>
+> The earlier wording of this requirement named a column
+> `notifications.digest_enabled`; **that column has never existed** in the
+> baselined schema and the reference is corrected above. A **system setting** of
+> that name is seeded (default `false`); it predates D1, is **read by no code**,
+> and WP-2.7e deliberately neither uses it as a kill switch nor removes it. It is
+> recorded here as unused legacy state so it cannot later be mistaken for live
+> behaviour.
+
+**FR-NOT-003 trigger status (recorded 2026-09-06; trigger 12 updated
+2026-09-07).** The requirement enumerates **twelve** trigger clauses. **Ten are
+implemented** and two are not:
+
+| # | Trigger | State | Delivered by / blocked on |
+|---:|---|---|---|
+| 1 | Ticket assigned / reassigned | ✅ implemented | WP-2.7a |
+| 2 | Ticket status change | ✅ implemented | WP-2.7a |
+| 3 | New comment on a followed/owned ticket | ✅ implemented | WP-2.7a |
+| 4 | SLA breach / nearing breach | ✅ implemented | WP-2.7a |
+| 5 | Maintenance scheduled / due | ✅ implemented | WP-2.7a (two dispatch paths — scheduled, and due/overdue detection) |
+| 6 | Maintenance rescheduled | ✅ implemented | WP-2.7a |
+| 7 | Low-stock reorder | ❌ **not implemented** | **WP-2.4b** — `consumables` is a baselined table with no domain code and no reorder thresholds |
+| 8 | Procurement approval / rejection | ❌ **not implemented** | **WP-2.4b** — `procurement_requests` likewise; also the dependency behind [FR-WSR-013](#1071-technician-work-support-requests-fr-wsr) |
+| 9 | Work support request submitted (to Administrators) | ✅ implemented | WP-2.7a |
+| 10 | Administrator decision on that request | ✅ implemented | WP-2.7a |
+| 11 | Account lockout | ✅ implemented | WP-2.7a (forced email channel) |
+| 12 | New announcements | ✅ implemented | **WP-2.7c** — publishing dispatches `AnnouncementPublished` to the targeted audience, in-app only; see [§22.1](#221-announcements) |
+
+Two recipient rules were decided by the Client on 2026-09-05 and are recorded
+here so the requirement is verifiable rather than interpretable:
+
+- **Trigger 3 — "followed/owned" means demonstrated participation.** No
+  follower, watcher or subscription table exists anywhere in the schema, so the
+  recipient set is the **reporter, the assigned technician, and anyone who has
+  already commented**. Nothing is invented and nothing new is stored;
+  participation is a fact `ticket_comments` already records. **An internal
+  comment narrows the audience to Administrators and Technicians** — the
+  *existence* of an internal note is itself staff-only information, so a
+  requester receives no notification at all rather than a redacted one.
+- **Trigger 4 — recipients are Administrators plus the assigned technician**,
+  and the trigger is **notify-only**. No automatic reassignment, priority change
+  or other escalation occurs; that remains the open decision
+  [OI-06](#33-open-issues--decisions-requiring-client-approval).
+
+A unit test asserts that **no topic and no event class exists for triggers 7 and
+8**, so the gap cannot close silently or be mistaken for delivered work.
+
+### 22.1 Announcements
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-NOT-010 | Allow Administrators (`system.announcements.manage`) to publish announcements targeted to an audience (all/teachers/technicians/admins), with optional start/end window (`ends_at > starts_at`), active flag, and pin flag. | M | P2 | T |
+| FR-NOT-011 | Display active, in-window announcements to the targeted audience; pinned announcements appear first. | M | P2 | D |
+
+> **Implementation status — satisfied; delivered by WP-2.7c (recorded
+> 2026-09-07, Version 1.0 unchanged).**
+>
+> **FR-NOT-010 — satisfied.** Administrators holding
+> `system.announcements.manage` create, edit, publish, withdraw and delete
+> announcements targeted at `all` / `teachers` / `technicians` / `admins`, with
+> the optional window and the pin flag. **Publication is a named operation, not
+> a writable field:** `is_active` cannot be set by any request body, so no edit
+> can make an announcement live — and therefore no edit can notify an audience
+> as a side effect. Creating an announcement produces a **draft**; publishing,
+> withdrawing and re-notifying are separate endpoints, each with its own audit
+> action.
+>
+> **Compose form — Publish added (recorded 2026-10-19, Version 1.0 unchanged).**
+> The form offers **Publish** (and **Save and publish** for an unpublished
+> draft) beside **Save draft** and Cancel. Publish saves the announcement and
+> then calls the existing publish endpoint; the create endpoint still never
+> publishes, there is still no writable `is_active`, Enter still saves a draft,
+> and a published announcement's edit form offers no Publish. If publishing
+> fails after the save, the draft is kept and the Administrator is told
+> ([SDD DD-107](#)).
+>
+> **FR-NOT-011 — satisfied.** The reader at `/app/announcements` lists the
+> announcements addressed to the caller — active, inside their window, and
+> targeted at their audience or at everyone — pinned first. A dedicated
+> per-announcement page is reachable from the notification.
+>
+> **Decision D5 (2026-09-05), as implemented.** **Publishing an announcement
+> creates an in-app notification. It does not send email.** All four constraints
+> recorded before implementation were met:
+>
+> - **Audience targeting is an authorization boundary, not a display filter.**
+>   One visibility rule answers both the list question and the single-record
+>   question, so an announcement absent from a reader's list is **equally
+>   unreachable by its uuid** rather than merely hidden. Asserted by test, role
+>   by role.
+> - **User notification preferences apply.** `announcement` remains one of the
+>   nine [FR-NOT-005](#22-notification-requirements) types and the existing
+>   preference gate covers it; a user who has switched announcements off in-app
+>   is still not notified.
+> - **Authorization is the existing `system.announcements.manage`**, already
+>   seeded to Administrators. **No new permission was added** and the
+>   [§8.4](#84-seeded-permission-matrix-baseline) matrix is unchanged.
+> - **The existing notification security and content rules applied unchanged** —
+>   structural facts only, and a relative in-application destination. The
+>   announcement **body is deliberately absent** from the notification even
+>   though it is plain text: the notification says *that* something was
+>   announced and links to it.
+>
+> **How the no-email guarantee is enforced.** Preferences are **opt-out**, so
+> the preference gate alone could not deliver it: on a fresh system an absent
+> row means *enabled*, and a single `all` announcement would have mailed the
+> whole organisation. The guarantee therefore lives in the dispatch path —
+> the announcement notification **refuses the email channel outright**, before
+> the gate is consulted ([SDD DD-66](#40-design-decision-register)). It was not
+> solved by seeding preferences, which would have made a system guarantee depend
+> on every row staying correct in perpetuity.
+>
+> **Content is plain text.** Announcements carry no HTML and no Markdown, so
+> there is no sanitisation surface; the client renders them as escaped text.
+> **No attachments and no external URLs** are supported, and **no per-user
+> announcement read receipt exists** — read/unread state remains owned by the
+> notification system ([FR-NOT-004](#22-notification-requirements)).
+>
+> **Sequencing consequence, as realised:** because publishing notifies,
+> **WP-2.7c depended on WP-2.7a**, which was delivered first. Because it sends
+> no email, the school-wide blast risk that motivated the original
+> recommendation did not arise.
+
+---
+
+## 23. System Settings Requirements
+
+| ID | Requirement (the system *shall* …) | Class | Rel | Ver |
+|---|---|:--:|:--:|:--:|
+| FR-CFG-001 | Provide a single centralized configuration store (`system_settings`) keyed by unique `key`, grouped by taxonomy (school, academic, maintenance, ai, email, qr, floor_plan, branding, theme, dashboard, notifications, system, general), with a typed JSON value. | M | P2 | T |
+| FR-CFG-002 | Restrict create/update/delete of settings to Administrators (`system.settings.manage`) enforced by policy; Teachers/Technicians may read only `is_public` settings. | M | P2 | T |
+| FR-CFG-003 | Prevent deletion of settings flagged `is_protected` (system-critical seeded keys). | M | P2 | T |
+| FR-CFG-004 | Expose only `is_public` settings to the frontend; keep non-public settings (e.g. mail/AI credentials) server-side. | M | P2 | T |
+| FR-CFG-005 | Allow configuring organization identity/branding (name, address, contact, logo, favicon, primary color, theme mode) so the deployment re-brands **without code change** (satisfies [BO-08](#5-business-objectives)). | M | P2 | T |
+| FR-CFG-006 | Allow configuring operational defaults: academic year/semester, maintenance interval and reminder lead, QR default size and error-correction, floor-plan grid size and snap, default notification channel and digest, AI assistant toggle, system timezone and date format. | M | P2 | T |
+| FR-CFG-007 | Validate setting values against their declared `type` (string/integer/boolean/float/json/array) before persisting. | M | P2 | T |
+| FR-CFG-008 | Apply setting changes without requiring a redeploy (read at runtime, cached with invalidation on change). | M | P2 | T |
+| FR-CFG-009 | Keep strongly-typed AI runtime configuration (active/embedding model, threshold, feature toggles) in `ai_system_settings`, distinct from general key/value settings. | M | P3 | I |
+
+---
+
+## 24. External Interface Requirements
+
+### 24.1 User interfaces (EIF-UI)
+- **EIF-UI-001 (M/P2):** The system shall present a responsive SPA (React 19 + TS) conforming to `DESIGN.md` and [§16](#16-accessibility-requirements-wcag-22-aa), served from a single origin.
+- **EIF-UI-002 (M/P2):** The UI shall provide left-sidebar primary navigation (collapsible), a top bar with global search/command palette, notifications, org/theme switch, and user menu.
+- **EIF-UI-003 (M/P2):** The UI shall support light/dark themes driven by the design tokens and the configured default.
+
+### 24.2 Application programming interfaces (EIF-API)
+- **EIF-API-001 (M/P2):** The system shall expose a versioned REST API under `/api`, returning JSON, authenticated via Sanctum session cookies.
+- **EIF-API-002 (M/P2):** API resources shall be addressed by `uuid` (never numeric id) for user-facing entities.
+- **EIF-API-003 (M/P2):** The API shall use standard HTTP status codes, consistent error envelopes, pagination, filtering, and sorting conventions.
+- **EIF-API-004 (M/P2):** The API contract shall be documented (OpenAPI) and kept in sync with the implementation.
+
+### 24.3 External service interfaces (EIF-EXT)
+- **EIF-EXT-001 (M/P3):** The system shall integrate the Google Gemini API for chat completion and text embeddings via server-side calls with the API key held in server secrets, subject to [§17.5](#175-ai-data-governance--safety-requirements).
+- **EIF-EXT-002 (M/P2):** The system shall send email via a configurable SMTP transport (Mailpit in development).
+- **EIF-EXT-003 (F/P4):** The system shall provide real-time updates via Laravel Reverb (WebSockets).
+- **EIF-EXT-004 (M/P2):** The system shall use Redis for cache and queue backends.
+
+### 24.4 Data/storage interfaces (EIF-DAT)
+- **EIF-DAT-001 (M/P2):** The system shall persist to PostgreSQL 17 with `pgvector`, `citext`, and `pgcrypto` extensions enabled.
+- **EIF-DAT-002 (M/P2):** The system shall store uploaded files (attachments, repair images, branding assets) on a configurable disk (local by default), outside the web root, referenced by storage path + checksum.
+
+### 24.5 Hardware interfaces (EIF-HW)
+- **EIF-HW-001 (M/P2):** The system shall capture QR scans via a device camera through the browser (no native app; no specialized scanner required).
+
+---
+
+## 25. Business Rules
+
+| ID | Business Rule |
+|---|---|
+| BR-01 | The three system roles (Administrator, Technician, Teacher) are seeded, `is_system`, and cannot be deleted. |
+| BR-01a | Only **Teacher** and **Technician** accounts may be created via the public registration-request workflow; **Administrator** accounts are never self-registerable and are provisioned only by an existing Administrator (or the documented local dev seeder). A registration request is created `pending` and cannot authenticate until an Administrator approves it. *(OI-02, resolved.)* |
+| BR-02 | A user holds exactly one role; effective permissions = role permissions adjusted by per-user grant/deny overrides. *(Multi-role is a flagged future decision — [§33 OI-01](#33-open-issues--decisions-requiring-client-approval).)* |
+| BR-03 | Every ticket has a role-neutral reporter who is a registered, non-deleted user; there is no anonymous ticket submission in P2. |
+| BR-04 | Each ticket always has exactly one current status; exactly one status is the system default (`Open`). |
+| BR-05 | SLA due times are derived from the ticket’s priority (`response_time_minutes`, `resolution_time_minutes`). Seeded SLAs: Low 480/4320, Medium 240/2880, High 60/1440, Urgent (slug `critical`) 15/480 minutes. A priority's **name** is display text (the top level was renamed from "Critical" to "Urgent", Client decision 2026-10-16); its **slug** is the stable identifier everything keys on, and history keeps the name that was in force when it was recorded ([FR-TKT-012](#105-ticketing--itsm-fr-tkt)). |
+| BR-06 | A ticket may be marked a duplicate of another ticket but never of itself. |
+| BR-07 | At most one technician assignment is active per ticket at any time. |
+| BR-08 | A serialized asset is installed in at most one PC unit at a time. |
+| BR-09 | A QR code identifies exactly one target: a PC unit or a standalone asset. |
+| BR-10 | Consumable stock is changed only through `stock_transactions`; `quantity_on_hand` must never be negative. |
+| BR-11 | Procurement requests follow draft → submitted → approved/rejected → fulfilled/cancelled; approval is Administrator-gated and audited. |
+| BR-12 | Business/master entities are soft-deleted (never hard-deleted) so history and attributions survive; reference/lookup data in use cannot be deleted (RESTRICT). |
+| BR-13 | Audit log entries are immutable once written. |
+| BR-14 | Only `is_public` settings may be exposed to the client; `is_protected` settings cannot be deleted. |
+| BR-15 | AI output is advisory; no AI action performs an irreversible/state-changing operation without human confirmation. |
+| BR-16 | The brand identity is a single primary color token plus branding settings; status colors and neutrals are never re-skinned per vertical. |
+| BR-17 | All timestamps are stored in UTC and displayed in the configured system timezone. |
+| BR-18 | A closed/resolved ticket may be reopened within the configurable reopen window; reopening is recorded. |
+| BR-19 | Preventive maintenance may exist without a ticket; corrective maintenance is typically linked to one. |
+| BR-20 | Money is stored as `numeric(12,2)`; probabilities/confidence/scores as values in [0,1]; quantities are non-negative. |
+
+---
+
+## 26. Operational Scenarios
+
+**OS-1 — Teacher reports a broken projector (self-service + AI deflection).**
+A teacher signs in, clicks “New ticket,” selects category *Peripheral*, describes the issue, optionally selects the room, and submits. AI triage (P3) returns likely-cause steps at ≥ threshold confidence; the teacher follows a step, the projector works, and marks the ticket resolved — no technician needed. If unresolved, the ticket remains open and enters the technician queue.
+
+**OS-2 — Technician resolves a hardware fault on the floor.**
+A technician scans the PC’s QR code with a phone; the info panel shows specs, installed parts, and ticket/maintenance history. They accept the assignment, start it (PC → under_maintenance), replace a faulty RAM stick (recording the hardware replacement and the specific new serialized asset), attach before/after photos, complete the checklist, and complete the record. The PC returns to working; stock and asset histories update; the reporter is notified.
+
+**OS-3 — Administrator runs the monthly operations review.**
+An administrator opens the dashboard: backlog, SLA compliance, MTTR trend, technician workload, assets by status, low-stock items, upcoming preventive maintenance. They export an SLA-compliance report (PDF) filtered to the last month and one building for a leadership meeting.
+
+**OS-4 — Preventive maintenance cycle.**
+Ninety days after the last service, the system flags due PCs and notifies technicians seven days ahead. A technician performs the scheduled inspection using the preventive checklist template; the record is logged with no originating ticket.
+
+**OS-5 — Procurement of new equipment.**
+A technician raises a procurement request with line items; an administrator reviews and approves it; on fulfillment, received units are entered as serialized assets and/or consumable stock; assets are later deployed and QR-tagged.
+
+**OS-6 — SLA breach.**
+A high-priority ticket approaches its resolution deadline; the assigned technician and administrator are notified as it nears breach, and the ticket is flagged breached if the deadline passes. *(Auto-escalation is a future enhancement, [FR-TKT-018](#105-ticketing--itsm-fr-tkt).)*
+
+**OS-7 — AI/provider outage.**
+The Gemini API is unreachable. Ticket creation, assignment, maintenance, inventory, dashboards, and reporting continue to work; AI panels show an unavailable state; queued AI analyses retry with backoff when the provider recovers.
+
+**OS-8 — Re-brand for a new vertical.**
+An administrator at a new (non-school) deployment sets the organization name, uploads a logo, sets the primary color and default theme, and adjusts locale/timezone — the platform re-skins with no code change.
+
+---
+
+## 27. Use Cases
+
+![SccIT System Use Case Diagram](diagrams/use-case-diagram.png)
+
+**Figure 2. System Use Case Diagram.** A single UML use-case model of the whole platform inside one system boundary — *the AI-Powered School IT Asset & Service Management System* — drawn to standard UML notation: **stickman actors** outside the boundary, use-case **ovals** inside it, solid **associations**, and an `«extend»` relationship. **Human actors** on the left are the *Public Visitor* (unauthenticated) and the three signed-in roles — *Teacher/Requester*, *Technician*, and *Administrator*. No abstract actor or actor generalization is used: each concrete role is **connected directly** to every common use case it performs (log out, change password, manage profile, view dashboard, track/comment on tickets, use AI, manage notifications), which keeps the model immediately readable. **External/system actors** on the right are the *AI Provider*, the *Email Service*, the *Notification Service*, and the *QR Scanner*, each associated with the use cases it serves. The diagram represents the **complete specified functional scope** — authentication & registration, profile & password management, dashboards, the full ticket lifecycle (submit, assign, track, comment, resolve), asset · inventory · PC-unit · procurement management, QR-code management and scanning, corrective and preventive maintenance, AI troubleshooting · knowledge base · recommendations, locations and floor plan, notifications and announcements, reports · analytics · audit logs, user · role management, and system settings. Relationships shown are actor **generalization** (the three roles are a *User*) and a single `«extend»` — *Attach Files* optionally extends *Submit Ticket*.
+
+> This is a *requirements* model: it depicts the **complete required behaviour** of the specified system and carries **no implementation-status, delivery-phase, or roadmap annotations** (delivery sequencing is tracked in the SPMP, not this SRS). Every use case traces to functional requirements in [§10](#10-functional-requirements)–[§23](#23-system-settings-requirements); account provisioning uses the **registration-request + Administrator-approval** workflow ([FR-AUTH-013..016](#101-authentication--session-management-fr-auth)), so *Approve Registration* is an Administrator use case and there is no separate self-service email-verification use case (approval stamps verification). Administrators additionally hold all permissions ([§8.1](#81-administrator)). The condensed use-case narratives (**UC-01 … UC-14**) below elaborate the principal flows.
+
+### 27.1 Use-case summaries
+
+Format: **UC-n — Name** · *Actor(s)* · Pre → Main flow → Post; key alternates. Traces to FRs.
+
+**UC-01 — Submit ticket.** *Reporter.* Pre: authenticated. Flow: open form → fill required fields → attach files → submit. Post: ticket created with number/uuid, default status, SLA due times, reporter set; activity + notification emitted. Alt: validation error returns field messages. *(FR-TKT-001..008)*
+
+**UC-02 — Triage & assign ticket.** *Administrator/Technician.* Pre: open ticket exists. Flow: review (with AI summary if P3) → set priority/category/tags → assign technician. Post: assignment created (one active), status → Assigned, technician notified. Alt: reassign, decline. *(FR-ASN-001..005, FR-TKT-005)*
+
+**UC-03 — Work & resolve ticket.** *Technician.* Pre: assigned. Flow: accept → start → comment/internal notes → (optional) create maintenance record → resolve. Post: `first_response_at`/`resolved_at` stamped; reporter notified. Alt: put on hold; escalate. *(FR-ASN-004, FR-TKT-006/007, FR-MNT-001)*
+
+**UC-04 — Perform maintenance.** *Technician.* Pre: PC/asset exists. Flow: create/scheduled record → run checklist → replace hardware → attach images/notes → complete. Post: histories updated; PC status restored; costs/downtime captured. *(FR-MNT-001..008)*
+
+**UC-05 — Scan QR to verify equipment.** *Technician.* Pre: QR exists & active. Flow: scan → verify → view live info panel. Post: scan logged with result. Alt: invalid/mismatch/expired handled per FR-QR-006. *(FR-QR-005/006)*
+
+**UC-06 — Manage asset lifecycle.** *Technician/Administrator.* Flow: create asset → deploy/install → transfer → repair → dispose. Post: status history complete. *(FR-AST-002..007)*
+
+**UC-07 — Approve procurement.** *Administrator.* Pre: submitted request. Flow: review items → approve/reject (reason). Post: status + approver recorded; requester notified. *(FR-AST-008/009)*
+
+**UC-08 — Configure system & branding.** *Administrator.* Flow: edit settings → validate by type → save. Post: applied at runtime; audited; protected keys preserved. *(FR-CFG-001..008)*
+
+**UC-09 — Manage users & permissions.** *Administrator.* Flow: create/edit user → set role → adjust overrides. Post: access reflects changes; audited. *(FR-USER-001..010)*
+
+**UC-09a — Register & get approved.** *Prospective Teacher/Technician + Administrator.* Flow: applicant submits a registration request (role Teacher or Technician) → account created `pending`, cannot sign in → applicant sees “awaiting approval” → Administrator reviews the request and approves or rejects (with optional reason) → applicant is emailed the decision; on approval the account becomes `active` and can sign in, on rejection it becomes `rejected`. Post: decision recorded in the audit trail; rejected requests retained with reason. *(FR-AUTH-013..016; BR-01a)*
+
+**UC-10 — Use AI assistant.** *Reporter/Technician.* Flow: ask question → assistant retrieves KB context → answers with citations → user rates answer. Post: conversation + feedback logged. *(FR-AI-004..008)*
+
+**UC-11 — View dashboard & export report.** *Administrator.* *(Amended 2026-10-18, owner decision D8: reports are Administrator-only; Figure 2 still associates Technician with this use case and is to be redrawn in the Phase 2.10 documentation pass.)* Flow: open dashboard → filter → export. Post: file generated reflecting filters. *(FR-DSH-001..006, FR-RPT-001..004)*
+
+**UC-12 — Edit a Floorplan (P4).** *Administrator.* Flow: open the room from the Floorplan overview → Edit layout → place, move and turn PCs and add fixtures (undo/redo) → Save; a concurrent save is merged object by object. Post: the whole layout persisted under a new revision; other viewers notified. *(FR-FP-001..009)*
+
+**UC-13 — Publish announcement.** *Administrator.* Flow: compose → target audience → schedule window → publish. Post: shown to audience. *(FR-NOT-010/011)*
+
+**UC-14 — Recover access (forgot password).** *Any user.* Flow: request reset → receive token link → set new password. Post: sessions invalidated; login recorded. *(FR-AUTH-008/011)*
+
+### 27.2 Detailed Use Case Specifications
+
+These specifications elaborate the principal use cases end-to-end in the ISO/IEC/IEEE 29148 style — **Preconditions, Trigger, Main Flow, Alternate Flows, Exceptions, Postconditions** — including UI/page touchpoints, AI decision points, database effects, notifications, and role redirects. Every specification traces to the functional requirements ([§10](#10-functional-requirements)–[§23](#23-system-settings-requirements)) and the physical data model (`database_design_v2.dbml`); nothing here introduces behaviour beyond the defined scope. The authentication, registration-approval, profile, and password flows are **implemented (Phase 2.2–2.3)**; ticketing, assignment, maintenance, QR, assets, and AI flows are **specified and scaffolded** for their respective phases ([§3.4](#34-release-phasing-summary)).
+
+**UCS-01 — Log In & Role-Based Redirect.**
+- **Primary actor:** Teacher/Requester, Technician, or Administrator (a registered user). **Secondary actors:** Email Service, Notification Service.
+- **Preconditions:** the person has an `active` account; the SPA is loaded over the single HTTPS origin.
+- **Trigger:** the user submits the login form (email + password).
+- **Main flow:** (1) user submits email (case-insensitive) + password; (2) system verifies the salted hash and establishes a Sanctum SPA cookie session ([FR-AUTH-001/002](#101-authentication--session-management-fr-auth)); (3) the attempt is written to `login_history` with outcome, IP, user-agent, browser, platform (FR-AUTH-005); (4) `last_login_at`/`last_login_ip` updated (FR-AUTH-007); (5) the account-status middleware confirms `active` (FR-AUTH-016); (6) the user is redirected to the role dashboard — Teacher → Teacher Dashboard, Technician → assigned-work queue, Administrator → operations overview ([FR-DSH-001](#20-dashboard-requirements)).
+- **Alternate flows:** *A1 —* `force_password_reset` set → mandatory change-password step before any feature (FR-USER-016). *A2 —* status `pending`/`rejected`/`suspended`/`inactive` → sign-in denied; the legitimate holder may see the status reason, e.g. "awaiting administrator approval" (FR-AUTH-004).
+- **Exceptions:** *E1 —* invalid credentials → non-disclosing error, attempt logged `failed`. *E2 —* after the configurable threshold of consecutive failures (default 5) the account locks for a window (default 15 min), the lockout is recorded, and an email is sent (FR-AUTH-006).
+- **Postconditions:** an authenticated session exists; the user is on their role dashboard; the attempt is auditable.
+- **Traceability:** FR-AUTH-001..007/016, FR-DSH-001 · `users`, `login_history`, `sessions`.
+
+**UCS-02 — Submit a Ticket (with AI Analysis & Priority Recommendation).**
+- **Primary actor:** Teacher/Requester (Technicians/Administrators may raise on behalf). **Secondary actors:** AI Provider, Notification Service.
+- **Preconditions:** authenticated; ticket categories/priorities seeded.
+- **Trigger:** the requester opens "Report an issue" and submits the form.
+- **Main flow:** (1) from the dashboard feed the requester searches existing tickets to avoid duplicates ([FR-TKT-014](#105-ticketing--itsm-fr-tkt)), and may upvote/comment instead (FR-TKT-009/007); (2) fills title, description and category — adding a short description of the kind of problem when an "Other" category is chosen — optionally chooses a priority ("Not sure — let the IT team decide" is preselected), says where the problem is as building → room → item (a PC unit or another in-service item in that room, or none), and optionally adds tags (FR-TKT-001/004, FR-LOC-011, FR-AST-013); (3) optionally adds up to five photos from the camera or the gallery — **«extend» Attach Files** — which the browser holds until step (4) has created the ticket and then uploads one at a time, each with server-side MIME + size validation, stored outside the web root with a SHA-256 checksum (FR-TKT-008); (4) on submit the system creates the ticket with `ticket_number` + `uuid`, status `Open`, `reporter_id`, the priority decided by FR-TKT-004's order of authority, and derives `response_due_at`/`resolution_due_at` from that priority's SLA (FR-TKT-002/004); (5) the system **enqueues an asynchronous AI analysis job** so the request never blocks ([FR-AI-021](#173-ai-functional-requirements)); (6) AI produces category, severity, estimated minutes, `technician_required`, summary, and ordered troubleshooting recommendations with a confidence score, logged to `ai_analysis_logs`/`ai_recommendations`, and updates the ticket's `ai_summary`/`ai_confidence` snapshot (FR-AI-001/002); (7) AI **recommends a priority** from severity + the ticket's location context (room type — laboratory/office — and administrator-configured priority locations) + asset criticality, as an **advisory** value (FR-AI-001, FR-CFG-006, FR-AI-010); (8) an activity entry and a notification are emitted (FR-TKT-012, FR-NOT-003).
+- **Alternate flows:** *A1 —* duplicate found → requester upvotes the canonical ticket; no new ticket. *A2 —* AI disabled/unreachable → the ticket proceeds normally, the AI panel shows an unavailable state, analysis retries later (FR-AI-020/022).
+- **Exceptions:** *E1 —* validation error → field messages. *E2 —* a photo the form can already tell is unacceptable (type, or over the server's size limit) is refused on the form before submit; a photo that fails to upload after the ticket exists (rejected type/size, rate limit, ended session) **never loses the report** — the ticket stays, the other photos attach, and the reporter lands on the ticket with a notice naming each photo that did not attach and why, so it can be added again from the ticket's Photos & files tab.
+- **Postconditions:** a ticket exists in `Open`; an advisory AI analysis + priority recommendation are attached; the reporter can track it.
+- **Traceability:** FR-TKT-001/002/004/007/008/009/012/014, FR-AST-013, FR-LOC-011, FR-AI-001/002/010/021, FR-NOT-003, NFR-SEC-009 · `tickets`, `attachments`, `assets`, `ai_analysis_logs`, `ai_recommendations`, `ticket_updates`.
+
+**UCS-03 — AI-Assisted Troubleshooting & Escalation.**
+- **Primary actor:** Teacher/Requester (also Technician). **Secondary actor:** AI Provider.
+- **Preconditions:** a submitted ticket with AI analysis, or the assistant opened from any page.
+- **Trigger:** AI presents troubleshooting steps, or the user opens the floating assistant.
+- **Main flow:** (1) the **floating AI assistant — available to every authenticated user on every page** — presents grounded, ordered troubleshooting steps (FR-AI-003/004); (2) the requester works the steps and marks them complete (`ai_recommendations.is_completed`) (FR-AI-003); (3) the requester **confirms whether the issue is resolved**; (4) *if resolved* → the ticket is resolved/closed on the requester's confirmation; the conversation + feedback are logged (FR-AI-008); (5) *if unresolved* → the ticket is **escalated** into the triage/assignment queue with the AI recommendation (priority/category/summary) attached for human review — **AI never auto-assigns or auto-closes** (FR-AI-010/032).
+- **Alternate flows:** *A1 —* the user rates the answer (helpful flag, 1–5) (FR-AI-008).
+- **Exceptions:** *E1 —* provider error/timeout → retry with backoff; the assistant shows a non-blocking unavailable state (FR-AI-020/022).
+- **Postconditions:** the issue is resolved by self-service, or the ticket is queued for assignment with AI context; every AI turn is logged.
+- **Traceability:** FR-AI-003/004/007/008/010/020/022/032 · `ai_conversation_logs`, `ai_recommendations`, `ai_feedback`, `tickets`.
+
+**UCS-04 — Approve / Reject Registration.** *(Implemented — Phase 2.2/2.3.)*
+- **Primary actor:** Administrator. **Secondary actor:** Email Service.
+- **Preconditions:** a prospective Teacher/Technician submitted a registration request; the account is `pending` and cannot sign in ([FR-AUTH-013](#101-authentication--session-management-fr-auth)).
+- **Trigger:** the Administrator opens the registration-review queue.
+- **Main flow:** (1) the admin reviews the request and may **edit** profile fields / the self-registerable role before deciding (FR-USER-019); (2) the admin **approves** → account `active`, sign-in enabled, or **rejects** → account `rejected` with `rejection_reason`, `rejected_by`, `rejected_at` (FR-AUTH-014); (3) the system **emails the applicant the decision** (activation, or rejection with reason) (FR-AUTH-015); (4) the decision is recorded in the activity/audit trail (FR-AUD-003).
+- **Alternate flows:** *A1 —* resend the decision email (FR-USER-016).
+- **Exceptions:** *E1 —* self-safety and last-active-admin invariants block unsafe changes (FR-USER-018).
+- **Postconditions:** the applicant is `active` or `rejected`; the decision is auditable; the applicant is notified.
+- **Traceability:** FR-AUTH-013..016, FR-USER-016/018/019, FR-AUD-003 · `users`, `activity_logs`, `audit_logs`.
+
+**UCS-05 — Assign Ticket (Triage, AI Review, Override).**
+- **Primary actor:** Administrator (and permitted Technician). **Secondary actor:** Notification Service.
+- **Preconditions:** an `Open` ticket exists (frequently from an escalation).
+- **Trigger:** the admin opens a ticket in the triage feed.
+- **Main flow:** (1) the admin reviews the ticket and the **AI recommendation** (priority/category/summary) (FR-AI-001); (2) the admin **accepts or overrides** the AI-recommended priority/category — the human decision is authoritative (FR-AI-010/032); (3) the admin **assigns a technician**, creating exactly one active `technician_assignments` record, setting `assigned_technician_id`, and moving the ticket to `Assigned` (FR-ASN-001/002); (4) the system notifies the technician (FR-ASN-005, FR-NOT-003).
+- **Alternate flows:** *A1 —* reassign/cancel. *A2 —* the admin configures priority laboratories/offices to tune future AI priority recommendations (FR-CFG-006).
+- **Exceptions:** *E1 —* the one-active-assignment invariant prevents a second active assignment (FR-ASN-002).
+- **Postconditions:** exactly one active assignment; the technician is notified; the transition is recorded in `ticket_status_history`.
+- **Traceability:** FR-ASN-001/002/005, FR-AI-001/010/032, FR-TKT-005 · `tickets`, `technician_assignments`, `ticket_status_history`.
+
+**UCS-06 — Resolve Ticket / On-Site Maintenance (QR Verify · Evidence · Checklist).**
+- **Primary actor:** Technician. **Secondary actors:** QR Scanner, Notification Service.
+- **Preconditions:** an assignment exists for the technician; the target PC unit has an active QR code.
+- **Trigger:** the technician opens an assigned ticket and starts work.
+- **Main flow:** (1) the technician **accepts** the assignment, or declines with a reason (FR-ASN-004); (2) **starts work** → ticket `In Progress`, `first_response_at` stamped (FR-TKT-006); (3) reviews full ticket details and AI troubleshooting recommendations ([FR-PC-006](#104-pc-unit--specification-management-fr-pc), FR-AI-003); (4) on-site, **scans the QR code** on the PC unit; the system verifies and resolves the target, classifying the scan (success/invalid/mismatch/expired) and logging it to `qr_scan_logs` (FR-QR-005/006); (5) performs the repair, adding **internal notes** and status updates (FR-TKT-007); (6) **captures repair evidence** — before/during/after images, including a **technician selfie with the repaired unit** — uploaded as `repair_images` (FR-MNT-005); (7) **records maintenance performed** (diagnosis, root cause, resolution, downtime, labor, cost) and any **hardware replacement**, updating the PC installation history (FR-MNT-003/006); (8) the system updates **asset status history** and restores the PC's status/condition (FR-AST-005, FR-MNT-008); (9) completes the **required checklist** (enforced before completion) (FR-MNT-004); (10) **completes the work** → ticket `Resolved`, `resolved_at` stamped, reporter/admin notified (FR-ASN-005, FR-TKT-006, FR-NOT-003).
+- **Alternate flows:** *A1 —* QR mismatch/expired → reconcile the asset or reassign (FR-QR-006). *A2 —* put the assignment on hold.
+- **Exceptions:** *E1 —* a required checklist item is incomplete → completion is blocked (FR-MNT-004).
+- **Postconditions:** the ticket is resolved; the maintenance record, evidence, and asset history are complete; notifications are sent.
+- **Traceability:** FR-ASN-004/005, FR-TKT-005/006/007, FR-QR-005/006, FR-MNT-003/004/005/006/008, FR-AST-005 · `technician_assignments`, `maintenance_records`, `maintenance_checklists`, `repair_images`, `hardware_replacements`, `qr_scan_logs`, `asset_status_history`.
+
+**UCS-07 — Schedule & Perform Preventive Maintenance.**
+- **Primary actor:** Technician (schedule configured by Administrator). **Secondary actor:** Notification Service.
+- **Preconditions:** PC units/assets exist; the PM interval/reminder is configured (defaults 90/7 days).
+- **Trigger:** a PM-due reminder, or manual scheduling.
+- **Main flow:** (1) the system generates **PM-due reminders** from `maintenance.default_interval_days` + `reminder_days` (FR-MNT-007) and notifies technicians (FR-NOT-003); (2) a **preventive maintenance record** (no originating ticket, `scheduled_for` set) is created (FR-MNT-002); (3) the technician performs the maintenance following the **checklist template** for the type (FR-MNT-004); (4) completion updates histories, cost/downtime, and PC status (FR-MNT-003/008).
+- **Alternate flows:** *A1 —* reschedule/cancel.
+- **Postconditions:** the PM is recorded; the next PM cycle is derivable; histories are updated.
+- **Traceability:** FR-MNT-002/003/004/007/008, FR-NOT-003 · `maintenance_records`, `checklist_templates`, `maintenance_windows`.
+
+**UCS-08 — Search Knowledge Base (AI / RAG).**
+- **Primary actor:** Teacher/Requester, Technician. **Secondary actor:** AI Provider.
+- **Preconditions:** authenticated; published knowledge-base articles exist.
+- **Trigger:** the user searches the knowledge base or asks the assistant.
+- **Main flow:** (1) the user enters a query; the system retrieves top-k relevant context via **vector similarity** over `ai_embeddings` (RAG) (FR-AI-006/007); (2) the assistant returns an answer/articles grounded in the retrieved sources **with citations**; only *published* articles are visible to Teachers (FR-AI-005/007); (3) the conversation is logged and the user may give feedback (FR-AI-004/008).
+- **Alternate flows:** *A1 —* no relevant content → the assistant offers to open a ticket.
+- **Exceptions:** *E1 —* provider unavailable → non-blocking unavailable state (FR-AI-020).
+- **Postconditions:** the user is assisted; the conversation + feedback are logged.
+- **Traceability:** FR-AI-004/005/006/007/008 · `ai_knowledge_articles`, `ai_embeddings`, `ai_conversation_logs`, `ai_feedback`.
+
+**UCS-09 — Manage Profile & Password.** *(Implemented — Phase 2.2/2.3.)*
+- **Primary actor:** any authenticated user. **Secondary actor:** Email Service.
+- **Preconditions:** an authenticated session.
+- **Trigger:** the user opens their profile/security settings.
+- **Main flow:** (1) the user views/edits their profile (name, contact number, profile picture, locale/theme) — **not** their own role or permissions (FR-USER-008); (2) the user **changes password** after re-entering the current password; other active sessions are invalidated (FR-AUTH-011).
+- **Alternate flows:** *A1 —* forgot password (unauthenticated) → reset via a single-use, time-limited token emailed to the user (FR-AUTH-008).
+- **Exceptions:** *E1 —* a password that fails the policy is rejected (FR-AUTH-003).
+- **Postconditions:** the profile/password is updated; sessions are consistent; the change is audited.
+- **Traceability:** FR-USER-008, FR-AUTH-003/008/011, FR-AUD-003 · `users`, `password_reset_tokens`, `sessions`, `activity_logs`.
+
+**UCS-10 — Track Ticket & Receive Notifications.**
+- **Primary actor:** Teacher/Requester (Technician/Administrator analogously). **Secondary actors:** Notification Service, Email Service.
+- **Preconditions:** the user has related tickets.
+- **Trigger:** a ticket event (assignment, status change, comment, SLA breach), or the user opens the notification center.
+- **Main flow:** (1) the system emits notifications for ticket assigned/reassigned, status change, new comment, and SLA breach/nearing, delivered **in-app + email** per the user's channel preferences (FR-NOT-001/002/003); (2) the user opens the **notification center** (unread badge), reads/filters, and opens the referenced ticket (FR-NOT-001/004/005); (3) Teachers see only their own tickets and their comments/upvotes ([FR-TKT-013](#105-ticketing--itsm-fr-tkt)).
+- **Alternate flows:** *A1 —* a daily digest email aggregates unread items (FR-NOT-008).
+- **Exceptions:** *E1 —* email-transport failure → the in-app notification is still delivered.
+- **Postconditions:** the user is informed; read state is persisted.
+- **Traceability:** FR-NOT-001..006/008, FR-TKT-013/017 · `notifications`, `notification_preferences`, `tickets`.
+
+**UCS-11 — QR-Verified On-Site Work, Proof of Work & Support Request.**
+- **Primary actor:** Technician. **Secondary actors:** Administrator, QR Scanner, Notification Service.
+- **Preconditions:** the PC unit carries an active QR label issued by an Administrator ([FR-QR-007](#18-qr-code-requirements)); the technician has an assignment or a scheduled maintenance for it.
+- **Trigger:** the technician scans the label on the machine with a phone camera.
+- **Main flow:** (1) the scan opens the application in the browser at the scanned code ([FR-QR-009](#18-qr-code-requirements)); (2) the system **validates the code server-side** and logs the scan attempt, disclosing nothing about the target ([FR-QR-005](#18-qr-code-requirements)/[FR-QR-010](#18-qr-code-requirements)); (3) if the scanner is not authenticated they are sent to sign-in, with the destination carried as the **code only** and rebuilt by the system afterwards — never as a caller-supplied URL ([FR-QR-011](#18-qr-code-requirements)); (4) after sign-in the technician lands on their dashboard, which offers "Continue to the PC you scanned"; following it, the system re-evaluates authorization and, if it holds, returns the **scan-scoped PC panel** ([FR-QR-012](#18-qr-code-requirements)); (5) the technician performs the work and **submits proof** — resolution text, outcome, and before/during/after evidence — which attaches to the **existing active maintenance record** they are authorized to work on that unit; the scan alone does not permit creating maintenance work, and a new record may be opened from here only where technician-initiated corrective maintenance is supported and the technician is authorized ([FR-MNT-009](#107-maintenance-fr-mnt)/[FR-MNT-010](#107-maintenance-fr-mnt)/[FR-MNT-012](#107-maintenance-fr-mnt), [FR-QR-008](#18-qr-code-requirements)); (6) if the job cannot be finished without a part, material or decision, the technician submits a **work support request** naming the PC unit, the items and the reason ([FR-WSR-001](#1071-technician-work-support-requests-fr-wsr)/[FR-WSR-002](#1071-technician-work-support-requests-fr-wsr)); (7) the Administrator is notified and reviews it on the request-management surface ([FR-WSR-005](#1071-technician-work-support-requests-fr-wsr), [FR-NOT-003](#22-notification-requirements)); (8) the Administrator **approves and reschedules**, **requests a face-to-face discussion**, or **declines with a required reason** ([FR-WSR-006](#1071-technician-work-support-requests-fr-wsr)–[FR-WSR-008](#1071-technician-work-support-requests-fr-wsr)); (9) the technician is notified and sees the decision on their own tracking page ([FR-WSR-009](#1071-technician-work-support-requests-fr-wsr)); (10) every transition is written to the activity log ([FR-WSR-011](#1071-technician-work-support-requests-fr-wsr)).
+- **Alternate flows:** *A1 —* the code is revoked, unknown or the target retired → the scan is classified and logged, and the scanner is refused without disclosure ([FR-QR-006](#18-qr-code-requirements)/[FR-QR-013](#18-qr-code-requirements)). *A2 —* the scanner is authenticated but not authorized for that unit → the refusal is shown instead of the panel. *A3 —* the approved reschedule is acknowledged by the technician ([FR-WSR-006](#1071-technician-work-support-requests-fr-wsr)).
+- **Exceptions:** *E1 —* a decline is attempted with no reason → refused ([FR-WSR-008](#1071-technician-work-support-requests-fr-wsr)). *E2 —* a repeat scan or repeat submission updates the same record rather than creating a second ([FR-MNT-012](#107-maintenance-fr-mnt)). *E4 —* the scanned unit has no active maintenance record the technician may work, and technician-initiated creation is not permitted → the submission is refused with an explanation ([FR-MNT-009](#107-maintenance-fr-mnt)). *E3 —* an evidence upload whose detected type is outside the allow-list is rejected at upload ([FR-MNT-010](#107-maintenance-fr-mnt)).
+- **Postconditions:** the scan is logged with its result; the proof of work and its evidence are recorded against a maintenance record for the scanned unit; any support request carries a decision, a reason where one is required, and a complete audit trail; both parties are notified.
+- **Traceability:** FR-QR-005/006/008/009/010/011/012/013, FR-MNT-009/010/011/012, FR-WSR-001..014, FR-NOT-003, FR-AUD-001/003 · `qr_codes`, `qr_scan_logs`, `maintenance_records`, `repair_images`, `work_support_requests`, `technician_assignments`, `tickets`, `notifications`, `activity_logs`.
+
+### 27.3 Operational Workflow Activity Diagrams
+
+The following UML **activity diagrams** model the end-to-end operational flow — from login to completion — for each principal role and for the system-wide AI, complementing the specifications in [§27.2](#272-detailed-use-case-specifications). They share one visual convention: rounded **start/end** nodes, rectangular **actions**, amber **decision** diamonds, green **database effects** (persisted writes), pink **notification effects**, and violet **AI steps**. Every step traces to the requirements cited beneath each figure. (High-resolution vector sources accompany each PNG in `docs/diagrams/`.)
+
+![SccIT Teacher / Requester workflow](diagrams/activity-teacher.png)
+
+**Figure 3. Teacher / Requester Workflow — Activity Diagram.** Log in → Teacher Dashboard (Reddit-style ticket feed of the requester's own tickets, with upvotes and comments) → search existing tickets first (upvote/comment on a duplicate) → fill the report — a short description when an "Other" category is chosen, an optional priority ("Not sure" by default), where it is (building → room → a PC unit or other in-service item, or none) and up to five photos from the camera or gallery — and submit → the system creates the ticket (`Open`), then attaches the photos one at a time (a photo that fails leaves the report intact and is named in a notice on the ticket), and queues **asynchronous AI analysis**, which recommends a priority → the AI assistant shows troubleshooting steps → the teacher confirms **resolved** (ticket closed) or **unresolved** (escalated to the triage/assignment queue with the AI recommendation attached) → track progress and receive notifications. *(FR-TKT-001/004/007/008/009/012/014, FR-AST-013, FR-LOC-011, FR-AI-001/003/010/021, FR-NOT-003; see [UCS-02](#272-detailed-use-case-specifications), UCS-03.)* *Note (Phase 2.9): the rendered figure (`activity-teacher`) predates the report form and still shows a single "attach files / images" step; this caption is authoritative until the figure is re-rendered.*
+
+![SccIT Technician workflow](diagrams/activity-technician.png)
+
+**Figure 4. Technician Workflow — Activity Diagram.** Log in → Technician Dashboard (only tickets assigned to the technician) → accept (or decline with a reason) → start work (`In Progress`) → review details + AI recommendations → **scan the PC's QR code** to verify the correct, active asset → perform the repair with internal notes → **capture and upload repair evidence** (before/during/after images including a technician selfie with the repaired unit) → record maintenance, any hardware replacement, and asset status history → complete the **required checklist** → close the work (`Resolved`) → notify the reporter and Administrator. *(FR-ASN-004/005, FR-TKT-005/006/007, FR-QR-005/006, FR-MNT-003/004/005/006/008, FR-AST-005; see UCS-06.)*
+
+![SccIT Administrator workflow](diagrams/activity-admin.png)
+
+**Figure 5. Administrator Workflow — Activity Diagram.** Log in → Administrator Dashboard (real-time overview of tickets, technicians, assets, inventory, maintenance, analytics, notifications, and system health; Reddit-style ticket feed) → branch into: **review & approve/reject registrations** (email decision); **review AI recommendations**, optionally **override**, and **assign a technician**; **configure priority laboratories/offices** (which feed the AI priority recommendation); **administration & oversight** (users, roles & permissions, assets, locations, floor plans, inventory, QR codes, preventive-maintenance schedules, procurement, announcements); and **reports/analytics/audit logs** and system settings. *(FR-AUTH-014/015, FR-USER-*, FR-ASN-001, FR-AI-001/010/032, FR-CFG-*, FR-DSH-*, FR-RPT-*, FR-AUD-004; see UCS-04, UCS-05.)*
+
+![SccIT system-wide AI behavior](diagrams/activity-ai.png)
+
+**Figure 6. System-Wide AI Behavior — Activity Diagram.** Two entry triggers: an authenticated user opening the **assistant** (RAG knowledge-base answer with citations, logged) and a **ticket submission / on-demand analysis**. For analysis the system checks AI availability (**graceful degradation** if disabled/unreachable), builds a **minimized, PII-redacted** prompt, analyzes the ticket, recommends a priority from severity + priority location + asset criticality, gates on the **confidence threshold (0.70)**, presents **advisory** troubleshooting, and either closes on self-service resolution or **escalates to human triage** — the AI never auto-assigns or auto-closes. All analyses and recommendations are logged. *(FR-AI-001..010/020..022/030..034; see [§27.4](#274-system-wide-ai-behavior).)*
+
+### 27.4 System-Wide AI Behavior
+
+The AI subsystem is **advisory, configurable, and grounded in the organization's own data (RAG)**. It never performs irreversible or state-changing operations autonomously; every AI output requires human confirmation ([FR-AI-032](#173-ai-functional-requirements)). The following behaviours apply system-wide and are each fully traceable to the AI requirements ([§17](#17-ai-requirements)):
+
+- **Conversational assistant on every page.** A persistent AI assistant (the floating bottom-left chatbot) is available to **every authenticated user** on every page, for troubleshooting and knowledge-base questions, grounded in retrieved knowledge with citations. *(FR-AI-004 · `ai_conversation_logs`.)*
+- **AI troubleshooting assistant.** For a reported problem the assistant presents grounded, ordered troubleshooting steps that the requester can mark complete. *(FR-AI-003 · `ai_recommendations`.)*
+- **AI ticket analysis.** On submission (or on demand) an **asynchronous** job produces category, severity, estimated resolution minutes, a `technician_required` flag, a summary, and a confidence score — cached on the ticket and retained in full history. *(FR-AI-001/002/021 · `ai_analysis_logs`.)*
+- **AI priority recommendation.** The AI recommends a ticket priority from the analyzed **severity**, the ticket's **location context** (room type — laboratory/office — and administrator-configured **priority locations**), and **asset criticality**. The recommendation is advisory; Administrators may override it and configure which locations are high-priority. *(FR-AI-001, FR-CFG-006, FR-AI-010 · `tickets`, `rooms`, `system_settings`.)*
+- **AI knowledge-base search (RAG).** Queries retrieve top-k relevant context via **vector similarity** over embeddings and answer with **cited sources**; only *published* articles are visible to Teachers. *(FR-AI-005/006/007 · `ai_knowledge_articles`, `ai_embeddings`.)*
+- **AI maintenance recommendations.** From resolved tickets and maintenance history the AI can suggest preventive actions and (opt-in) per-PC **predictive-maintenance** predictions; these ship **disabled by default**. *(FR-AI-011/013 · `ai_predictions`, `ai_failure_patterns`.)*
+- **AI escalation logic.** When self-service troubleshooting does not resolve an issue, the ticket is **escalated** into the human triage/assignment queue with the AI recommendation attached. The AI surfaces and recommends; it does **not** autonomously assign, close, or change permissions. *(FR-AI-010/032, FR-ASN-001.)*
+- **AI recommendation logging.** Every analysis, recommendation, conversation turn, and feedback item is **logged** under the same retention and access controls as other PII-bearing data, and AI-generated content is **labelled** as such. *(FR-AI-004/008/031/034 · `ai_analysis_logs`, `ai_recommendations`, `ai_conversation_logs`, `ai_feedback`.)*
+
+**Reliability & governance.** If AI is disabled or the provider is unreachable, all non-AI workflows remain fully functional and AI surfaces show a clear, **non-blocking unavailable** state; analysis and embedding run asynchronously and retry with backoff; prompts and embedded content are **minimized and PII-redacted**; and external AI processing is transparent to, and disable-able by, Administrators. *(FR-AI-020/021/022/030/033.)*
+
+---
+
+## 28. User Stories
+
+Grouped by role; each maps to FRs and has acceptance criteria in [§31](#31-acceptance-criteria).
+
+**Teacher / Requester**
+- US-T1: *As a teacher, I want to report a problem in under two minutes so that I can get back to teaching.* (FR-TKT-001; NFR-USB-001)
+- US-T2: *As a teacher, I want to see the status of my tickets so that I know what’s happening.* (FR-TKT-013)
+- US-T3: *As a teacher, I want AI to suggest quick fixes so that simple issues resolve without waiting.* (FR-AI-003)
+- US-T4: *As a teacher, I want to search published help articles so that I can self-serve.* (FR-AI-005)
+- US-T5: *As a teacher, I want to upvote an existing issue so that I don’t create duplicates.* (FR-TKT-009/011)
+
+**Technician**
+- US-C1: *As a technician, I want a dense, keyboard-efficient work queue so that I can move fast.* (FR-ASN-006; NFR-USB-005/006)
+- US-C2: *As a technician, I want to scan a PC’s QR to pull up its full history so that I diagnose on the spot.* (FR-QR-005; FR-PC-006)
+- US-C3: *As a technician, I want to record repairs, parts, and photos so that history is complete.* (FR-MNT-003/005/006)
+- US-C4: *As a technician, I want to see tickets nearing SLA breach so that I prioritize correctly.* (FR-TKT-017; FR-DSH-004)
+- US-C5: *As a technician, I want preventive-maintenance reminders so that I service equipment before it fails.* (FR-MNT-007)
+
+**Administrator**
+- US-A1: *As an administrator, I want at-a-glance KPIs so that I understand operations instantly.* (FR-DSH-003)
+- US-A2: *As an administrator, I want to assign and rebalance technician workload so that work is distributed fairly.* (FR-ASN-001)
+- US-A3: *As an administrator, I want to manage users, roles, and permissions so that access stays correct.* (FR-USER-001..010)
+- US-A4: *As an administrator, I want to configure branding and settings without code so that we can re-deploy for any organization.* (FR-CFG-005; BO-08)
+- US-A5: *As an administrator, I want exportable SLA and asset reports so that I can report to leadership.* (FR-RPT-001/004)
+- US-A6: *As an administrator, I want a tamper-resistant audit trail so that every change is accountable.* (FR-AUD-001/002)
+- US-A7: *As an administrator, I want to approve procurement so that spending is controlled.* (FR-AST-008/009)
+
+---
+
+## 29. Data Requirements
+
+The physical data model is authoritatively specified in `docs/database/database_design_v2.dbml` and its architecture report, and is **already implemented and verified** (66 Eloquent models, 34 enum domains, 15 migrations, 9 seeders). This section states the *requirements* the data must satisfy; it does not restate the schema.
+
+### 29.1 Data entities (logical groups)
+
+| Group | Key entities |
+|---|---|
+| Identity & Access | roles, permissions, role_permissions, user_permissions, users, sessions, password_reset_tokens, personal_access_tokens |
+| Locations & Floor Plan | buildings, floors, rooms, room_layouts, floor_plan_positions |
+| Computers & QR | pc_units, pc_specifications, qr_codes, qr_scan_logs |
+| Ticketing | ticket_categories, ticket_priorities, ticket_statuses, tags, tickets, ticket_tags, ticket_updates, ticket_status_history, ticket_votes, ticket_comments, attachments |
+| Maintenance | technician_assignments, maintenance_types, maintenance_records, checklist_templates, checklist_template_items, maintenance_checklists, repair_images, maintenance_notes, hardware_replacements |
+| Inventory & Assets | suppliers, manufacturers, hardware_components, hardware_models, assets, consumables, stock_transactions, asset_status_history, pc_component_installations, procurement_requests, procurement_request_items, asset_transfers, disposal_records |
+| AI / RAG | ai_models, ai_analysis_logs, ai_recommendations, ai_conversation_logs, ai_learning_events, ai_failure_patterns, ai_knowledge_articles, ai_predictions, ai_feedback, ai_embeddings, ai_embedding_sources, ai_system_settings |
+| Administration & System | notifications, notification_preferences, announcements, activity_logs, audit_logs, login_history, system_settings, dashboard_widgets, maintenance_windows, backup_history |
+
+### 29.2 Data integrity & quality requirements
+
+| ID | Requirement (the data model *shall* …) | Ver |
+|---|---|:--:|
+| DR-001 | Store every timestamp as `timestamptz` (UTC) to guarantee timezone-correct analytics and SLA computation. | I |
+| DR-002 | Enforce referential integrity on all foreign keys with explicit ON DELETE policy (RESTRICT for reference/actor, CASCADE for compositions, SET NULL for optional context). | I |
+| DR-003 | Index every foreign-key column plus composite indexes for known access paths. | I |
+| DR-004 | Enforce closed enumerations as CHECK constraints mirrored by PHP enums; keep user-configurable domains as lookup tables. | I |
+| DR-005 | Enforce domain CHECKs: scores/confidence/probability ∈ [0,1]; non-negative money/quantities/sizes; date ordering (warranty ≥ purchase; end > start); geo bounds; hex color format; single-target exclusivity where required. | T |
+| DR-006 | Provide external `uuid` identifiers (unique) on all user-facing entities and route on them. | T |
+| DR-007 | Soft-delete business/master entities; never soft-delete logs/history/pivots. | I |
+| DR-008 | Record `created_by`/`updated_by` blame columns on key mutable entities. | I |
+| DR-009 | Maintain counter caches and denormalized snapshots (ticket counters, `pc_specifications`, `tickets.ai_*`) transactionally so they never drift from their source of truth. | T |
+| DR-010 | Provide full-text (`tsvector` + GIN) search on tickets and knowledge articles, and HNSW vector search on `ai_embeddings` (768-dim; must equal `ai_models.embedding_dimensions`). | T |
+| DR-011 | Keep append-only logs immutable (audit hardened at DB) and shaped for future time-range partitioning (BRIN on `created_at`). | I |
+| DR-012 | Ensure uniqueness constraints prevent double-votes, duplicate active assignments, duplicate active layouts, duplicate embeddings, and one-feedback-per-user-per-recommendation. | T |
+| DR-013 | Store money as `numeric(12,2)`, IPs as `inet`, email as `citext`, and semi-structured data as `jsonb`. | I |
+| DR-014 | Support configurable retention/archival of high-volume logs and PII, with lawful-erasure hard purge. | T |
+| DR-015 | Model the account lifecycle on `users.status` ∈ {`pending`, `active`, `rejected`, `suspended`, `inactive`} enforced by a CHECK constraint mirrored by the `UserStatus` PHP enum; retain rejected registration requests with `rejection_reason`, `rejected_by` (actor), and `rejected_at` for audit. *(OI-02, resolved.)* | T |
+| DR-016 | Carry three additive, backward-compatible operational columns on `users`: `force_password_reset` (boolean, default false), `password_changed_at` (timestamptz, nullable), and `registration_source` (varchar, nullable — `self`/`admin`/`seed`). Account lockout and last-activity are **derived** (Redis RateLimiter + `login_history`; `activity_logs`), not stored. Trigram (`pg_trgm`) GIN indexes on name/employee-number accelerate directory search. *(Phase 2.3.)* | T |
+| DR-017 | Carry one additive, backward-compatible column on `floors`: `uuid` (unique, `gen_random_uuid()` default, backfilled). `buildings` and `rooms` were created with a public `uuid`; `floors` was not, because it was originally an internal child table. Exposing floor management ([FR-LOC-002](#103-location-management-fr-loc)) requires a stable public identifier, since numeric primary keys never appear in URLs or payloads ([NFR-SEC-001](#12-security-requirements)). No existing column is renamed, retyped or removed. *(Phase 2.4.)* | T |
+| DR-018 | Record the **cascade receipt** for a location archive in the existing `deleted_at` columns: one timestamp is computed per cascade and written to the building, its floors and its rooms, so a restore reverses exactly those rows and a separately-archived child keeps its own, different stamp. Because `deleted_at` is second-precision, the cascade stamp is advanced until no descendant already carries it. No column is added for this. *(Phase 2.4; realizes [FR-LOC-004](#103-location-management-fr-loc).)* | T |
+| DR-019 | Derive all dashboard figures from the authoritative operational tables at read time (tickets and `ticket_statuses.is_open`/`is_terminal`, `technician_assignments`, `maintenance_records`, `assets`, `consumables`, `announcements`, `activity_logs`, plus the users and locations aggregates). Dashboards store nothing of their own and add no tables; the per-user payload is cached for 30 seconds to meet [NFR-PERF-008](#13-performance-requirements). *(Phase 2.4.)* | A |
+| DR-020 | Model the technician **work support request** ([§10.7.1](#1071-technician-work-support-requests-fr-wsr)) as its own entity with a public `uuid`, a **required** PC-unit reference, **nullable** ticket and maintenance-record references, the submitting technician, a free-text explanation, a status constrained by CHECK to `submitted`/`clarification_requested`/`approved`/`declined`/`cancelled`/`closed`, the decision fields each decision needs (deciding administrator and timestamp; `decline_reason`; `rescheduled_to` and `reschedule_reason`; `clarification_reason` and optional `proposed_meeting_at`; `acknowledged_at`), an optional link to a `procurement_requests` row for the purchasing bridge ([FR-WSR-013](#1071-technician-work-support-requests-fr-wsr)), and a child line-item table (catalog `hardware_model_id` **or** free-text description, quantity > 0). A decline shall be refused at the database level as well as the application level when no reason is present. The **exact schema shall be proposed and approved before implementation** ([OI-09](#33-open-issues--decisions-requiring-client-approval), decided). *(Planned — [WP-2.6b](#).)* | T |
+| DR-021 | Carry four additive, backward-compatible columns on `repair_images`: `original_filename`, `mime_type`, `file_size` and `checksum`. The table was baselined with only `disk`/`storage_path`/`caption`, which cannot express the allow-listed, checksummed, server-detected type that [NFR-SEC-007](#12-security-requirements) requires and that ticket and asset attachments already carry. Adding them lets maintenance evidence pass through the **same** attachment trust boundary instead of growing a third upload path. No existing column is renamed, retyped or removed. *(Planned — [WP-2.6](#).)* | T |
+| DR-022 | Carry one additive, backward-compatible column on `hardware_replacements`: `old_asset_id` (nullable, indexed, foreign key to `assets` with `ON DELETE SET NULL`). The table was baselined with `old_component_id`/`new_component_id` pointing at the **generic catalog** (`hardware_components`) and `new_asset_id` at the fitted **serialized** unit, but with no reference to the serialized unit *removed* — and `pc_component_installations` is keyed on `asset_id`, so [AC-MNT-006](#312-representative-feature-criteria)’s “the replaced asset is no longer marked installed in that PC” cannot be satisfied deterministically without it. Nullable because a replaced part is not always a registered serialized asset (a fan, a thermal pad, a cable). No existing column is renamed, retyped or removed. *(Planned — [WP-2.6](#).)* | T |
+| DR-023 | Carry one additive, backward-compatible column on `tickets`: `asset_id` (nullable, indexed as `tickets_asset_id_index`, foreign key `tickets_asset_id_foreign` to `assets` with `ON DELETE SET NULL`, exactly as `pc_unit_id` behaves), so a fault can name equipment that is not a PC — a printer, a projector, a monitor. A ticket names **at most one** item: `tickets_equipment_target_check` = `CHECK (num_nonnulls(pc_unit_id, asset_id) <= 1)`. `<= 1` rather than `= 1`, because a ticket about a room, or about nothing physical, is legal; and since a SET NULL cascade can only remove a non-null, this CHECK can never block that cascade ([DR-002](#292-data-integrity--quality-requirements)). The ticket's stored `room_id` remains the authoritative location for every room rule. No existing column is renamed, retyped or removed. *(Phase 2.9, migration `2026_10_16_140000`; realizes [FR-TKT-001](#105-ticketing--itsm-fr-tkt).)* | T |
+| DR-024 | Carry one additive column on `ticket_categories` and one on `tickets`: `ticket_categories.requires_detail` (boolean, not null, default false; set for the catch-all `other` category — the flag is also kept on `other-common` and `other-advanced`, which were retired (`is_active = false`) on 2026-10-16 at the Client's request so the form offers a single "Other" under "Other Categories") and `tickets.category_detail` (`varchar(120)`, nullable) holding the reporter's short description of the kind of problem. `tickets_category_detail_check` refuses a blank value — `CHECK (category_detail IS NULL OR category_detail !~ '^[[:space:]]*$')`, the POSIX whitespace class rather than `btrim`, which strips spaces only. The 3–120 character rule, and "required exactly when the category asks", are enforced by the application; the description is not part of the ticket full-text index. No existing column is renamed, retyped or removed. *(Phase 2.9, migrations `2026_10_16_120000` and `2026_10_16_130000`; realizes [FR-TKT-001](#105-ticketing--itsm-fr-tkt).)* | T |
+
+### 29.3 Reference/seed data (baseline)
+The system ships with seeded roles, the permission matrix ([§8.4](#84-seeded-permission-matrix-baseline)) — including the `locations` module — ticket categories (Hardware, Software, Network, Peripheral, Account & Access, Other), priorities and SLAs ([BR-05](#25-business-rules)), statuses (Open→Cancelled with open/terminal flags), maintenance types (Preventive, Corrective, Hardware Upgrade, Inspection, Cleaning), AI models (Gemini 1.5 Flash; text-embedding-004/768), AI defaults (threshold 0.70; advanced features off), and system settings across all groups. A non-production demo seeder provides sample data; it must never run in production.
+
+---
+
+## 30. Requirements Traceability Matrix
+
+### 30.1 Business objective → requirement coverage
+
+| Objective | Primary requirements |
+|---|---|
+| BO-01 Faster resolution | FR-TKT-004/005/006/017, FR-ASN-001..006, FR-DSH-003/004, FR-RPT-001, FR-AI-001..004 |
+| BO-02 Accurate assets | FR-AST-001..012, FR-PC-001..006, FR-QR-001..013, DR-002/005 |
+| BO-03 Preventive maintenance | FR-MNT-002/004/007/009/010/011/012, FR-WSR-001..014, FR-QR-008/012, FR-DSH-003 |
+| BO-04 Operational truth | FR-DSH-001..007, FR-RPT-001..005, NFR-PERF-008 |
+| BO-05 Low-effort reporting | FR-TKT-001, FR-AI-003, NFR-USB-001, NFR-ACC-* |
+| BO-06 Accountability | FR-AUD-001..004, FR-USER-009, NFR-SEC-010/017, DR-002/007/008 |
+| BO-07 Enterprise quality | §12 Security, §13 Perf, §16 A11y, NFR-MTN-* |
+| BO-08 Vertical-agnostic | FR-CFG-005, BR-16, NFR-I18N-001 |
+
+### 30.2 Module → data entities → key requirements
+
+| Module | Data entities | Requirements |
+|---|---|---|
+| Auth & Users | users, roles, permissions, *_permissions, sessions, login_history | FR-AUTH-*, FR-USER-*, NFR-SEC-* |
+| Locations | buildings, floors, rooms | FR-LOC-* |
+| PC & QR | pc_units, pc_specifications, qr_codes, qr_scan_logs, pc_component_installations | FR-PC-*, FR-QR-* |
+| Ticketing | tickets (+ children), ticket_* lookups, tags | FR-TKT-*, FR-ASN-* |
+| Maintenance | maintenance_records (+ children), repair_images, checklist_*, maintenance_types, work_support_requests (+ items) | FR-MNT-*, FR-WSR-* |
+| Inventory | assets, consumables, catalog, stock_transactions, procurement_*, asset_transfers, disposal_records | FR-AST-* |
+| AI | ai_* (models, logs, embeddings, knowledge, feedback, settings) | FR-AI-* |
+| Floor Plan | room_layouts, floor_plan_positions | FR-FP-* |
+| Dashboard/Reporting | dashboard_widgets, history tables | FR-DSH-*, FR-RPT-* |
+| Notifications | notifications, notification_preferences, announcements | FR-NOT-* |
+| Settings/Admin | system_settings, ai_system_settings, audit_logs, activity_logs, maintenance_windows, backup_history | FR-CFG-*, FR-AUD-*, NFR-AVL-* |
+
+### 30.3 Requirement → verification → acceptance
+Every `FR-*`/`NFR-*` carries a **Ver** method (this document) and a corresponding entry in [§31](#31-acceptance-criteria) or an acceptance pattern by prefix. QA shall maintain a live test-case-to-requirement map; no requirement is “done” without a passing verification of its stated method.
+
+---
+
+## 31. Acceptance Criteria
+
+General acceptance patterns plus representative Given/When/Then criteria. Each FR is accepted when its stated verification method passes against criteria of this form.
+
+### 31.1 Global acceptance gates (all releases)
+- **AC-G1:** All CI quality gates pass (backend: Pint, Larastan L6, Pest; frontend: ESLint, Prettier, tsc, Vitest).
+- **AC-G2:** No endpoint returns a user-facing resource by numeric id; all use `uuid`.
+- **AC-G3:** Every screen passes an automated accessibility scan with **zero** WCAG 2.2 AA violations in both themes, plus a manual keyboard/screen-reader smoke test.
+- **AC-G4:** Authorization is enforced on every endpoint (a role/permission matrix test suite passes; deny-by-default verified).
+- **AC-G5:** Performance targets ([§13](#13-performance-requirements)) met under nominal load ([§14](#14-scalability-requirements)) in a load test.
+- **AC-G6:** A clean `docker compose` rebuild + migrate + seed succeeds and the app is reachable.
+
+### 31.2 Representative feature criteria
+
+- **AC-TKT-001 (FR-TKT-001..006):** *Given* an authenticated teacher, *when* they submit a ticket with title/description/category, *then* a ticket is created with a unique number and uuid, status `Open`, reporter set to them, and `response_due_at`/`resolution_due_at` derived from the priority’s SLA; *and* an activity entry and assignment-pending state exist.
+- **AC-TKT-001b (FR-TKT-001/004):** *Given* a Teacher reporting from a room whose Administrator-configured priority floor is High, *when* they choose Low, *then* the ticket is filed at High with `priority_source = location` and the creation audit records the requested Low; *and when* they choose Medium in a room with no floor, *then* the ticket is filed at Medium with `priority_source = reporter`, its SLA deadlines derive from Medium, and the AI may later raise it but never lower it; *and when* they choose nothing, *then* the category default applies, raised to any room floor (`category` or `location`); *and* in every case the responses the Teacher reads carry neither the priority source nor any SLA minutes.
+- **AC-TKT-001c (FR-TKT-001/008, FR-AST-013):** *Given* a Teacher on the report form, *when* they choose an "Other" category and give no description, or one shorter than 3 or longer than 120 characters, *then* the report is refused with a message on the description, *and when* they give a description under any other category, *then* it is refused; *when* they name both a PC unit and another item, an item that is not in the chosen room, or — with no room named — an item in a room that is out of use, *then* the report is refused with a message on the item and no ticket is created; *and when* the ticket is created but one of its photos fails to upload, *then* the ticket and its other photos remain and the reporter is told which photo failed and why.
+- **AC-TKT-009 (FR-TKT-009):** *Given* a ticket a user has already upvoted, *when* they upvote again, *then* the vote is rejected and `upvote_count` is unchanged.
+- **AC-TKT-017 (FR-TKT-017):** *Given* a non-terminal ticket past its `resolution_due_at`, *when* the SLA check runs, *then* the ticket is flagged breached and the assignee + administrator are notified.
+- **AC-ASN-002 (FR-ASN-002):** *Given* a ticket with an active assignment, *when* a second active assignment is attempted, *then* it is rejected (DB partial-unique enforced).
+- **AC-MNT-006 (FR-MNT-006):** *Given* a maintenance record, *when* a technician records replacing a part with a specific serialized asset, *then* the hardware replacement is stored, the PC’s installation history updates, and the replaced asset is no longer marked installed in that PC.
+- **AC-AST-004 (FR-AST-003/004/010):** *Given* a consumable at quantity 3 with reorder level 3, *when* a stock_out of 1 is recorded, *then* `quantity_on_hand` = 2, `balance_after` = 2, and a low-stock notification is raised; a stock_out that would make quantity negative is rejected.
+- **AC-AST-005 (FR-AST-005):** *Given* an asset in **Available**, *when* an Administrator moves it to **In Service** with a reason, *then* an `asset_status_history` row records the from/to states, the actor and the reason, **and** an `activity_logs` entry is written in the same transaction; *and when* the same status is submitted again, *then* no duplicate history row is created. *Given* an asset in **Disposed**, *when* any transition is attempted, *then* the request is refused with 422 stating that it is a final state.
+- **AC-AST-005b (FR-AST-005/012):** *Given* an asset with status changes, transfers and a QR code, *when* its history is requested, *then* one chronological stream returns entries of every type, newest first; *and when* the asset is archived and its history requested again, *then* no entry has been lost.
+- **AC-AST-006 (FR-AST-006):** *Given* an asset in a room, *when* it is transferred, *then* `assets.current_room_id` and an `asset_transfers` row are written in one transaction; *and given* a **Disposed** asset, *then* the transfer is refused with 422.
+- **AC-AST-012 (FR-AST-012):** *Given* an asset installed inside a PC unit, *when* an Administrator archives it, *then* the request is refused with 422 and a blocker report naming the host machine, and nothing is archived; *and when* the component is removed, *then* the archive succeeds and a restore returns the asset with the status it held.
+- **AC-AST-013 (FR-AST-013):** *Given* a Technician or Teacher, *when* they sign in, *then* no Assets navigation item is present; *and when* they request any Asset Management page URL directly, *then* the Forbidden (403) surface is shown; *and when* they call any `/admin/assets` or `/admin/pc-units` endpoint directly, *then* the response is **403**; *and* the narrow equipment lookup remains **200** for them, returning labels only — never status, price, supplier or custodian.
+- **AC-AST-014 (FR-AST-014):** *Given* assets across several buildings and statuses, *when* the asset dashboard is opened, *then* each figure matches a database aggregate; *and when* a status tile or a building row is selected, *then* the directory opens filtered to exactly that set.
+- **AC-AST-015 (FR-AST-015):** *Given* an asset whose manufacturer, supplier, room, custodian and QR code are all set, *when* any one of those values is searched for, *then* that asset is returned and unrelated assets are not; *and* a search term containing `%` matches the literal character; *and* a `sort` value outside the allow-list is rejected with 422.
+- **AC-PC-003 (FR-PC-003):** *Given* a PC unit, *when* its specification is edited, *then* every field round-trips and the change is audited with a field-level old→new diff visible on the PC's timeline; *and* a blank value is stored as "not recorded" rather than an empty string.
+- **AC-QR-001 (FR-QR-001/002/007):** *Given* a PC unit with no label, *when* a QR code is generated, *then* exactly one target is bound, `pc_units.qr_identifier` matches the new code, and a printable SVG is returned; *and when* the code is regenerated, *then* the previous code becomes `revoked` — not deleted — and its scan history still resolves.
+- **AC-LOC-004 (FR-LOC-004/009):** *Given* a room holding a live PC unit, *when* an Administrator archives it, *then* the request is refused with a blocker report naming the room and its live occupants, and nothing is archived; *and when* those occupants are reassigned to another room, *then* the archive succeeds. *Given* a room whose only blocker is an open ticket, *then* no reassignment is offered and the refusal states the ticket must be resolved or closed first.
+- **AC-LOC-004b (FR-LOC-004):** *Given* a building archived with its floors and rooms, *when* it is restored, *then* exactly the rows archived with it return — a room archived separately beforehand stays archived.
+- **AC-LOC-005 (FR-LOC-005/008):** *Given* a building that is inactive or archived, *when* any role opens the location lookup, *then* neither it nor any of its floors or rooms is offered; *and* a Teacher receives only labels of selectable rooms, never counts, custodianship or archived rows.
+- **AC-LOC-011 (FR-LOC-011):** *Given* a Technician or Teacher, *when* they sign in, *then* no Locations navigation item is present; *and when* they request any Locations page URL directly, *then* the Forbidden (403) surface is shown; *and when* they call any `locations` API endpoint directly, *then* the response is **403**; *and* the narrow lookup remains **200** for them so a location field still works inside the form that needs it.
+- **AC-DSH-001 (FR-DSH-001/008):** *Given* the three seeded roles, *when* each signs in and loads the dashboard, *then* each receives its own layout; *and* a Technician's payload contains no user-management or audit figures; *and when* a permission behind a widget is revoked by a per-user override, *then* that widget is absent from the payload.
+- **AC-QR-006 (FR-QR-005/006):** *Given* a revoked QR code, *when* scanned, *then* the scan is logged with result `expired` and no live target panel is returned; an unknown code logs `invalid`.
+- **AC-QR-010 (FR-QR-010/011):** *Given* an unauthenticated visitor holding a valid QR code, *when* they open the scanned link, *then* the response carries no identity, location, status or specification of the target, the scan is logged with a null scanner, and they are sent to sign-in; *and when* they sign in successfully, *then* they land on their own dashboard, which offers "Continue to the PC you scanned", and following it opens that PC unit's workflow (amended 2026-10-19); *and* no query string, referrer or stored value can redirect them to a host outside the application origin.
+- **AC-QR-012 (FR-QR-012, FR-AST-013):** *Given* a Technician with no `assets.*` permission, *when* they scan a unit reachable through their assigned work, *then* the scan-scoped panel is returned and contains no purchase price, supplier, warranty terms, custodian record or audit trail; *and when* they request any Asset Management endpoint for the same unit directly, *then* the response is **403**; *and when* they scan a unit they have no work on, *then* the panel is refused.
+- **AC-MNT-009 (FR-MNT-009/010/011/012):** *Given* a Technician who has scanned a PC unit with an active maintenance record they are authorized to work, *when* they submit proof of work twice for the same scan, *then* one maintenance record exists and it was updated rather than duplicated; *and* a submission with no evidence is refused; *and given* a scanned unit with no such active record and no permission to create one, *when* they submit, *then* the submission is refused and no maintenance record is created; *and* a maintenance record absent from another technician's list is equally unreachable by its identifier.
+- **AC-WSR-008 (FR-WSR-004/008/009/011/014):** *Given* a submitted work support request, *when* an Administrator declines it without an explanation, *then* the request is refused and the status is unchanged; *and when* they decline it with one, *then* the technician sees the decline, the reason, the PC unit and the job context, and the transition appears in the activity log with its actor; *and* no other technician can reach that request by list or by identifier; *and* a client-supplied status field is never honoured — only a transition the map permits for that actor; *and given* a request already approved or declined, *when* the submitting technician attempts to cancel it, *then* the attempt is refused while a still-undecided request cancels successfully and terminally.
+- **AC-AI-010 (FR-AI-010/032):** *Given* AI analysis below the confidence threshold, *when* presented, *then* it is labeled advisory and no automated state change occurs; *and* AI never closes/deletes a ticket or disposes an asset without explicit human action.
+- **AC-AI-020 (FR-AI-020):** *Given* the Gemini API is unreachable, *when* a user creates and works tickets, *then* all non-AI functions succeed and AI panels show an unavailable state; queued analyses retry on recovery.
+- **AC-CFG-004 (FR-CFG-002/004):** *Given* a non-public setting (e.g. mail credentials), *when* a non-admin requests settings, *then* the value is never returned; *and* a non-admin write attempt is denied and audited.
+- **AC-AUD-002 (FR-AUD-002/NFR-SEC-010):** *Given* an audit log row, *when* an update/delete is attempted via the application or a direct app-role DB call, *then* it is rejected.
+- **AC-FP-003 (FR-FP-003, P4):** *Given* an active room layout, *when* an admin drags a PC in edit mode and saves, *then* the snapped position persists to `floor_plan_positions` under the next revision and other viewers are notified; a keyboard alternative can place and move the same PC; a save based on an older revision is refused with the current plan and nothing is overwritten.
+
+---
+
+## 32. Risks, Constraints & Assumptions
+
+### 32.1 Risks
+
+| ID | Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|---|
+| RSK-01 | External AI (Gemini) latency/outage/cost variability. | Med | Med | Async jobs; graceful degradation ([FR-AI-020/021/022]); token/latency logging; provider abstraction. |
+| RSK-02 | Sending PII/sensitive data to a third-party AI processor. | Med | High | Data minimization/redaction ([FR-AI-030]); admin transparency & disable ([FR-AI-033]); retention controls. |
+| RSK-03 | Counter caches / snapshots drift from source of truth. | Med | Med | Transactional maintenance via triggers/events; reconciliation job; DR-009 tests. |
+| RSK-04 | Scope creep from future modules (floor plan, predictions) into P2. | Med | Med | Strict phasing; seams only; this SRS gates scope. |
+| RSK-05 | Accessibility regressions as UI grows. | Med | High | AA in CI (automated scans); design-system components; per-PR checks. |
+| RSK-06 | Performance degradation at data volume (large logs, vector search). | Low | Med | FK/composite/BRIN/HNSW indexes; partitioning plan; load tests (NFR-SCAL). |
+| RSK-07 | Aging/low-spec client hardware in target environments. | Med | Med | Performance budget; self-hosted assets; responsive/low-motion design. |
+| RSK-08 | Ambiguity in open product decisions delaying design. | Med | Med | [§33](#33-open-issues--decisions-requiring-client-approval) resolved before SDD. |
+| RSK-09 | Backup/restore not exercised → unrecoverable incident. | Low | High | Scheduled backups + periodic restore drills (NFR-AVL-003/004). |
+| RSK-10 | Single-tenant assumption invalidated by a multi-org sale. | Low | High | Documented as CON-08; RLS/tenancy is a future re-architecture, flagged early. |
+
+### 32.2 Constraints
+
+| ID | Constraint |
+|---|---|
+| CON-01 | Technology stack is fixed and client-specified: Laravel 13/PHP 8.4, React 19/TS/Vite, PostgreSQL 17 + pgvector, Redis, Nginx, Dockerized, single-origin. |
+| CON-02 | The physical data model is the current `database_design_v2.dbml`, already implemented; requirements must fit it (schema changes require change control). |
+| CON-03 | UI must conform to `DESIGN.md` (“The Control Room”), including the ≤10% brand-signal, flat-by-tone, and dual-theme rules. |
+| CON-04 | WCAG 2.2 AA is the accessibility floor, verified — not optional. |
+| CON-05 | Embedding dimension is fixed at 768 (Gemini text-embedding-004); changing the embedding model requires re-embedding and index review, and must stay ≤ ~2000 dims for HNSW. |
+| CON-06 | Fonts/assets self-hosted; no reliance on third-party CDNs. |
+| CON-07 | AI advanced features (predictions, learning, auto-articles) ship disabled by default. |
+| CON-08 | The system is single-tenant (one organization per deployment); multi-tenancy is out of scope. |
+| CON-09 | No native mobile app; mobile support is via responsive web + device-camera QR scanning. |
+| CON-10 | Development-only tooling (Mailpit, demo seeder) must never be active in production. |
+
+### 32.3 Assumptions
+
+| ID | Assumption |
+|---|---|
+| ASM-01 | The deploying organization provisions HTTPS/TLS, a production SMTP service, and (for P3) a Gemini API key with sufficient quota. |
+| ASM-02 | Administrator accounts are provisioned only by existing Administrators (or the local dev seeder); Teacher/Technician accounts are created either by Administrators or via the public **registration-request** workflow (OI-02, resolved) and require Administrator approval before they can sign in. |
+| ASM-03 | Reporters and technicians have network-connected devices with a modern browser; technicians’ devices have a camera for QR scanning. |
+| ASM-04 | The organization accepts external AI processing of the data categories disclosed under [§17.5](#175-ai-data-governance--safety-requirements), or disables AI. |
+| ASM-05 | Nominal capacity ([§14](#14-scalability-requirements)) reflects a single institution; larger deployments require re-validation. |
+| ASM-06 | Business hours and the exact availability/SLA/performance targets will be confirmed by the client at approval (indicative values used here). |
+| ASM-07 | A single primary timezone/locale per deployment is sufficient (system timezone default Asia/Manila, configurable). |
+
+---
+
+## 33. Open Issues & Decisions Requiring Client Approval
+
+These are decisions that would **change the specified business model or major system behavior**. Per the working agreement, they are **not** silently applied; each is presented with its trade-off for the client to decide before the SDD. The current SRS documents the **baseline** choice; the alternative is noted.
+
+| ID | Decision | Baseline (this SRS) | Alternative & trade-off | Recommendation |
+|---|---|---|---|---|
+| **OI-01** | Roles per user | Exactly one role + per-user overrides (BR-02, FR-USER-003). | Multi-role via a `role_user` pivot. **Pro:** models people who are both (e.g. a teacher who is also a technician) without over-granting. **Con:** conceptual change; requires schema addition and effective-permission recomputation; more complex UI. | Keep single-role for P2; revisit if real dual-role staff exist. |
+| **OI-02** | Requester self-registration | **RESOLVED (2026-07-04).** The Client adopted the alternative: a **registration-request workflow** with Administrator approval, restricted to **Teachers and Technicians** (Administrators are never self-registerable). Requests are created `pending` and cannot sign in until approved; rejected requests are retained with a reason for audit. Realized by [FR-AUTH-013–016](#101-authentication--session-management-fr-auth). Spam/abuse is mitigated by rate limiting ([NFR-SEC-009](#12-security-requirements)) and mandatory human approval. | — (decided) | Implemented in Phase 2.2. |
+| **OI-03** | MFA | No MFA in P2 (FR-AUTH-012/NFR-SEC-016 Future); schema note defers MFA columns. | Add TOTP MFA (schema columns + enrollment flow). **Pro:** materially stronger auth for privileged accounts. **Con:** added columns, flows, and support burden. | Add MFA for Administrators in an early post-P2 increment; approve now if security posture requires it. |
+| **OI-04** | QR expiry semantics | `expired` defined by QR/target status, no date field (FR-QR-006). | Add `qr_codes.expires_at` for time-based expiry. **Pro:** supports rotating/temporary codes. **Con:** schema change; scan logic change. | Keep status-based unless time-limited QR is required. |
+| **OI-05** | SLA model | Per-priority SLA on `ticket_priorities` (BR-05). | Dedicated `sla_policies` (per category/audience/asset-class). **Pro:** granular SLAs. **Con:** new tables + assignment logic. | Keep per-priority for P2; add `sla_policies` if differentiated SLAs are needed. |
+| **OI-06** | Ticket auto-escalation | **STILL OPEN.** Breach is flagged + notified; no automatic action (FR-TKT-017; FR-TKT-018 Future). The baseline is now **implemented** — WP-2.7a delivers SLA breach/nearing detection and notification to Administrators plus the assigned technician, and it is deliberately **notify-only**. | Auto-reassign/raise priority on breach. **Pro:** enforces response. **Con:** changes workflow behavior; risk of churn. | Ship notify-only; add configurable escalation later. **The notify-only half is shipped; the escalation decision remains open and unimplemented.** |
+| **OI-07** | Indicative NFR targets | Performance/availability/SLA/capacity numbers are indicative defaults ([§13](#13-performance-requirements)–[§15](#15-availability--reliability-requirements)). | Client-specified targets. **Impact:** changes test thresholds and sizing. | Confirm exact numbers at approval; no design impact beyond thresholds. |
+| **OI-08** | QR scan entry surface | **RESOLVED (2026-08-28).** The Client approved the baseline. The scanned link opens the **SPA** at `/qr/{code}`; the browser resolves it and the API validates it ([FR-QR-005](#18-qr-code-requirements)/[FR-QR-011](#18-qr-code-requirements)). | Resolve the scan at the server and issue a redirect, or embed a signed token in the payload. **Pro:** works before the SPA boots; a signed payload is tamper-evident. **Con:** a redirect endpoint is the classic open-redirect surface, and a signed token in a printed label cannot be rotated without reprinting every sticker. | Implemented as the baseline in [WP-2.6b](#). |
+| **OI-09** | Where technician support requests live | **RESOLVED (2026-08-28).** The Client adopted the baseline: a **new job-scoped entity** ([§10.7.1](#1071-technician-work-support-requests-fr-wsr), [DR-020](#292-data-integrity--constraints)) that links to procurement only when purchasing is genuinely required. | Extend `procurement_requests` with PC-unit/ticket/maintenance references and two new statuses. **Pro:** one table, one approval surface. **Con:** overloads a purchasing lifecycle with `clarification_requested` and reschedule semantics, forces a request number and cost estimate on a technician asking for a screwdriver, and widens a table whose CHECK constraint currently states a clean purchasing vocabulary. | Decided: separate entities, with [FR-WSR-013](#1071-technician-work-support-requests-fr-wsr) as the bridge. `procurement_requests` shall be neither overloaded nor redesigned. The exact schema is to be proposed and approved before implementation. |
+| **OI-10** | Face-to-face scheduling depth | **RESOLVED (2026-08-28).** The Client approved the baseline: record that clarification was requested, the reason, and an **optional proposed time** ([FR-WSR-007](#1071-technician-work-support-requests-fr-wsr)). | A meeting-scheduling subsystem (availability, invitations, calendar integration, reminders). **Pro:** removes the out-of-band coordination. **Con:** a calendar platform is a product of its own, unjustified by a request that two people in the same building resolve by walking to each other. | Decided: the record, not the calendar — the request, the Administrator’s explanation, an optional proposed date/time, and the audited transition. |
+| **OI-11** | Request status vocabulary | **RESOLVED (2026-08-28).** The Client adopted the baseline **plus `cancelled`**: `submitted`, `clarification_requested`, `approved`, `declined`, `cancelled`, `closed` ([FR-WSR-004](#1071-technician-work-support-requests-fr-wsr)). "Pending" and "needs review" remain the **same** state seen through different filters, not separate values. | `under_review` (an administrator has claimed it) was **not** adopted — it would require a claim/release mechanic to stay truthful and the described workflow does not need it. | Decided: six controlled states, enforced by a transition map; a technician withdraws a no-longer-needed request via `cancelled` ([FR-WSR-014](#1071-technician-work-support-requests-fr-wsr)). |
+
+> **OI-02 has been resolved** (registration-request workflow; see above) and is reflected in the functional requirements, business rules, and data requirements of this document. **OI-08–OI-11 were resolved by the Client on 2026-08-28** and are reflected in [§18](#18-qr-code-requirements), [§10.7.1](#1071-technician-work-support-requests-fr-wsr) and [DR-020](#292-data-integrity--constraints); per the Client's standing instruction they are recorded **in place against Version 1.0** rather than by advancing the version label. The remaining open items (OI-01, OI-03–OI-07) are not applied in a way that alters the schema or behavior in this document; resolving any of them is recorded the same way and feeds the SDD.
+
+---
+
+## 34. Future Expansion
+
+Explicitly out of current scope; the architecture reserves for them so they add **without major refactoring**:
+
+| Area | Description | Enabled by (already present) |
+|---|---|---|
+| Interactive Floor Plan (build) | Full editor/viewer, real-time. | Location/layout/position tables; Reverb env placeholders (P4). |
+| Predictive maintenance at scale | Failure-pattern learning, per-PC predictions surfaced across UI/floor plan. | `ai_predictions`, `ai_failure_patterns`, `ai_learning_events` (opt-in). |
+| Network topology & heat maps | Device connectivity map, density/heat overlays. | `pc_units.ip_address/mac_address`; future `network_interfaces`/`device_connections`; optional PostGIS. |
+| Scheduled/saved reports | Persisted report definitions and scheduled delivery. | Future `report_definitions`/`scheduled_reports` + materialized views. |
+| MFA & advanced auth | TOTP, step-up auth. | Deferred `users` MFA columns. |
+| Multi-role users | `role_user` pivot + effective-permission resolution. | Existing RBAC model. |
+| Log partitioning & analytics MVs | Monthly partitions; refreshable analytics views. | BRIN-indexed, partition-ready append-only logs. |
+| Multi-tenancy | Multiple organizations per deployment. | Would require tenancy/RLS re-architecture (flagged, not reserved). |
+| Additional locales | Multi-language UI. | Externalized strings (NFR-I18N-001). |
+
+---
+
+## 35. Glossary
+
+| Term | Definition |
+|---|---|
+| Announcement | A time-boxed message broadcast to a targeted audience. |
+| Asset | A **serialized** physical unit (1 row = 1 unit) tracked across its lifecycle. |
+| Assignment | The link between a ticket and a technician, with its own lifecycle. |
+| Audit log | Immutable row-level change record (old/new JSON diffs) for accountability. |
+| Blame columns | `created_by`/`updated_by` recording who created/changed a record. |
+| Configuration Item (CI) | A managed thing, e.g. a PC unit composed of installed assets. |
+| Consumable | **Quantity-tracked** stock (e.g. thermal paste, cables). |
+| Counter cache | A denormalized count (e.g. `comment_count`) maintained transactionally. |
+| Embedding | A 768-dimension vector representation of text for similarity search. |
+| Lookup table | A user-configurable, often color-coded reference table (categories/priorities/statuses/types/tags). |
+| Maintenance window | A scheduled period of planned system unavailability. |
+| PC Unit | A managed computer, modeled as a CI (separate from `assets`). |
+| Preventive maintenance | Scheduled servicing with no originating ticket. |
+| RAG | Retrieval-Augmented Generation: grounding AI answers in retrieved organizational data. |
+| Reporter | Role-neutral originator of a ticket (`reporter_id`). |
+| Room | A typed location (laboratory/office/storage/server_room/…) within a floor. |
+| Layout | A versioned floor-plan canvas for a room; one active layout per room. |
+| SLA | Service Level Agreement — response/resolution time targets from priority. |
+| Soft delete | Marking a record deleted (`deleted_at`) without physical removal. |
+| Status (ticket) | Configurable state with `is_open`/`is_terminal` semantics. |
+| tsvector / GIN | PostgreSQL full-text search vector and its index type. |
+| HNSW | Approximate-nearest-neighbor vector index used for embeddings. |
+| UUID (external) | Opaque public identifier used in URLs/APIs to prevent IDOR. |
+| Vertical-agnostic | Re-skinnable for any organization by changing branding tokens only. |
+
+---
+
+## Appendix A — Internal Review & Verification Log
+
+This appendix records the review performed after drafting, per the requested process: cross-checking every requirement against the project, removing inconsistencies and duplicates, and identifying gaps.
+
+### A.1 Sources cross-checked
+`PRODUCT.md`; `DESIGN.md`; `docs/database/database_architecture_report.md`; `docs/database/database_design_review.md`; `docs/database/database_design_v2.dbml` (all domain, pivot, and framework tables with FKs/CHECKs/indexes); implemented backend (`app/Models` ×66, `app/Enums` ×34, migrations ×15, seeders ×9); domain seams (`app/Domains/*/README.md`); `docs/PROJECT_STRUCTURE.md`, `docs/ENVIRONMENT.md`; project memory; git history (phases 0–7 + DB layer). The application/business-logic layer is confirmed **not yet implemented** — this SRS is forward-looking, not a description of existing behavior.
+
+### A.2 Requirements coverage vs. specified model
+Every module in the data model and every capability in the product brief maps to at least one requirement; every requirement traces to a data entity and a business objective ([§30](#30-requirements-traceability-matrix)). Requested SRS sections are all present. Requirement IDs are unique across the document.
+
+### A.3 Inconsistencies found and resolved
+1. **QR `scan_result: expired` vs. no expiry field.** Resolved by defining `expired` behaviorally against QR/target status (FR-QR-006); time-based expiry flagged as [OI-04].
+2. **Saved/scheduled reports** implied by module naming but **no `report_definitions`/`scheduled_reports` tables** exist. Resolved: P2 reporting is on-demand + export; scheduled/saved reports marked Future (FR-RPT-006/007).
+3. **Branding color drift:** `DESIGN.md` Signal Blue (`oklch(0.545 0.170 258)`) vs. seeded `theme.primary_color = #2563eb`. Resolved: primary color is a runtime branding setting (FR-CFG-005); `DESIGN.md` is the canonical default; the seed is an approximate hex placeholder. No conflict.
+4. **AI feature defaults:** schema/seed ship predictions/learning/auto-articles **off**; represented as M-opt (support mandatory, enabled by client) to avoid implying they run by default.
+5. **Reporter identity:** `reporter_id NOT NULL` implies no anonymous submission; captured as BR-03 and ASM-02, with self-registration flagged [OI-02].
+6. **`maintenance_records` target rule** allows PC and/or asset (`num_nonnulls ≥ 1`) unlike QR’s exactly-one; documented as intentional (FR-MNT-001).
+
+### A.4 Gaps identified and added (objective improvements, no business-model change)
+Added concrete, testable requirements that the sources implied but did not specify: password policy and account-lockout thresholds (FR-AUTH-003/006); file-upload MIME/size/AV controls (FR-TKT-008, NFR-SEC-007/008); SLA breach detection & notification (FR-TKT-017); low-stock alerts (FR-AST-010); notification trigger catalog (FR-NOT-003); AI data-governance/safety (FR-AI-030..034); graceful AI degradation (FR-AI-020..022); quantified performance/scalability/availability targets (§13–§15); accessibility criteria mapped to WCAG 2.2 (§16); backup RPO/RTO and restore drill (NFR-AVL-003/004); log/PII retention (NFR-SEC-011/015); observability (NFR-OBS). Items that would change the business model were **not** applied — they are in [§33](#33-open-issues--decisions-requiring-client-approval).
+
+### A.5 Duplication check
+Cross-cutting concerns (security, accessibility, performance) are stated once in their dedicated sections and **referenced** (not restated) from functional requirements. Data-model facts live in the DBML and are stated as *requirements* (not re-listed) in [§29](#29-data-requirements). No requirement is duplicated under two IDs.
+
+### A.6 Residual items for the client
+The seven decisions in [§33](#33-open-issues--decisions-requiring-client-approval) and the indicative-target confirmations (OI-07) are the only items blocking a final, buildable baseline. No further contradictions were found.
+
+---
+
+*End of Software Requirements Specification — Version 1.0 baseline. Status: Waiting for Client Approval.*

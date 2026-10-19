@@ -32,5 +32,10 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Phase 2.9: the Gemini governor is off by default under test, so an
+             AI test does not depend on Redis or on how many AI calls ran
+             before it; tests that exercise the governor turn it on via config(). -->
+        <env name="AI_GEMINI_CONCURRENCY" value="0"/>
+        <env name="AI_GEMINI_RPM" value="0"/>
     </php>
 </phpunit>

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useIsPreview } from '@/contexts/PreviewModeContext'
 
 const BASE_TITLE = 'SccIT'
 const DEFAULT_DESCRIPTION =
@@ -16,7 +17,11 @@ interface DocumentMeta {
  * pulling in another dependency.
  */
 export function useDocumentMeta({ title, description }: DocumentMeta): void {
+  // A page previewed inside the import review must not retitle the app.
+  const preview = useIsPreview()
+
   useEffect(() => {
+    if (preview) return
     const previousTitle = document.title
     document.title = title.includes(BASE_TITLE) ? title : `${title} · ${BASE_TITLE}`
 
@@ -28,5 +33,5 @@ export function useDocumentMeta({ title, description }: DocumentMeta): void {
       document.title = previousTitle
       if (meta && previousDescription !== null) meta.setAttribute('content', previousDescription)
     }
-  }, [title, description])
+  }, [title, description, preview])
 }

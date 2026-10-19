@@ -3,13 +3,14 @@ title: Software Project Management Plan (SPMP)
 system: AI-Powered IT Asset & Service Management System (SccIT)
 doc_id: SCCIT-SPMP
 version: 1.0
-status: Approved — v1.0 Baseline (2026-07-03)
-date: 2026-07-03
+status: Waiting for Client Approval
+date: 2026-07-17
 author: Engineering (Beemo)
 classification: Internal — Confidential
 standard: Aligned with ISO/IEC/IEEE 16326:2019 (Project Management) — successor to IEEE Std 1058
 governs: How SccIT is managed across its lifecycle
 depends_on: SCCIT-SRS v1.0, SCCIT-SDD v1.0
+owner: Client / Product Owner (project owner · system owner · primary decision-maker)
 ---
 
 # Software Project Management Plan
@@ -25,25 +26,43 @@ depends_on: SCCIT-SRS v1.0, SCCIT-SDD v1.0
 | Field | Value |
 |---|---|
 | Document ID | SCCIT-SPMP |
-| Version | 1.0 (Approved) |
-| Date | 2026-07-03 |
+| Version | 1.0 |
+| Date | 2026-07-17 |
+| Status | **Waiting for Client Approval** |
 | Standard | ISO/IEC/IEEE 16326:2019 (and IEEE 1058 heritage) |
 | Prepared by | Engineering |
-| Approved by | Client / Product Owner — approved 2026-07-03 |
-| Primary inputs | SCCIT-SRS v1.0 (**approved**), SCCIT-SDD v1.0 (**approved**), current repository |
+| Owner / decision authority | Client / Product Owner — project owner, system owner, and primary decision-maker |
+| Primary inputs | SCCIT-SRS v1.0, SCCIT-SDD v1.0, current repository |
 | Related artifacts | `PRODUCT.md`, `DESIGN.md`, `docs/` (DEVELOPMENT, ENVIRONMENT, DOCKER, INSTALLATION, PROJECT_STRUCTURE), `.github/workflows/ci.yml`, `Makefile`, `scripts/`, `compose.yaml` |
 
 ### Revision History
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
-| 1.0 | 2026-07-03 | Engineering | Initial SPMP derived from the approved SRS/SDD and the implemented repository (phases 0–7 complete). Includes assumption register and a consistency-review appendix. |
-| 1.0 | 2026-07-03 | Client / Product Owner | Reviewed and approved; baselined as part of the v1.0 project specification (Git tag `v1.0-project-specification`). |
+| 1.0 | 2026-07-17 | Engineering | **Version 1.0 baseline.** Consolidated project management plan: purpose and scope, current state, management objectives, deliverables, team roles and responsibilities, lifecycle model, work breakdown structure and work packages, phase plan (**P2** Core · **P3** AI & Knowledge Base · **P4** Interactive Floor Plan & Real-time), milestones, estimation, risk management, quality assurance and verification, configuration and change management, issue management, acceptance, and Appendices A–B. Aligned to **SCCIT-SRS v1.0** and **SCCIT-SDD v1.0**. Status: **Waiting for Client Approval**. |
+| 1.0 | 2026-08-26 | Engineering | **Phase 2.5 — Asset Management** delivered against the Version 1.0 baseline (label unchanged). **WP-2.3** and **WP-2.4** marked ✅ done: PC units with the specification editor, serialized assets, the hardware catalog, audited lifecycle transitions, transfers, custodianship, attachments, the unified asset history, QR generate/regenerate/revoke/print, the module dashboard and the enterprise directory. Scope carried forward as **WP-2.4b** (consumables, stock ledger, procurement, disposal, import/export, bulk actions) and **WP-2.4c** (QR scan verification), so the remaining FR-AST/FR-QR requirements stay tracked rather than being absorbed silently. |
+| 1.0 | 2026-08-28 | Engineering | **Phase 2.6 — Ticket Management** delivered against the Version 1.0 baseline (label unchanged). **WP-2.5** marked ✅ done: the row-scoped visibility model, audited lifecycle with scheduled auto-close, assignment with a database-enforced one-active rule answering 409, comments including internal notes, votes, attachments, SLA derivation, duplicate discovery, the administrative directory and the module dashboard — verified live for all three roles in development **and** production. Recorded the work-package numbering offset (SPMP WP-2.5 = Phase 2.6) so the two schemes stay legible together, and carried ticket export (FR-RPT-004) and ticket AI (FR-AI-*, P3) forward as tracked rather than absorbing them silently. |
+| 1.0 | 2026-08-28 | Engineering | **QR workflow clarification** recorded against the Version 1.0 baseline (label unchanged), ahead of implementation. Rescoped **WP-2.6** to the full Maintenance domain including proof-of-work capture (FR-MNT-009..011); added **WP-2.6b — QR-verified technician job workflow**, which absorbs the carried-forward **WP-2.4c** and adds the technician work support request, the administrator decision set and both tracking surfaces (FR-WSR-001..013, FR-QR-010..013). WP-2.4c is retained in the table rather than removed, so its requirement IDs stay traceable. Recorded why the two packages are sequential rather than one milestone, and flagged the **WP-2.7 notification dependency** as a scheduling decision for the client. No work package was deleted and no version label was changed. |
+| 1.0 | 2026-08-28 | Engineering | **QR workflow clarification — Client decisions recorded** against the Version 1.0 baseline (label unchanged). The two-package structure (**WP-2.6** then **WP-2.6b**, sequential and independently gated) is approved. WP-2.6b rescoped to match the decided design: proof of work attached to an active maintenance record, the six-state controlled transition map including `cancelled`, the scan-scoped panel under its own policy ability, and the **minimum** notification channel/service plus the six workflow triggers — the notification centre, preferences UI and digest remaining in **WP-2.7**, which therefore need not move ahead. `OI-08..11` marked resolved in the risk register; **WP-2.4c retains its row and its requirement IDs**, delivered inside WP-2.6b. |
+| 1.0 | 2026-08-28 | Engineering | **WP-2.6 Maintenance Domain — Client decisions recorded** against the Version 1.0 baseline (label unchanged), ahead of implementation. The **FR-MNT-009 split** is now explicit in both work-package rows so neither appears to skip it: WP-2.6 owns the Maintenance-side foundation, WP-2.6b owns the scanned submission and its idempotency ([SRS FR-MNT-009](#), [SDD DD-57](#)). Recorded the approved WP-2.6 scope decisions — additive migrations only, no `maintenance_status_history` table, no maintenance verification state (none is specified), preventive-maintenance **detection and in-app surfacing** without notification dispatch, and duplicate maintenance handled as a non-blocking warning rather than a database constraint. Added the [DR-022](#) schema addition to the package. No work package was deleted and no version label was changed. |
+| 1.0 | 2026-08-28 | Engineering | **WP-2.6 — Maintenance Domain** delivered against the Version 1.0 baseline (label unchanged). **WP-2.6** marked ✅ done: row-scoped visibility whose list rule and uuid rule are provably the same rule, the audited five-state lifecycle with the PC-unit effect, checklists with required-item enforcement, repair evidence through the **existing** attachment trust boundary, notes, hardware replacements reconciling the installation history, preventive due detection on the configured cadence, and the technician and administrator surfaces — verified live for all three roles in development, with the production image rebuilt and its structural parity confirmed. Four additive migrations (24 → 28). Carried forward as tracked rather than absorbed: the scanned submission and its idempotency to **WP-2.6b**, and notification **delivery** for maintenance triggers to WP-2.6b/WP-2.7. |
+| 1.0 | 2026-08-30 | Engineering | **WP-2.6b — QR-verified technician job workflow** delivered against the Version 1.0 baseline (label unchanged). **WP-2.6b** marked ✅ done for its functional scope, and **WP-2.4c** closed as absorbed: authenticated scan entry with non-disclosing pre-authentication answers and per-client/per-account rate limiting; the scan-scoped PC panel under its own policy ability; proof of work with six-layer idempotency on the scan; work support requests on the six-state map; the three administrator decisions with a database-enforced decline reason; both tracking surfaces plus authorized evidence retrieval. Two additive migrations (28 → 30). **Carried forward as tracked rather than absorbed:** the *minimum notification channel/service and its workflow triggers* named in this work package's own scope ([FR-WSR-012](#), partial [FR-NOT-003](#), [DD-52](#)) move to **WP-2.7**, together with the notification centre and preferences that always belonged there; the procurement bridge ([FR-WSR-013](#)) and automatic support-request closure remain open. Recorded as **deferred / carried forward**, not implemented: the notification centre, notification preferences and email delivery; the minimum notification channel and its workflow triggers ([FR-WSR-012](#), partial [FR-NOT-003](#), [DD-52](#)); the procurement bridge ([FR-WSR-013](#)); automatic support-request closure; axe/WCAG regression automation; browser visual regression; the two pre-existing Phase 2.4/2.5 factory-collision test flakes; ticket export ([FR-RPT-004](#)); ticket AI ([FR-AI-*](#)); WP-2.4b; the floor plan; and Phase 2.7. No requirement was removed and no version label was changed. |
+| 1.0 | 2026-09-30 | Engineering | **WP-M — Admin predictive-maintenance reports** delivered against the Version 1.0 baseline (label unchanged). **WP-3.4** marked ✅ done for the review surface of FR-AI-011: the Administrator-only list and finding pages, confirm and dismiss, the administrator notification through the existing infrastructure, and Pest, Vitest, Playwright and axe coverage including role-by-role denial and direct-uuid protection. The WP-L generation pipeline was already on the branch; its route, permission, policy and notification wiring, which had been left out of the handoff commit, is completed here. FR-AI-013 is not part of this package. |
+| 1.0 | 2026-09-30 | Engineering | **WP-P — RAG knowledge indexing** delivered against the Version 1.0 baseline (label unchanged). **WP-3.2** marked ✅ done for its pipeline and retrieval scope: the chunker, `GenerateEmbeddingJob` with states, retries and stale detection, the `knowledge:index` sweep, and a retrieval service over the existing `ai_embeddings` HNSW index — for the published knowledge articles only, by the client's instruction that transactional records stay out of the shared vector index. Not delivered and not claimed: knowledge-article authoring/review screens, any HTTP route over retrieval, and starter article content (none was invented). Numbering note: WP-3.2 is the SPMP identifier; "WP-P" is the conversational package name. |
 
+| 1.0 | 2026-09-06 | Engineering | **WP-2.7d — Quality & operational foundation delivered** against the Version 1.0 baseline (label unchanged). Added a **WP-2.7d** row to the [§10](#10-work-breakdown-structure) WBS, marked ✅ done: reproducible production deployment with immutable `prod-<sha>` image tags, release manifests and pre-deploy database snapshots; retention and a scripted rollback; the committed Playwright browser harness with deterministic fixtures; **axe accessibility regression automation** against a committed baseline; documented quality gates and a production-target smoke suite. Annotated **WP-2.11** so this early delivery is not mistaken for hardening completion — the full **WCAG 2.2 AA conformance audit**, **performance and load testing**, **browser visual regression**, the security review and the first authorized production deployment all remain outstanding there. Extended **§21** with the release and rollback tooling and the distinction the sign-off insisted on: the tooling is **implemented and verified to fail safe**, but **no real production rollback has ever been exercised**, `releases/` is absent, no `prod-<sha>` tag exists, and the surviving pre-WP-2.6b images predate the convention and cannot be used by the new scripts. No work package was deleted and no version label was changed. |
+| 1.0 | 2026-09-06 | Engineering | **WP-2.7a — Notification infrastructure delivered** against the Version 1.0 baseline (label unchanged). Decomposed the single **WP-2.7** row into its delivery sub-packages, following the WP-2.6b precedent, and added **WP-2.7a** ✅ done: the project channel driver over the baselined schema, the dispatcher with per-recipient failure isolation, audience resolution through each domain's own visibility rule, the opt-out preference gate, trigger identity, idempotency via `dedupe_key`, SLA breach detection, the eight-endpoint API, and **nine of [FR-NOT-003](#)'s twelve triggers**. Recorded **one additive migration (30 → 31)** and the **T7/T8 carry-forward to WP-2.4b**, whose row now states that it blocks those two triggers and the [FR-WSR-013](#) bridge. Marked the WP-2.6b notification carry-forward **discharged**. Added **WP-2.7c** (announcements) and **WP-2.7e** (digest) as **not started**, and recorded that **D5** makes WP-2.7c **depend on WP-2.7a** because publishing an announcement notifies in-app. No work package was deleted and no version label was changed. |
+| 1.0 | 2026-09-06 | Engineering | **WP-2.7b — Notification experience delivered** against the Version 1.0 baseline (label unchanged). Added **WP-2.7b** ✅ done: the notification centre at `/app/notifications`, the top-bar entry with its unread badge and dropdown panel, individual and bulk read/unread with optimistic rollback, filtering by unread state and by type, pagination, and the channel × type preference matrix on `/app/account` — **frontend only, with no backend, schema or migration change**. Extended the [§11](#11-phase-plan) delivery record through phases 2.5, 2.6, 2.6b and 2.7, and stated the **environment divergence** plainly: repository, development and test carry **31 migrations** while **production carries 30**, because Phase 2.7 is committed but **not deployed**. Recorded that the `a`/`b`/`c`/`d` suffixes are delivery-order sub-packages rather than a second numbering scheme, and that they were delivered out of alphabetical order — WP-2.7d first, because the harness had to exist before the surfaces it verifies. No work package was deleted and no version label was changed. |
+| 1.0 | 2026-09-07 | Engineering | **WP-2.7c — Announcements delivered** against the Version 1.0 baseline (label unchanged). Marked **WP-2.7c** ✅ done in the WBS: the management surface behind the existing `system.announcements.manage`, the reader at `/app/announcements`, audience targeting enforced as an authorization boundary at the uuid as well as in the list, and the [SRS FR-NOT-003](#) announcement trigger. Delivered as forecast — one `NotificationTopic` case and one listener, **no new permission and no schema change** — with one addition the plan did not anticipate: the [SDD DD-66](#) channel-exclusion mechanism, needed because the opt-out preference gate could not by itself guarantee that publishing sends no email. Recorded that FR-NOT-003 now stands at **ten of twelve** triggers; the remaining two stay blocked on **WP-2.4b** and their status is unchanged. Noted **WP-2.7e** (the FR-NOT-008 digest) as the one outstanding WP-2.7 sub-package. The package is **committed but not deployed**, so the environment-divergence note stands. No work package was renumbered and no version label was changed. |
+| 1.0 | 2026-09-07 | Engineering | **WP-2.7e — Daily digest delivered** against the Version 1.0 baseline (label unchanged). Marked **WP-2.7e** ✅ done, closing the last outstanding **WP-2.7** sub-package: the digest was delivered as the third delivery *channel* **D1** approved, on a **07:00 Asia/Manila** schedule covering the previous school-local calendar day, with **at-most-once** delivery enforced by a new `notification_digests` table unique on `(user_id, digest_date)` — the one addition beyond the original design, and approved as such before implementation. Recorded **FR-NOT-008** satisfied in the SRS and amended **[SDD DD-63](#)** in place. Updated the environment-divergence note: the repository now carries **32** migrations against production's **30**, and because Laravel applies pending migrations in filename order, the first production deployment of WP-2.7e is necessarily also the first of WP-2.7a, WP-2.7b and WP-2.7c. **FR-NOT-003 triggers 7 and 8 remain blocked on WP-2.4b** and their status is unchanged. No work package was renumbered and no version label was changed. |
+| 1.0 | 2026-10-18 | Engineering | **WP-2.10 progress — Phase 2.10 R0–R3** recorded against the Version 1.0 baseline (label unchanged; SPMP WP-2.10 is conversational Phase 2.10, which also carries the asset-import slice of WP-2.4b). Delivered: R0 report and chart libraries locked through disposable gate containers (owner decision D7); R1 the Administrator's filterable ticket overview (FR-DSH-009); R2 overlay hardening and shared primitives; R3 report export, email and print (FR-RPT-004/008/009), deployed 2026-10-18 (`01238a6`); R4 Overall Reports (FR-RPT-010), deployed 2026-10-18 (`29ae9f0`); R5 AI interpretations (FR-RPT-011, off by default), deployed 2026-10-18 (`0c0a57b`); R6 asset import (FR-AST-016; the asset-import slice of WP-2.4b), deployed 2026-10-18 (`9f151fb`); R7 post-import review (FR-AST-017). R0–R2 deployed to production on 2026-10-18 (`096132e`). Phase 2.10 (R0–R7) is complete. The rest of WP-2.4b (consumables, stock, procurement, disposal, export, bulk actions) is unchanged. |
+| 1.0 | 2026-10-19 | Engineering | **Phase 2.11 — Floorplan completion and the PC status model** delivered against the Version 1.0 baseline (label unchanged). Numbering note: "Phase 2.11" is conversational; the SPMP work packages are **WP-4.1/4.2/4.3**. Marked **WP-4.1** ✅ (WP-A, plus the presence channel), **WP-4.2** ✅ (the Floorplan editor) and **WP-4.3** ✅ for its functional scope (status model, details panel, realtime, position release), with **GA pending** owner acceptance on production and the CI browser run. Two migrations (S: PC status model with its audited data mapping and archive of retired PCs; F1: layout revision, workstation rotation rule, fixtures table). No work package was deleted and no version label was changed. |
+| 1.0 | 2026-10-19 | Engineering | **Phase 2.11 — pre-deployment verification** recorded against the Version 1.0 baseline (label unchanged). **WP-4.3** annotated with the verification evidence: the status migration's rollback is exact and was rehearsed twice on a verified production copy; the full browser suite and the full accessibility project pass in a disposable stack (the DonutChart `aria-hidden-focus` regression and the e2e project's broken `json` import, both pre-existing, were fixed). GA still waits on the owner's production acceptance. No work package was deleted and no version label was changed. |
+| 1.0 | 2026-10-19 | Engineering | **Phase 2.11 follow-up — owner requests of 2026-10-19** recorded against the Version 1.0 baseline (label unchanged). Numbering note: conversational "Phase 2.11 follow-up"; it amends delivered packages **WP-2.1, WP-2.2, WP-2.3/2.4, WP-2.5, WP-2.6b and WP-2.7c** and adds none. Added a note under the [§10](#10-work-breakdown-structure) WBS: post-sign-in destination (SDD DD-105), comment edit/remove rules (DD-106), announcement Publish (DD-107), derived building codes (DD-108), internal asset tag and optional asset fields (DD-109), full name with middle name, and presentation fixes. Implemented and verified locally; **not deployed and not pushed** — deployment pending owner approval. No work package was deleted, no status was changed and no version label was changed. |
 ### Conventions
 
 - **Identifiers:** deliverables `DL-nn`; milestones `M0..Mn`; work packages `WP-<phase>.<n>`; project/management risks `PR-nn` (product/technical risks are inherited from **[SRS §32](#) `RSK-01..10`**); assumptions `SA-nn`; roles `R-xxx`.
-- **Phasing** matches the approved SRS/SDD exactly: **P2** Core · **P3** AI & Knowledge Base · **P4** Interactive Floor Plan & Real-time · **Future**.
+- **Phasing** matches the SRS/SDD exactly: **P2** Core · **P3** AI & Knowledge Base · **P4** Interactive Floor Plan & Real-time · **Future**.
 - **Effort sizing** uses relative T-shirt sizes (S ≤ 3 dev-days · M ≤ 1 sprint · L ≈ 1–2 sprints · XL > 2 sprints). Calendar figures are **indicative** and depend on confirmed team capacity ([SA-01](#appendix-b--assumption-register)).
 - **Reference markers** `FR-*`, `NFR-*`, `DD-*`, `RES-*`, `RSK-*` point to the identically-named items in the SRS/SDD.
 
@@ -91,7 +110,7 @@ depends_on: SCCIT-SRS v1.0, SCCIT-SDD v1.0
 
 ## 1. Executive Summary
 
-SccIT is a production-intended, vertical-agnostic ITSM/ITAM platform. Its **foundation is already built and verified**: a fully Dockerized Laravel 13 + React 19 stack, a production-grade PostgreSQL 17 data layer (66 models, integrity enforced in the database), and a green CI pipeline (phases 0–7). The **requirements (SRS) and design (SDD) are approved.** This SPMP governs the remaining lifecycle: building the application layer across three phases — **P2 Core**, **P3 AI & Knowledge Base**, **P4 Interactive Floor Plan & Real-time** — followed by steady-state maintenance.
+SccIT is a production-intended, vertical-agnostic ITSM/ITAM platform. Its **foundation is already built and verified**: a fully Dockerized Laravel 13 + React 19 stack, a production-grade PostgreSQL 17 data layer (66 models, integrity enforced in the database), and a green CI pipeline (phases 0–7). The **requirements (SRS) and design (SDD) are complete and are Waiting for Client Approval.** This SPMP governs the remaining lifecycle: building the application layer across three phases — **P2 Core**, **P3 AI & Knowledge Base**, **P4 Interactive Floor Plan & Real-time** — followed by steady-state maintenance.
 
 The project runs an **iterative, phase-gated** model that matches the established working agreement: work proceeds in short sprints inside each phase, and **each phase ends at a client approval gate** before the next begins. Quality is non-negotiable and largely automated — every change passes the same gates CI already enforces (Pint, Larastan level 6, Pest; ESLint, Prettier, TypeScript, Vitest, build) — and correctness is backstopped by database constraints, so the “done” bar is objective and repeatable.
 
@@ -104,27 +123,14 @@ Management is deliberately lightweight but disciplined: trunk-based Git with sho
 ### 2.1 Context
 SccIT replaces manual, fragmented IT operations with a single platform for asset management, service ticketing, preventive maintenance, QR verification, AI-assisted troubleshooting, and analytics (see [SRS §1–§6](#)). It is single-tenant, deployed first for an educational institution, and re-brandable to any organization via settings ([BO-08](#)).
 
-### 2.2 Current state (baseline for this plan)
-| Area | Status |
-|---|---|
-| Repository skeleton, Docker stack, single-origin Nginx | ✅ Complete (phases 0–1) |
-| Laravel 13 backend + React 19 frontend scaffolds | ✅ Complete (phases 2–3) |
-| Domain seams (`app/Domains/*`), feature slices | ✅ Complete (phase 4) |
-| Quality tooling + CI (all green) | ✅ Complete (phase 5) |
-| Developer docs + scripts | ✅ Complete (phase 6) |
-| Reproducible test DB + clean-rebuild verification | ✅ Complete (phase 7) |
-| **Database layer** (66 models, 34 enums, migrations, seeders, triggers/indexes) | ✅ **Implemented & verified** |
-| Requirements (SRS), Design (SDD) | ✅ **Approved** |
-| **Application/business-logic layer** | ⬜ **Not started** — this plan covers it |
-
-### 2.3 What this plan manages
-The build-out of the application layer (P2 → P3 → P4), its verification and release to production, and its ongoing maintenance — governed by the approved SRS/SDD and executed with the tooling already in the repository.
+### 2.2 What this plan manages
+The build-out of the application layer (P2 → P3 → P4), its verification and release to production, and its ongoing maintenance — governed by the SRS/SDD and executed with the tooling already in the repository.
 
 ---
 
 ## 3. Objectives
 
-The project succeeds when the approved requirements are delivered to production at the stated quality bar. Management objectives (traceable to [SRS §5 `BO-01..08`](#)):
+The project succeeds when the specified requirements are delivered to production at the stated quality bar. Management objectives (traceable to [SRS §5 `BO-01..08`](#)):
 
 | ID | Management objective | Measure of success |
 |---|---|---|
@@ -132,7 +138,7 @@ The project succeeds when the approved requirements are delivered to production 
 | PO-2 | Deliver P3 AI and P4 Floor Plan behind their own gates. | P3/P4 acceptance pass; [M6](#12-milestones)/[M7](#12-milestones) sign-off. |
 | PO-3 | Keep quality automated and continuous. | CI green on every merge; ≥ 80% domain test coverage ([NFR-MTN-005](#)). |
 | PO-4 | Hold the security & accessibility bar as a release gate, not an afterthought. | Security review + WCAG 2.2 AA audit pass each phase ([SRS §12](#), [§16](#)). |
-| PO-5 | Manage risk and change transparently against the approved baselines. | Risk register reviewed each sprint; changes go through [§25](#25-change-management). |
+| PO-5 | Manage risk and change transparently against the current baselines. | Risk register reviewed each sprint; changes go through [§25](#25-change-management). |
 | PO-6 | Preserve maintainability and knowledge for the long term. | Docs current in the vault; ADRs recorded; onboarding ≤ 1 day. |
 
 ---
@@ -146,7 +152,7 @@ Planning, execution, monitoring/control, and closure of the application build (P
 In-scope and out-of-scope **product** capabilities are defined authoritatively in **[SRS §3](#)**. Summary: P2 delivers the core ITSM/ITAM platform; P3 adds AI/RAG; P4 adds the interactive floor plan and real-time. Explicitly out of scope: ERP/LMS/RMM functions, native mobile apps, and multi-tenancy ([SRS §3.3](#), [CON-08](#)).
 
 ### 4.3 Scope control
-Scope is baselined by the approved SRS. Additions or changes follow [§25 Change Management](#25-change-management); the seven open product decisions ([SRS §33 `OI-01..07`](#)) are tracked as pending change items and must be resolved before they affect a phase they touch.
+Scope is baselined by the SRS. Additions or changes follow [§25 Change Management](#25-change-management); the seven open product decisions ([SRS §33 `OI-01..07`](#)) are tracked as pending change items and must be resolved before they affect a phase they touch.
 
 ---
 
@@ -154,9 +160,9 @@ Scope is baselined by the approved SRS. Additions or changes follow [§25 Change
 
 | ID | Deliverable | Phase | Acceptance basis |
 |---|---|---|---|
-| DL-01 | Approved SRS | Docs | Client sign-off ✅ |
-| DL-02 | Approved SDD | Docs | Client sign-off ✅ |
-| DL-03 | Approved SPMP (this document) | Docs | Client sign-off (pending) |
+| DL-01 | Software Requirements Specification (SRS) | Docs | Waiting for Client Approval |
+| DL-02 | Software Design Description (SDD) | Docs | Waiting for Client Approval |
+| DL-03 | Software Project Management Plan (SPMP, this document) | Docs | Waiting for Client Approval |
 | DL-04 | P2 Core application (all P2 FRs) + API (OpenAPI) | P2 | [SRS §31](#) P2 gates |
 | DL-05 | Design-system component library + accessible SPA shell | P2 | [NFR-USB](#), [NFR-ACC](#) |
 | DL-06 | Automated test suites (Pest + Vitest) ≥ 80% domain coverage | P2+ | [NFR-MTN-005](#) |
@@ -178,7 +184,7 @@ Stakeholders and their interests are defined in **[SRS §7](#)**. Management-rel
 | Stakeholder | Project responsibility |
 |---|---|
 | Client / sponsor | Funds the project; approves phase gates; owns the open product decisions ([SRS §33](#)); provides UAT participants. |
-| Product owner (client-side) | Prioritizes backlog within approved scope; signs off acceptance. |
+| Product owner (client-side) | Prioritizes backlog within defined scope; signs off acceptance. |
 | Engineering team | Delivers, tests, documents, and operates the system ([§7](#7-team-roles-and-responsibilities)). |
 | IT Administrators (end org) | UAT, operational readiness, production configuration/branding. |
 | Data-protection / security owner | Reviews AI data governance ([SRS §17.5](#)) and security posture. |
@@ -192,16 +198,11 @@ Stakeholders and their interests are defined in **[SRS §7](#)**. Management-rel
 
 | Role | Code | Responsibilities |
 |---|---|---|
-| Project Lead / Manager | R-PM | Plan, schedule, risk/issue tracking, client gate coordination, reporting. |
-| Technical Lead / Architect | R-TL | Guards SRS/SDD conformance; reviews design decisions; owns ADRs; final code-review authority. |
-| Backend Engineer | R-BE | Laravel domains (Services/Actions/Models), migrations, API, jobs, tests. |
-| Frontend Engineer | R-FE | React feature slices, design-system components, accessibility, tests. |
-| QA Engineer | R-QA | Test strategy, acceptance test execution, coverage, regression, a11y/perf verification. |
-| DevOps / Release Engineer | R-DO | CI/CD, environments, deployment, backup/monitoring, release cutovers. |
-| Security Lead | R-SEC | Security reviews, secrets/dependency management, incident response. |
-| UX / Design owner | R-UX | `DESIGN.md` conformance, usability, WCAG validation. |
+| Project Manager | R-PM | Plan, schedule, risk/issue tracking, client gate coordination, reporting. |
+| Developer | R-DEV | Guards SRS/SDD conformance; reviews and owns design decisions and ADRs; final code-review authority. Laravel domains (Services/Actions/Models), migrations, API, jobs; React feature slices, design-system components, accessibility; CI/CD, environments, deployment, backup/monitoring, release cutovers; security reviews, secrets/dependency management, incident response; `DESIGN.md` conformance, usability, WCAG validation; tests for all of the above. |
+| QA | R-QA | Test strategy, acceptance test execution, coverage, regression, a11y/perf verification. |
 
-RACI (condensed): R-PM *accountable* for schedule/risk; R-TL *accountable* for technical conformance; R-QA *accountable* for acceptance verification; client *accountable* for gate approvals. All engineers *responsible* for tests and docs of their work.
+RACI (condensed): R-PM *accountable* for schedule/risk; R-DEV *accountable* for technical conformance; R-QA *accountable* for acceptance verification; client *accountable* for gate approvals. All roles *responsible* for tests and docs of their work.
 
 ---
 
@@ -228,8 +229,8 @@ Sprint planning, sprint review/demo, and retrospective per sprint; short async d
 ## 9. Project Organization
 
 - **Structure:** a single cross-functional delivery team building a modular monolith ([SDD DD-01](#)); no sub-teams needed at current scale.
-- **Decision rights:** technical decisions → R-TL (recorded as ADRs in `vault/08 ADR`, rationale in Claude-Mem per the project’s knowledge model); scope/priority → client product owner; process → R-PM.
-- **Environments owned by R-DO:** development (Docker on the workstation), staging (production-like), production.
+- **Decision rights:** technical decisions → R-DEV (recorded as ADRs in `vault/08 ADR`, rationale in Claude-Mem per the project’s knowledge model); scope/priority → client product owner; process → R-PM.
+- **Environments owned by R-DEV:** development (Docker on the workstation), staging (production-like), production.
 - **Knowledge system** (per the project’s operating model): codebase graph = *what*; Claude-Mem = *why*; auto-memory = *how we work*; the Obsidian **vault** = human engineering docs (this plan, SRS, SDD, ADRs).
 
 ---
@@ -241,28 +242,118 @@ Decomposed by SDD domain. Effort is relative ([SA-01](#appendix-b--assumption-re
 | WP | Work package | Key requirements (SRS) | Effort | Depends on |
 |---|---|---|---|---|
 | **WP-0** | Foundation (Docker, scaffolds, DB layer, CI) | — | ✅ done | — |
-| **WP-1** | Documentation (SRS, SDD, SPMP; resolve `OI-01..07`) | SRS §33 | M (in progress) | — |
+| **WP-1** | Documentation (SRS, SDD, SPMP; resolve `OI-01..11`) | SRS §33 | M (in progress) | — |
 | **WP-2.0** | SPA shell + design system components + theming + a11y baseline | NFR-USB, NFR-ACC, DESIGN.md | L | WP-1 |
 | **WP-2.1** | **Identity & Access** domain: Sanctum auth, sessions, lockout, RBAC engine, users | FR-AUTH-*, FR-USER-*, NFR-SEC-* | L | WP-2.0 |
-| **WP-2.2** | **Locations** domain: buildings/floors/rooms CRUD | FR-LOC-* | M | WP-2.1 |
-| **WP-2.3** | **Assets** pt.1: PC units, specifications, QR generate/scan | FR-PC-*, FR-QR-* | L | WP-2.2 |
-| **WP-2.4** | **Assets** pt.2: catalog, serialized assets, consumables, stock ledger, procurement, transfers, disposal | FR-AST-* | XL | WP-2.3 |
-| **WP-2.5** | **Tickets** domain: lifecycle, comments, votes, attachments, tags, SLA, duplicates + technician assignment | FR-TKT-*, FR-ASN-* | XL | WP-2.1, WP-2.2 |
-| **WP-2.6** | **Maintenance** domain: corrective + preventive, checklists, images, notes, hardware replacements, reminders | FR-MNT-* | L | WP-2.3, WP-2.5 |
-| **WP-2.7** | **Administration** pt.1: notifications + preferences + announcements | FR-NOT-* | M | WP-2.1 |
+| **WP-2.2** | **Locations** domain: buildings/floors/rooms CRUD | FR-LOC-* | ✅ done | WP-2.1 |
+| **WP-2.3** | **Assets** pt.1: PC units, specifications, QR generate/print | FR-PC-*, FR-QR-001..004/007 | ✅ done | WP-2.2 |
+| **WP-2.4** | **Assets** pt.2: catalog, serialized assets, lifecycle, transfers, custodianship, attachments, history, module dashboard + enterprise directory | FR-AST-001/002/005/006/011/012/013/014/015 | ✅ done | WP-2.3 |
+| **WP-2.4b** | **Assets** pt.3 *(carried forward)*: consumables, stock ledger, procurement, disposal workflow, asset import/export, bulk actions *(asset import ✅ delivered as Phase 2.10 R6, FR-AST-016)*. **Also blocks two notification triggers** — low-stock reorder and procurement approval/rejection ([FR-NOT-003](#) #7 and #8) have no domain code to fire from, and the [FR-WSR-013](#) procurement bridge waits on the same tables | FR-AST-003/004/007/008/009/010, [FR-NOT-003](#) *(triggers 7–8)*, [FR-WSR-013](#) | L | WP-2.4 |
+| **WP-2.4c** | **QR scan verification** *(carried forward — now delivered inside [WP-2.6b](#111-work-breakdown-structure-wbs))*: scan endpoint, deterministic result classification, `qr_scan_logs`, QR-initiated maintenance | FR-QR-005/006/008/009 | ✅ done (inside WP-2.6b) | WP-2.4, WP-2.6 |
+| **WP-2.5** | **Tickets** domain: lifecycle, comments, votes, attachments, tags, SLA, duplicates + technician assignment | FR-TKT-*, FR-ASN-* | ✅ done | WP-2.1, WP-2.2 |
+| **WP-2.6** | **Maintenance** domain: corrective + preventive records with row-scoped visibility, checklists and required-item enforcement, repair evidence through the existing attachment boundary, notes, hardware replacements, PM reminders, technician and administrator surfaces | FR-MNT-001..008/010/011, FR-MNT-009 *(Maintenance-side foundation — see the split note)*, DR-021, DR-022 | ✅ done | WP-2.3, WP-2.5 |
+| **WP-2.6b** | **QR-verified technician job workflow** *(absorbs WP-2.4c)*: authenticated scan entry and return-to-destination, scan-scoped PC panel under its own policy ability, proof-of-work **attached to an active maintenance record**, technician **work support requests** on a six-state controlled transition map, the administrator decision set (approve-and-reschedule · request face-to-face · decline with a required reason), technician withdrawal, both tracking pages plus authorized evidence retrieval and the combined submission history, and audit | FR-QR-005/006/008..013, FR-WSR-001..011/014, FR-MNT-009 *(scanned submission — see the split note)*/010/012, DR-020 | ✅ done *(functional scope. The carried-forward **notification channel/service and its workflow triggers** — [FR-WSR-012](#), partial [FR-NOT-003](#), [DD-52](#) — were **discharged by WP-2.7a** on 2026-09-05, which built the full infrastructure rather than the planned minimum. The [FR-WSR-013](#) procurement bridge remains **open**, blocked on WP-2.4b.)* | WP-2.6, WP-2.4 |
+| **WP-2.7** | **Administration** pt.1: notifications + preferences + announcements. Delivered as four sub-packages (see the rows below), following the WP-2.6b precedent. **All five sub-packages are done — WP-2.7d, WP-2.7a, WP-2.7b, WP-2.7c and WP-2.7e** | FR-NOT-* | M | WP-2.1 |
+| **WP-2.7d** | **Quality & operational foundation**: reproducible production deployment with immutable `prod-<sha>` image tags, release manifests and database snapshots; retention and a scripted rollback; the committed Playwright browser harness with deterministic fixtures; **axe accessibility regression automation** against a committed baseline; documented quality gates and a production-target smoke suite | NFR-MTN-*, NFR-ACC-*, SRS §12–§16 | ✅ done | WP-2.6b |
+| **WP-2.7a** | **Notification infrastructure**: the project `database` channel driver over the baselined schema ([SDD DD-52](#)), dispatcher with per-recipient failure isolation ([SDD DD-59](#)), audience resolution through each domain's own visibility rule, the opt-out preference gate, trigger identity ([SDD DD-58](#)), idempotency via `dedupe_key` ([SDD DD-60](#)), SLA breach detection, the eight-endpoint API, and **nine of FR-NOT-003's twelve triggers** | FR-NOT-001..006, FR-WSR-012, partial FR-NOT-003 | ✅ done *(one additive migration, 30 → 31; **T7/T8 carried forward to WP-2.4b**; announcements and the digest were out of this package's scope and were delivered later by WP-2.7c and WP-2.7e)* | WP-2.6b, WP-2.1 |
+| **WP-2.7b** | **Notification experience**: the notification centre at `/app/notifications`, the top-bar entry with its unread badge and dropdown panel, individual and bulk read/unread with optimistic rollback, filtering by unread state and by type, pagination, and the channel × type preference matrix on `/app/account` | FR-NOT-001/002/004/005 *(UI halves)* | ✅ done *(frontend only — no backend, schema or migration change)* | WP-2.7a |
+| **WP-2.7c** | **Announcements**: the management surface (compose, publish, withdraw, explicit re-notify, delete) behind the existing `system.announcements.manage`, the reader at `/app/announcements` with a per-announcement page, audience targeting enforced as an **authorization boundary** at the uuid as well as in the list, and the FR-NOT-003 announcement trigger. **Decision D5 (2026-09-05): publishing creates an in-app notification and sends no email** — held, and enforced by channel exclusion in the dispatch path ([SDD DD-66](#)) rather than by the opt-out preference gate. Delivered as forecast: one `NotificationTopic` case and one listener, **no new permission and no schema change** | FR-NOT-010/011, FR-NOT-003 *(trigger 12)* | ✅ done | **WP-2.7a** |
+| **WP-2.7e** | **Daily digest** ([SRS FR-NOT-008](#), [SDD DD-63](#)): decision **D1** approved digest as a third delivery **channel**, and it was delivered as one — `notification_preferences.channel` widened to include `digest`, a `DailyDigest` service and `notifications:send-digest` command on a **07:00 Asia/Manila** schedule covering the previous school-local calendar day, and **at-most-once** delivery enforced by a new `notification_digests` table unique on `(user_id, digest_date)`. The one addition beyond the original design: that table, because a digest writes no notification row and cannot reuse `dedupe_key` | FR-NOT-008 | ✅ done | WP-2.7a |
 | **WP-2.8** | **Administration** pt.2: system settings + branding | FR-CFG-* | M | WP-2.1 |
 | **WP-2.9** | **Administration** pt.3: audit + activity log viewers | FR-AUD-* | S | WP-2.1 |
-| **WP-2.10** | **Analytics** domain: dashboards + KPIs + on-demand reports + export | FR-DSH-*, FR-RPT-* | L | WP-2.5, WP-2.4 |
-| **WP-2.11** | P2 hardening: security review, WCAG AA audit, perf/load test, backup ops, prod deploy | SRS §12–§16 | L | WP-2.2..2.10 |
+| **WP-2.10** | **Analytics** domain: dashboards + KPIs + on-demand reports + export | FR-DSH-*, FR-RPT-* | L (role dashboards ✅ done; Phase 2.10: ticket overview ✅, export/email/print ✅, Overall Reports ✅, AI interpretations ✅) | WP-2.5, WP-2.4 |
+| **WP-2.11** | P2 hardening: security review, WCAG AA audit, perf/load test, backup ops, prod deploy. **Partly anticipated by WP-2.7d**, which delivered the axe **regression** automation, the browser harness and the deployment/rollback tooling early. **Still outstanding here:** the full WCAG 2.2 AA **conformance audit** (regression ≠ conformance), **performance and load testing**, **browser visual regression**, the security review, and the first authorized production deployment | SRS §12–§16 | L | WP-2.2..2.10 |
+
+> **Note on work-package numbering.** The WP numbers above are *this document's*
+> and are offset from the phase numbers used in delivery discussions and in the
+> code comments: **WP-2.2 = Phase 2.4** (Locations), **WP-2.3 + WP-2.4 = Phase
+> 2.5** (Assets), and **WP-2.5 = Phase 2.6** (Tickets). Both schemes are correct
+> in their own context; the offset is recorded here so a reader of either does
+> not renumber the other. **WP-2.7 and Phase 2.7 coincide**; the `a`/`b`/`c`/`d`
+> suffixes on it are delivery-order sub-packages, following the WP-2.6b
+> precedent, and are **not** a second numbering scheme. They were delivered out
+> of alphabetical order — **WP-2.7d first**, because the browser and
+> accessibility harness had to exist before the surfaces it verifies.
+>
+> **WP-2.5 carried forward.** Ticket **export** (FR-RPT-004) and the ticket **AI
+> snapshot / AI-assisted triage** (FR-AI-*, P3) are deliberately not part of the
+> delivered work package and remain tracked against their own requirements.
+>
+> **WP-2.6 and WP-2.6b are sequential, not one milestone.** The QR workflow is a
+> technician workflow, not a scan endpoint: it needs a maintenance record to
+> submit proof *against* and a job to request resources *for*. Shipping the scan
+> first would produce exactly the "simple asset lookup" the client has ruled out.
+> Splitting them also keeps the new authorization surface — a Technician reaching
+> a PC unit outside the Administrator-only Asset module ([SRS FR-QR-012](#)) —
+> in its own verifiable gate rather than landing alongside the maintenance CRUD.
+> WP-2.4c is not deleted: it is delivered inside WP-2.6b, and its requirement IDs
+> stay traceable.
+>
+> **The FR-MNT-009 split — approved by the Client (2026-08-28).** One requirement
+> genuinely spans both packages, so it is split along the line each package can
+> verify on its own rather than being listed twice and drifting, or falling
+> between them because each assumed the other had it. **WP-2.6** delivers the
+> Maintenance-side foundation: technician-initiated corrective maintenance where
+> the technician holds `maintenance.create`, an identifiable **active**
+> maintenance record for a unit, and the row-scoped rule deciding who may work
+> it. **WP-2.6b** delivers the scanned entry point, the proof-of-work submission
+> itself and its scan-bound idempotency ([SRS FR-MNT-012](#)). Everything in the
+> WP-2.6 half is testable with no scan in existence; everything in the WP-2.6b
+> half is meaningless without a record to attach to — which is [SDD DD-50](#)
+> restated as a schedule ([SDD DD-57](#)).
+>
+> **WP-2.6 scope decisions recorded (2026-08-28).** Additive, reversible
+> migrations only; **no** `maintenance_status_history` table — `activity_logs`
+> carries the lifecycle timeline ([SDD DD-55](#)); **no** maintenance
+> verification state, because no requirement specifies one; preventive-
+> maintenance **due/overdue detection and in-app surfacing** only, with
+> notification dispatch remaining WP-2.6b's minimum channel work; and duplicate
+> maintenance handled as a non-blocking warning at creation rather than a unique
+> constraint, since a machine may legitimately carry a scheduled preventive
+> visit and an active corrective repair at the same time.
+>
+> **Notification sequencing — decided by the Client (2026-08-28).** WP-2.6b
+> implements the **minimum** notification infrastructure its own workflow needs:
+> the project channel driver and dispatch service written to the **existing**
+> `notifications` schema ([SDD DD-52](#) — Laravel's default database schema is
+> not forced onto the project), plus the six triggers of [FR-WSR-012](#) (request
+> submitted; administrator notified; approval with reschedule; clarification
+> requested; decline with explanation; technician notified). The notification
+> **centre UI, preferences screen and digest** stay in **WP-2.7**. WP-2.7 does not
+> need to move ahead of WP-2.6b.
+>
+> **Superseded by delivery (recorded 2026-09-06).** The paragraph above is the
+> plan of record as approved on 2026-08-28 and is kept for the history. It is
+> **not** how the work was delivered: WP-2.6b shipped its functional scope and
+> carried the whole notification obligation forward rather than building a
+> minimum channel, and **WP-2.7a** then built the infrastructure in one package —
+> driver, dispatcher, audience resolution, preference gate, idempotency and nine
+> of twelve triggers. **WP-2.7b** delivered the notification **centre and the
+> preferences screen**, so neither is pending. **WP-2.7c** then delivered
+> announcements and the twelfth trigger, taking FR-NOT-003 to **ten of twelve**;
+> the two that remain are blocked on **WP-2.4b**. **WP-2.7e** then delivered
+> the FR-NOT-008 daily digest, closing the last outstanding WP-2.7
+> sub-package ([SDD DD-63](#)).
+>
+> **Client approvals recorded (2026-08-28).** The two-package structure, the
+> authenticated QR entry sequence ([SRS OI-08](#)), the dedicated job-scoped
+> support-request entity ([SRS OI-09](#) — `procurement_requests` neither
+> overloaded nor redesigned, exact schema to be approved before implementation),
+> the record-not-a-calendar treatment of face-to-face clarification
+> ([SRS OI-10](#)), and the six-state status vocabulary including `cancelled`
+> ([SRS OI-11](#)) are all approved. WP-2.6b remains gated behind a complete and
+> verified WP-2.6.
 | **WP-3.1** | AI provider + `ai_system_settings` + ticket triage (async) | FR-AI-001..003/010/014/015 | L | P2 GA |
-| **WP-3.2** | RAG: embedding pipeline + knowledge base + retrieval | FR-AI-005/006/007 | L | WP-3.1 |
+| **WP-3.2** | RAG: embedding pipeline + knowledge base + retrieval — **✅ WP-P** delivered the embedding pipeline and retrieval service for the published knowledge articles (Source A; FR-AI-006/007). Still open: knowledge-article authoring/review screens (the rest of FR-AI-005) and any HTTP surface over retrieval, which arrives with WP-3.3 | FR-AI-005/006/007 | L | WP-3.1 |
 | **WP-3.3** | Conversational assistant + feedback + duplicate suggestion | FR-AI-004/008/009 | M | WP-3.2 |
-| **WP-3.4** | Predictive maintenance (opt-in, default off) | FR-AI-011/012/013 | M | WP-3.2 |
+| **WP-3.4** | Predictive maintenance (opt-in, default off) — generation delivered as **WP-L**, the Administrator review surface and notification as **✅ WP-M** (FR-AI-011/012); FR-AI-013 (auto-drafted articles) remains open | FR-AI-011/012/013 | M | WP-3.2 |
 | **WP-3.5** | P3 hardening: AI data-governance verification, security/a11y, GA | SRS §17.5 | M | WP-3.1..3.4 |
-| **WP-4.1** | Reverb + broadcasting infrastructure | FR-FP-007, FR-NOT-007 | M | P2 GA |
-| **WP-4.2** | Floor-plan editor: layouts, drag/snap positions, keyboard alt | FR-FP-001/003/009 | L | WP-4.1, WP-2.2/2.3 |
-| **WP-4.3** | Live status/position + info panels; P4 hardening + GA | FR-FP-002/004/005/007/008 | L | WP-4.2 |
+| **WP-4.1** | Reverb + broadcasting infrastructure — **✅ done** (Phase 2.8 WP-A; presence channel added in Phase 2.11) | FR-FP-007, FR-NOT-007 | M | P2 GA |
+| **WP-4.2** | Floor-plan editor: layouts, drag/snap positions, keyboard alt — **✅ done** as the **Floorplan** editor (Phase 2.8 WP-C..F; completed in conversational Phase 2.11: edit mode with undo/redo, fixtures, whole-layout save under a revision with per-object merge, room overview) | FR-FP-001/003/009 | L | WP-4.1, WP-2.2/2.3 |
+| **WP-4.3** | Live status/position + info panels; P4 hardening + GA — **✅ functional scope done** (Phase 2.8 WP-E/G; Phase 2.11: three-status PC model, details panel, presence, position release). **GA pending**: owner browser acceptance on production. The full browser suite (73 tests across `e2e`, incl. the new `floor-plan-workflows.spec.ts`) and the full `a11y` project (40) pass in a disposable stack built from the branch; the CI job has not been triggered | FR-FP-002/004/005/007/008 | L | WP-4.2 |
 | **WP-5** | Transition to maintenance: handover, monitoring, restore drill | §31 | M | phase GAs |
+
+> **Phase 2.11 follow-up — owner requests of 2026-10-19 (implemented and verified locally; NOT yet deployed or pushed).** Numbering: "Phase 2.11" is conversational (its floor-plan scope is **WP-4.1/4.2/4.3** above); this follow-up adds no work package and changes no package's status. It amends already-delivered packages: **WP-2.1** (full name includes the middle name), **WP-2.2** (building code derived from the name — SRS FR-LOC-001, SDD DD-108), **WP-2.3/WP-2.4** (asset tag internal and hidden, every add-asset field optional, optional catalog model — FR-AST-002, DD-109), **WP-2.5** (only the author edits a comment; Administrators remove — FR-TKT-007, DD-106), **WP-2.6b** (sign-in lands on the dashboard, which offers the scanned PC instead of resuming it — FR-QR-011, DD-105) and **WP-2.7c** (the compose form's Publish — FR-NOT-010, DD-107), plus presentation-only dashboard and layout fixes (SDD §27). No migration. **Deployment to production (:8081) is pending the owner's approval**; until then the behaviour exists only in the working tree, and the phase rule that a change is verified only once confirmed on :8081 still applies.
 
 ---
 
@@ -279,6 +370,10 @@ Calendar is **indicative** ([SA-01](#appendix-b--assumption-register)); sequenci
 | **Maintenance** | Steady-state support & evolution | WP-5 + ongoing | continuous | [M8](#12-milestones) |
 
 **Intra-P2 sequencing:** shell + identity first (WP-2.0/2.1) because every screen needs auth, RBAC, and the design system; then the location foundation (WP-2.2); then value-generating domains (Assets, Tickets, Maintenance) in parallelizable slices; then cross-cutting admin/analytics; then hardening. Each domain slice ships API + UI + tests together (vertical slices), keeping the app demoable every sprint.
+
+**Delivery to date (implementation phases).** The build has been delivered as numbered increments, each ending green and demoable: **2.1** SPA shell + public entry (WP-2.0) · **2.2** authentication & authorization (WP-2.1a) · **2.3** user management (WP-2.1b) · **2.4** Location Management **plus the role-dashboard slice of WP-2.10**, brought forward at the client's request so each role has a purposeful landing surface while the operational domains are built. Reporting and export stay in WP-2.10; per-user dashboard customization (FR-DSH-002/006) is deferred with them. Bringing the dashboards forward carried little risk because they only *read* existing tables — no new schema, and the panels grow richer as each later domain lands. · **2.5** Asset Management (WP-2.3 + WP-2.4) · **2.6** Ticket Management (WP-2.5) · **2.6b** the QR-verified technician job workflow, absorbing WP-2.4c · **2.7** the Administration domain's notification stack, delivered as **WP-2.7d** (quality and deployment foundation), **WP-2.7a** (notification infrastructure), **WP-2.7b** (notification experience), **WP-2.7c** (announcements) and **WP-2.7e** (the FR-NOT-008 daily digest). 
+
+**Environment divergence, stated plainly.** The repository, development and test databases carry **32 migrations**; **production carries 30**. Phase 2.7 has been committed but **not deployed** — neither the WP-2.7a `dedupe_key` migration nor WP-2.7e's digest migration has run against production, and the production image predates every Phase 2.7 commit. The gap is now **two** migrations, and they arrive together: Laravel applies pending migrations in filename order, so the first production deployment of WP-2.7e is necessarily also the first of WP-2.7a, WP-2.7b and WP-2.7c. Nothing in this plan should be read as claiming those packages are live.
 
 ---
 
@@ -343,7 +438,7 @@ Long-lived divergent branches are avoided (trunk-based). Feature flags / setting
 
 ## 16. Code Review Process
 
-- **Every PR reviewed** by at least one engineer other than the author (R-TL is the escalation/authority for architecture-affecting changes).
+- **Every PR reviewed** by at least one engineer other than the author (R-DEV is the escalation/authority for architecture-affecting changes).
 - **Automated first:** CI must be green before human review; reviewers do not spend time on style (Pint/Prettier) or type errors (Larastan/tsc) — the pipeline owns those.
 - **Review checklist:** conforms to SRS requirement(s) and SDD design; coding standards ([SDD §33](#)); security-sensitive paths (authz, input, secrets, file upload) scrutinized; accessibility for UI; tests present and meaningful; API documented; no id leakage (uuid-only); DB constraints respected; docs/ADR updated.
 - **Tooling assist:** the repo’s code-review tooling may be run on a diff for an extra pass; the `security-review` tooling is run on security-sensitive PRs. These **augment**, never replace, human review.
@@ -357,11 +452,11 @@ Documentation is a first-class, versioned deliverable, homed in the Obsidian **v
 
 | Doc type | Location | Owner | Cadence |
 |---|---|---|---|
-| SRS / SDD / SPMP | `vault/01 Project`, `vault/02 Architecture` | R-TL/R-PM | Versioned; change-controlled ([§25](#25-change-management)). |
-| ADRs (decision records) | `vault/08 ADR` | R-TL | Per significant decision. |
-| API contract (OpenAPI) | `backend/` (generated) | R-BE | Kept in sync per PR ([NFR-MTN-006](#)). |
-| Developer/ops docs | `docs/` (DEVELOPMENT, ENVIRONMENT, DOCKER, INSTALLATION) | R-DO | Updated with process/infra changes. |
-| User & admin guides | `vault` + delivered docs (DL-12) | R-UX/R-QA | Per phase GA. |
+| SRS / SDD / SPMP | `vault/01 Project`, `vault/02 Architecture` | R-DEV/R-PM | Versioned; change-controlled ([§25](#25-change-management)). |
+| ADRs (decision records) | `vault/08 ADR` | R-DEV | Per significant decision. |
+| API contract (OpenAPI) | `backend/` (generated) | R-DEV | Kept in sync per PR ([NFR-MTN-006](#)). |
+| Developer/ops docs | `docs/` (DEVELOPMENT, ENVIRONMENT, DOCKER, INSTALLATION) | R-DEV | Updated with process/infra changes. |
+| User & admin guides | `vault` + delivered docs (DL-12) | R-DEV/R-QA | Per phase GA. |
 | Rationale / “why” | Claude-Mem (project knowledge) | team | Continuous. |
 
 **Rule:** a PR that changes behavior updates the relevant doc in the same PR (Definition of Done). Requirements/design docs are **referenced, not copied**, to prevent drift.
@@ -421,6 +516,40 @@ Realizes [SRS §31 acceptance](#) and [NFR-MTN-001/002/005](#); mirrors the SDD 
 - **Feature toggles:** incomplete or opt-in features gated by settings (`ai_system_settings`, `system_settings`) rather than code branches — e.g. AI predictions ship **off** ([CON-07](#)).
 - **Rollback:** redeploy the previous tagged image; restore the database from the pre-deploy backup if a migration must be reverted ([§27](#27-backup-and-recovery-strategy)).
 
+> **Release and rollback tooling — implemented by WP-2.7d, and what its status actually is (recorded 2026-09-06).**
+>
+> The strategy above is now backed by scripts rather than by procedure alone ([SDD DD-64](#)):
+>
+> | Script | What it does |
+> |---|---|
+> | `scripts/deploy-prod.sh` | Builds, tags the **immutable** `sccit/{app,web}:prod-<sha>` images, takes a pre-deploy database snapshot, and writes `releases/<sha>/manifest.json` |
+> | `scripts/releases.sh` | Lists retained releases and the images and snapshot each one names |
+> | `scripts/rollback-prod.sh` | Restores a named release by re-tagging its images; refuses an unknown release with a non-zero exit and the live image verifiably unchanged |
+> | `scripts/backup.sh` / `restore.sh` | Database snapshot and restore, used by the two above and independently |
+>
+> **Rolling back by rebuilding is not a rollback** — it rebuilds whatever the branch
+> says now, which is the state being escaped. Immutable per-commit tags make "the
+> image that was running" a nameable object, and the manifest is what ties it to a
+> database snapshot.
+>
+> **The distinction that must not be blurred:**
+>
+> - **Rollback tooling is implemented and verified to fail safe.** An unknown
+>   release exits 1 at the first stage with `sccit/app:prod` unchanged; no argument
+>   exits 2.
+> - **A real production rollback has never been exercised.** No deployment has been
+>   authorized, so `releases/` is absent and no `prod-<sha>` tag exists. The
+>   end-to-end path is unproven and is a **deployment-time verification item**, not
+>   a delivered guarantee.
+> - The surviving `sccit/{app,web}:rollback-preWP26b` images **predate this
+>   convention** — no `prod-<sha>` naming, no manifest — so the new tooling cannot
+>   use them. Until the first tracked deployment exists they are the only rollback
+>   path there is, and it is the manual WP-2.6b one. Keep them until then.
+>
+> Full production rollback proof requires two tracked deployments and a controlled
+> window in which a retained release is actually restored.
+
+
 ---
 
 ## 22. Risk Management
@@ -430,13 +559,13 @@ Realizes [SRS §31 acceptance](#) and [NFR-MTN-001/002/005](#); mirrors the SDD 
 | ID | Project risk | L | I | Mitigation | Owner |
 |---|---|---|---|---|---|
 | PR-01 | Team capacity/velocity unconfirmed → schedule uncertainty. | H | M | Relative sizing; confirm capacity at approval; re-baseline after 2 sprints of actuals ([SA-01/03](#appendix-b--assumption-register)). | R-PM |
-| PR-02 | Bus factor (small team / single contributor). | M | H | ADRs + Claude-Mem + vault docs; pairing; ≥ 1 reviewer per PR; automated everything. | R-TL |
+| PR-02 | Bus factor (small team / single contributor). | M | H | ADRs + Claude-Mem + vault docs; pairing; ≥ 1 reviewer per PR; automated everything. | R-DEV |
 | PR-03 | Client-gate availability delays phase starts. | M | M | Schedule gate reviews in advance; keep decisions batched; async approval option. | R-PM |
-| PR-04 | AI provider cost/latency/policy change (P3). | M | M | Provider abstraction ([SDD DD-11](#)); token/latency logging; degrade gracefully; cost budget alert. | R-TL |
-| PR-05 | Third-party dependency churn (React 19 / Tailwind 4 / Laravel 13 ecosystem). | M | M | Pinned lockfiles; scheduled update sprints; CI catches breakage. | R-DO |
+| PR-04 | AI provider cost/latency/policy change (P3). | M | M | Provider abstraction ([SDD DD-11](#)); token/latency logging; degrade gracefully; cost budget alert. | R-DEV |
+| PR-05 | Third-party dependency churn (React 19 / Tailwind 4 / Laravel 13 ecosystem). | M | M | Pinned lockfiles; scheduled update sprints; CI catches breakage. | R-DEV |
 | PR-06 | Scope creep from Future/opt-in features into P2. | M | M | Firm phasing; [§25](#25-change-management); Future items stay in [§32](#32-future-roadmap). | R-PM |
-| PR-07 | Open decisions ([SRS `OI-01..07`](#)) unresolved before their phase. | M | M | Track as change items; force resolution at the relevant gate. | R-PM |
-| PR-08 | Environment drift (dev vs prod) causes “works on my machine”. | L | M | Docker parity; identical CI DB; staging mirrors prod. | R-DO |
+| PR-07 | Open decisions ([SRS `OI-01..11`](#)) unresolved before their phase. `OI-08..11` were **resolved on 2026-08-28**, clearing the decision gate for WP-2.6b; `OI-01`, `OI-03..07` remain open against their own phases. | M | M | Track as change items; force resolution at the relevant gate. | R-PM |
+| PR-08 | Environment drift (dev vs prod) causes “works on my machine”. | L | M | Docker parity; identical CI DB; staging mirrors prod. | R-DEV |
 
 **Process:** risk register reviewed **every sprint**; each risk has L (likelihood), I (impact), mitigation, and owner; new risks logged in [Issue Management](#23-issue-management) with a `risk` label; top risks reported at each gate.
 
@@ -463,7 +592,7 @@ Realizes [SRS §31 acceptance](#) and [NFR-MTN-001/002/005](#); mirrors the SDD 
 | Sprint retrospective | per sprint | team | process improvements. |
 | **Phase-gate review** | per phase (M0,M5,M6,M7) | team + **client** | acceptance sign-off / go-no-go. |
 | Risk review | per sprint | team | updated risk register. |
-| Ad-hoc decision record | as needed | R-TL | ADR in `vault/08 ADR`. |
+| Ad-hoc decision record | as needed | R-DEV | ADR in `vault/08 ADR`. |
 
 **Channels:** repository (issues/PRs) is the system of record; synchronous calls for gate reviews; decisions captured as ADRs (structure) + Claude-Mem (rationale). **Reporting:** a one-page status per sprint (progress vs milestones, risks, defects, next gate).
 
@@ -471,12 +600,12 @@ Realizes [SRS §31 acceptance](#) and [NFR-MTN-001/002/005](#); mirrors the SDD 
 
 ## 25. Change Management
 
-- **Baselines under change control:** approved SRS, SDD, SPMP; the database schema; the API contract.
-- **Change request (CR) flow:** raise CR (issue, `change` label) → **impact analysis** against SRS/SDD/schedule/cost → decision (R-TL + R-PM, client for scope/cost) → update the affected baselined document with a version bump → implement.
+- **Baselines under change control:** the SRS, SDD, and SPMP; the database schema; the API contract.
+- **Change request (CR) flow:** raise CR (issue, `change` label) → **impact analysis** against SRS/SDD/schedule/cost → decision (R-DEV + R-PM, client for scope/cost) → update the affected baselined document with a version bump → implement.
 - **Schema changes** additionally require a migration + review and a `migrate:fresh`→`rollback`→`migrate` verification ([CON-02](#), [§20](#20-configuration-management)).
-- **The seven open product decisions ([SRS `OI-01..07`](#))** are pre-registered change items (single vs multi-role, self-registration, MFA, QR expiry, SLA model, auto-escalation, confirm NFR targets). Each must be resolved **before** the phase it affects; resolution updates the SRS to v1.1 and cascades to the SDD/SPMP as needed.
+- **The open product decisions ([SRS `OI-01..11`](#))** are pre-registered change items: single vs multi-role, self-registration (resolved), MFA, QR expiry, SLA model, auto-escalation, confirm NFR targets, and — added with the QR workflow clarification — the QR scan entry surface, where technician support requests live, face-to-face scheduling depth, and the request status vocabulary. Each must be resolved **before** the phase it affects. Resolution is recorded **in place against Version 1.0**, per the client's instruction that the document version label is not to be advanced, and cascades to the SDD/SPMP as needed.
 - **Document versioning:** SemVer-style for docs (`1.0 → 1.1`); revision history table in each document; superseded versions retained.
-- **No silent scope change:** anything outside the approved SRS scope is a CR, not a task.
+- **No silent scope change:** anything outside the SRS scope is a CR, not a task.
 
 ---
 
@@ -524,7 +653,7 @@ Realizes [SRS `NFR-OBS-*`](#) and [`NFR-AVL-001`](#).
 
 Design references: [SDD §29 (Security Architecture)](#) implementing [SRS §12](#).
 
-- **Ownership:** R-SEC owns security posture; security is a **release gate** each phase (DL-09).
+- **Ownership:** R-DEV owns security posture; security is a **release gate** each phase (DL-09).
 - **Secrets:** managed via a secrets manager in production; least-privilege DB role (not the dev superuser); never committed (`docs/ENVIRONMENT.md`).
 - **Dependency & code security:** dependency vulnerability scanning in CI; the repo’s `security-review` tooling run on security-sensitive PRs; static analysis (Larastan) enforced.
 - **Application controls (verified per phase):** uuid-only external ids, deny-by-default RBAC, Sanctum first-party cookies + CSRF, server-side validation, output encoding, file-upload allow-list + checksum, append-only audit, rate limiting ([SRS `NFR-SEC-001..017`](#)).
@@ -537,7 +666,7 @@ Design references: [SDD §29 (Security Architecture)](#) implementing [SRS §12]
 
 ## 30. Acceptance Process
 
-- **Basis:** the approved acceptance criteria in **[SRS §31](#)** — the six **global gates `AC-G1..G6`** plus per-feature criteria (`AC-TKT-*`, `AC-AI-*`, etc.).
+- **Basis:** the acceptance criteria in **[SRS §31](#)** — the six **global gates `AC-G1..G6`** plus per-feature criteria (`AC-TKT-*`, `AC-AI-*`, etc.).
 - **Per work item:** demonstrated against its acceptance criteria at sprint review (Definition of Done).
 - **Per phase (formal):** an acceptance package is prepared for the phase-gate review — passing CI, coverage report, security review report, WCAG 2.2 AA audit report, load-test results, and UAT results against the operational scenarios ([SRS §26](#)).
 - **UAT:** client-side users execute scripted scenarios on staging; defects triaged by severity; S1/S2 must be resolved before sign-off.
@@ -616,21 +745,21 @@ All calendar/resourcing figures are **assumptions** pending confirmation at plan
 
 ## Appendix C — Consistency Review Log
 
-Per the required post-generation review: verify consistency with the approved SRS and SDD, remove contradictions/duplication, and improve clarity.
+Per the required post-generation review: verify consistency with the SRS and SDD, remove contradictions/duplication, and improve clarity.
 
 ### C.1 Sources reconciled
-Approved SRS v1.0 (phasing, `FR/NFR/BO/RSK/CON/ASM/OI` IDs, acceptance §31); approved SDD v1.0 (domains, `DD-01..16`, `RES-01/02`, deployment §5/§37, tech stack); and the **current repository** — `.github/workflows/ci.yml`, `Makefile`, `scripts/*`, `docs/DEVELOPMENT.md`, `docs/ENVIRONMENT.md`, `scripts/backup.sh`, `compose.yaml` — read directly for realism.
+SRS v1.0 (phasing, `FR/NFR/BO/RSK/CON/ASM/OI` IDs, acceptance §31); SDD v1.0 (domains, `DD-01..16`, `RES-01/02`, deployment §5/§37, tech stack); and the **current repository** — `.github/workflows/ci.yml`, `Makefile`, `scripts/*`, `docs/DEVELOPMENT.md`, `docs/ENVIRONMENT.md`, `scripts/backup.sh`, `compose.yaml` — read directly for realism.
 
 ### C.2 SRS/SDD consistency — confirmed
 - **Phasing** (P2/P3/P4/Future) is identical across SRS, SDD, and this plan; the WBS, phase plan, milestones, and roadmap all use it.
 - **Acceptance** references SRS §31 (global gates + feature ACs) rather than inventing new criteria.
 - **Domains** in the WBS match SDD §14, including the two new P2 domains from **RES-01 (Locations)** and **RES-02 (Identity, Administration)** — the plan schedules exactly those.
 - **Risks:** product/technical risks are inherited from SRS §32 (`RSK-*`) and *not duplicated*; only project/management risks (`PR-*`) are added here.
-- **Open decisions** (`OI-01..07`) are carried as change items in §25/§32, consistent with the SRS.
+- **Open decisions** (`OI-01..11`) are carried as change items in §25/§32, consistent with the SRS. `OI-08..11` were added with the QR workflow clarification and **resolved by the Client on 2026-08-28**, recorded in place against Version 1.0.
 - **Security/backup/deployment** reference SDD §29/§5/§37 and SRS NFR targets (RPO ≤ 24 h, RTO ≤ 4 h, uptime ≥ 99.5%) without restating them.
 
 ### C.3 Repository consistency — confirmed
-CI gates, `make`/`scripts` commands, env-file strategy, Redis-for-everything scale-readiness, Sanctum stateful-domain config, and the `backup.sh`/`restore.sh` flow described here match the implemented files exactly (Appendix A). The “current state” table (§2.2) matches the git history (phases 0–7 + DB layer) and the SDD’s statement that the application layer is not yet built.
+CI gates, `make`/`scripts` commands, env-file strategy, Redis-for-everything scale-readiness, Sanctum stateful-domain config, and the `backup.sh`/`restore.sh` flow described here match the implemented files exactly (Appendix A). The baseline underlying this plan matches the git history (phases 0–7 + DB layer) and the SDD’s statement that the application layer is not yet built.
 
 ### C.4 Contradictions & duplication removed
 - **No duplication of requirements/design/schema:** all referenced by ID; product scope defers to SRS §3; deployment/security defer to SDD.
@@ -646,4 +775,4 @@ None blocking. Confirm the Appendix B assumptions (chiefly team capacity **SA-01
 
 ---
 
-*End of Software Project Management Plan v1.0 — approved v1.0 project-specification baseline. Phase 2 development proceeds on separate go-ahead.*
+*End of Software Project Management Plan v1.0 — Version 1.0 baseline — Waiting for Client Approval. Phase 2 development proceeds on separate go-ahead.*

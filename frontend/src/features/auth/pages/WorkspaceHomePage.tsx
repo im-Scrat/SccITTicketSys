@@ -6,17 +6,13 @@ import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { Input } from '@/components/ui/Input'
-import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Surface } from '@/components/ui/Surface'
+import { PreferenceMatrix } from '@/features/notifications/components/PreferenceMatrix'
 import { useAuth } from '../hooks/useAuth'
-import { useChangePassword, useUpdateProfile } from '../hooks/useAuthMutations'
+import { ChangePasswordFields } from '../components/ChangePasswordFields'
+import { useUpdateProfile } from '../hooks/useAuthMutations'
 import { applyServerErrors, getErrorMessage } from '../lib/serverErrors'
-import {
-  type ChangeNameForm,
-  changeNameSchema,
-  type ChangePasswordForm,
-  changePasswordSchema,
-} from '../schemas'
+import { type ChangeNameForm, changeNameSchema } from '../schemas'
 
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
@@ -65,6 +61,15 @@ export default function WorkspaceHomePage() {
         <ChangeNameCard />
         <ChangePasswordCard />
       </div>
+
+      {/*
+        Notification preferences live here rather than on the notification
+        centre (Client decision, Q5): this is where a user already comes to
+        change things about themselves, and the page is ungated for exactly the
+        same reason the centre is — everyone has an account, and everyone has
+        notifications (FR-NOT-002).
+      */}
+      <PreferenceMatrix />
     </div>
   )
 }
@@ -95,7 +100,9 @@ function ChangeNameCard() {
     try {
       await updateProfile.mutateAsync({
         ...formValues,
-        middle_name: formValues.middle_name || undefined,
+        // Sent as null when blank so a middle name can be removed: the server
+        // only changes a field whose key is present.
+        middle_name: formValues.middle_name || null,
       })
       setSuccess(true)
     } catch (error) {
@@ -138,33 +145,6 @@ function ChangeNameCard() {
 
 function ChangePasswordCard() {
   const [success, setSuccess] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
-  const changeMutation = useChangePassword()
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setError,
-    formState: { errors, isSubmitting },
-  } = useForm<ChangePasswordForm>({
-    resolver: zodResolver(changePasswordSchema),
-    defaultValues: { current_password: '', password: '', password_confirmation: '' },
-  })
-
-  const onSubmit = handleSubmit(async (values) => {
-    setFormError(null)
-    setSuccess(false)
-    try {
-      await changeMutation.mutateAsync(values)
-      reset()
-      setSuccess(true)
-    } catch (error) {
-      if (!applyServerErrors(error, setError)) {
-        setFormError(getErrorMessage(error))
-      }
-    }
-  })
 
   return (
     <Surface className="p-5">
@@ -173,31 +153,10 @@ function ChangePasswordCard() {
         Changing your password signs out your other active sessions.
       </p>
 
-      <form onSubmit={onSubmit} noValidate className="mt-4 flex flex-col gap-4">
+      <div className="mt-4 flex flex-col gap-4">
         {success && <Alert tone="success">Your password has been changed.</Alert>}
-        {formError && <Alert tone="error">{formError}</Alert>}
-
-        <Field label="Current password" error={errors.current_password?.message} required>
-          <PasswordInput autoComplete="current-password" {...register('current_password')} />
-        </Field>
-        <Field
-          label="New password"
-          error={errors.password?.message}
-          hint="At least 10 characters, using 3 of: lowercase, uppercase, number, symbol."
-          required
-        >
-          <PasswordInput autoComplete="new-password" {...register('password')} />
-        </Field>
-        <Field label="Confirm new password" error={errors.password_confirmation?.message} required>
-          <PasswordInput autoComplete="new-password" {...register('password_confirmation')} />
-        </Field>
-
-        <div>
-          <Button type="submit" variant="primary" loading={isSubmitting}>
-            Update password
-          </Button>
-        </div>
-      </form>
+        <ChangePasswordFields onChanged={() => setSuccess(true)} />
+      </div>
     </Surface>
   )
 }

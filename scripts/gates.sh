@@ -1,0 +1,159 @@
+#!/usr/bin/env sh
+# =============================================================
+#  SccIT — the quality gate (WP-2.7d).
+#
+#      scripts/gates.sh [--only backend|frontend] [--skip-build]
+#                       [--with-e2e] [--with-a11y] [--stack isolated]
+#
+#  Every gate runs in a disposable environment with its own PostgreSQL and
+#  Redis (scripts/lib/isolated-gate.sh) — the default and, since the
+#  development stack was retired on 2026-10-10, the only mode: `--stack dev`
+#  now stops with that explanation (scripts/lib/stack.sh). It tests the working
+#  tree (tracked + new, never ignored files).
+#
+#  One command for the gate CLAUDE.md §6 describes, so "did you run the gates?"
+#  has a single answer instead of nine remembered commands. Every gate runs
+#  inside its container — never on the host — because the host has neither the
+#  PHP extensions nor the Linux-native node_modules.
+#
+#  ── Why they run in this order ───────────────────────────────────────────
+#  Cheapest and most localising first. A Pint failure is a formatting diff you
+#  fix in a second; a Pest failure needs reading. Running the type-checker
+#  before the test suites means a rename that broke a signature is reported as
+#  a type error rather than as forty unrelated test failures.
+#
+#  ── Why Pest is never parallelised ───────────────────────────────────────
+#  The suites share ONE test database. Two concurrent Pest runs fabricate
+#  failures that look exactly like real regressions and cost an afternoon to
+#  disbelieve. This script runs gates strictly one at a time for that reason.
+#
+#  Every gate is always attempted — an early failure does not abort the run —
+#  so one invocation tells you everything that is broken. Exit status is the
+#  number of failed gates.
+# =============================================================
+set -u
+
+. "$(dirname "$0")/lib/stack.sh"
+
+ONLY=''
+GATE_STACK='isolated'
+SKIP_BUILD=0
+WITH_E2E=0
+WITH_A11Y=0
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --only) ONLY="${2:?--only needs backend|frontend}"; shift 2 ;;
+        --skip-build) SKIP_BUILD=1; shift ;;
+        --with-e2e) WITH_E2E=1; shift ;;
+        --with-a11y) WITH_A11Y=1; shift ;;
+        --stack)
+            GATE_STACK="${2:?--stack needs isolated}"
+            case "$GATE_STACK" in
+                dev|isolated) ;;
+                *) die "the gates run on the dev stack or in an isolated environment:
+       the production image installs with --no-dev, so Pint, PHPStan, Pest and
+       the entire frontend toolchain are absent from it by design." ;;
+            esac
+            shift 2 ;;
+        -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
+        *) die "unknown argument: $1" ;;
+    esac
+done
+
+if [ "$GATE_STACK" = 'isolated' ]; then
+    # The browser suites drive a running stack; the isolated mode has none.
+    [ "$WITH_E2E" -eq 0 ] && [ "$WITH_A11Y" -eq 0 ] \
+        || die "--with-e2e/--with-a11y need a running stack; run them against the target separately."
+    . "$(dirname "$0")/lib/isolated-gate.sh"
+    trap iso_cleanup EXIT INT TERM
+    iso_prepare || die "could not prepare the isolated gate environment."
+else
+    # --stack dev: retired on 2026-10-10 — stack_select stops with the reason.
+    stack_select dev
+    require_stack_running || exit 1
+fi
+
+PASSED=0
+FAILED=0
+RESULTS=''
+
+run_gate() { # run_gate <label> <command...>
+    label="$1"; shift
+    printf '\n-- %s\n' "$label"
+    if "$@"; then
+        PASSED=$((PASSED + 1))
+        RESULTS="$RESULTS
+  PASS  $label"
+    else
+        FAILED=$((FAILED + 1))
+        RESULTS="$RESULTS
+  FAIL  $label"
+    fi
+}
+
+if [ "$GATE_STACK" = 'isolated' ]; then
+    be() { iso_be "$@"; }
+    fe() { iso_fe "$1"; }
+else
+    be() { dc exec -T app "$@"; }
+    fe() { dc exec -T node sh -lc "cd /app && $1"; }
+fi
+
+say "=============================================================="
+say " SccIT quality gate"
+say "=============================================================="
+
+if [ "$ONLY" != 'frontend' ]; then
+    run_gate 'backend: Pint (format)'      be ./vendor/bin/pint --test
+    run_gate 'backend: PHPStan (level 6)'  be ./vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+    run_gate 'backend: Pest'               be ./vendor/bin/pest
+
+    # `migrate:status` exits 0 even when migrations are pending, so the gate has
+    # to read its output. A deployment whose schema is behind its code is the
+    # exact failure this catches, and no other gate would notice it.
+    #
+    # Skipped in isolated mode: that database is created fresh by the test run,
+    # so it can never have pending migrations and the check could only pass.
+    # Production's own migration state is checked by deploy-prod.sh instead.
+    if [ "$GATE_STACK" != 'isolated' ]; then
+        printf '\n-- backend: migration status\n'
+        if be php artisan migrate:status | tee /dev/stderr | grep -q 'Pending'; then
+            FAILED=$((FAILED + 1)); RESULTS="$RESULTS
+  FAIL  backend: migration status (pending migrations)"
+        else
+            PASSED=$((PASSED + 1)); RESULTS="$RESULTS
+  PASS  backend: migration status"
+        fi
+    fi
+fi
+
+if [ "$ONLY" != 'backend' ]; then
+    run_gate 'frontend: TypeScript'  fe 'npx tsc -b'
+    run_gate 'frontend: ESLint'      fe 'npm run lint'
+    run_gate 'frontend: Prettier'    fe 'npm run format:check'
+    run_gate 'frontend: Vitest'      fe 'npm run test'
+    # The CSP scan reads the built chunks, so it shares the build's container:
+    # every fe() call is a fresh one, and dist/ does not outlive it. It is the
+    # only gate that sees what production's style-src/script-src will refuse
+    # (frontend/scripts/scan-csp.mjs explains why nothing else can).
+    [ "$SKIP_BUILD" -eq 1 ] || run_gate 'frontend: production build + CSP scan' \
+        fe 'npm run build && node scripts/scan-csp.mjs'
+fi
+
+if [ "$WITH_E2E" -eq 1 ]; then
+    run_gate 'browser: E2E (Playwright)' sh "$REPO_ROOT/scripts/e2e.sh" --project e2e
+fi
+
+if [ "$WITH_A11Y" -eq 1 ]; then
+    run_gate 'browser: accessibility (axe)' sh "$REPO_ROOT/scripts/e2e.sh" --project a11y
+fi
+
+say ""
+say "=============================================================="
+say " Gate summary"
+printf '%s\n' "$RESULTS"
+say ""
+say " $PASSED passed, $FAILED failed"
+say "=============================================================="
+exit "$FAILED"

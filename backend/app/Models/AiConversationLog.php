@@ -9,7 +9,23 @@ use Database\Factories\AiConversationLogFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property string $conversation_id
+ * @property int|null $ticket_id
+ * @property int|null $user_id
+ * @property int|null $ai_model_id
+ * @property AiSender $sender
+ * @property string $message
+ * @property int|null $prompt_tokens
+ * @property int|null $completion_tokens
+ * @property int|null $latency_ms
+ * @property array<string, mixed>|null $metadata
+ * @property Carbon|null $created_at
+ */
 class AiConversationLog extends Model
 {
     /** @use HasFactory<AiConversationLogFactory> */

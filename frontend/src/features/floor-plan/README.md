@@ -1,24 +1,23 @@
-# floor-plan feature — FUTURE (do NOT implement yet)
+# floor-plan — the Floorplan (Phase 2.8, completed Phase 2.11)
 
-Frontend seam for the Interactive Floor Plan module. Reserved so the rendering
-layer can be added later without restructuring. **Nothing is implemented now.**
+Administrator-only. Routes: `/app/floor-plan` (overview) and
+`/app/floor-plan/rooms/:id` (editor), both behind `RequireFloorPlan`
+(Administrator role + `floorplan.view`); the server decides every request.
 
-## Planned rendering capabilities
+| Piece                                                                                | Where                                                                                |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Overview: room cards, totals, filters, "New room" (Locations' own form)              | `pages/FloorPlanPage.tsx`, `components/RoomCard.tsx`, `components/RoomThumbnail.tsx` |
+| Editor workspace: header, status chips, save state, live + presence, panels, dialogs | `pages/FloorPlanRoomPage.tsx`                                                        |
+| SVG canvas: pan/zoom/pinch, drag and group drag, resize/turn handles, drop targets   | `components/FloorPlanCanvas.tsx`, `PcNode.tsx`, `FixtureShape.tsx`                   |
+| Workstations panel (this room / other rooms with a confirmed move)                   | `components/WorkstationsPanel.tsx`                                                   |
+| Details panel (asset record, tickets, repairs; fixture properties)                   | `components/DetailsPanel.tsx`                                                        |
+| Toolbar, dialogs, status badges                                                      | `EditorToolbar.tsx`, `EditorDialogs.tsx`, `EditorStatus.tsx`, `SetupLayout.tsx`      |
+| Draft model, diff, three-way merge                                                   | `lib/layoutDocument.ts`                                                              |
+| Geometry (mirrors the server's `LayoutGeometry`)                                     | `lib/geometry.ts`                                                                    |
+| Per-room editor store (draft, undo/redo, selection, view)                            | `stores/createEditorStore.ts`, `EditorStoreContext.tsx`, `useEditor.ts`              |
+| Unsaved-draft storage (sessionStorage) and leave guard                               | `lib/draftStorage.ts`, `hooks/useUnsavedChangesGuard.ts`                             |
+| Realtime notices and presence                                                        | `hooks/useFloorPlanChannel.ts`, `@/hooks/usePresenceChannel.ts`                      |
 
-- Interactive canvas (lab/building/floor layouts)
-- Drag-and-drop + snap-to-grid PC positioning
-- Zoom & pan
-- Minimap
-- Right-click context menus
-- Information side panels
-- Asset-layer rendering
-- Grid system
-- Status-colored PC icons (Online / Offline / Under Maintenance / Assigned / Available)
-
-## Notes for the future implementation
-
-- Consume the backend `App\Domains\FloorPlan` API via `src/services/api.ts`.
-- Real-time position updates will arrive over **Laravel Reverb** (WebSockets);
-  wire a client (e.g. Laravel Echo) when the module is built.
-- Heavy canvas state should live in a feature-local Zustand store under
-  `features/floor-plan/stores`.
+PC status colours come from the shared table `@/lib/pcStatus` via
+`PcStatusBadge` — never mapped locally. Nothing here claims a PC is online or
+offline.

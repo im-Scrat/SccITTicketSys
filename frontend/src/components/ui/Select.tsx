@@ -12,7 +12,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
       <select
         ref={ref}
         className={cn(
-          'h-[34px] w-full rounded-sm border border-control-border bg-surface px-2 text-sm text-ink',
+          'h-15 w-full rounded-md border-2 border-control-border bg-surface px-4 text-sm font-medium text-ink',
           'transition-colors duration-150 [transition-timing-function:var(--ease-standard)]',
           'focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-faint',
           'aria-[invalid=true]:border-danger',

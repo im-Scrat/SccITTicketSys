@@ -11,7 +11,28 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property int $ticket_id
+ * @property int|null $ai_model_id
+ * @property Carbon|null $analyzed_at
+ * @property string|null $confidence_score
+ * @property string|null $problem_category
+ * @property AiSeverity|null $severity
+ * @property int|null $estimated_resolution_minutes
+ * @property bool|null $technician_required
+ * @property string|null $summary
+ * @property array<string, mixed>|null $raw_response
+ * @property int|null $prompt_tokens
+ * @property int|null $completion_tokens
+ * @property int|null $latency_ms
+ * @property string|null $analysis_key
+ * @property int|null $recommended_priority_id
+ * @property Carbon|null $created_at
+ */
 class AiAnalysisLog extends Model
 {
     /** @use HasFactory<AiAnalysisLogFactory> */
@@ -44,6 +65,17 @@ class AiAnalysisLog extends Model
     public function aiModel(): BelongsTo
     {
         return $this->belongsTo(AiModel::class, 'ai_model_id');
+    }
+
+    /**
+     * Phase 2.9 — the priority the AI recommended, kept whether or not it was
+     * applied (PriorityRecommendationPolicy decides that, not the model).
+     *
+     * @return BelongsTo<TicketPriority, $this>
+     */
+    public function recommendedPriority(): BelongsTo
+    {
+        return $this->belongsTo(TicketPriority::class, 'recommended_priority_id');
     }
 
     /** @return HasMany<AiRecommendation, $this> */

@@ -1,0 +1,25 @@
+{
+  "schema": "sccit.release/1",
+  "release": "2054f6d",
+  "deployed_at": "2026-10-19T15:32:38Z",
+  "git": {
+    "commit": "2054f6dce4ec043be913c750ce7ef82892ce1409",
+    "branch": "phase-2.11/floorplan-status",
+    "dirty": false
+  },
+  "images": {
+    "app_tag": "sccit/app:prod-2054f6d",
+    "web_tag": "sccit/web:prod-2054f6d",
+    "app_id": "sha256:3c06e1dfde7a6774f0774b66a18175f5de604149d91594f8b573c3608acc388b",
+    "web_id": "sha256:3421c1e33df97c2184aac671900fc058e2edea7f83f024410dded66f70ec6d78"
+  },
+  "database": {
+    "migration_count": "55"
+  },
+  "verification": {
+    "gates": "passed",
+    "smoke": "passed"
+  },
+  "previous_release": "bf2597c",
+  "pre_deploy_snapshot": "backups/prod/20261019T153143Z-predeploy-2054f6d"
+}

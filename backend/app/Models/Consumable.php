@@ -10,7 +10,27 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int|null $hardware_model_id
+ * @property int|null $supplier_id
+ * @property int|null $current_room_id
+ * @property string $name
+ * @property string $item_code
+ * @property string $unit_of_measure
+ * @property int $quantity_on_hand
+ * @property int $reorder_level
+ * @property string|null $unit_cost
+ * @property string|null $notes
+ * @property bool $is_active
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
+ */
 class Consumable extends Model
 {
     /** @use HasFactory<ConsumableFactory> */
