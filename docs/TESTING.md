@@ -165,14 +165,17 @@ Both stacks share a single database, so parallel workers would mutate each
 other's fixtures. Retries are off because a suite that passes on the second
 attempt is telling you something. Set `E2E_RETRIES` when triaging.
 
-### `test.fail()` marks a known product defect
+### The QR resume is asserted, not annotated
 
-One QR test is annotated `test.fail()`: signing in from a scanned label
-navigates to the panel and is then bounced to the dashboard by `GuestRoute`,
-breaking FR-QR-011's resume (and the ordinary return-to-intended-page
-behaviour). The fix is outside WP-2.7d's scope, so the harness **records** it
-instead of hiding it. The suite turns red the moment somebody fixes it, at which
-point the annotation should be deleted.
+During WP-2.7d one QR test was a recorded `test.fail()`: signing in from a
+scanned label reached the panel and was then bounced to the dashboard, because
+`SignInPage` and `GuestRoute` both navigated and the guard ran last. The guard
+now decides alone (`postAuthDestination`), the annotation is gone, and
+`qr-workflow.spec.ts` asserts the requirement and its edges: the resume for a
+technician and an administrator, through a forced password change, refusals
+after sign-in (no assigned work, revoked label, archived machine) that name
+nothing, tampered pending-scan values and a `?redirect=` parameter that cannot
+move anyone off the origin, and the return to a protected page with its query.
 
 ---
 
