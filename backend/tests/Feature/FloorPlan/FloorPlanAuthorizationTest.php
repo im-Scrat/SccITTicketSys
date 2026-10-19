@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Domains\FloorPlan\Policies\FloorPlanPositionPolicy;
 use App\Domains\FloorPlan\Policies\RoomLayoutPolicy;
 use App\Domains\Identity\Services\PermissionResolver;
 use App\Domains\Locations\Policies\RoomPolicy;
@@ -46,70 +45,55 @@ function grantPermission(User $user, string $permission, PermissionGrantType $ty
     app(PermissionResolver::class)->forget($user);
 }
 
-/** @return array{layout: RoomLayout, position: FloorPlanPosition} */
+/** @return array{layout: RoomLayout} */
 function floorPlanSubjects(): array
 {
     $room = Room::factory()->create();
     $layout = RoomLayout::factory()->create(['room_id' => $room->id]);
-    $pc = PcUnit::factory()->create(['room_id' => $room->id]);
-    $position = FloorPlanPosition::factory()->create(['room_layout_id' => $layout->id, 'pc_unit_id' => $pc->id]);
+    PcUnit::factory()->create(['room_id' => $room->id]);
 
-    return ['layout' => $layout, 'position' => $position];
+    return ['layout' => $layout];
 }
 
 // ── The four principals ─────────────────────────────────────────────────────
 
 it('allows an Administrator every floor-plan ability', function (): void {
-    ['layout' => $layout, 'position' => $position] = floorPlanSubjects();
+    ['layout' => $layout] = floorPlanSubjects();
     $gate = Gate::forUser(userWithRole('administrator'));
 
     expect($gate->allows('viewAny', RoomLayout::class))->toBeTrue()
         ->and($gate->allows('view', $layout))->toBeTrue()
         ->and($gate->allows('manage', RoomLayout::class))->toBeTrue()
-        ->and($gate->allows('manage', $layout))->toBeTrue()
-        ->and($gate->allows('viewAny', FloorPlanPosition::class))->toBeTrue()
-        ->and($gate->allows('view', $position))->toBeTrue()
-        ->and($gate->allows('manage', FloorPlanPosition::class))->toBeTrue()
-        ->and($gate->allows('manage', $position))->toBeTrue();
+        ->and($gate->allows('manage', $layout))->toBeTrue();
 });
 
 it('denies a Technician every floor-plan ability', function (): void {
-    ['layout' => $layout, 'position' => $position] = floorPlanSubjects();
+    ['layout' => $layout] = floorPlanSubjects();
     $gate = Gate::forUser(userWithRole('technician'));
 
     expect($gate->denies('viewAny', RoomLayout::class))->toBeTrue()
         ->and($gate->denies('view', $layout))->toBeTrue()
         ->and($gate->denies('manage', RoomLayout::class))->toBeTrue()
-        ->and($gate->denies('manage', $layout))->toBeTrue()
-        ->and($gate->denies('viewAny', FloorPlanPosition::class))->toBeTrue()
-        ->and($gate->denies('view', $position))->toBeTrue()
-        ->and($gate->denies('manage', FloorPlanPosition::class))->toBeTrue()
-        ->and($gate->denies('manage', $position))->toBeTrue();
+        ->and($gate->denies('manage', $layout))->toBeTrue();
 });
 
 it('denies a Teacher every floor-plan ability', function (): void {
-    ['layout' => $layout, 'position' => $position] = floorPlanSubjects();
+    ['layout' => $layout] = floorPlanSubjects();
     $gate = Gate::forUser(userWithRole('teacher'));
 
     expect($gate->denies('viewAny', RoomLayout::class))->toBeTrue()
         ->and($gate->denies('view', $layout))->toBeTrue()
         ->and($gate->denies('manage', RoomLayout::class))->toBeTrue()
-        ->and($gate->denies('manage', $layout))->toBeTrue()
-        ->and($gate->denies('viewAny', FloorPlanPosition::class))->toBeTrue()
-        ->and($gate->denies('view', $position))->toBeTrue()
-        ->and($gate->denies('manage', FloorPlanPosition::class))->toBeTrue()
-        ->and($gate->denies('manage', $position))->toBeTrue();
+        ->and($gate->denies('manage', $layout))->toBeTrue();
 });
 
 it('denies an unauthenticated caller every floor-plan ability', function (): void {
-    ['layout' => $layout, 'position' => $position] = floorPlanSubjects();
+    ['layout' => $layout] = floorPlanSubjects();
 
     expect(Auth::check())->toBeFalse()
         ->and(Gate::allows('viewAny', RoomLayout::class))->toBeFalse()
         ->and(Gate::allows('view', $layout))->toBeFalse()
-        ->and(Gate::allows('manage', $layout))->toBeFalse()
-        ->and(Gate::allows('view', $position))->toBeFalse()
-        ->and(Gate::allows('manage', $position))->toBeFalse();
+        ->and(Gate::allows('manage', $layout))->toBeFalse();
 });
 
 it('throws an AuthorizationException, not a silent empty result, on a denied authorize()', function (): void {
@@ -184,11 +168,10 @@ it('keeps the existing lookup abilities working without floorplan.view', functio
 
 // ── Policy registration and resolution ──────────────────────────────────────
 
-it('registers exactly the two floor-plan policies against their models', function (): void {
+it('registers the one floor-plan policy — positions are saved as part of the layout (Phase 2.11)', function (): void {
     expect(Gate::getPolicyFor(RoomLayout::class))->toBeInstanceOf(RoomLayoutPolicy::class)
-        ->and(Gate::getPolicyFor(FloorPlanPosition::class))->toBeInstanceOf(FloorPlanPositionPolicy::class)
         ->and(Gate::policies())->toHaveKey(RoomLayout::class, RoomLayoutPolicy::class)
-        ->and(Gate::policies())->toHaveKey(FloorPlanPosition::class, FloorPlanPositionPolicy::class);
+        ->and(Gate::getPolicyFor(FloorPlanPosition::class))->toBeNull();
 });
 
 it('does not disturb the policies registered before it', function (): void {
@@ -196,7 +179,7 @@ it('does not disturb the policies registered before it', function (): void {
 });
 
 it('exposes exactly the viewAny, view and manage abilities', function (): void {
-    foreach ([RoomLayoutPolicy::class, FloorPlanPositionPolicy::class] as $policy) {
+    foreach ([RoomLayoutPolicy::class] as $policy) {
         $abilities = collect((new ReflectionClass($policy))->getMethods(ReflectionMethod::IS_PUBLIC))
             ->reject(fn (ReflectionMethod $m): bool => $m->isConstructor())
             ->map(fn (ReflectionMethod $m): string => $m->getName())
@@ -235,15 +218,13 @@ it('shows why a bare permission-string gate is not a safe boundary', function ()
         ->and(Gate::forUser($technician)->allows('floorplan.view'))->toBeTrue();
 
     // … and the policy abilities do not.
-    ['layout' => $layout, 'position' => $position] = floorPlanSubjects();
+    ['layout' => $layout] = floorPlanSubjects();
     $gate = Gate::forUser($technician);
 
     expect($gate->denies('viewAny', RoomLayout::class))->toBeTrue()
         ->and($gate->denies('view', $layout))->toBeTrue()
         ->and($gate->denies('manage', $layout))->toBeTrue()
-        ->and($gate->denies('manage', RoomLayout::class))->toBeTrue()
-        ->and($gate->denies('view', $position))->toBeTrue()
-        ->and($gate->denies('manage', $position))->toBeTrue();
+        ->and($gate->denies('manage', RoomLayout::class))->toBeTrue();
 });
 
 it('is not reopened for a Teacher by a per-user grant either', function (): void {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\FloorPlan\Actions;
 
+use App\Domains\FloorPlan\Events\RoomPlanChanged;
 use App\Domains\FloorPlan\Services\RoomLayoutService;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Enums\ActivityAction;
@@ -80,6 +81,10 @@ final class ActivateRoomLayout
             module: 'floor-plan',
             description: "Layout v{$activated->version} activated for {$room->name}",
         );
+
+        // Phase 2.11 — every open editor of this room learns its plan was
+        // swapped for another version (after commit; DD-101).
+        RoomPlanChanged::dispatch($room->uuid, $activated->version, $activated->revision, 'layout_activated', $actor->fullName());
 
         return $activated;
     }

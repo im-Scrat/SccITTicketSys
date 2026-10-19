@@ -7,7 +7,6 @@ use App\Domains\Analytics\Reporting\ReportArea;
 use App\Domains\Assets\Policies\AssetImportPolicy;
 use App\Domains\Assets\Policies\AssetPolicy;
 use App\Domains\Assets\Policies\PcUnitPolicy;
-use App\Domains\FloorPlan\Policies\FloorPlanPositionPolicy;
 use App\Domains\FloorPlan\Policies\RoomLayoutPolicy;
 use App\Domains\Identity\Policies\UserPolicy;
 use App\Domains\Identity\Services\PermissionResolver;
@@ -29,7 +28,6 @@ use App\Models\Asset;
 use App\Models\AssetImport;
 use App\Models\Building;
 use App\Models\Floor;
-use App\Models\FloorPlanPosition;
 use App\Models\MaintenanceRecord;
 use App\Models\PcUnit;
 use App\Models\Room;
@@ -146,7 +144,6 @@ class AppServiceProvider extends ServiceProvider
         // permission name, so `Gate::before` returns null and the policy
         // decides, requiring the Administrator role as well as the permission.
         Gate::policy(RoomLayout::class, RoomLayoutPolicy::class);
-        Gate::policy(FloorPlanPosition::class, FloorPlanPositionPolicy::class);
 
         // Predictive-maintenance findings (WP-M): Administrator-only, closed by the
         // policy and never by a bare `predictions.*` permission string — see

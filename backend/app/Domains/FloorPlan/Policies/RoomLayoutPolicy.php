@@ -12,8 +12,11 @@ use App\Models\User;
  * Authorization for room layouts (SRS FR-FP-001/006/008).
  *
  * Administrator-only — see {@see FloorPlanAccess} for why the role is checked
- * as well as the permission. Every ability delegates there, so this policy and
- * {@see FloorPlanPositionPolicy} can never disagree.
+ * as well as the permission. Every ability delegates there, so this policy,
+ * the realtime channels and the read model can never disagree. Since Phase
+ * 2.11 it is the floor plan's only policy: positions are saved as part of the
+ * layout (`SaveRoomLayout`), so the per-position policy went with the
+ * per-position write.
  *
  * The layout instance is accepted but not consulted: the floor plan has no
  * row-level scoping to express (every Administrator may open every room's

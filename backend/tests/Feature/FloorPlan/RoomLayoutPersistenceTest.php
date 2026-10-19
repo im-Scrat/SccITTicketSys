@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domains\FloorPlan\Events\RoomPlanChanged;
 use App\Domains\Identity\Services\PermissionResolver;
 use App\Enums\ActivityAction;
 use App\Enums\PermissionGrantType;
@@ -13,6 +14,7 @@ use App\Models\Room;
 use App\Models\RoomLayout;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 
 /**
@@ -223,11 +225,41 @@ it('leaves position history on the deactivated layout untouched — it becomes r
 
     expect(FloorPlanPosition::query()->where('room_layout_id', $v1->id)->count())->toBe(1);
 
-    // The now-historical version is refused for a write (WP-B/D behaviour, unchanged).
+    // The now-historical version is refused for a save (WP-B/D behaviour,
+    // carried to the Phase 2.11 whole-layout save).
     $this->actingAs($this->admin)
-        ->patchJson("/api/admin/floor-plan/rooms/{$this->room->uuid}/layouts/1/positions/{$pc->uuid}", ['x' => 10, 'y' => 10])
+        ->putJson("/api/admin/floor-plan/rooms/{$this->room->uuid}/layouts/1", [
+            'expected_revision' => 1,
+            'settings' => ['width' => 1000, 'height' => 600, 'grid_size' => 20],
+            'workstations' => [['pc_unit' => $pc->uuid, 'x' => 100, 'y' => 100, 'rotation' => 0]],
+            'fixtures' => [],
+        ])
         ->assertStatus(409)
         ->assertJsonPath('code', 'layout_not_active');
+});
+
+it('creates and activates a room\'s first layout in one step when asked (Phase 2.11)', function (): void {
+    Event::fake([RoomPlanChanged::class]);
+
+    $this->actingAs($this->admin)
+        ->postJson(($this->createUrl)(), ['width' => 1000, 'height' => 600, 'activate' => true])
+        ->assertCreated()
+        ->assertJsonPath('data.is_active', true);
+
+    expect(RoomLayout::query()->where('room_id', $this->room->id)->where('is_active', true)->value('version'))->toBe(1)
+        ->and(ActivityLog::query()->where('action', ActivityAction::LayoutActivated->value)->count())->toBe(1);
+
+    Event::assertDispatched(RoomPlanChanged::class, fn (RoomPlanChanged $e) => $e->roomUuid === $this->room->uuid && $e->cause === 'layout_activated');
+});
+
+it('tells the room\'s editors when another version is activated', function (): void {
+    RoomLayout::factory()->create(['room_id' => $this->room->id, 'version' => 1, 'is_active' => true]);
+    RoomLayout::factory()->create(['room_id' => $this->room->id, 'version' => 2, 'is_active' => false]);
+    Event::fake([RoomPlanChanged::class]);
+
+    $this->actingAs($this->admin)->postJson(($this->activateUrl)(2))->assertOk();
+
+    Event::assertDispatched(RoomPlanChanged::class, fn (RoomPlanChanged $e) => $e->layoutVersion === 2 && $e->cause === 'layout_activated');
 });
 
 it('records LayoutActivated', function (): void {

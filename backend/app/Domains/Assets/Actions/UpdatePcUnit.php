@@ -6,6 +6,7 @@ namespace App\Domains\Assets\Actions;
 
 use App\Domains\Assets\Actions\Concerns\ResolvesAssetReferences;
 use App\Domains\FloorPlan\Events\PcStatusChanged;
+use App\Domains\FloorPlan\Services\ReleasePcUnitPositions;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Enums\ActivityAction;
 use App\Enums\PcCondition;
@@ -47,7 +48,10 @@ class UpdatePcUnit
         'notes',
     ];
 
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly ReleasePcUnitPositions $floorplans,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data
@@ -108,8 +112,18 @@ class UpdatePcUnit
             return $pcUnit;
         }
 
-        DB::transaction(function () use ($pcUnit, $attributes, $actor): void {
+        $fromRoomId = $pcUnit->room_id;
+        $roomChanged = array_key_exists('room_id', $attributes);
+
+        DB::transaction(function () use ($pcUnit, $attributes, $actor, $request, $fromRoomId, $roomChanged): void {
             $pcUnit->fill([...$attributes, 'updated_by' => $actor->getKey()])->save();
+
+            // Phase 2.11 (DD-104): a machine that leaves a room gives up its
+            // place on that room's Floorplan — in this transaction, after the
+            // machine row is written (the lock order SaveRoomLayout relies on).
+            if ($roomChanged) {
+                $this->floorplans->release($pcUnit, $fromRoomId, 'room_change', $actor, $request);
+            }
         });
 
         $this->audit->activity(
@@ -123,6 +137,11 @@ class UpdatePcUnit
         );
 
         $updated = $pcUnit->refresh()->load(['room.floor.building', 'specification']);
+
+        if (array_key_exists('room', $changes)) {
+            // The destination room's editors see it arrive in their unplaced list.
+            $this->floorplans->announceArrival($updated->room, $actor);
+        }
 
         /*
          * WP-E — the floor-plan notification seam (FR-FP-007). Outside the

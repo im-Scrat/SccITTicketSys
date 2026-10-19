@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace App\Domains\FloorPlan\Services;
 
 use App\Domains\FloorPlan\DTOs\RoomPlan;
+use App\Models\FloorPlanFixture;
 use App\Models\FloorPlanPosition;
+use App\Models\RoomLayout;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * Read-model assembly for the floor-plan map (SDD §25). Read-only: nothing here
- * creates, moves or activates anything — placement is `PlacePcUnit`.
+ * Read-model assembly for the Floorplan (SDD §25). Read-only: nothing here
+ * creates, moves or activates anything — saving is `SaveRoomLayout`.
  *
  * Authorization, room resolution and the active-layout lookup are all
  * {@see RoomLayoutService}'s — this class adds no second copy of that logic. It
@@ -39,12 +41,22 @@ class FloorPlanService
     public function roomPlan(User $actor, string $roomUuid): RoomPlan
     {
         $room = $this->layouts->room($actor, $roomUuid)->load('floor.building');
-        $layout = $this->layouts->activeLayout($actor, $room);
+        $layout = $this->layouts->activeLayout($actor, $room)?->load('updatedBy:id,first_name,last_name');
 
         $liveUnits = $room->pcUnits()->count();
 
         if ($layout === null) {
-            return new RoomPlan($room, null, collect(), $liveUnits);
+            // No plan yet, but the editor still needs to know whether this
+            // administrator may create one — and which machines it would hold.
+            return new RoomPlan(
+                $room,
+                null,
+                collect(),
+                $liveUnits,
+                $room->pcUnits()->orderBy('pc_name')->orderBy('id')->get(),
+                Gate::forUser($actor)->allows('manage', RoomLayout::class),
+                $this->defaults->snapToGrid(),
+            );
         }
 
         // A position row is only trusted while its PC still lives in this room.
@@ -83,12 +95,13 @@ class FloorPlanService
             $positions,
             $unplaced->count(),
             $unplaced,
-            // The same policy ability the write route and `PlacePcUnit` check,
-            // so the editor is offered exactly when a write would be accepted.
-            // `activeLayout()` only ever returns an active layout, which is the
-            // other half of "editable".
-            Gate::forUser($actor)->allows('manage', FloorPlanPosition::class),
+            // The same policy ability the save route and `SaveRoomLayout`
+            // check, so the editor is offered exactly when a save would be
+            // accepted. `activeLayout()` only ever returns an active layout,
+            // which is the other half of "editable".
+            Gate::forUser($actor)->allows('manage', RoomLayout::class),
             $this->defaults->snapToGrid(),
+            FloorPlanFixture::query()->where('room_layout_id', $layout->getKey())->orderBy('id')->get(),
         );
     }
 }

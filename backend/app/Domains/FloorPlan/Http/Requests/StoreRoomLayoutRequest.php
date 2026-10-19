@@ -33,6 +33,9 @@ class StoreRoomLayoutRequest extends FormRequest
             'height' => ['required', 'integer', 'min:1', 'max:100000'],
             'grid_size' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:1000'],
             'background_image' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            // Phase 2.11 — a room's first Floorplan is created and switched on
+            // in one transaction, so setup is one step with nothing half-done.
+            'activate' => ['sometimes', 'boolean'],
         ];
     }
 }

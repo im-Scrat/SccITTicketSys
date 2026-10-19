@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Locations\Actions;
 
+use App\Domains\FloorPlan\Services\ReleasePcUnitPositions;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Enums\ActivityAction;
 use App\Models\Asset;
@@ -27,14 +28,21 @@ use Illuminate\Support\Facades\DB;
  */
 class ReassignRoomOccupants
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly ReleasePcUnitPositions $floorplans,
+    ) {}
 
     /**
      * @return array{pc_units: int, assets: int, consumables: int}
      */
     public function handle(Room $from, Room $to, User $actor, Request $request): array
     {
-        $moved = DB::transaction(function () use ($from, $to, $actor): array {
+        $moved = DB::transaction(function () use ($from, $to, $actor, $request): array {
+            // Captured before the move: these machines give up their places on
+            // the source room's Floorplan (Phase 2.11, DD-104).
+            $leaving = PcUnit::query()->where('room_id', $from->getKey())->pluck('id')->all();
+
             $pcUnits = PcUnit::query()
                 ->where('room_id', $from->getKey())
                 ->update(['room_id' => $to->getKey(), 'updated_by' => $actor->getKey()]);
@@ -46,6 +54,9 @@ class ReassignRoomOccupants
             $consumables = Consumable::query()
                 ->where('current_room_id', $from->getKey())
                 ->update(['current_room_id' => $to->getKey(), 'updated_by' => $actor->getKey()]);
+
+            $this->floorplans->releaseMany($leaving, (int) $from->getKey(), 'room_change', $actor, $request);
+            $this->floorplans->announceArrival($to, $actor);
 
             return [
                 'pc_units' => $pcUnits,

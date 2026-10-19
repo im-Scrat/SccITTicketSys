@@ -21,6 +21,7 @@ class RoomLayout extends Model
     {
         return [
             'is_active' => 'boolean',
+            'revision' => 'integer',
         ];
     }
 
@@ -34,5 +35,26 @@ class RoomLayout extends Model
     public function positions(): HasMany
     {
         return $this->hasMany(FloorPlanPosition::class);
+    }
+
+    /**
+     * Desks, walls, doors… (Phase 2.11, SDD DD-102).
+     *
+     * @return HasMany<FloorPlanFixture, $this>
+     */
+    public function fixtures(): HasMany
+    {
+        return $this->hasMany(FloorPlanFixture::class);
+    }
+
+    /**
+     * Who last saved this layout — named (never identified) in the editor and
+     * its broadcasts.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

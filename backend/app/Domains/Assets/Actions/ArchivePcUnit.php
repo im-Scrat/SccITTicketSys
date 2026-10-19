@@ -6,6 +6,7 @@ namespace App\Domains\Assets\Actions;
 
 use App\Domains\Assets\Exceptions\AssetInUseException;
 use App\Domains\Assets\Services\AssetGuard;
+use App\Domains\FloorPlan\Services\ReleasePcUnitPositions;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Enums\ActivityAction;
 use App\Models\PcUnit;
@@ -29,6 +30,7 @@ class ArchivePcUnit
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly AssetGuard $guard,
+        private readonly ReleasePcUnitPositions $floorplans,
     ) {}
 
     /**
@@ -48,9 +50,13 @@ class ArchivePcUnit
             ]);
         }
 
-        DB::transaction(function () use ($pcUnit, $actor): void {
+        DB::transaction(function () use ($pcUnit, $actor, $request): void {
             $pcUnit->forceFill(['updated_by' => $actor->getKey()])->save();
             $pcUnit->delete();
+
+            // Phase 2.11 (DD-104): an archived machine gives up its place on
+            // its room's Floorplan, in this transaction.
+            $this->floorplans->release($pcUnit, $pcUnit->room_id, 'archived', $actor, $request);
         });
 
         $this->audit->activity(

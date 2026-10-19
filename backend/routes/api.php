@@ -27,7 +27,7 @@ use App\Domains\Assets\Http\Controllers\Admin\QrCodeController;
 use App\Domains\Assets\Http\Controllers\AssetLookupController;
 use App\Domains\Assets\Http\Controllers\QrScanController;
 use App\Domains\FloorPlan\Http\Controllers\Admin\FloorPlanController;
-use App\Domains\FloorPlan\Http\Controllers\Admin\FloorPlanPositionController;
+use App\Domains\FloorPlan\Http\Controllers\Admin\FloorPlanOverviewController;
 use App\Domains\FloorPlan\Http\Controllers\Admin\RoomLayoutController;
 use App\Domains\Identity\Http\Controllers\Admin\RegistrationReviewController;
 use App\Domains\Identity\Http\Controllers\Admin\RoleController;
@@ -84,7 +84,6 @@ use App\Http\Middleware\AuthenticateSession;
 use App\Models\AiPrediction;
 use App\Models\AiSystemSetting;
 use App\Models\AssetImport;
-use App\Models\FloorPlanPosition;
 use App\Models\RoomLayout;
 use Illuminate\Support\Facades\Route;
 
@@ -773,8 +772,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         /*
         |------------------------------------------------------------------
-        | Interactive Floor Plan (Phase 2.8 / WP-C map, WP-D placement,
-        | WP-E real-time, WP-F layout persistence) — ADMINISTRATOR ONLY
+        | Floorplan (Phase 2.8 WP-C..G; completed in Phase 2.11) —
+        | ADMINISTRATOR ONLY
         |------------------------------------------------------------------
         | Gated by the **policy** ability `viewAny` on RoomLayout, never by
         | `can:floorplan.view`. `Gate::before` answers any ability whose string is
@@ -794,31 +793,33 @@ Route::middleware('auth:sanctum')->group(function () {
             // One `where*` call per group: a second one on the registrar
             // *replaces* the first rather than merging, so per-route patterns
             // (like `version` below) go on the route itself.
-            ->whereUuid(['room', 'pcUnit'])
+            ->whereUuid(['room'])
             ->group(function () {
+                // The room overview — every live room, its machines' repair
+                // status and its Floorplan's state (Phase 2.11).
+                Route::get('/floor-plan/rooms', [FloorPlanOverviewController::class, 'index']);
+
                 Route::get('/floor-plan/rooms/{room}', [FloorPlanController::class, 'showRoom']);
 
                 /*
-                | Placing / moving a PC unit (WP-D) — FR-FP-003/009.
+                | Saving a layout (Phase 2.11, SDD DD-101) — FR-FP-001/003/008.
                 |
-                | Writes additionally need the policy ability `manage` on
-                | FloorPlanPosition — again never `can:floorplan.manage`. The
-                | layout is addressed as (room, version) through its room, and
-                | the unit through the layout's room, all resolved after
-                | authorization inside `PlacePcUnit`; that scoping is what keeps
-                | this route from ever re-homing a machine (an asset transfer).
+                | The whole document — workstations, fixtures and the layout's
+                | size and grid — in one transaction with a revision check. It
+                | replaced WP-D's per-machine PATCH, so there is one write path
+                | and one rule set. `can:manage,RoomLayout`, never
+                | `can:floorplan.manage`; `SaveRoomLayout` checks it again and
+                | resolves the room, version and machines after authorizing, and
+                | can never re-home a machine (that is an asset room change).
                 */
-                Route::patch(
-                    '/floor-plan/rooms/{room}/layouts/{version}/positions/{pcUnit}',
-                    [FloorPlanPositionController::class, 'update'],
-                )->whereNumber('version')->middleware('can:manage,'.FloorPlanPosition::class);
+                Route::put(
+                    '/floor-plan/rooms/{room}/layouts/{version}',
+                    [RoomLayoutController::class, 'update'],
+                )->whereNumber('version')->middleware('can:manage,'.RoomLayout::class);
 
                 /*
-                | Layout persistence (WP-F) — FR-FP-001/008.
-                |
-                | Same gate as placement, on RoomLayout instead of
-                | FloorPlanPosition: `can:manage,RoomLayout` — never
-                | `can:floorplan.manage`. Both actions re-check it themselves
+                | Layout versions (WP-F) — FR-FP-001/008. Same gate as saving.
+                | Both actions re-check it themselves
                 | (RoomLayoutService::authorizeManage) before resolving
                 | anything, so this middleware is a floor, not the only gate.
                 */

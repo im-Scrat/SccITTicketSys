@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\FloorPlan\Http\Resources;
 
 use App\Domains\FloorPlan\DTOs\RoomPlan;
+use App\Domains\FloorPlan\Services\FloorPlanDefaults;
+use App\Models\FloorPlanFixture;
 use App\Models\FloorPlanPosition;
 use App\Models\PcUnit;
 use Illuminate\Http\Request;
@@ -46,10 +48,24 @@ class RoomPlanResource extends JsonResource
             ],
             'layout' => $layout === null ? null : [
                 'version' => $layout->version,
+                // The whole-layout concurrency token (Phase 2.11, DD-101): the
+                // editor echoes it as `expected_revision` when it saves.
+                'revision' => $layout->revision,
                 'width' => $layout->width,
                 'height' => $layout->height,
                 'grid_size' => $layout->grid_size,
+                'updated_at' => $layout->updated_at?->toIso8601String(),
+                // A display name only — never an id or an email.
+                'updated_by' => $layout->updatedBy === null ? null : ['name' => $layout->updatedBy->fullName()],
             ],
+            // Layout-only shapes (DD-102), in the shape the save accepts.
+            'fixtures' => $plan->fixtures
+                ->map(fn (FloorPlanFixture $fixture): array => (new FloorPlanFixtureResource($fixture))->toArray($request))
+                ->values()
+                ->all(),
+            // A workstation's footprint in layout units: the client draws and
+            // hit-tests with the very number the server's overlap rule uses.
+            'workstation_size' => FloorPlanDefaults::WORKSTATION_SIZE,
             'pcs' => $plan->positions
                 ->map(fn (FloorPlanPosition $position): array => (new FloorPlanPcResource($position))->toArray($request))
                 ->values()
@@ -72,7 +88,7 @@ class RoomPlanResource extends JsonResource
                 ->all(),
             'unplaced_count' => $plan->unplacedCount,
             // What the client may offer. A courtesy, not a control: every
-            // write is authorized again by the route gate and `PlacePcUnit`.
+            // write is authorized again by the route gate and `SaveRoomLayout`.
             'editor' => [
                 'can_edit' => $plan->canEdit,
                 'snap_to_grid' => $plan->snapToGrid,

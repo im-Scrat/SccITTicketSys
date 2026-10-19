@@ -84,6 +84,25 @@ class FloorPlanRuleViolation extends RuntimeException
         );
     }
 
+    /**
+     * Phase 2.11 (DD-101) — the whole-layout counterpart of `staleWrite`.
+     * Someone saved this room's plan (or a machine left the room) since the
+     * editor loaded it. The refusal carries the **current** plan, in the same
+     * shape the GET returns, so the editor can merge object by object in the
+     * same round trip instead of throwing the administrator's draft away.
+     *
+     * @param  array<string, mixed>  $current
+     */
+    public static function layoutStale(array $current): self
+    {
+        return new self(
+            'This Floorplan was saved by someone else since you opened it.',
+            'layout_stale',
+            409,
+            ['current' => $current],
+        );
+    }
+
     public function errorCode(): string
     {
         return $this->errorCode;

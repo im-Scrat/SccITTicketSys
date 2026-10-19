@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Assets\Actions;
 
+use App\Domains\FloorPlan\Services\ReleasePcUnitPositions;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Enums\ActivityAction;
 use App\Models\PcUnit;
@@ -20,7 +21,10 @@ use Illuminate\Support\Facades\DB;
  */
 class RestorePcUnit
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly ReleasePcUnitPositions $floorplans,
+    ) {}
 
     public function handle(PcUnit $pcUnit, User $actor, Request $request): PcUnit
     {
@@ -43,6 +47,12 @@ class RestorePcUnit
             description: "PC unit {$pcUnit->unit_code} restored",
         );
 
-        return $pcUnit->refresh()->load(['room.floor.building', 'specification']);
+        $restored = $pcUnit->refresh()->load(['room.floor.building', 'specification']);
+
+        // Phase 2.11 (DD-104): archiving released its Floorplan place, so it
+        // returns unplaced — its room's editors only need to know it is back.
+        $this->floorplans->announceArrival($restored->room, $actor);
+
+        return $restored;
     }
 }

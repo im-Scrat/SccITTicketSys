@@ -24,6 +24,18 @@ use App\Models\SystemSetting;
  */
 class FloorPlanDefaults
 {
+    /**
+     * A workstation's footprint, in layout units (Phase 2.11, DD-102): two
+     * cells of the default 20-unit grid, so a snapped workstation's centre and
+     * edges all land on grid lines. A constant, not a setting — the client
+     * draws and hit-tests with the same number, and changing it would move
+     * every overlap decision already made.
+     */
+    public const WORKSTATION_SIZE = 40.0;
+
+    /** Upper bound on fixtures per layout — far beyond any real room. */
+    public const MAX_FIXTURES = 500;
+
     /** Absent or unreadable means snap: the grid is the safe default. */
     public function snapToGrid(): bool
     {

@@ -271,10 +271,23 @@ it('tells an Administrator the plan is editable, with the snap default', functio
         ->assertJsonPath('data.editor.snap_to_grid', true);
 });
 
-it('offers no editor when the room has no active layout', function (): void {
+it('still tells an Administrator they may set up a room with no layout yet, and lists its machines (Phase 2.11)', function (): void {
+    // Before 2.11 a room with no layout offered no editor at all; the
+    // Floorplan's empty state now creates the first layout, so it needs both.
     $this->layout->update(['is_active' => false]);
 
     $this->actingAs(userWithRole('administrator'))->getJson(($this->url)($this->room->uuid))
+        ->assertOk()
+        ->assertJsonPath('data.layout', null)
+        ->assertJsonPath('data.editor.can_edit', true)
+        ->assertJsonPath('data.unplaced.0.id', $this->pc->uuid);
+});
+
+it('offers no editor to an Administrator whose floorplan.manage is denied', function (): void {
+    $admin = userWithRole('administrator');
+    givePermission($admin, 'floorplan.manage', PermissionGrantType::Deny);
+
+    $this->actingAs($admin)->getJson(($this->url)($this->room->uuid))
         ->assertOk()
         ->assertJsonPath('data.editor.can_edit', false);
 });
@@ -314,9 +327,9 @@ it('exposes a narrow payload with no numeric ids and no register data', function
     $response = $this->actingAs(userWithRole('administrator'))->getJson(($this->url)($this->room->uuid))->assertOk();
     $data = $response->json('data');
 
-    expect(array_keys($data))->toBe(['room', 'layout', 'pcs', 'unplaced', 'unplaced_count', 'editor'])
+    expect(array_keys($data))->toBe(['room', 'layout', 'fixtures', 'workstation_size', 'pcs', 'unplaced', 'unplaced_count', 'editor'])
         ->and(array_keys($data['room']))->toBe(['id', 'name', 'code', 'floor', 'building'])
-        ->and(array_keys($data['layout']))->toBe(['version', 'width', 'height', 'grid_size'])
+        ->and(array_keys($data['layout']))->toBe(['version', 'revision', 'width', 'height', 'grid_size', 'updated_at', 'updated_by'])
         ->and(array_keys($data['pcs'][0]))->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index', 'updated_at', 'open_ticket'])
         ->and(array_keys($data['editor']))->toBe(['can_edit', 'snap_to_grid']);
 

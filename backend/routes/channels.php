@@ -79,3 +79,24 @@ Broadcast::channel(
     'floor-plan.room.{roomUuid}',
     fn (User $user, string $roomUuid): bool => app(FloorPlanAccess::class)->canView($user),
 );
+
+/*
+|--------------------------------------------------------------------------
+| Floorplan editors' presence (Phase 2.11) — SDD DD-103
+|--------------------------------------------------------------------------
+| Who else has this room's Floorplan open, and whether they are editing it
+| (a client whisper, accepted only from members — `reverb.php`), so two
+| administrators see each other *before* their saves collide.
+|
+| The same `FloorPlanAccess::canView()` gate as the room channel above, never a
+| bare permission string. The member payload is exactly a uuid and a display
+| name: `User::getAuthIdentifierForBroadcasting()` returns the uuid, so the
+| broadcaster's own `user_id` field carries no internal integer id either
+| (NFR-SEC-001).
+*/
+Broadcast::channel(
+    'floor-plan.editors.{roomUuid}',
+    fn (User $user, string $roomUuid): array|false => app(FloorPlanAccess::class)->canView($user)
+        ? ['id' => $user->uuid, 'name' => $user->fullName()]
+        : false,
+);

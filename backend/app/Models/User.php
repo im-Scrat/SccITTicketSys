@@ -78,6 +78,17 @@ class User extends Authenticatable
         return trim("{$this->first_name} {$this->last_name}");
     }
 
+    /**
+     * The identifier a presence channel reports for this user (Phase 2.11,
+     * SDD DD-103). Laravel's broadcasters fall back to the integer primary key,
+     * which every other member of the channel would then see; the public uuid
+     * is what this project exposes everywhere else (NFR-SEC-001).
+     */
+    public function getAuthIdentifierForBroadcasting(): string
+    {
+        return $this->uuid;
+    }
+
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;
