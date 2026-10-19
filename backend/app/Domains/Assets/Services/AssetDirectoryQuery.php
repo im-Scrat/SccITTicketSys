@@ -156,6 +156,7 @@ class AssetDirectoryQuery
             isset($params['floor']) ? (string) $params['floor'] : null,
             isset($params['room']) ? (string) $params['room'] : null,
         );
+        $this->applyRoomExclusions($query, $params);
         $this->applyPcSort(
             $query,
             (string) ($params['sort'] ?? 'unit_code'),
@@ -394,6 +395,29 @@ class AssetDirectoryQuery
 
         if ($values !== []) {
             $query->whereIn('assets.status', $values);
+        }
+    }
+
+    /**
+     * Phase 2.11 — `exclude_room` (uuid) and `unassigned` (bool), for the
+     * Floorplan's "Other rooms" panel. An unknown `exclude_room` excludes
+     * nothing rather than erroring: it is a narrowing filter, not a lookup.
+     *
+     * @param  Builder<PcUnit>  $query
+     * @param  array<string, mixed>  $params
+     */
+    private function applyRoomExclusions(Builder $query, array $params): void
+    {
+        if (filter_var($params['unassigned'] ?? false, FILTER_VALIDATE_BOOL)) {
+            $query->whereNull('pc_units.room_id');
+        }
+
+        if (isset($params['exclude_room']) && is_string($params['exclude_room'])) {
+            $roomId = Room::withTrashed()->where('uuid', $params['exclude_room'])->value('id');
+
+            if ($roomId !== null) {
+                $query->where(fn (Builder $q) => $q->whereNull('pc_units.room_id')->orWhere('pc_units.room_id', '<>', $roomId));
+            }
         }
     }
 

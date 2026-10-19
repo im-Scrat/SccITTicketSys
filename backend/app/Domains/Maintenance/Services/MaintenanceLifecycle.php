@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Maintenance\Services;
 
+use App\Domains\Assets\Services\PcStatusAutomation;
 use App\Domains\FloorPlan\Events\PcStatusChanged;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Domains\Maintenance\Events\MaintenanceCompleted;
@@ -78,6 +79,7 @@ class MaintenanceLifecycle
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly MaintenanceVisibility $visibility,
+        private readonly PcStatusAutomation $pcStatuses,
     ) {}
 
     /**
@@ -385,24 +387,33 @@ class MaintenanceLifecycle
     }
 
     /**
-     * The PC-unit side of a transition (SRS FR-MNT-008).
+     * The PC-unit side of a transition (SRS FR-MNT-008; Phase 2.11, DD-100).
      *
-     * Starting work puts the machine into `under_maintenance` and remembers what
-     * it displaced. Completing restores that status and marks the machine
-     * `working` — the requirement's own example, and the honest reading of
-     * "this visit is finished". Cancelling restores **both** prior values
-     * exactly, because a cancelled visit asserts nothing about the machine.
+     * **Starting work** puts the machine into Pending Repair and remembers what
+     * it displaced (`pc_status_before`, plus its condition).
      *
-     * If a second record starts work on a machine already under maintenance,
-     * `under_maintenance` is what gets remembered — so completing the first
-     * visit correctly leaves the machine under maintenance for the second. That
-     * falls out of storing the displaced value rather than assuming one.
+     * **Completing** marks the machine `working` and Available — a finished
+     * repair means the machine is fixed, so the displaced status is *not*
+     * restored any more (before Phase 2.11 a machine marked offline came back
+     * offline after its repair). The one exception keeps the old second-visit
+     * guarantee: while another visit is still active, or a ticket still awaits
+     * repair, the machine stays Pending Repair (`PcStatusAutomation::afterRepair`).
+     *
+     * **Cancelling** restores both prior values, because a withdrawn visit
+     * asserts nothing about the machine — except that a displaced Available
+     * becomes Pending Repair while repair is still awaited.
+     *
+     * The machine row is locked first, so the "is anything else pending?"
+     * question and the write are one decision (the same lock
+     * `PcStatusAutomation` takes on the ticket side).
      *
      * @return array{record: array<string, mixed>, pc_unit: array<string, mixed>|null}
      */
     private function applyPcUnitEffect(MaintenanceRecord $record, MaintenanceStatus $target): array
     {
-        $pcUnit = $record->pcUnit;
+        $pcUnit = $record->pc_unit_id === null
+            ? null
+            : PcUnit::query()->whereKey($record->pc_unit_id)->lockForUpdate()->first();
 
         if (! $pcUnit instanceof PcUnit) {
             // Asset-only records, and records whose PC was archived, touch
@@ -414,7 +425,7 @@ class MaintenanceLifecycle
         if ($target === MaintenanceStatus::InProgress && $record->pc_status_before === null) {
             $before = ['status' => $pcUnit->status, 'condition' => $pcUnit->current_condition];
 
-            $pcUnit->forceFill(['status' => PcStatus::UnderMaintenance->value])->save();
+            $pcUnit->forceFill(['status' => PcStatus::PendingRepair->value])->save();
 
             return [
                 'record' => [
@@ -424,16 +435,17 @@ class MaintenanceLifecycle
                 'pc_unit' => [
                     'id' => $pcUnit->uuid,
                     'status_from' => $before['status']->value,
-                    'status_to' => PcStatus::UnderMaintenance->value,
+                    'status_to' => PcStatus::PendingRepair->value,
                 ],
             ];
         }
 
         if ($target === MaintenanceStatus::Completed && $record->pc_status_before !== null) {
-            $restored = $record->pc_status_before->value;
+            $from = $pcUnit->status;
+            $next = $this->pcStatuses->afterRepair($pcUnit, $record, $target);
 
             $pcUnit->forceFill([
-                'status' => $restored,
+                'status' => $next->value,
                 'current_condition' => PcCondition::Working->value,
             ])->save();
 
@@ -441,16 +453,18 @@ class MaintenanceLifecycle
                 'record' => [],
                 'pc_unit' => [
                     'id' => $pcUnit->uuid,
-                    'status_from' => PcStatus::UnderMaintenance->value,
-                    'status_to' => $restored,
+                    'status_from' => $from->value,
+                    'status_to' => $next->value,
                     'condition_to' => PcCondition::Working->value,
                 ],
             ];
         }
 
         if ($target === MaintenanceStatus::Cancelled && $record->pc_status_before !== null) {
+            $next = $this->pcStatuses->afterRepair($pcUnit, $record, $target);
+
             $pcUnit->forceFill([
-                'status' => $record->pc_status_before->value,
+                'status' => $next->value,
                 'current_condition' => ($record->pc_condition_before ?? $pcUnit->current_condition)->value,
             ])->save();
 
@@ -458,7 +472,7 @@ class MaintenanceLifecycle
                 'record' => [],
                 'pc_unit' => [
                     'id' => $pcUnit->uuid,
-                    'status_to' => $record->pc_status_before->value,
+                    'status_to' => $next->value,
                     'restored' => true,
                 ],
             ];

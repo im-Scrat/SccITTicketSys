@@ -40,7 +40,7 @@ vi.mock('@/services/echo', () => {
 
 function editablePlan(overrides: Partial<RoomPlan> = {}): RoomPlan {
   return roomPlan({
-    pcs: [pc(1, 'online', { x: 120, y: 80 }), pc(2, 'offline', { x: 400, y: 300 })],
+    pcs: [pc(1, 'available', { x: 120, y: 80 }), pc(2, 'needs_fix', { x: 400, y: 300 })],
     editor: { can_edit: true, snap_to_grid: true },
     ...overrides,
   })
@@ -147,7 +147,7 @@ describe('placing from the map', () => {
 
     // The server stored somewhere else (it is the authority): the map follows it.
     await act(async () => {
-      answer.resolve({ data: { data: pc(1, 'online', { x: 180, y: 100 }) } })
+      answer.resolve({ data: { data: pc(1, 'available', { x: 180, y: 100 }) } })
     })
 
     await waitFor(() => expect(unit().getAttribute('transform')).toBe('translate(180 100)'))
@@ -161,7 +161,7 @@ describe('placing from the map', () => {
   it('announces a committed keyboard move in the polite live region', async () => {
     const user = userEvent.setup()
     get.mockResolvedValue({ data: { data: editablePlan() } })
-    patch.mockResolvedValue({ data: { data: pc(1, 'online', { x: 140, y: 80 }) } })
+    patch.mockResolvedValue({ data: { data: pc(1, 'available', { x: 140, y: 80 }) } })
     renderPage()
     await screen.findByRole('heading', { name: 'Computer Lab 2' })
 
@@ -235,7 +235,7 @@ describe('placing from the map', () => {
     expect(unit(/^PC-02/).getAttribute('transform')).toBe('translate(600 400)')
 
     await act(async () => {
-      second.resolve({ data: { data: pc(2, 'offline', { x: 600, y: 400 }) } })
+      second.resolve({ data: { data: pc(2, 'needs_fix', { x: 600, y: 400 }) } })
     })
     expect(unit(/^PC-02/).getAttribute('transform')).toBe('translate(600 400)')
   })
@@ -245,7 +245,7 @@ describe('placing by numbers', () => {
   it('moves the selected unit to exact coordinates and reconciles to the answer', async () => {
     const user = userEvent.setup()
     get.mockResolvedValue({ data: { data: editablePlan() } })
-    patch.mockResolvedValue({ data: { data: pc(1, 'online', { x: 520, y: 240 }) } })
+    patch.mockResolvedValue({ data: { data: pc(1, 'available', { x: 520, y: 240 }) } })
     renderPage()
     await screen.findByRole('heading', { name: 'Computer Lab 2' })
 
@@ -307,12 +307,12 @@ describe('placing by numbers', () => {
   it('places an unplaced unit, which then joins the map', async () => {
     const user = userEvent.setup()
     get.mockResolvedValue({
-      data: { data: editablePlan({ unplaced: [unplacedPc(9, 'offline')], unplaced_count: 1 }) },
+      data: { data: editablePlan({ unplaced: [unplacedPc(9, 'needs_fix')], unplaced_count: 1 }) },
     })
     patch.mockResolvedValue({
       data: {
         data: {
-          ...unplacedPc(9, 'offline'),
+          ...unplacedPc(9, 'needs_fix'),
           x: 60,
           y: 60,
           rotation: 0,
@@ -333,7 +333,7 @@ describe('placing by numbers', () => {
       expect.stringContaining('/positions/unplaced-uuid-9'),
       expect.objectContaining({ snap: true, expected_updated_at: null }),
     )
-    await screen.findByRole('button', { name: /^PC-U9, Offline, at x 60, y 60$/ })
+    await screen.findByRole('button', { name: /^PC-U9, Needs Fix, at x 60, y 60$/ })
     expect(screen.queryByRole('heading', { name: /Not on the plan yet/ })).toBeNull()
   })
 })
@@ -357,11 +357,13 @@ describe('optimistic concurrency — a stale write (WP-D3)', () => {
     get.mockResolvedValue({
       data: {
         data: editablePlan({
-          pcs: [pc(1, 'online', { x: 120, y: 80, updated_at: '2026-01-01T00:00:05.123456+00:00' })],
+          pcs: [
+            pc(1, 'available', { x: 120, y: 80, updated_at: '2026-01-01T00:00:05.123456+00:00' }),
+          ],
         }),
       },
     })
-    patch.mockResolvedValue({ data: { data: pc(1, 'online', { x: 160, y: 100 }) } })
+    patch.mockResolvedValue({ data: { data: pc(1, 'available', { x: 160, y: 100 }) } })
     renderPage()
     await screen.findByRole('heading', { name: 'Computer Lab 2' })
 
@@ -377,7 +379,7 @@ describe('optimistic concurrency — a stale write (WP-D3)', () => {
 
   it('reconciles to the server’s current state on a 409, instead of rolling back to the pre-drag value', async () => {
     get.mockResolvedValue({ data: { data: editablePlan() } })
-    const conflicting = pc(1, 'online', {
+    const conflicting = pc(1, 'available', {
       x: 340,
       y: 220,
       updated_at: '2026-01-01T00:09:00.000001+00:00',
@@ -405,7 +407,7 @@ describe('optimistic concurrency — a stale write (WP-D3)', () => {
 
   it('the next move after a stale-write reconciliation echoes the reconciled value, not the old one', async () => {
     get.mockResolvedValue({ data: { data: editablePlan() } })
-    const conflicting = pc(1, 'online', {
+    const conflicting = pc(1, 'available', {
       x: 340,
       y: 220,
       updated_at: '2026-01-01T00:09:00.000001+00:00',
@@ -413,7 +415,7 @@ describe('optimistic concurrency — a stale write (WP-D3)', () => {
     patch.mockRejectedValueOnce(
       serverError(409, { code: 'position_stale', message: '…', current: conflicting }),
     )
-    patch.mockResolvedValueOnce({ data: { data: pc(1, 'online', { x: 500, y: 260 }) } })
+    patch.mockResolvedValueOnce({ data: { data: pc(1, 'available', { x: 500, y: 260 }) } })
     renderPage()
     await screen.findByRole('heading', { name: 'Computer Lab 2' })
 

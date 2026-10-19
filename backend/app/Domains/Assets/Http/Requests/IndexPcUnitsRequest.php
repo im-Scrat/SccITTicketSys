@@ -42,6 +42,11 @@ class IndexPcUnitsRequest extends FormRequest
             'building' => ['nullable', 'string', 'uuid'],
             'floor' => ['nullable', 'string', 'uuid'],
             'room' => ['nullable', 'string', 'uuid'],
+            // Phase 2.11 — the Floorplan's "Other rooms" panel: everything except
+            // the room being edited, or only the machines with no room at all
+            // (the grey "Unassigned" category, DD-100).
+            'exclude_room' => ['nullable', 'string', 'uuid'],
+            'unassigned' => ['nullable', 'boolean'],
             // Phase 2.10 R7 — only the records one import created (post-import review).
             'import' => ['nullable', 'string', 'uuid'],
             'warranty_expiring' => ['nullable', 'integer', 'min:1', 'max:3650'],

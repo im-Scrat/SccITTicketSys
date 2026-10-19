@@ -79,6 +79,9 @@ enum ActivityAction: string
     case PcUnitUpdated = 'pc_unit_updated';
     case PcUnitArchived = 'pc_unit_archived';
     case PcUnitRestored = 'pc_unit_restored';
+    // Phase 2.11 — an automatic or migration-driven repair-status change
+    // (PcStatusAutomation, DD-100). Manual edits stay PcUnitUpdated.
+    case PcUnitStatusChanged = 'pc_unit_status_changed';
     case PcSpecificationUpdated = 'pc_specification_updated';
     case QrGenerated = 'qr_generated';
     case QrRegenerated = 'qr_regenerated';
@@ -318,6 +321,7 @@ enum ActivityAction: string
             self::PcUnitUpdated => 'Updated',
             self::PcUnitArchived => 'Archived',
             self::PcUnitRestored => 'Restored',
+            self::PcUnitStatusChanged => 'Status changed',
             self::PcSpecificationUpdated => 'Specification updated',
             self::QrGenerated => 'QR code generated',
             self::QrRegenerated => 'QR code regenerated',

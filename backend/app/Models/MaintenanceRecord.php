@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Casts\PcStatusCast;
 use App\Enums\MaintenanceStatus;
 use App\Enums\PcCondition;
 use App\Enums\PcStatus;
@@ -87,7 +88,7 @@ class MaintenanceRecord extends Model
             // The PC state this visit displaced (FR-MNT-008). Cast to the
             // enums so the restore is type-safe; nullable throughout,
             // because an asset-only record never touches a PC.
-            'pc_status_before' => PcStatus::class,
+            'pc_status_before' => PcStatusCast::class,
             'pc_condition_before' => PcCondition::class,
         ];
     }

@@ -45,8 +45,8 @@ function renderPage(plan: RoomPlan) {
           serial_number: null,
           brand: null,
           model: null,
-          status: 'online',
-          status_label: 'Online',
+          status: 'available',
+          status_label: 'Available',
           condition: 'working',
           condition_label: 'Working',
           room: null,
@@ -108,7 +108,7 @@ beforeEach(() => {
 
 describe('FloorPlanRoomPage — maintenance inspector (WP-G)', () => {
   it('opens the inspector for the unit chosen from the table', async () => {
-    renderPage(roomPlan({ pcs: [pc(1, 'online', { x: 100, y: 120 })] }))
+    renderPage(roomPlan({ pcs: [pc(1, 'available', { x: 100, y: 120 })] }))
 
     await screen.findByRole('heading', { name: 'Computer Lab 2' })
     fireEvent.click(screen.getByRole('button', { name: 'View details for PC-01' }))
@@ -119,7 +119,7 @@ describe('FloorPlanRoomPage — maintenance inspector (WP-G)', () => {
   })
 
   it('closes when asked, and stops showing that unit', async () => {
-    renderPage(roomPlan({ pcs: [pc(1, 'online', { x: 100, y: 120 })] }))
+    renderPage(roomPlan({ pcs: [pc(1, 'available', { x: 100, y: 120 })] }))
 
     await screen.findByRole('heading', { name: 'Computer Lab 2' })
     fireEvent.click(screen.getByRole('button', { name: 'View details for PC-01' }))
@@ -137,7 +137,7 @@ describe('FloorPlanRoomPage — maintenance inspector (WP-G)', () => {
     // assertions do not expect from `onSelect`.
     renderPage(
       roomPlan({
-        pcs: [pc(1, 'online', { x: 120, y: 80 })],
+        pcs: [pc(1, 'available', { x: 120, y: 80 })],
         editor: { can_edit: true, snap_to_grid: true },
       }),
     )

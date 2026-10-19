@@ -63,7 +63,7 @@ final class PreventiveMaintenanceRules
         $interval = (int) $this->maintenance->cadence()['interval_days'];
         $recordsStart = DB::table('maintenance_records')->whereNull('deleted_at')->min('created_at');
 
-        $pcs = ReportScopes::location(DB::table('pc_units as p')->whereNull('p.deleted_at')->where('p.status', '<>', 'retired'), 'p.room_id', $filters)
+        $pcs = ReportScopes::location(DB::table('pc_units as p')->whereNull('p.deleted_at'), 'p.room_id', $filters)
             ->leftJoin('rooms as r', 'r.id', '=', 'p.room_id')
             ->orderBy('p.unit_code')
             ->get(['p.id', 'p.uuid', 'p.unit_code', 'p.pc_name', 'p.created_at', 'r.code as room_code']);

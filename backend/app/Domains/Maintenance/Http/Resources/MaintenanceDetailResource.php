@@ -42,9 +42,9 @@ class MaintenanceDetailResource extends MaintenanceListResource
             'resolution' => $this->resolution,
             'preventive_recommendation' => $this->preventive_recommendation,
 
-            // What this visit displaced on the machine, so the detail view can
-            // say "will be restored to Online" rather than leaving the restore
-            // a surprise (FR-MNT-008).
+            // What this visit displaced on the machine. Since Phase 2.11 it is
+            // only *restored* if the visit is cancelled; completing a repair
+            // makes the machine Available (DD-100, FR-MNT-008).
             'pc_state_before' => $this->pc_status_before !== null ? [
                 'status' => $this->pc_status_before->value,
                 'status_label' => $this->pc_status_before->label(),

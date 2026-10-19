@@ -6,7 +6,6 @@ namespace App\Domains\Locations\Services;
 
 use App\Domains\Locations\Actions\ReassignRoomOccupants;
 use App\Enums\AssetStatus;
-use App\Enums\PcStatus;
 use App\Models\Asset;
 use App\Models\Building;
 use App\Models\Consumable;
@@ -31,7 +30,7 @@ use Illuminate\Support\Collection;
  * so a decommissioned PC, a disposed asset, an empty consumable line, or a
  * closed ticket never blocks an archive:
  *
- *  - pc_units    : not archived AND status <> retired
+ *  - pc_units    : not archived (retiring a PC is archiving it, DD-100)
  *  - assets      : not archived AND status NOT IN (retired, disposed)
  *  - consumables : not archived AND quantity_on_hand > 0
  *  - tickets     : not archived AND the current status is flagged `is_open`
@@ -179,7 +178,6 @@ class LocationGuard
         return [
             'pc_units' => PcUnit::query()
                 ->whereIn('room_id', $roomIds)
-                ->where('status', '<>', PcStatus::Retired->value)
                 ->count(),
             'assets' => Asset::query()
                 ->whereIn('current_room_id', $roomIds)

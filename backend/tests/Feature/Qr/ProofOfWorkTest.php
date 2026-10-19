@@ -186,7 +186,7 @@ it('starts a scheduled record rather than writing proof against unstarted work',
 
     expect($record->started_at)->not->toBeNull()
         ->and($record->pc_status_before)->not->toBeNull()
-        ->and($this->pcUnit->fresh()->status)->toBe(PcStatus::UnderMaintenance);
+        ->and($this->pcUnit->fresh()->status)->toBe(PcStatus::PendingRepair);
 });
 
 it('lets an administrator submit against any record on the machine', function (): void {

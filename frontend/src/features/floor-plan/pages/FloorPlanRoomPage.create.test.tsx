@@ -150,24 +150,22 @@ describe('the map card', () => {
     serve(
       roomPlan({
         pcs: [
-          pc(1, 'online', { open_ticket: { id: 't-1', reference: 'TKT-2026-00042' } }),
-          pc(2, 'online'),
-          pc(3, 'offline'),
+          pc(1, 'available', { open_ticket: { id: 't-1', reference: 'TKT-2026-00042' } }),
+          pc(2, 'available'),
+          pc(3, 'needs_fix'),
         ],
       }),
     )
     renderPage()
 
     expect(await screen.findByTestId('floor-plan-summary')).toHaveTextContent('3 units · 2 alerts')
-    expect(screen.getByRole('region', { name: 'Legend' })).toHaveTextContent('Offline')
+    expect(screen.getByRole('region', { name: 'Legend' })).toHaveTextContent('Needs Fix')
   })
 
   it('shows the unit code, status and open ticket when a unit is hovered', async () => {
     serve(
       roomPlan({
-        pcs: [
-          pc(1, 'under_maintenance', { open_ticket: { id: 't-1', reference: 'TKT-2026-00042' } }),
-        ],
+        pcs: [pc(1, 'pending_repair', { open_ticket: { id: 't-1', reference: 'TKT-2026-00042' } })],
       }),
     )
     renderPage()
@@ -179,7 +177,7 @@ describe('the map card', () => {
 
     const tip = screen.getByTestId('floor-plan-tooltip')
     expect(tip).toHaveTextContent('LAB-1')
-    expect(tip).toHaveTextContent('Under Maintenance · Ticket TKT-2026-00042')
+    expect(tip).toHaveTextContent('Pending Repair · Ticket TKT-2026-00042')
 
     fireEvent.pointerLeave(node)
     expect(screen.queryByTestId('floor-plan-tooltip')).not.toBeInTheDocument()

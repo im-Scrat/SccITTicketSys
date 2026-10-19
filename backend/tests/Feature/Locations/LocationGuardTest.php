@@ -20,7 +20,7 @@ beforeEach(fn () => seedRbac());
 it('refuses to archive a room that still holds a live PC unit', function () {
     $admin = userWithRole('administrator');
     $room = Room::factory()->create();
-    PcUnit::factory()->create(['room_id' => $room->id, 'status' => PcStatus::Online->value]);
+    PcUnit::factory()->create(['room_id' => $room->id, 'status' => PcStatus::Available->value]);
 
     $this->actingAs($admin)->deleteJson("/api/admin/rooms/{$room->uuid}")
         ->assertStatus(422)
@@ -76,11 +76,12 @@ it('refuses to archive a room with an open ticket but allows it once closed', fu
     $this->actingAs($admin)->deleteJson("/api/admin/rooms/{$room->uuid}")->assertOk();
 });
 
-it('ignores retired and disposed equipment when deciding whether a room is in use', function () {
+it('ignores archived PCs and disposed equipment when deciding whether a room is in use', function () {
     $admin = userWithRole('administrator');
     $room = Room::factory()->create();
 
-    PcUnit::factory()->create(['room_id' => $room->id, 'status' => PcStatus::Retired->value]);
+    // Phase 2.11 (DD-100): retiring a PC is archiving it.
+    PcUnit::factory()->create(['room_id' => $room->id])->delete();
     Asset::factory()->create(['current_room_id' => $room->id, 'status' => AssetStatus::Disposed->value]);
     Consumable::factory()->create(['current_room_id' => $room->id, 'quantity_on_hand' => 0]);
 
@@ -92,7 +93,7 @@ it('moves occupants to another room so the source can then be archived', functio
     $from = Room::factory()->create();
     $to = Room::factory()->create();
 
-    $pc = PcUnit::factory()->create(['room_id' => $from->id, 'status' => PcStatus::Online->value]);
+    $pc = PcUnit::factory()->create(['room_id' => $from->id, 'status' => PcStatus::Available->value]);
     $asset = Asset::factory()->create(['current_room_id' => $from->id, 'status' => AssetStatus::Deployed->value]);
     $consumable = Consumable::factory()->create(['current_room_id' => $from->id, 'quantity_on_hand' => 5]);
 
@@ -134,7 +135,7 @@ it('blocks a building archive when any room in it is in use and names the room',
     $floor = Floor::factory()->create(['building_id' => $building->id]);
     $empty = Room::factory()->create(['floor_id' => $floor->id]);
     $occupied = Room::factory()->create(['floor_id' => $floor->id]);
-    PcUnit::factory()->create(['room_id' => $occupied->id, 'status' => PcStatus::Online->value]);
+    PcUnit::factory()->create(['room_id' => $occupied->id, 'status' => PcStatus::Available->value]);
 
     $response = $this->actingAs($admin)->deleteJson("/api/admin/buildings/{$building->uuid}")
         ->assertStatus(422)
@@ -150,7 +151,7 @@ it('blocks a building archive when any room in it is in use and names the room',
 it('reports the blocker state on the room detail meta so the UI can warn ahead of time', function () {
     $admin = userWithRole('administrator');
     $room = Room::factory()->create();
-    PcUnit::factory()->create(['room_id' => $room->id, 'status' => PcStatus::Online->value]);
+    PcUnit::factory()->create(['room_id' => $room->id, 'status' => PcStatus::Available->value]);
 
     $this->actingAs($admin)->getJson("/api/admin/rooms/{$room->uuid}")
         ->assertOk()

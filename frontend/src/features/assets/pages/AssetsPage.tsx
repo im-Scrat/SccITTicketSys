@@ -84,6 +84,7 @@ export default function AssetsPage() {
       room: params.get('room') ?? undefined,
       trashed: (params.get('trashed') as PcUnitParams['trashed']) ?? 'without',
       import: params.get('import') ?? undefined,
+      unassigned: params.get('unassigned') === '1' ? 1 : undefined,
       sort: (params.get('pc_sort') as PcSortColumn) ?? 'unit_code',
       direction: (params.get('direction') as 'asc' | 'desc') ?? 'asc',
       page: params.get('page') ? Number(params.get('page')) : 1,

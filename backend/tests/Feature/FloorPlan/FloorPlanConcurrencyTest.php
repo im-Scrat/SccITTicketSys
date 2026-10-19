@@ -41,7 +41,7 @@ beforeEach(function (): void {
     $this->layout = RoomLayout::factory()->create([
         'room_id' => $this->room->id, 'version' => 1, 'width' => 1000, 'height' => 600, 'grid_size' => 20, 'is_active' => true,
     ]);
-    $this->pc = PcUnit::factory()->create(['room_id' => $this->room->id, 'pc_name' => 'PC-01', 'status' => PcStatus::Online->value]);
+    $this->pc = PcUnit::factory()->create(['room_id' => $this->room->id, 'pc_name' => 'PC-01', 'status' => PcStatus::Available->value]);
     $this->position = FloorPlanPosition::factory()->create([
         'room_layout_id' => $this->layout->id, 'pc_unit_id' => $this->pc->id, 'pos_x' => 100, 'pos_y' => 100,
     ]);

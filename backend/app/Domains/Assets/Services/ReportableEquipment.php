@@ -7,7 +7,6 @@ namespace App\Domains\Assets\Services;
 use App\Domains\Tickets\Http\Requests\StoreTicketRequest;
 use App\Enums\AssetStatus;
 use App\Enums\ComponentType;
-use App\Enums\PcStatus;
 use App\Models\Asset;
 use App\Models\HardwareModel;
 use App\Models\PcUnit;
@@ -23,7 +22,8 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  * have offered. Written twice, they would drift — and a list filter without
  * the matching by-uuid check is an IDOR. So both start from these builders.
  *
- * **PC units:** every unit that is not retired. Archived (soft-deleted) units
+ * **PC units:** every live unit. Archived (soft-deleted) units — which since
+ * Phase 2.11 includes every retired one (DD-100) —
  * are excluded by the model's own scope. This is also exactly the set the
  * global `/lookups/pc-units` offers, which now starts from here too.
  *
@@ -53,7 +53,9 @@ class ReportableEquipment
     /** @return Builder<PcUnit> */
     public function pcUnits(): Builder
     {
-        return PcUnit::query()->where('pc_units.status', '<>', PcStatus::Retired->value);
+        // Every live (not archived) machine. Since Phase 2.11 retirement *is*
+        // archiving (DD-100), so the model's soft-delete scope is the whole rule.
+        return PcUnit::query();
     }
 
     /** @return Builder<Asset> */

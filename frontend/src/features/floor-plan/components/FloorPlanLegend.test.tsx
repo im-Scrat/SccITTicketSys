@@ -8,7 +8,7 @@ describe('FloorPlanLegend', () => {
   it('lists each status on the map once, with its label and how many units carry it', () => {
     render(
       <FloorPlanLegend
-        pcs={[pc(1, 'online'), pc(2, 'online'), pc(3, 'offline'), pc(4, 'under_maintenance')]}
+        pcs={[pc(1, 'available'), pc(2, 'available'), pc(3, 'needs_fix'), pc(4, 'pending_repair')]}
       />,
     )
 
@@ -16,26 +16,28 @@ describe('FloorPlanLegend', () => {
     const items = within(legend).getAllByRole('listitem')
 
     expect(items).toHaveLength(3)
-    expect(within(legend).getByText('Online')).toBeInTheDocument()
+    expect(within(legend).getByText('Available')).toBeInTheDocument()
     expect(within(legend).getByText('2 units')).toBeInTheDocument()
-    expect(within(legend).getByText('Offline')).toBeInTheDocument()
-    expect(within(legend).getByText('Under Maintenance')).toBeInTheDocument()
+    expect(within(legend).getByText('Needs Fix')).toBeInTheDocument()
+    expect(within(legend).getByText('Pending Repair')).toBeInTheDocument()
     expect(within(legend).getAllByText('1 unit')).toHaveLength(2)
   })
 
-  it('takes its wording from the server payload rather than a list of its own', () => {
+  it('uses the one shared PC status vocabulary, whatever label a payload carries', () => {
+    // Phase 2.11 (DD-100): every screen reads `@/lib/pcStatus`, which is
+    // pinned to the server's labels — so a stray label cannot make the legend
+    // disagree with the asset pages.
     render(
       <FloorPlanLegend
         pcs={[
-          pc(1, 'online', {
-            status: { value: 'online', label: 'Up and running', tone: 'success' },
+          pc(1, 'available', {
+            status: { value: 'available', label: 'Up and running', tone: 'success' },
           }),
         ]}
       />,
     )
 
-    expect(screen.getByText('Up and running')).toBeInTheDocument()
-    expect(screen.queryByText('Online')).not.toBeInTheDocument()
+    expect(screen.getByText('Available')).toBeInTheDocument()
   })
 
   it('hides the shape swatches from assistive technology — the text is the content', () => {
@@ -56,7 +58,7 @@ describe("PcUnitList (the map's text alternative)", () => {
     render(
       <PcUnitList
         roomName="Computer Lab 2"
-        pcs={[pc(1, 'online', { x: 100, y: 120 }), pc(2, 'offline', { x: 200, y: 120 })]}
+        pcs={[pc(1, 'available', { x: 100, y: 120 }), pc(2, 'needs_fix', { x: 200, y: 120 })]}
       />,
     )
 
@@ -67,9 +69,9 @@ describe("PcUnitList (the map's text alternative)", () => {
     expect(rows).toHaveLength(3)
     expect(within(table).getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
     expect(within(rows[1]).getByText('PC-01')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('Online')).toBeInTheDocument()
+    expect(within(rows[1]).getByText('Available')).toBeInTheDocument()
     expect(within(rows[1]).getByText('100, 120')).toBeInTheDocument()
-    expect(within(rows[2]).getByText('Offline')).toBeInTheDocument()
+    expect(within(rows[2]).getByText('Needs Fix')).toBeInTheDocument()
   })
 
   it('renders nothing for an empty room', () => {
@@ -79,7 +81,7 @@ describe("PcUnitList (the map's text alternative)", () => {
   })
 
   it('offers no details column when the caller gives no onInspect (WP-G)', () => {
-    render(<PcUnitList roomName="Computer Lab 2" pcs={[pc(1, 'online')]} />)
+    render(<PcUnitList roomName="Computer Lab 2" pcs={[pc(1, 'available')]} />)
 
     expect(screen.queryByRole('columnheader', { name: 'Details' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /View details/ })).not.toBeInTheDocument()
@@ -90,7 +92,7 @@ describe("PcUnitList (the map's text alternative)", () => {
     render(
       <PcUnitList
         roomName="Computer Lab 2"
-        pcs={[pc(1, 'online'), pc(2, 'offline')]}
+        pcs={[pc(1, 'available'), pc(2, 'needs_fix')]}
         onInspect={onInspect}
       />,
     )

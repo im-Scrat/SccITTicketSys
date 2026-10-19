@@ -8,6 +8,7 @@ import { formatDate, formatRelative } from '@/lib/datetime'
 import { AssetFormDrawer } from '../components/AssetFormDrawer'
 import { DistributionCard, MetricCard } from '../components/AssetMetricsCards'
 import { AssetStatusBadge } from '../components/AssetStatusBadge'
+import { PcStatusSummary } from '../components/PcStatusSummary'
 import { useAssetDashboard } from '../hooks/queries'
 import type { DistributionRow, RecentAsset } from '../types'
 
@@ -34,6 +35,8 @@ export default function AssetDashboardPage() {
   const { data, isLoading, isError } = useAssetDashboard()
 
   const go = (query: string) => navigate(`/app/assets/list?${query}`)
+  const pcQuery = (key: string) =>
+    key === 'unassigned' ? 'tab=pc-units&unassigned=1' : `tab=pc-units&pc_status=${key}`
 
   if (isError) {
     return (
@@ -119,6 +122,8 @@ export default function AssetDashboardPage() {
               />
             </div>
           </section>
+
+          <PcStatusSummary rows={data.pc_units.by_status} onSelect={(key) => go(pcQuery(key))} />
 
           <section aria-labelledby="asset-distributions" className="flex flex-col gap-4">
             <h2 id="asset-distributions" className="text-lg font-bold text-ink-strong">

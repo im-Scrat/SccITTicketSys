@@ -3,6 +3,8 @@
  * FR-QR-*). Every `id` is a uuid — numeric keys never leave the server.
  */
 
+import type { PcStatusValue } from '@/lib/pcStatus'
+
 /** Mirrors the backend `AssetStatus` enum (varchar + CHECK domain). */
 export type AssetStatusValue =
   | 'new'
@@ -15,9 +17,8 @@ export type AssetStatusValue =
   | 'retired'
   | 'disposed'
 
-/** Mirrors the backend `PcStatus` enum. */
-export type PcStatusValue =
-  'available' | 'assigned' | 'online' | 'offline' | 'under_maintenance' | 'retired'
+/** Mirrors the backend `PcStatus` enum — the single table lives in `@/lib/pcStatus`. */
+export type { PcStatusValue }
 
 export type ConditionValue = 'working' | 'faulty' | 'for_repair' | 'decommissioned'
 
@@ -507,6 +508,10 @@ export interface PcUnitParams {
   trashed?: TrashedFilter
   /** Only the records one import created (Phase 2.10 R7). */
   import?: string
+  /** Phase 2.11 — only PCs with no room (the grey "Unassigned" category). */
+  unassigned?: 1
+  /** Phase 2.11 — every PC except those in this room (uuid). */
+  exclude_room?: string
   sort?: PcSortColumn
   direction?: 'asc' | 'desc'
   per_page?: number

@@ -70,7 +70,14 @@ it('proposes value meanings from values, labels and synonyms', function (string 
     'stored value' => ['status.asset', 'in_stock', 'assets', 'in_stock', 'exact'],
     'synonym' => ['status.asset', 'Condemned', 'assets', 'disposed', 'synonym'],
     'likely' => ['status.asset', 'Working', 'assets', 'deployed', 'likely'],
-    'pc status' => ['status.pc_unit', 'in use', 'pc_units', 'assigned', 'synonym'],
+    'pc status' => ['status.pc_unit', 'in use', 'pc_units', 'available', 'synonym'],
+    // Phase 2.11 (DD-100): connection words read as Available, faults as
+    // Needs Fix, and retirement is never guessed — a retired machine is archived.
+    'pc online is available' => ['status.pc_unit', 'Online', 'pc_units', 'available', 'synonym'],
+    'pc offline needs a fix' => ['status.pc_unit', 'Offline', 'pc_units', 'needs_fix', 'synonym'],
+    'pc for repair' => ['status.pc_unit', 'For repair', 'pc_units', 'pending_repair', 'likely'],
+    'pc own label' => ['status.pc_unit', 'Pending Repair', 'pc_units', 'pending_repair', 'exact'],
+    'pc retired is never guessed' => ['status.pc_unit', 'Retired', 'pc_units', null, 'none'],
     'condition' => ['condition', 'BER', 'assets', 'decommissioned', 'synonym'],
     'category synonym' => ['category', 'Photocopier', 'assets', 'asset:printer', 'synonym'],
     'computer in a mixed file' => ['category', 'Desktop', 'mixed', 'pc_unit', 'likely'],

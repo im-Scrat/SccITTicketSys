@@ -178,15 +178,15 @@ A cool, near-neutral architecture (a whisper of blue at hue 258) with one confid
 
 ### Status (universal — never re-skinned)
 These four hues are safety signals with fixed meaning across every deployment. When a vertical re-brands, `--primary` changes; these do not.
-- **Success / Online** — green `oklch(0.560 0.130 150)`; text `success-strong`, wash `success-subtle`.
-- **Warning / Under Maintenance** — amber `oklch(0.700 0.150 75)`; text `warning-strong`, wash `warning-subtle`.
-- **Danger / Offline / Critical** — red `oklch(0.550 0.200 28)`; text `danger-strong`, wash `danger-subtle`. *(This is the brand seed color, placed in its correct home.)*
+- **Success / Available** — green `oklch(0.560 0.130 150)`; text `success-strong`, wash `success-subtle`.
+- **Warning / Pending Repair** — amber `oklch(0.700 0.150 75)`; text `warning-strong`, wash `warning-subtle`.
+- **Danger / Needs Fix / Critical** — red `oklch(0.550 0.200 28)`; text `danger-strong`, wash `danger-subtle`. *(This is the brand seed color, placed in its correct home.)*
 - **Info** — blue-cyan `oklch(0.450 0.120 235)` text on `info-subtle`; visually distinct from Signal Blue so a re-skin never confuses "brand" with "informational."
 
 ### Named Rules
 **The One Voice Rule.** Signal Blue covers ≤10% of any screen — primary action, current selection, active nav, focus. Its rarity is what makes it read as a signal instead of a theme. If two blue buttons compete on a screen, one of them is wrong.
 
-**The Reserved-Red Rule.** Red is *only* destructive, critical, or offline. It is never a brand color, a decorative accent, an emphasis, or a "look here." A red that doesn't mean danger is a bug.
+**The Reserved-Red Rule.** Red is *only* destructive, critical, or a PC that Needs Fix. It is never a brand color, a decorative accent, an emphasis, or a "look here." A red that doesn't mean danger is a bug.
 
 **The Swap-One-Token Rule.** Brand identity is `--primary` and its derived tints — nothing else. Re-skinning SccIT for a new organization is changing one hue and its four shades. Status colors, neutrals, and type never carry vertical-specific identity. If a screen can't be re-branded by editing one token, it has leaked identity somewhere it shouldn't.
 
@@ -325,7 +325,12 @@ Every interactive component ships with the full state set — default, hover, fo
 
 ### Status Pill (signature)
 The vocabulary that ties tickets, assets, maintenance, and the floor plan together. **Subtle wash background + strong same-hue text + an 8px leading dot** — calm, not a saturated fill, and never color-only (the text label carries the meaning). Full radius, Label type, `2px 8px` padding.
-- Online → success · Offline → danger · Under Maintenance → warning · Assigned → Signal Blue (`--primary-subtle` / `--primary-strong`) · Available → neutral (`--surface-sunken` / `--muted`).
+- Generic `StatusPill` (system health, work support): Online → success · Offline → danger · Under maintenance → warning · Assigned → Signal Blue · Available → neutral.
+
+### PC Status Badge (Phase 2.11, SDD DD-100)
+Every PC status on every screen — asset lists, the Floorplan, QR, dashboards, filters — renders through `PcStatusBadge`, reading the one table in `src/lib/pcStatus.ts`. Wash + same-hue **border** + strong text + a lucide icon, so each status also has its own shape.
+- **Available** → success, `CheckCircle2` · **Pending Repair** → warning, `Clock` · **Needs Fix** → danger, `OctagonAlert` · **Unassigned** (derived: the PC has no room) → neutral, `CircleDashed`.
+- Never say a PC is online or offline: there is no telemetry, and these are recorded repair states.
 
 ### Data Table (signature)
 - Header row: `--surface-sunken`, Label type, sticky on scroll. Rows: `--surface`, 1px `--border` between rows, `--ink` cells. Row height 40px comfortable / 32px dense (a density toggle is expected).
@@ -365,7 +370,7 @@ The vocabulary that ties tickets, assets, maintenance, and the floor plan togeth
 ### Do:
 - **Do** spend Signal Blue like currency — primary action, current selection, active nav, focus — and let neutrals plus type carry the other ~90% (The One Voice Rule).
 - **Do** build every deployment's brand from the single `--primary` token and its tints (The Swap-One-Token Rule); keep status colors and neutrals vertical-neutral.
-- **Do** reserve red exclusively for destructive/critical/offline (The Reserved-Red Rule).
+- **Do** reserve red exclusively for destructive/critical/Needs Fix (The Reserved-Red Rule).
 - **Do** convey depth with the tonal stack (Canvas → Panel → Recess) and hairlines; use shadow only for floating overlays (The Flat-Plane Rule).
 - **Do** pair every status color with a text label and shape/icon so meaning survives color blindness and grayscale.
 - **Do** give every interactive element a visible 2px focus ring at 2px offset, and a full state set (hover/focus/active/disabled/loading).

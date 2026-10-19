@@ -44,7 +44,7 @@ beforeEach(function (): void {
     $this->room = Room::factory()->create();
     $this->pcUnit = PcUnit::factory()->create([
         'room_id' => $this->room->id,
-        'status' => PcStatus::Online->value,
+        'status' => PcStatus::Available->value,
     ]);
 
     $this->ticket = ticketFor($this->teacher, 'in-progress', ['pc_unit_id' => $this->pcUnit->id]);

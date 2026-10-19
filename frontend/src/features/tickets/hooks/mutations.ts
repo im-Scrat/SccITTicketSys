@@ -33,7 +33,14 @@ import { ticketsKeys } from './queries'
  */
 function useInvalidateTickets() {
   const queryClient = useQueryClient()
-  return () => queryClient.invalidateQueries({ queryKey: ticketsKeys.all })
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ticketsKeys.all }),
+      // Phase 2.11 (DD-100): reporting, resolving or reopening a ticket can move
+      // its PC's repair status, which the asset pages and the Floorplan show.
+      queryClient.invalidateQueries({ queryKey: ['assets'] }),
+      queryClient.invalidateQueries({ queryKey: ['floor-plan'] }),
+    ])
 }
 
 /** Where a report stands while it is being sent, for the form's status line. */

@@ -13,9 +13,10 @@ use Illuminate\Foundation\Events\Dispatchable;
 /**
  * A PC unit's `status` changed while it is (or may be) shown on its room's
  * floor plan — WP-E; SRS FR-FP-007. Dispatched from wherever `pc_units.status`
- * is actually written: `UpdatePcUnit` (an administrator's direct edit) and
- * `MaintenanceLifecycle` (the automatic `under_maintenance` effect of
- * starting, completing or cancelling a visit).
+ * is actually written: `UpdatePcUnit` (an administrator's direct edit),
+ * `MaintenanceLifecycle` (starting, completing or cancelling a repair visit)
+ * and, since Phase 2.11, `PcStatusAutomation` (a ticket starting or stopping
+ * awaiting repair — DD-100).
  *
  * Broadcast on the machine's **current** room — the same room-scoping the map
  * itself uses — so a viewer of a different room's plan never learns that this

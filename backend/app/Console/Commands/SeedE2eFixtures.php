@@ -231,8 +231,10 @@ class SeedE2eFixtures extends Command
 
     /**
      * An active layout for the fixture room with one unit in **every** PC
-     * status, so the floor-plan map (WP-C) is audited with all six shapes and
-     * labels on screen rather than with an empty grid.
+     * status, so the Floorplan is audited with all three status treatments on
+     * screen rather than with an empty grid — plus one machine with no room
+     * (the derived grey "Unassigned" category, Phase 2.11) for the
+     * Floorplan's "Other rooms" panel.
      *
      * The fixture PC is placed too. Its own status is whatever the maintenance
      * fixture left it in, which is why the six status-carrying units are
@@ -270,6 +272,18 @@ class SeedE2eFixtures extends Command
         FloorPlanPosition::query()->updateOrCreate(
             ['room_layout_id' => $layout->id, 'pc_unit_id' => $fixturePc->id],
             ['pos_x' => 120, 'pos_y' => 420, 'rotation' => 0, 'z_index' => 0],
+        );
+
+        PcUnit::query()->updateOrCreate(
+            ['unit_code' => 'E2E-FP-UNASSIGNED'],
+            [
+                'room_id' => null,
+                'asset_tag' => 'E2E-FP-AT-UNASSIGNED',
+                'hostname' => 'e2e-plan-pc-unassigned',
+                'pc_name' => 'E2E Unassigned PC',
+                'status' => PcStatus::Available->value,
+                'current_condition' => PcCondition::Working->value,
+            ],
         );
     }
 

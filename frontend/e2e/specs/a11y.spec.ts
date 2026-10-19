@@ -195,7 +195,7 @@ test.describe('accessibility — the floor-plan map', () => {
       `/app/floor-plan/rooms/${manifest().room.uuid}`,
       'administrator floor-plan map',
       async (target) => {
-        await expect(target.getByTestId('floor-plan-node')).toHaveCount(7)
+        await expect(target.getByTestId('floor-plan-node')).toHaveCount(4)
       },
     )
   })

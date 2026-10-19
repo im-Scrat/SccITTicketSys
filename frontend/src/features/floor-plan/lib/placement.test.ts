@@ -83,7 +83,7 @@ describe('keyboard steps', () => {
 
 describe('free spot for a newly placed unit', () => {
   it('finds the first grid point clear of every placed unit', () => {
-    const spot = freeSpot([pc(1, 'online', { x: 60, y: 60 })], layout, 60)
+    const spot = freeSpot([pc(1, 'available', { x: 60, y: 60 })], layout, 60)
     expect(spot).not.toBeNull()
     expect(spot!.x % 20).toBe(0)
     expect(spot!.y % 20).toBe(0)
@@ -92,13 +92,15 @@ describe('free spot for a newly placed unit', () => {
 
   it('returns null when nothing is clear at that spacing', () => {
     const tiny = { ...layout, width: 40, height: 40 }
-    expect(freeSpot([pc(1, 'online', { x: 20, y: 20 })], tiny, 60)).toBeNull()
+    expect(freeSpot([pc(1, 'available', { x: 20, y: 20 })], tiny, 60)).toBeNull()
   })
 })
 
 describe('what a node says', () => {
   it('names identity, status and position', () => {
-    expect(nodeLabel(pc(3, 'online'), { x: 300, y: 120 })).toBe('PC-03, Online, at x 300, y 120')
+    expect(nodeLabel(pc(3, 'available'), { x: 300, y: 120 })).toBe(
+      'PC-03, Available, at x 300, y 120',
+    )
     expect(describePoint({ x: 127.5, y: 83.25 })).toBe('x 127.5, y 83.25')
   })
 })

@@ -177,7 +177,10 @@ class AssetMetrics
     }
 
     /**
-     * PC-unit condition mix — how much of the estate is healthy.
+     * PC repair-status mix — how much of the estate is healthy — followed by
+     * the derived grey "Unassigned" category (no room; Phase 2.11, DD-100).
+     * Unassigned overlaps the three statuses rather than partitioning them: an
+     * unassigned machine still has a repair status.
      *
      * @return list<array{key: string, label: string, count: int}>
      */
@@ -190,11 +193,19 @@ class AssetMetrics
             ->select('status', DB::raw('count(*) as aggregate'))
             ->pluck('aggregate', 'status');
 
-        return array_map(static fn (PcStatus $status): array => [
+        $statuses = array_map(static fn (PcStatus $status): array => [
             'key' => $status->value,
             'label' => $status->label(),
             'count' => (int) ($counts[$status->value] ?? 0),
         ], PcStatus::cases());
+
+        $statuses[] = [
+            'key' => 'unassigned',
+            'label' => 'Unassigned',
+            'count' => DB::table('pc_units')->whereNull('deleted_at')->whereNull('room_id')->count(),
+        ];
+
+        return $statuses;
     }
 
     /* ------------------------------------------------------------------ *

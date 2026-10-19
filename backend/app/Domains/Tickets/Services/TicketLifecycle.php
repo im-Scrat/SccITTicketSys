@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Tickets\Services;
 
+use App\Domains\Assets\Services\PcStatusAutomation;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Domains\Tickets\Events\TicketStatusChanged;
 use App\Enums\ActivityAction;
@@ -124,6 +125,7 @@ class TicketLifecycle
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly TicketVisibility $visibility,
+        private readonly PcStatusAutomation $pcStatuses,
     ) {}
 
     /**
@@ -192,6 +194,11 @@ class TicketLifecycle
             // Inside the same transaction: a ticket must never reach a terminal
             // state while its assignment still reads as live work.
             $this->endActiveAssignment($ticket, $target, $actor, $request);
+
+            // Phase 2.11 (DD-100): the machine's repair status follows the
+            // ticket when it starts or stops awaiting repair — same
+            // transaction, so a refused transition never moves the machine.
+            $this->pcStatuses->ticketMoved($ticket, $from, $target, $actor, $request);
         });
 
         $this->audit->activity(

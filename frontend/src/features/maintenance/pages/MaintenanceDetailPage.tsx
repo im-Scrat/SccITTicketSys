@@ -135,9 +135,10 @@ export default function MaintenanceDetailPage() {
       </Surface>
 
       {data.pc_state_before && data.status.is_open && (
-        <Alert tone="info" title="This machine is under maintenance">
-          It will return to <strong>{data.pc_state_before.status_label}</strong> when the visit is
-          completed.
+        <Alert tone="info" title="This machine is Pending Repair">
+          Completing this visit marks it Available, unless another repair or an open ticket is still
+          waiting on it. Cancelling the visit returns it to{' '}
+          <strong>{data.pc_state_before.status_label}</strong>.
         </Alert>
       )}
 

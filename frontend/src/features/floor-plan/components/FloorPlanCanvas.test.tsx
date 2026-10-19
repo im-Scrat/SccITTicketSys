@@ -78,7 +78,7 @@ describe('FloorPlanCanvas structure', () => {
   })
 
   it('places each PC node at its stored coordinates, unconverted', () => {
-    renderMap([pc(3, 'online', { x: 240.5, y: 80 })])
+    renderMap([pc(3, 'available', { x: 240.5, y: 80 })])
 
     expect(screen.getByTestId('floor-plan-node').getAttribute('transform')).toBe(
       'translate(240.5 80)',
@@ -132,7 +132,9 @@ describe('PC node status representation (never colour alone)', () => {
 
   it("colours a node from the server's tone, not from the status name", () => {
     // Same status value, different tone: the class follows the tone.
-    renderMap([pc(1, 'online', { status: { value: 'online', label: 'Online', tone: 'danger' } })])
+    renderMap([
+      pc(1, 'available', { status: { value: 'available', label: 'Available', tone: 'danger' } }),
+    ])
 
     const shape = screen.getByTestId('floor-plan-node').querySelector('circle')!
     expect(shape.getAttribute('class')).toContain('stroke-danger-strong')
@@ -144,7 +146,9 @@ describe('PC node status representation (never colour alone)', () => {
 
     const nodes = screen.getAllByRole('img')
     expect(nodes).toHaveLength(ALL_STATUS_VALUES.length)
-    expect(screen.getByRole('img', { name: 'PC-03, Online, at x 300, y 120' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: 'PC-03, Needs Fix, at x 300, y 120' }),
+    ).toBeInTheDocument()
 
     for (const node of nodes) expect(node).toHaveAccessibleName()
   })
@@ -342,7 +346,7 @@ describe('accessibility of the controls', () => {
 
     expect(frame()).toHaveAttribute('tabindex', '0')
     expect(frame()).toHaveAccessibleDescription(/arrow keys/i)
-    expect(frame()).toHaveAccessibleName(/6 units placed/)
+    expect(frame()).toHaveAccessibleName(/3 units placed/)
   })
 
   it('keeps toolbar buttons keyboard operable', async () => {

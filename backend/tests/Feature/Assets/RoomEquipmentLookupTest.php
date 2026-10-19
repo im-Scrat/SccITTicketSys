@@ -57,13 +57,15 @@ it('lists only the chosen room’s equipment', function () {
     expect(equipmentIn($this, $this->room))->toBe(['pc_units' => ['HERE-PC'], 'assets' => ['HERE-PRN']]);
 });
 
-it('leaves out retired and archived PCs, but not one under maintenance', function () {
-    PcUnit::factory()->create(['room_id' => $this->room->id, 'unit_code' => 'PC-LIVE', 'status' => PcStatus::Online->value]);
-    PcUnit::factory()->create(['room_id' => $this->room->id, 'unit_code' => 'PC-REPAIR', 'status' => PcStatus::UnderMaintenance->value]);
-    PcUnit::factory()->create(['room_id' => $this->room->id, 'unit_code' => 'PC-RETIRED', 'status' => PcStatus::Retired->value]);
+it('leaves out archived PCs, but keeps every repair status — a broken PC is exactly what gets reported', function () {
+    // Phase 2.11 (DD-100): "retired" became archiving, so the soft-delete
+    // scope is the whole rule.
+    PcUnit::factory()->create(['room_id' => $this->room->id, 'unit_code' => 'PC-LIVE', 'status' => PcStatus::Available->value]);
+    PcUnit::factory()->create(['room_id' => $this->room->id, 'unit_code' => 'PC-REPAIR', 'status' => PcStatus::PendingRepair->value]);
+    PcUnit::factory()->create(['room_id' => $this->room->id, 'unit_code' => 'PC-BROKEN', 'status' => PcStatus::NeedsFix->value]);
     PcUnit::factory()->create(['room_id' => $this->room->id, 'unit_code' => 'PC-ARCHIVED'])->delete();
 
-    expect(equipmentIn($this, $this->room)['pc_units'])->toEqualCanonicalizing(['PC-LIVE', 'PC-REPAIR']);
+    expect(equipmentIn($this, $this->room)['pc_units'])->toEqualCanonicalizing(['PC-LIVE', 'PC-REPAIR', 'PC-BROKEN']);
 });
 
 it('lists in-service equipment only — never spare stock, retired, disposed or archived', function () {

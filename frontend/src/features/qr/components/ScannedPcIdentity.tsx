@@ -1,5 +1,5 @@
 import { MapPin, QrCode } from 'lucide-react'
-import { Surface } from '@/components/ui'
+import { PcStatusBadge, Surface } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import type { ScannedPcUnit } from '../types'
 
@@ -42,7 +42,7 @@ export function ScannedPcIdentity({ unit }: { unit: ScannedPcUnit }) {
         )}
 
         <div className="flex flex-wrap gap-2">
-          <StatePill label={unit.status_label} tone={toneForStatus(unit.status)} />
+          <PcStatusBadge status={unit.status} />
           <StatePill label={unit.condition_label} tone={toneForCondition(unit.condition)} />
         </div>
 
@@ -86,21 +86,11 @@ function StatePill({ label, tone }: { label: string; tone: Tone }) {
 }
 
 /*
- * Mapped here rather than sent by the server because the scan panel is a
- * narrow projection by design (DD-49) — adding a `tone` field to it to save
- * this function would widen the payload for a presentation detail. An
- * unrecognised value renders neutral: a state nobody chose a colour for should
- * look plain rather than have one invented.
+ * The PC's *status* uses the shared PcStatusBadge (Phase 2.11, DD-100) — the
+ * one table every screen reads, so the scan panel can no longer disagree with
+ * the asset list about a colour. Condition stays mapped here: the scan panel is
+ * a narrow projection by design (DD-49) and condition has no shared badge.
  */
-function toneForStatus(status: string): Tone {
-  if (status === 'under_maintenance' || status === 'offline') return 'warning'
-  if (status === 'retired') return 'danger'
-  if (status === 'online') return 'success'
-  if (status === 'assigned') return 'info'
-
-  return 'neutral'
-}
-
 function toneForCondition(condition: string): Tone {
   if (condition === 'working') return 'success'
   if (condition === 'faulty') return 'danger'

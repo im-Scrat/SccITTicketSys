@@ -322,8 +322,11 @@ class DashboardService
                     ['key' => 'buildings', 'label' => 'Buildings', 'value' => $summary['buildings']],
                     ['key' => 'rooms', 'label' => 'Rooms', 'value' => $summary['rooms']],
                     [
+                        // PCs with no room — the grey "Unassigned" category
+                        // (Phase 2.11, DD-100). "Unplaced" now means "in a
+                        // room but not yet on its Floorplan".
                         'key' => 'unplaced',
-                        'label' => 'Unplaced PCs',
+                        'label' => 'Unassigned PCs',
                         'value' => $occupancy['pc_units_unplaced'],
                         'tone' => $occupancy['pc_units_unplaced'] > 0 ? 'warning' : null,
                     ],

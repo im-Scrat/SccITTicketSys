@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ScanLine } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { StatusPill } from '@/components/ui/StatusPill'
+import { PcStatusBadge } from '@/components/ui/PcStatusBadge'
 
 /**
  * The panel a technician sees after scanning an asset QR (FR-QR-005): the code
@@ -110,7 +110,7 @@ export function QrAssetVisual({ className }: { className?: string }) {
           </Field>
           <Field label="Location">Lab 2 · Ground floor</Field>
           <Field label="Status">
-            <StatusPill status="online" />
+            <PcStatusBadge status="available" />
           </Field>
         </dl>
       </div>

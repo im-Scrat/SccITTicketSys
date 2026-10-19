@@ -9,16 +9,16 @@ import { withStatusChanged } from './mutations'
  */
 describe('withStatusChanged', () => {
   it("updates a placed unit's status, leaving its position untouched", () => {
-    const plan = roomPlan({ pcs: [pc(1, 'online', { x: 250, y: 90 })] })
+    const plan = roomPlan({ pcs: [pc(1, 'available', { x: 250, y: 90 })] })
 
     const next = withStatusChanged(plan, {
       id: 'pc-uuid-1',
       name: 'PC-01',
       unit_code: 'LAB-1',
-      status: { value: 'offline', label: 'Offline', tone: 'danger' },
+      status: { value: 'needs_fix', label: 'Needs Fix', tone: 'danger' },
     })
 
-    expect(next.pcs[0]).toMatchObject({ x: 250, y: 90, status: { value: 'offline' } })
+    expect(next.pcs[0]).toMatchObject({ x: 250, y: 90, status: { value: 'needs_fix' } })
     expect(next).not.toBe(plan)
   })
 
@@ -29,11 +29,11 @@ describe('withStatusChanged', () => {
       id: 'unplaced-uuid-9',
       name: 'PC-U9',
       unit_code: 'LAB-U9',
-      status: { value: 'retired', label: 'Retired', tone: 'neutral' },
+      status: { value: 'needs_fix', label: 'Retired', tone: 'neutral' },
     })
 
     expect(next.unplaced[0]?.status).toEqual({
-      value: 'retired',
+      value: 'needs_fix',
       label: 'Retired',
       tone: 'neutral',
     })
@@ -46,20 +46,20 @@ describe('withStatusChanged', () => {
       id: 'stranger-uuid',
       name: 'Stranger',
       unit_code: 'X-1',
-      status: { value: 'offline', label: 'Offline', tone: 'danger' },
+      status: { value: 'needs_fix', label: 'Needs Fix', tone: 'danger' },
     })
 
     expect(next).toBe(plan)
   })
 
   it('also updates the name and unit code, matching what the server sent', () => {
-    const plan = roomPlan({ pcs: [pc(1, 'online')] })
+    const plan = roomPlan({ pcs: [pc(1, 'available')] })
 
     const next = withStatusChanged(plan, {
       id: 'pc-uuid-1',
       name: 'Renamed',
       unit_code: 'NEW-CODE',
-      status: { value: 'online', label: 'Online', tone: 'success' },
+      status: { value: 'available', label: 'Available', tone: 'success' },
     })
 
     expect(next.pcs[0]).toMatchObject({ name: 'Renamed', unit_code: 'NEW-CODE' })

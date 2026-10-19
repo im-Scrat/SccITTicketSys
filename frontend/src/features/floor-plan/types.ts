@@ -6,12 +6,13 @@
  * between the map, the legend and the rest of the app.
  */
 
-/** Presentation tone the server decides, so the client never picks a status colour. */
-export type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'info'
+import type { PcStatusValue } from '@/lib/pcStatus'
 
-/** Mirrors the backend `PcStatus` enum. */
-export type PcStatusValue =
-  'available' | 'assigned' | 'online' | 'offline' | 'under_maintenance' | 'retired'
+/** Presentation tone the server decides (Phase 2.11: one per repair status). */
+export type Tone = 'success' | 'warning' | 'danger'
+
+/** Mirrors the backend `PcStatus` enum — the shared table is `@/lib/pcStatus`. */
+export type { PcStatusValue }
 
 export interface PcStatus {
   value: PcStatusValue

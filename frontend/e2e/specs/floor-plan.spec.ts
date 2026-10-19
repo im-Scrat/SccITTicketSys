@@ -37,18 +37,11 @@ test.describe('floor plan — administrator', () => {
     await expect(page.getByTestId('floor-plan-svg')).toBeVisible()
     await expect(page.getByTestId('floor-plan-grid')).toBeAttached()
 
-    // Six status units plus the fixture PC.
-    await expect(page.getByTestId('floor-plan-node')).toHaveCount(7)
+    // Three status units (Phase 2.11, DD-100) plus the fixture PC.
+    await expect(page.getByTestId('floor-plan-node')).toHaveCount(4)
 
     // Status is written, not only coloured: every state's label is on the page.
-    for (const label of [
-      'Available',
-      'Assigned',
-      'Online',
-      'Offline',
-      'Under Maintenance',
-      'Retired',
-    ]) {
+    for (const label of ['Available', 'Pending Repair', 'Needs Fix']) {
       await expect(page.getByRole('region', { name: 'Legend' }).getByText(label)).toBeVisible()
     }
     await expect(page.getByRole('table', { name: /Units placed in/ })).toBeVisible()
@@ -263,7 +256,7 @@ test.describe('floor plan — administrator places units (WP-D)', () => {
     await signIn(page, 'administrator')
     await goto(page, mapUrl())
 
-    const { unit, version } = await planUnit(page, 'E2E Plan PC 4')
+    const { unit, version } = await planUnit(page, 'E2E Plan PC 1')
 
     expect(
       (await apiFetch(page, positionUrl(version, unit.id), 'PATCH', { x: 5000, y: 10 })).status,
@@ -411,13 +404,13 @@ test.describe('floor plan — real-time synchronization (WP-E)', () => {
       await signIn(pageB, 'administrator')
       await Promise.all([goto(pageA, mapUrl()), goto(pageB, mapUrl())])
 
-      const name = 'E2E Plan PC 6'
+      const name = 'E2E Plan PC 3'
       const nameRe = new RegExp(`^${name},`)
       await expect(pageB.getByRole('button', { name: nameRe })).toBeVisible()
 
       const { unit } = await planUnit(pageA, name)
-      // Confirmed by the fixture's own seed order (PcStatus::cases()[5]).
-      const originalStatus = 'retired'
+      // Confirmed by the fixture's own seed order (PcStatus::cases()[2]).
+      const originalStatus = 'needs_fix'
 
       const result = await apiJson<{ data: { status: string } }>(
         pageA,
@@ -429,11 +422,11 @@ test.describe('floor plan — real-time synchronization (WP-E)', () => {
 
       // B's node relabels itself — status only, no reload — purely from the
       // PcStatusChanged broadcast.
-      await expect(pageB.getByRole('button', { name: /^E2E Plan PC 6, Available,/ })).toBeVisible({
+      await expect(pageB.getByRole('button', { name: /^E2E Plan PC 3, Available,/ })).toBeVisible({
         timeout: 10_000,
       })
       await expect(pageB.getByTestId('floor-plan-announcer')).toContainText(
-        'E2E Plan PC 6 is now Available',
+        'E2E Plan PC 3 is now Available',
       )
 
       // Restore the fixture's seeded status.
@@ -444,7 +437,7 @@ test.describe('floor plan — real-time synchronization (WP-E)', () => {
         { status: originalStatus },
       )
       expect(restore.status).toBe(200)
-      await expect(pageB.getByRole('button', { name: /^E2E Plan PC 6, Retired,/ })).toBeVisible({
+      await expect(pageB.getByRole('button', { name: /^E2E Plan PC 3, Needs Fix,/ })).toBeVisible({
         timeout: 10_000,
       })
     } finally {
@@ -488,7 +481,7 @@ test.describe('floor plan — optimistic concurrency (WP-F)', () => {
       await signIn(pageA, 'administrator')
       await signIn(pageB, 'administrator')
 
-      const name = 'E2E Plan PC 4'
+      const name = 'E2E Plan PC 1'
       const nameRe = new RegExp(`^${name},`)
 
       // Both clients "load the plan" at the same moment: the same stored
@@ -563,7 +556,7 @@ for (const role of ['technician', 'teacher'] as const) {
       // Arrange as an administrator to learn real identifiers, then switch.
       await signIn(page, 'administrator')
       await goto(page, mapUrl())
-      const { unit, version } = await planUnit(page, 'E2E Plan PC 5')
+      const { unit, version } = await planUnit(page, 'E2E Plan PC 2')
 
       await signOut(page)
       await signIn(page, role)

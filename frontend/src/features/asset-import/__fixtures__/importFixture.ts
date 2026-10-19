@@ -104,7 +104,7 @@ export function importFixture(overrides: Partial<AssetImport> = {}): AssetImport
     targets: TARGETS,
     default_options: {
       category: [],
-      pc_status: [{ value: 'online', label: 'Online' }],
+      pc_status: [{ value: 'available', label: 'Available' }],
       asset_status: [],
       condition: [],
     },

@@ -89,18 +89,6 @@ it('classifies a revoked or inactive code as expired', function (string $status)
         ->toBe(ScanResult::Expired);
 })->with([QrStatus::Revoked->value, QrStatus::Inactive->value]);
 
-it('classifies an active code on a retired pc unit as expired', function (): void {
-    // FR-QR-006: `expired` is behavioural — the QR *or* the target may be the
-    // thing that is no longer live (OI-04: no date field).
-    $this->pcUnit->forceFill(['status' => PcStatus::Retired->value])->save();
-    $this->actingAs($this->technician);
-
-    scan('PC-STAGEBTEST')->assertForbidden();
-
-    expect(QrScanLog::query()->latest('id')->first()->scan_result)
-        ->toBe(ScanResult::Expired);
-});
-
 it('classifies an active code on an archived pc unit as expired', function (): void {
     // FR-QR-012 excludes archived rows from the panel outright, so a scan that
     // resolves to one has nothing legitimate to show.

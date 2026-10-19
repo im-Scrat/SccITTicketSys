@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PC_STATUS_VALUES } from '@/lib/pcStatus'
 
 /**
  * Client-side mirrors of the backend FormRequest rules (SRS FR-AST-002,
@@ -29,14 +30,8 @@ export const assetStatusValues = [
 
 export const conditionValues = ['working', 'faulty', 'for_repair', 'decommissioned'] as const
 
-export const pcStatusValues = [
-  'available',
-  'assigned',
-  'online',
-  'offline',
-  'under_maintenance',
-  'retired',
-] as const
+/** Phase 2.11 (DD-100) — the three repair statuses, from the shared table. */
+export const pcStatusValues = PC_STATUS_VALUES
 
 export const assetSchema = z
   .object({

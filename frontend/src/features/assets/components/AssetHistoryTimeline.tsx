@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button, EmptyState, Skeleton } from '@/components/ui'
 import { formatDateTime } from '@/lib/datetime'
+import { pcStatusLabel } from '@/lib/pcStatus'
 import type { AssetKind } from '../api/assetsApi'
 import { useAssetHistory } from '../hooks/queries'
 import type { HistoryEntry } from '../types'
@@ -90,7 +91,7 @@ export function AssetHistoryTimeline({ kind, id }: { kind: AssetKind; id: string
                   <p className="mt-1 text-sm text-muted measure">{entry.description}</p>
                 )}
 
-                <Changes properties={entry.properties} />
+                <Changes properties={entry.properties} pcUnit={kind === 'pc-units'} />
 
                 <p className="mt-2 text-xs text-muted">
                   {entry.actor ? entry.actor.name : 'System'} · {formatDateTime(entry.at)}
@@ -133,7 +134,13 @@ export function AssetHistoryTimeline({ kind, id }: { kind: AssetKind; id: string
  * `{from,to}` pair is left alone — the audit payload is deliberately open-ended,
  * so this only formats what it recognises.
  */
-function Changes({ properties }: { properties: Record<string, unknown> | null }) {
+function Changes({
+  properties,
+  pcUnit,
+}: {
+  properties: Record<string, unknown> | null
+  pcUnit: boolean
+}) {
   const changes = properties?.changes
 
   if (!changes || typeof changes !== 'object') return null
@@ -151,10 +158,14 @@ function Changes({ properties }: { properties: Record<string, unknown> | null })
         <div key={field} className="flex flex-wrap items-baseline gap-2 text-sm">
           <dt className="font-semibold text-ink">{humanize(field)}</dt>
           <dd className="text-muted">
-            <span className="line-through">{display(change.from)}</span>
+            <span className="line-through">
+              {display(change.from, pcUnit && field === 'status')}
+            </span>
             <span aria-hidden="true"> → </span>
             <span className="sr-only"> changed to </span>
-            <span className="font-medium text-ink">{display(change.to)}</span>
+            <span className="font-medium text-ink">
+              {display(change.to, pcUnit && field === 'status')}
+            </span>
           </dd>
         </div>
       ))}
@@ -166,8 +177,13 @@ function humanize(field: string): string {
   return field.replace(/_/g, ' ').replace(/^./, (char) => char.toUpperCase())
 }
 
-function display(value: unknown): string {
+/**
+ * A PC's `status` change is shown by label, and that includes values from the
+ * pre-Phase-2.11 domain ("Online", "Under Maintenance"…) still in history.
+ */
+function display(value: unknown, pcStatus = false): string {
   if (value === null || value === undefined || value === '') return 'empty'
+  if (pcStatus && typeof value === 'string') return pcStatusLabel(value)
   if (typeof value === 'boolean') return value ? 'yes' : 'no'
   return String(value)
 }

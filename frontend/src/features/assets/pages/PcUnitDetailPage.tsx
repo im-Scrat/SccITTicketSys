@@ -7,6 +7,7 @@ import {
   Button,
   ConfirmDialog,
   EmptyState,
+  PcStatusBadge,
   Skeleton,
   Table,
   TBody,
@@ -159,7 +160,8 @@ export default function PcUnitDetailPage() {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-4">
             <h1 className="text-2xl font-bold text-ink-strong">{pcUnit.pc_name}</h1>
-            <Badge tone="neutral">{pcUnit.status_label}</Badge>
+            <PcStatusBadge status={pcUnit.status} size="md" />
+            {!pcUnit.room && <PcStatusBadge status="unassigned" size="md" />}
             {pcUnit.archived && <Badge tone="neutral">Archived</Badge>}
           </div>
           <p className="mt-2 font-mono text-base text-muted">{pcUnit.unit_code}</p>

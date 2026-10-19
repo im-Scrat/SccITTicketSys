@@ -24,7 +24,7 @@ const onSelect = vi.fn()
 const announce = vi.fn()
 let setPointerCapture: ReturnType<typeof vi.fn>
 
-function renderEditable(pcs: PlacedPc[] = [pc(1, 'online', { x: 120, y: 80 })], snap = true) {
+function renderEditable(pcs: PlacedPc[] = [pc(1, 'available', { x: 120, y: 80 })], snap = true) {
   return render(
     <FloorPlanCanvas
       roomName={plan.room.name}
@@ -78,14 +78,19 @@ describe('editable units', () => {
   it('are focusable buttons named with identity, status and position', () => {
     renderEditable()
 
-    const unit = node(/^PC-01, Online, at x 120, y 80$/)
+    const unit = node(/^PC-01, Available, at x 120, y 80$/)
     expect(unit).toHaveAttribute('tabindex', '0')
     expect(unit).toHaveAccessibleDescription(/press Enter/i)
   })
 
   it('stay pictures, not buttons, when the plan is not editable', () => {
     render(
-      <FloorPlanCanvas roomName="Lab" layout={layout} pcs={[pc(1, 'online')]} onPlace={onPlace} />,
+      <FloorPlanCanvas
+        roomName="Lab"
+        layout={layout}
+        pcs={[pc(1, 'available')]}
+        onPlace={onPlace}
+      />,
     )
 
     expect(screen.queryByRole('button', { name: /^PC-01/ })).toBeNull()
@@ -105,7 +110,7 @@ describe('pointer drag', () => {
     // 120+47 = 167 → 160; 80+23 = 103 → 100.
     expect(unit.getAttribute('transform')).toBe('translate(160 100)')
     expect(unit).toHaveAttribute('data-moving', 'true')
-    expect(unit).toHaveAccessibleName('PC-01, Online, at x 160, y 100')
+    expect(unit).toHaveAccessibleName('PC-01, Available, at x 160, y 100')
 
     fireEvent.pointerUp(unit, { pointerId: 7, pointerType: 'mouse' })
 
@@ -122,7 +127,7 @@ describe('pointer drag', () => {
     // lostpointercapture) the moment a captured element leaves the document.
     // Real drags were cancelled on the first move. jsdom does not emulate
     // capture, so the guard is on the cause: element identity and order.
-    renderEditable([pc(1, 'online', { x: 120, y: 80 }), pc(2, 'offline', { x: 400, y: 300 })])
+    renderEditable([pc(1, 'available', { x: 120, y: 80 }), pc(2, 'needs_fix', { x: 400, y: 300 })])
     const order = () => screen.getAllByTestId('floor-plan-node')
     const before = order()
     const unit = node()
@@ -344,7 +349,7 @@ describe('keyboard move mode — no dragging required', () => {
 
   it('abandons the move when focus leaves the unit', async () => {
     const user = userEvent.setup()
-    renderEditable([pc(1, 'online', { x: 120, y: 80 }), pc(2, 'offline', { x: 400, y: 300 })])
+    renderEditable([pc(1, 'available', { x: 120, y: 80 }), pc(2, 'needs_fix', { x: 400, y: 300 })])
 
     node().focus()
     await user.keyboard('{Enter}{ArrowRight}')

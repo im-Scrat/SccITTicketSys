@@ -1,4 +1,3 @@
-import type { AssetStatus } from '@/components/ui/StatusPill'
 import type { PcStatusValue, Tone } from '../types'
 
 /**
@@ -21,17 +20,14 @@ export interface StatusShape {
   sides: number
   /** Angle of the first vertex, in degrees (0 = pointing right, -90 = up). */
   startDeg: number
-  /** Retired machines are drawn with a dashed outline: present, but out of service. */
+  /** Kept for the glyph renderer; no Phase 2.11 status is drawn dashed. */
   dashed: boolean
 }
 
 export const STATUS_SHAPES: Record<PcStatusValue, StatusShape> = {
-  online: { sides: 0, startDeg: 0, dashed: false }, // circle
-  offline: { sides: 4, startDeg: 45, dashed: false }, // square
-  under_maintenance: { sides: 3, startDeg: -90, dashed: false }, // triangle
-  assigned: { sides: 4, startDeg: 0, dashed: false }, // diamond
-  available: { sides: 6, startDeg: 0, dashed: false }, // hexagon
-  retired: { sides: 8, startDeg: 22.5, dashed: true }, // dashed octagon
+  available: { sides: 0, startDeg: 0, dashed: false }, // circle
+  pending_repair: { sides: 3, startDeg: -90, dashed: false }, // triangle
+  needs_fix: { sides: 8, startDeg: 22.5, dashed: false }, // octagon (a stop sign)
 }
 
 /** Vertices of a regular polygon centred on the origin, as an SVG `points` value. */
@@ -45,42 +41,24 @@ export function polygonPoints(sides: number, radius: number, startDeg: number): 
 }
 
 /**
- * SVG fill/stroke utilities per server tone. The same design tokens the status
- * pill uses, so a node and its pill are always the same hue. `info` is the
- * primary hue — an *assigned* machine is claimed, not faulty and not spare.
+ * SVG fill/stroke utilities per server tone — the same design tokens the
+ * shared `PcStatusBadge` uses, so a node and its badge are always the same hue.
  */
 export const TONE_SVG: Record<Tone, string> = {
-  neutral: 'fill-surface-sunken stroke-muted',
   success: 'fill-success-subtle stroke-success-strong',
   warning: 'fill-warning-subtle stroke-warning-strong',
   danger: 'fill-danger-subtle stroke-danger-strong',
-  info: 'fill-primary-subtle stroke-primary-strong',
 }
 
 /** The icon inside a tile takes `currentColor`, so it is coloured through `text-*`. */
 export const TONE_TEXT: Record<Tone, string> = {
-  neutral: 'text-muted',
   success: 'text-success-strong',
   warning: 'text-warning-strong',
   danger: 'text-danger-strong',
-  info: 'text-primary-strong',
-}
-
-/**
- * `StatusPill` is keyed by its own five-state vocabulary. The server's tone is
- * what decides the hue here, so a pill is picked *by tone* and its wording is
- * always overridden with the server's label.
- */
-export const TONE_PILL: Record<Tone, AssetStatus> = {
-  neutral: 'available',
-  success: 'online',
-  warning: 'maintenance',
-  danger: 'offline',
-  info: 'assigned',
 }
 
 /** Statuses that count as an "alert" in the map header, alongside any open ticket. */
-export const ALERT_STATUSES: ReadonlySet<PcStatusValue> = new Set(['offline', 'under_maintenance'])
+export const ALERT_STATUSES: ReadonlySet<PcStatusValue> = new Set(['pending_repair', 'needs_fix'])
 
 function round(value: number): number {
   return Math.round(value * 100) / 100

@@ -396,7 +396,7 @@ class SubmitProofOfWork
         /*
          * Proof of work asserts that work happened, so a record still merely
          * `scheduled` is started first — through the lifecycle, so `started_at`
-         * is stamped once and the machine moves to `under_maintenance` with its
+         * is stamped once and the machine moves to Pending Repair with its
          * previous status remembered, exactly as it would had the technician
          * pressed Start in the maintenance module. Writing `in_progress`
          * directly here would skip both effects and the audit row with them.

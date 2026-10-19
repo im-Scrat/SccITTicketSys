@@ -145,11 +145,13 @@ it('accepts an item that has no room at all', function () {
         ->assertJsonPath('data.location', null);
 });
 
-it('refuses a retired computer', function () {
-    $pc = PcUnit::factory()->create(['room_id' => $this->room->id, 'status' => PcStatus::Retired->value]);
+it('accepts a computer already marked Needs Fix — a broken machine is what gets reported', function () {
+    // Phase 2.11 (DD-100): no repair status makes a live PC unreportable;
+    // only archiving does (next test).
+    $pc = PcUnit::factory()->create(['room_id' => $this->room->id, 'status' => PcStatus::NeedsFix->value]);
 
     $this->actingAs($this->teacher)->postJson('/api/tickets', equipmentPayload(['pc_unit' => $pc->uuid]))
-        ->assertUnprocessable()->assertJsonValidationErrors('pc_unit');
+        ->assertCreated();
 });
 
 it('refuses an archived computer', function () {

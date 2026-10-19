@@ -48,18 +48,26 @@ final class ImportValueMapper
     /** @var array<string, string> */
     private const ASSET_STATUS_LIKELY = ['working' => 'deployed', 'for repair' => 'in_repair', 'unserviceable' => 'out_of_service'];
 
-    /** @var array<string, list<string>> */
+    /**
+     * PC repair status (Phase 2.11, DD-100). Words that only describe a live
+     * connection ("online", "on", "connected") read as Available — the system
+     * has no telemetry, so a spreadsheet saying a machine was online is saying
+     * it worked. Retirement words are deliberately absent: a retired machine is
+     * archived, not imported as a live one, so those values surface as
+     * "unknown" and the administrator decides what each one means.
+     *
+     * @var array<string, list<string>>
+     */
     private const PC_STATUS = [
-        'available' => ['available', 'spare', 'unused', 'idle', 'free', 'vacant'],
-        'assigned' => ['assigned', 'in use', 'allocated', 'occupied'],
-        'online' => ['online', 'on', 'up', 'active', 'connected'],
-        'offline' => ['offline', 'off', 'down', 'disconnected'],
-        'under_maintenance' => ['under maintenance', 'maintenance', 'in repair', 'under repair', 'repair', 'being repaired'],
-        'retired' => ['retired', 'decommissioned', 'condemned', 'disposed', 'phased out', 'obsolete'],
+        'available' => ['available', 'spare', 'unused', 'idle', 'free', 'vacant', 'assigned', 'in use', 'allocated', 'occupied',
+            'online', 'on', 'up', 'active', 'connected', 'ok', 'okay', 'good'],
+        'pending_repair' => ['pending repair', 'under maintenance', 'maintenance', 'in repair', 'under repair', 'repair', 'being repaired',
+            'awaiting repair', 'for maintenance'],
+        'needs_fix' => ['needs fix', 'needs repair', 'offline', 'off', 'down', 'disconnected', 'faulty', 'broken', 'defective', 'not working'],
     ];
 
     /** @var array<string, string> */
-    private const PC_STATUS_LIKELY = ['working' => 'online', 'for repair' => 'under_maintenance'];
+    private const PC_STATUS_LIKELY = ['working' => 'available', 'for repair' => 'pending_repair', 'unserviceable' => 'needs_fix'];
 
     /** @var array<string, list<string>> */
     private const CONDITION = [

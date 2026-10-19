@@ -43,7 +43,7 @@ beforeEach(function () {
     $this->otherTechnician = userWithRole('technician');
 
     $this->pc = PcUnit::factory()->create([
-        'status' => PcStatus::Online->value,
+        'status' => PcStatus::Available->value,
         'current_condition' => PcCondition::Faulty->value,
     ]);
 });
@@ -336,21 +336,21 @@ it('reports the blockers on the available transitions rather than hiding the but
 
 /* --------------------------------------------------------- the PC-unit effect */
 
-it('puts the machine under maintenance on start and back afterwards', function () {
+it('marks the machine Pending Repair on start and Available once the repair is done', function () {
     $record = maintenanceFor($this->technician, 'preventive', ['pc_unit_id' => $this->pc->id]);
 
     moveMaintenance($this->technician, $record, 'in_progress')->assertOk();
 
-    expect($this->pc->refresh()->status)->toBe(PcStatus::UnderMaintenance)
+    expect($this->pc->refresh()->status)->toBe(PcStatus::PendingRepair)
         // What the visit displaced is remembered on the record, not inferred.
-        ->and($record->refresh()->pc_status_before)->toBe(PcStatus::Online)
+        ->and($record->refresh()->pc_status_before)->toBe(PcStatus::Available)
         ->and($record->pc_condition_before)->toBe(PcCondition::Faulty);
 
     moveMaintenance($this->technician, $record, 'completed', ['resolution' => 'Serviced'])->assertOk();
 
-    // Status returns to what it was; the condition is asserted working, which
-    // is what completing the visit means (FR-MNT-008).
-    expect($this->pc->refresh()->status)->toBe(PcStatus::Online)
+    // A finished repair means a fixed machine: Available, and asserted
+    // working (FR-MNT-008; Phase 2.11, DD-100).
+    expect($this->pc->refresh()->status)->toBe(PcStatus::Available)
         ->and($this->pc->current_condition)->toBe(PcCondition::Working);
 });
 
@@ -362,24 +362,52 @@ it('restores both prior values exactly when the visit is cancelled', function ()
 
     // A cancelled visit asserts nothing about the machine, so nothing is
     // asserted — it goes back exactly as it was.
-    expect($this->pc->refresh()->status)->toBe(PcStatus::Online)
+    expect($this->pc->refresh()->status)->toBe(PcStatus::Available)
         ->and($this->pc->current_condition)->toBe(PcCondition::Faulty);
 });
 
-it('leaves the machine under maintenance for a second concurrent visit', function () {
+it('keeps the machine Pending Repair while a second concurrent visit is still open', function () {
     $first = maintenanceFor($this->technician, 'preventive', ['pc_unit_id' => $this->pc->id]);
     $second = maintenanceFor($this->technician, 'preventive', ['pc_unit_id' => $this->pc->id]);
 
     moveMaintenance($this->technician, $first, 'in_progress')->assertOk();
     moveMaintenance($this->technician, $second, 'in_progress')->assertOk();
 
-    // The second visit remembers `under_maintenance` as what *it* displaced, so
-    // finishing the first correctly leaves the machine under maintenance.
-    expect($second->refresh()->pc_status_before)->toBe(PcStatus::UnderMaintenance);
+    // The second visit remembers Pending Repair as what *it* displaced.
+    expect($second->refresh()->pc_status_before)->toBe(PcStatus::PendingRepair);
 
     moveMaintenance($this->technician, $first, 'completed', ['resolution' => 'Done'])->assertOk();
 
-    expect($this->pc->refresh()->status)->toBe(PcStatus::Online);
+    // Finishing the first visit must not declare the machine fixed while the
+    // second is still being worked on.
+    expect($this->pc->refresh()->status)->toBe(PcStatus::PendingRepair);
+
+    moveMaintenance($this->technician, $second, 'completed', ['resolution' => 'Done'])->assertOk();
+
+    expect($this->pc->refresh()->status)->toBe(PcStatus::Available);
+});
+
+it('makes a Needs Fix machine Available when its repair completes, instead of restoring Needs Fix', function () {
+    // Phase 2.11 (DD-100): before this, completing a repair *restored* the
+    // displaced status, so a broken machine came back broken.
+    $this->pc->forceFill(['status' => PcStatus::NeedsFix->value])->save();
+    $record = maintenanceFor($this->technician, 'preventive', ['pc_unit_id' => $this->pc->id]);
+
+    moveMaintenance($this->technician, $record, 'in_progress')->assertOk();
+    expect($this->pc->refresh()->status)->toBe(PcStatus::PendingRepair);
+
+    moveMaintenance($this->technician, $record, 'completed', ['resolution' => 'Replaced PSU'])->assertOk();
+    expect($this->pc->refresh()->status)->toBe(PcStatus::Available);
+});
+
+it('restores Needs Fix when the repair of a broken machine is cancelled', function () {
+    $this->pc->forceFill(['status' => PcStatus::NeedsFix->value])->save();
+    $record = maintenanceFor($this->technician, 'preventive', ['pc_unit_id' => $this->pc->id]);
+
+    moveMaintenance($this->technician, $record, 'in_progress')->assertOk();
+    moveMaintenance($this->technician, $record, 'cancelled', ['reason' => 'Parts unavailable'])->assertOk();
+
+    expect($this->pc->refresh()->status)->toBe(PcStatus::NeedsFix);
 });
 
 it('touches no machine for an asset-only record', function () {

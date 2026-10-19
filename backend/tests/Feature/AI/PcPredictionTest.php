@@ -58,7 +58,7 @@ beforeEach(function (): void {
     $this->pcUnit = PcUnit::factory()->create([
         'room_id' => Room::factory()->create()->id,
         'unit_code' => 'PC-WPL-01',
-        'status' => PcStatus::Online->value,
+        'status' => PcStatus::Available->value,
     ]);
 
     $this->aiModel = AiModel::factory()->create([
@@ -484,5 +484,5 @@ it('takes no business action — no ticket, assignment, replacement, asset or PC
         expect(DB::table($table)->count())->toBe($before[$table], "{$table} changed");
     }
     expect(DB::table('assets')->pluck('status', 'id'))->toEqual($assetStatuses)
-        ->and($this->pcUnit->fresh()->status)->toBe(PcStatus::Online);
+        ->and($this->pcUnit->fresh()->status)->toBe(PcStatus::Available);
 });

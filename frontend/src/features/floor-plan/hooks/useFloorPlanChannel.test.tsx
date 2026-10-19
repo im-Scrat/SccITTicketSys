@@ -106,9 +106,9 @@ describe('PositionUpdated', () => {
   })
 
   it('adds a unit that was previously unplaced, and removes it from that list', async () => {
-    const plan = roomPlan({ unplaced: [unplacedPc(9, 'offline')], unplaced_count: 1 })
+    const plan = roomPlan({ unplaced: [unplacedPc(9, 'needs_fix')], unplaced_count: 1 })
     const { queryClient, wrapper } = setup(plan)
-    const placed = { ...unplacedPc(9, 'offline'), x: 60, y: 60, rotation: 0, z_index: 0 }
+    const placed = { ...unplacedPc(9, 'needs_fix'), x: 60, y: 60, rotation: 0, z_index: 0 }
 
     renderHook(
       () => useFloorPlanChannel(plan.room.id, { layoutVersion: 1, isOwnPendingMove: () => false }),
@@ -195,7 +195,7 @@ describe('PcStatusChanged', () => {
       id: target.id,
       name: target.name,
       unit_code: target.unit_code,
-      status: { value: 'offline' as const, label: 'Offline', tone: 'danger' as const },
+      status: { value: 'needs_fix' as const, label: 'Needs Fix', tone: 'danger' as const },
     }
 
     renderHook(
@@ -220,7 +220,7 @@ describe('PcStatusChanged', () => {
       id: 'unplaced-uuid-9',
       name: 'PC-U9',
       unit_code: 'LAB-U9',
-      status: { value: 'offline' as const, label: 'Offline', tone: 'danger' as const },
+      status: { value: 'needs_fix' as const, label: 'Needs Fix', tone: 'danger' as const },
     }
 
     renderHook(
@@ -251,7 +251,7 @@ describe('PcStatusChanged', () => {
         id: 'stranger-uuid',
         name: 'Stranger',
         unit_code: 'X-1',
-        status: { value: 'offline', label: 'Offline', tone: 'danger' },
+        status: { value: 'needs_fix', label: 'Needs Fix', tone: 'danger' },
       },
     })
 

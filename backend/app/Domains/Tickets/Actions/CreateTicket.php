@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Tickets\Actions;
 
+use App\Domains\Assets\Services\PcStatusAutomation;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Domains\Tickets\Events\TicketCreated;
 use App\Domains\Tickets\Http\Requests\StoreTicketRequest;
@@ -64,6 +65,7 @@ class CreateTicket
         private readonly TicketLifecycle $lifecycle,
         private readonly TicketNumberGenerator $numbers,
         private readonly SlaCalculator $sla,
+        private readonly PcStatusAutomation $pcStatuses,
     ) {}
 
     /**
@@ -93,7 +95,7 @@ class CreateTicket
         $deadlines = $this->sla->deadlinesFor($priority);
 
         $ticket = DB::transaction(function () use (
-            $data, $category, $detail, $priority, $prioritySource, $status, $pcUnit, $asset, $room, $reporter, $actor, $deadlines
+            $data, $category, $detail, $priority, $prioritySource, $status, $pcUnit, $asset, $room, $reporter, $actor, $deadlines, $request
         ): Ticket {
             $ticket = Ticket::create([
                 'ticket_number' => $this->numbers->next(),
@@ -124,6 +126,11 @@ class CreateTicket
                 'body' => 'Ticket reported.',
                 'created_at' => now(),
             ]);
+
+            // Phase 2.11 (DD-100): a reported fault marks an Available machine
+            // Pending Repair — in this transaction, so a ticket that fails to
+            // save leaves the machine untouched.
+            $this->pcStatuses->ticketOpened($ticket, $actor, $request);
 
             return $ticket;
         });

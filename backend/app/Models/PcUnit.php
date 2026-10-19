@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Casts\PcStatusCast;
 use App\Enums\PcCondition;
 use App\Enums\PcStatus;
 use App\Enums\QrStatus;
@@ -52,7 +53,7 @@ class PcUnit extends Model
     protected function casts(): array
     {
         return [
-            'status' => PcStatus::class,
+            'status' => PcStatusCast::class,
             'current_condition' => PcCondition::class,
             'purchase_date' => 'date',
             'warranty_expiration' => 'date',

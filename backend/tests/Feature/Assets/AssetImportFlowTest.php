@@ -51,7 +51,7 @@ it('imports a template file straight through to a complete outcome', function ()
 
     $pc = PcUnit::query()->where('unit_code', 'LAB1-PC01')->firstOrFail();
     expect($pc->room_id)->toBe($this->estate['lab1']->id)
-        ->and($pc->status->value)->toBe('online')
+        ->and($pc->status->value)->toBe('available')
         ->and($pc->specification->ram)->toBe('16 GB');
 
     // The record's own audit row names the import it came from.

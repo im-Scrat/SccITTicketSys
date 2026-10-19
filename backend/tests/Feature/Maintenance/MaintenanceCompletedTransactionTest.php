@@ -53,7 +53,7 @@ beforeEach(function (): void {
     $this->pcUnit = PcUnit::factory()->create([
         'room_id' => Room::factory()->create()->id,
         'unit_code' => 'PC-WPK-01',
-        'status' => PcStatus::Online->value,
+        'status' => PcStatus::Available->value,
     ]);
 
     $this->qr = QrCode::factory()->create([
@@ -265,5 +265,5 @@ it('never broadcasts a machine status change that rolled back', function (): voi
         ->assertStatus(500);
 
     expect($seen)->toHaveCount(0)
-        ->and($this->pcUnit->fresh()->status)->toBe(PcStatus::Online);
+        ->and($this->pcUnit->fresh()->status)->toBe(PcStatus::Available);
 });

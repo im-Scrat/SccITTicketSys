@@ -35,7 +35,7 @@ export function LocationMetricsCards({ metrics }: { metrics: LocationMetrics }) 
         }
       />
       <StatCard
-        label="Unplaced PCs"
+        label="Unassigned PCs"
         value={unplaced}
         icon={<Monitor size={15} />}
         tone={unplaced > 0 ? 'warning' : 'neutral'}

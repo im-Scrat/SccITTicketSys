@@ -36,7 +36,7 @@ beforeEach(function (): void {
 
 it('dispatches PositionUpdated on the room\'s private channel after a successful placement', function (): void {
     Event::fake([PositionUpdated::class]);
-    $pc = PcUnit::factory()->create(['room_id' => $this->room->id, 'pc_name' => 'PC-BROADCAST', 'status' => PcStatus::Online->value]);
+    $pc = PcUnit::factory()->create(['room_id' => $this->room->id, 'pc_name' => 'PC-BROADCAST', 'status' => PcStatus::Available->value]);
     $roomUuid = $this->room->uuid;
 
     $this->actingAs($this->admin)
@@ -63,7 +63,7 @@ it('dispatches PositionUpdated on the room\'s private channel after a successful
                 'id' => $pc->uuid,
                 'name' => 'PC-BROADCAST',
                 'unit_code' => $pc->unit_code,
-                'status' => ['value' => 'online', 'label' => PcStatus::Online->label(), 'tone' => PcStatus::Online->tone()],
+                'status' => ['value' => 'available', 'label' => PcStatus::Available->label(), 'tone' => PcStatus::Available->tone()],
                 // json_encode drops the trailing .0 on a whole-number float
                 // (no JSON_PRESERVE_ZERO_FRACTION), so the round-tripped wire
                 // value decodes as an int here — asserted as the client will
@@ -137,7 +137,7 @@ it('dispatches PcStatusChanged when an Administrator changes a PC unit\'s status
     $roomUuid = $this->room->uuid;
 
     $this->actingAs($this->admin)
-        ->putJson("/api/admin/pc-units/{$pc->uuid}", ['status' => PcStatus::Offline->value])
+        ->putJson("/api/admin/pc-units/{$pc->uuid}", ['status' => PcStatus::NeedsFix->value])
         ->assertOk();
 
     Event::assertDispatched(PcStatusChanged::class, function (PcStatusChanged $event) use ($pc, $roomUuid): bool {
@@ -150,7 +150,7 @@ it('dispatches PcStatusChanged when an Administrator changes a PC unit\'s status
                 'id' => $pc->uuid,
                 'name' => 'PC-DIRECT',
                 'unit_code' => $pc->unit_code,
-                'status' => ['value' => 'offline', 'label' => PcStatus::Offline->label(), 'tone' => PcStatus::Offline->tone()],
+                'status' => ['value' => 'needs_fix', 'label' => PcStatus::NeedsFix->label(), 'tone' => PcStatus::NeedsFix->tone()],
             ],
         ]);
 
@@ -179,7 +179,7 @@ it('does not dispatch PcStatusChanged for a PC unit with no room', function (): 
     $pc = PcUnit::factory()->create(['room_id' => null, 'status' => PcStatus::Available->value]);
 
     $this->actingAs($this->admin)
-        ->putJson("/api/admin/pc-units/{$pc->uuid}", ['status' => PcStatus::Offline->value])
+        ->putJson("/api/admin/pc-units/{$pc->uuid}", ['status' => PcStatus::NeedsFix->value])
         ->assertOk();
 
     Event::assertNotDispatched(PcStatusChanged::class);
@@ -200,7 +200,7 @@ it('dispatches PcStatusChanged when starting maintenance work moves the PC to un
         $wire = json_decode((string) json_encode($event->broadcastWith()), true);
 
         return $wire['pc']['id'] === $pc->uuid
-            && $wire['pc']['status']['value'] === PcStatus::UnderMaintenance->value;
+            && $wire['pc']['status']['value'] === PcStatus::PendingRepair->value;
     });
 });
 

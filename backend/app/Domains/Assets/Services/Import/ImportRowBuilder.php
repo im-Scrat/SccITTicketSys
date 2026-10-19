@@ -12,7 +12,6 @@ use App\Enums\AssetImportEntityMode;
 use App\Enums\AssetStatus;
 use App\Enums\ComponentType;
 use App\Enums\ImportEntityType;
-use App\Enums\PcStatus;
 use App\Models\AssetImport;
 use App\Models\AssetImportRow;
 
@@ -165,11 +164,10 @@ final class ImportRowBuilder
         [$status, $statusSource] = $this->meaning($import, $statusField, $values['status'] ?? null, $statusDefault, $issues);
         if ($status !== null) {
             $put('status', $status, (string) $statusSource);
-            $terminal = $type === ImportEntityType::PcUnit
-                ? $status === PcStatus::Retired->value
-                : in_array($status, [AssetStatus::Retired->value, AssetStatus::Disposed->value], true);
-            if ($terminal) {
-                $issues[] = ImportIssue::make('terminal_status', 'status', 'This record will be created as '.($type === ImportEntityType::PcUnit ? PcStatus::from($status)->label() : AssetStatus::from($status)->label()).'.');
+            // PC units have no terminal status since Phase 2.11 (DD-100) — a
+            // retired machine is archived, never imported live.
+            if ($type !== ImportEntityType::PcUnit && in_array($status, [AssetStatus::Retired->value, AssetStatus::Disposed->value], true)) {
+                $issues[] = ImportIssue::make('terminal_status', 'status', 'This record will be created as '.AssetStatus::from($status)->label().'.');
             }
         }
         [$condition, $conditionSource] = $this->meaning($import, 'condition', $values['condition'] ?? null, $defaults['condition'] ?? null, $issues);

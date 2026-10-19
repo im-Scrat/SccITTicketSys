@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react'
-import { Badge, SortableTh, Table, TBody, Td, Th, THead, Tr } from '@/components/ui'
+import { Badge, PcStatusBadge, SortableTh, Table, TBody, Td, Th, THead, Tr } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import type { PcSortColumn, PcUnitListItem } from '../types'
 
@@ -91,7 +91,7 @@ export function PcUnitsTable({ pcUnits, sort, direction, onSort, onOpen }: PcUni
                 </Td>
                 <Td className="font-mono text-sm text-muted">{unit.hostname ?? '—'}</Td>
                 <Td>
-                  <Badge tone="neutral">{unit.status_label}</Badge>
+                  <PcStatusBadge status={unit.status} />
                 </Td>
                 <Td className="text-sm">
                   {unit.room ? (
@@ -102,7 +102,7 @@ export function PcUnitsTable({ pcUnits, sort, direction, onSort, onOpen }: PcUni
                       )}
                     </>
                   ) : (
-                    <span className="text-muted">Unassigned</span>
+                    <PcStatusBadge status="unassigned" />
                   )}
                 </Td>
                 <Td className="text-right text-sm tnum">{unit.components_count}</Td>
@@ -139,7 +139,7 @@ export function PcUnitsTable({ pcUnits, sort, direction, onSort, onOpen }: PcUni
               >
                 {unit.pc_name}
               </button>
-              <Badge tone="neutral">{unit.status_label}</Badge>
+              <PcStatusBadge status={unit.status} />
             </div>
             <dl className="mt-4 grid gap-3">
               <Row label="Unit code" value={unit.unit_code} mono />

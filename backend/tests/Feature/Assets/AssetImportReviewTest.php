@@ -252,7 +252,7 @@ it('holds rows with a value that has no meaning, until one is chosen', function 
     expect($meaning['field'])->toBe('status.pc_unit')
         ->and($meaning['values'][0]['raw'])->toBe('Workng');
 
-    AssetImportFixtures::map($this->admin, $import, [], ['value_mappings' => ['status.pc_unit' => ['workng' => 'online', 'online' => 'online']]])->assertOk();
+    AssetImportFixtures::map($this->admin, $import, [], ['value_mappings' => ['status.pc_unit' => ['workng' => 'available', 'online' => 'available']]])->assertOk();
     expect(($this->row)($import, 2)->status)->toBe(AssetImportRowStatus::Ready);
 });
 

@@ -1,6 +1,13 @@
 import { AlertCircle, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { Alert, Badge, Button, EmptyState, Skeleton, Surface } from '@/components/ui'
+import {
+  Alert,
+  Button,
+  EmptyState,
+  PcStatusBadge as SharedPcStatusBadge,
+  Skeleton,
+  Surface,
+} from '@/components/ui'
 import { usePcUnit } from '@/features/assets/hooks/queries'
 import { ChecklistPanel } from '@/features/maintenance/components/ChecklistPanel'
 import {
@@ -132,17 +139,10 @@ export function PcInspectorPanel({ pcId, onClose }: { pcId: string; onClose: () 
 }
 
 function IdentitySection({ pcUnit }: { pcUnit: import('@/features/assets/types').PcUnitDetail }) {
-  const underMaintenance = pcUnit.status === 'under_maintenance'
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="neutral">{pcUnit.status_label}</Badge>
-        {underMaintenance && (
-          <span className="text-xs font-medium text-warning-strong">
-            Currently under maintenance
-          </span>
-        )}
+        <SharedPcStatusBadge status={pcUnit.status} />
       </div>
 
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">

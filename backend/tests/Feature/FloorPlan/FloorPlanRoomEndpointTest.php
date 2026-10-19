@@ -33,7 +33,7 @@ beforeEach(function (): void {
     $this->layout = RoomLayout::factory()->create([
         'room_id' => $this->room->id, 'version' => 1, 'width' => 1000, 'height' => 600, 'grid_size' => 20, 'is_active' => true,
     ]);
-    $this->pc = PcUnit::factory()->create(['room_id' => $this->room->id, 'status' => PcStatus::Online->value]);
+    $this->pc = PcUnit::factory()->create(['room_id' => $this->room->id, 'status' => PcStatus::Available->value]);
     FloorPlanPosition::factory()->create([
         'room_layout_id' => $this->layout->id, 'pc_unit_id' => $this->pc->id, 'pos_x' => 120, 'pos_y' => 80, 'rotation' => 0,
     ]);
@@ -243,7 +243,7 @@ it('answers a room with no active layout with an empty plan, not an error', func
 });
 
 it('lists the room\'s unplaced units — narrowly, and never another room\'s or an archived one', function (): void {
-    $waiting = PcUnit::factory()->create(['room_id' => $this->room->id, 'pc_name' => 'WAITING-PC', 'status' => PcStatus::Offline->value]);
+    $waiting = PcUnit::factory()->create(['room_id' => $this->room->id, 'pc_name' => 'WAITING-PC', 'status' => PcStatus::NeedsFix->value]);
     PcUnit::factory()->create(['room_id' => $this->room->id, 'pc_name' => 'ARCHIVED-PC'])->delete();
     PcUnit::factory()->create(['room_id' => Room::factory()->create()->id, 'pc_name' => 'ELSEWHERE-PC']);
 
@@ -253,7 +253,7 @@ it('lists the room\'s unplaced units — narrowly, and never another room\'s or 
         ->assertJsonPath('data.unplaced.0.id', $waiting->uuid)
         ->assertJsonPath('data.unplaced.0.name', 'WAITING-PC')
         ->assertJsonPath('data.unplaced.0.status', [
-            'value' => 'offline', 'label' => PcStatus::Offline->label(), 'tone' => PcStatus::Offline->tone(),
+            'value' => 'needs_fix', 'label' => PcStatus::NeedsFix->label(), 'tone' => PcStatus::NeedsFix->tone(),
         ])
         ->assertJsonPath('data.unplaced_count', 1);
 

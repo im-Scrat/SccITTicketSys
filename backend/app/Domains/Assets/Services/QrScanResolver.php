@@ -6,7 +6,6 @@ namespace App\Domains\Assets\Services;
 
 use App\Domains\Assets\DTOs\QrScanOutcome;
 use App\Enums\AssetStatus;
-use App\Enums\PcStatus;
 use App\Enums\QrStatus;
 use App\Enums\ScanResult;
 use App\Models\Asset;
@@ -136,8 +135,8 @@ class QrScanResolver
             return false;
         }
 
-        return $target instanceof PcUnit
-            ? $target->status !== PcStatus::Retired
-            : $target->status->isLive();
+        // A live PC is simply an unarchived one: since Phase 2.11 retiring a
+        // machine is archiving it (DD-100), so `trashed()` above settled it.
+        return $target instanceof PcUnit || $target->status->isLive();
     }
 }

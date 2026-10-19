@@ -6,12 +6,9 @@ import type { PcStatus, PcStatusValue, PlacedPc, RoomPlan, Tone, UnplacedPc } fr
  * derives them, so tests state them rather than compute them.
  */
 const STATUSES: Record<PcStatusValue, PcStatus> = {
-  available: { value: 'available', label: 'Available', tone: 'neutral' },
-  assigned: { value: 'assigned', label: 'Assigned', tone: 'info' },
-  online: { value: 'online', label: 'Online', tone: 'success' },
-  offline: { value: 'offline', label: 'Offline', tone: 'danger' },
-  under_maintenance: { value: 'under_maintenance', label: 'Under Maintenance', tone: 'warning' },
-  retired: { value: 'retired', label: 'Retired', tone: 'neutral' },
+  available: { value: 'available', label: 'Available', tone: 'success' },
+  pending_repair: { value: 'pending_repair', label: 'Pending Repair', tone: 'warning' },
+  needs_fix: { value: 'needs_fix', label: 'Needs Fix', tone: 'danger' },
 }
 
 export const ALL_STATUS_VALUES = Object.keys(STATUSES) as PcStatusValue[]
