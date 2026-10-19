@@ -63,11 +63,7 @@ async function auditRoute(
   await goto(page, route)
   if (prepare) await prepare(page)
 
-  // Type-only: @axe-core/playwright takes its Page type from the top-level
-  // playwright-core (1.63) while @playwright/test bundles 1.62, so the two
-  // declarations differ by one newer method. At runtime it is the same page.
-  const axePage = page as unknown as ConstructorParameters<typeof AxeBuilder>[0]['page']
-  const results = await new AxeBuilder({ page: axePage }).withTags(TAGS).analyze()
+  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze()
 
   const blocking = results.violations.filter((v) => BLOCKING_IMPACTS.has(v.impact ?? ''))
   const allowed = new Set(BASELINE.routes[key] ?? [])
