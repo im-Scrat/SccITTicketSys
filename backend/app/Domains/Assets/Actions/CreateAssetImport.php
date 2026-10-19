@@ -59,7 +59,8 @@ final class CreateAssetImport
         $uuid = (string) Str::uuid();
         $directory = "asset-imports/{$uuid}";
         $name = "source.{$extension}";
-        $stored = Storage::disk('local')->putFileAs($directory, $file, $name);
+        $disk = AttachmentSecurity::storageDisk();
+        $stored = Storage::disk($disk)->putFileAs($directory, $file, $name);
         if ($stored === false) {
             throw ValidationException::withMessages(['file' => 'The file could not be stored. Try again.']);
         }
@@ -74,7 +75,7 @@ final class CreateAssetImport
             'mime' => $mime,
             'size_bytes' => (int) $file->getSize(),
             'sha256' => (string) hash_file('sha256', (string) $file->getRealPath()),
-            'disk' => 'local',
+            'disk' => $disk,
             'path' => $stored,
             'expires_at' => now()->addDays((int) config('assets.import.draft_days', 7)),
         ]);

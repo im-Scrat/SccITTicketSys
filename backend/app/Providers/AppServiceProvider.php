@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Domains\Administration\Policies\OutgoingMailPolicy;
+use App\Domains\Administration\Support\OutgoingMail;
 use App\Domains\Analytics\Policies\ReportAreaPolicy;
 use App\Domains\Analytics\Reporting\ReportArea;
 use App\Domains\Assets\Policies\AssetImportPolicy;
@@ -37,6 +39,7 @@ use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\User;
 use App\Models\WorkSupportRequest;
+use App\Support\Mail\MailDiagnostics;
 use App\Support\Queue\RedactingFailedJobProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -44,6 +47,8 @@ use Illuminate\Http\Request;
 use Illuminate\Mail\Markdown;
 use Illuminate\Queue\Failed\FailedJobProviderInterface;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use PhpOffice\PhpWord\Settings as WordSettings;
@@ -69,6 +74,31 @@ class AppServiceProvider extends ServiceProvider
         $this->registerRateLimiters();
         $this->registerPasswordResetUrl();
         $this->registerDocumentEscaping();
+        $this->registerMailTestRedirect();
+    }
+
+    /**
+     * MAIL_TEST_REDIRECT_TO (config/mail.php): in a disposable sandbox, send
+     * every message to one controlled inbox, with CC/BCC dropped — so a test
+     * against a real relay cannot reach anyone else.
+     *
+     * Production ignores it and says so, loudly. A redirect left set there
+     * would silently hand every user's password-reset link to whoever owns
+     * that inbox; delivering to the real recipient is the safe failure.
+     */
+    private function registerMailTestRedirect(): void
+    {
+        $state = MailDiagnostics::redirectState();
+
+        if ($state === MailDiagnostics::REDIRECT_IGNORED) {
+            Log::critical('MAIL_TEST_REDIRECT_TO is set in production and is being IGNORED; real recipients receive their mail. Remove the variable.');
+
+            return;
+        }
+
+        if ($state === MailDiagnostics::REDIRECT_ACTIVE) {
+            Mail::alwaysTo(trim((string) config('mail.test_redirect_to')));
+        }
     }
 
     /**
@@ -170,6 +200,10 @@ class AppServiceProvider extends ServiceProvider
         // `reports.view` would open through `Gate::before`. See ReportsAccess.
         Gate::policy(ReportArea::class, ReportAreaPolicy::class);
         Gate::policy(AssetImport::class, AssetImportPolicy::class);
+
+        // Outgoing-mail diagnostics (2026-10-20): Administrator role and
+        // `system.settings.manage`, by policy on a marker — never the bare string.
+        Gate::policy(OutgoingMail::class, OutgoingMailPolicy::class);
     }
 
     /**
@@ -279,6 +313,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('ai-test', fn (Request $request): Limit => Limit::perHour(
             (int) config('security.rate_limits.ai_test_per_hour', 10),
         )->by('ai-test:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+
+        // Outgoing-mail diagnostics: a connection test opens a session with the
+        // relay; a test message spends the sending quota (SMTP2GO free: 25 an
+        // hour until a domain is verified). Per account, and deliberately low.
+        RateLimiter::for('mail-check', fn (Request $request): Limit => Limit::perHour(10)
+            ->by('mail-check:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
+        RateLimiter::for('mail-test', fn (Request $request): Limit => Limit::perHour(3)
+            ->by('mail-test:'.($request->user()?->getKey() ?? $request->ip() ?? 'unknown')));
 
         RateLimiter::for('qr-proof', fn (Request $request): Limit => Limit::perMinute(
             (int) config('security.rate_limits.qr_proof_per_user_per_minute', 12),

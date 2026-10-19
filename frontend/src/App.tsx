@@ -125,6 +125,7 @@ const SupportRequestInboxPage = lazy(
 const TechniciansPage = lazy(() => import('@/features/technicians/pages/TechniciansPage'))
 const TechnicianDetailPage = lazy(() => import('@/features/technicians/pages/TechnicianDetailPage'))
 const AiSettingsPage = lazy(() => import('@/features/knowledge-base/pages/AiSettingsPage'))
+const OutgoingMailPage = lazy(() => import('@/features/system-mail/pages/OutgoingMailPage'))
 
 function App() {
   return (
@@ -430,6 +431,16 @@ function App() {
                   element={
                     <RequireRole roles={['administrator']}>
                       <AiSettingsPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="outgoing-email"
+                  element={
+                    <RequireRole roles={['administrator']}>
+                      <RequirePermission permission="system.settings.manage">
+                        <OutgoingMailPage />
+                      </RequirePermission>
                     </RequireRole>
                   }
                 />

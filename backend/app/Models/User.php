@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domains\Identity\Notifications\QueuedResetPassword;
 use App\Domains\Identity\Services\PermissionResolver;
 use App\Enums\UserStatus;
 use App\Support\Concerns\HasUuidRouteKey;
@@ -71,6 +72,18 @@ class User extends Authenticatable
             'force_password_reset' => 'boolean',
             'password_changed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Send the password-reset email through the queue, not on the request
+     * thread — see {@see QueuedResetPassword}. Same content and SPA link as
+     * the framework's notification.
+     *
+     * @param  string  $token
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new QueuedResetPassword($token));
     }
 
     public function fullName(): string

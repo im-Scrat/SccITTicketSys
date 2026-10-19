@@ -11,6 +11,7 @@ use App\Enums\AssetImportStatus;
 use App\Models\AssetImport;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\Local\LocalFilesystemAdapter;
 
 /**
  * Turns an import's stored file into ledger rows and a proposed mapping
@@ -35,8 +36,15 @@ final class AssetImportReader
             if (! $import->hasFile()) {
                 throw ImportFileRejected::unreadable();
             }
-            $path = Storage::disk($import->disk)->path((string) $import->path);
-            $result = $this->reader->read($path, $import->extension, $import->entity_mode, $import->source_options ?? []);
+            [$path, $temporary] = $this->localCopy($import);
+
+            try {
+                $result = $this->reader->read($path, $import->extension, $import->entity_mode, $import->source_options ?? []);
+            } finally {
+                if ($temporary) {
+                    @unlink($path);
+                }
+            }
         } catch (ImportFileRejected $e) {
             $import->forceFill([
                 'status' => AssetImportStatus::Unreadable,
@@ -112,5 +120,40 @@ final class AssetImportReader
         }
 
         return true;
+    }
+
+    /**
+     * A local filesystem path to the stored source file. PhpSpreadsheet and the
+     * CSV reader need a real file; on the local disk that is the stored file
+     * itself, on object storage (the Render pilot) it is a temporary copy the
+     * caller deletes once read.
+     *
+     * @return array{0: string, 1: bool} the path, and whether it is a temporary copy
+     */
+    private function localCopy(AssetImport $import): array
+    {
+        $disk = Storage::disk($import->disk);
+
+        if ($disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            return [$disk->path((string) $import->path), false];
+        }
+
+        $stream = $disk->readStream((string) $import->path);
+        if ($stream === null) {
+            throw ImportFileRejected::unreadable();
+        }
+
+        $temp = tempnam(sys_get_temp_dir(), 'sccit-import-');
+        $out = $temp === false ? false : fopen($temp, 'wb');
+        if ($temp === false || $out === false) {
+            fclose($stream);
+            throw ImportFileRejected::unreadable();
+        }
+
+        stream_copy_to_stream($stream, $out);
+        fclose($stream);
+        fclose($out);
+
+        return [$temp, true];
     }
 }

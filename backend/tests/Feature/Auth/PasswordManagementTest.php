@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Domains\Identity\Notifications\QueuedResetPassword;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
@@ -15,7 +15,7 @@ it('sends a reset link and responds generically', function () {
 
     $this->postJson('/api/forgot-password', ['email' => 'reset@example.com'])->assertOk();
 
-    Notification::assertSentTo($user, ResetPassword::class);
+    Notification::assertSentTo($user, QueuedResetPassword::class);
 });
 
 it('does not reveal whether the email exists on forgot-password', function () {

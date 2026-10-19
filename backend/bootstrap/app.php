@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Administration\Console\CheckMail;
 use App\Domains\Administration\Console\SendDailyDigest;
 use App\Domains\Analytics\Console\PruneReportExports;
 use App\Domains\Assets\Console\MaintainAssetImports;
@@ -69,10 +70,25 @@ return Application::configure(basePath: dirname(__DIR__))
         CheckAiConnection::class,
         PruneReportExports::class,
         MaintainAssetImports::class,
+        CheckMail::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         // Enable Sanctum SPA cookie auth on the API group (single-origin).
         $middleware->statefulApi();
+
+        /*
+         * Behind a TLS-terminating proxy (Render's edge), the app sees plain
+         * HTTP unless it trusts X-Forwarded-*: generated URLs would say http://
+         * and Secure cookies would never be issued. TRUST_PROXIES lists the
+         * proxy addresses, or `*` where the platform proxy is the only possible
+         * ingress (Render: the container is not reachable any other way).
+         * Unset — the Docker stack, where nginx is the edge — trusts nothing,
+         * which is the previous behaviour.
+         */
+        $trusted = env('TRUST_PROXIES');
+        if (is_string($trusted) && trim($trusted) !== '') {
+            $middleware->trustProxies(at: trim($trusted) === '*' ? '*' : array_map('trim', explode(',', $trusted)));
+        }
 
         /*
          * Baseline security headers on everything Laravel serves — JSON and

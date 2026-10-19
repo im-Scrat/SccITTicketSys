@@ -5,22 +5,13 @@ declare(strict_types=1);
 namespace App\Domains\Identity\Notifications;
 
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * Sent to an applicant when a registration request is received (SRS FR-AUTH-013).
- * Sent synchronously for reliable local delivery via Mailpit (SDD §10.3).
+ * Queued after commit since 2026-10-20 ({@see AccountMail}).
  */
-class RegistrationSubmitted extends Notification
+class RegistrationSubmitted extends AccountMail
 {
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
-
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)

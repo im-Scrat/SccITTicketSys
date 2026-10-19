@@ -190,7 +190,9 @@ services:
     image: sccit/app:prod
     restart: unless-stopped
     working_dir: /var/www/html
-    command: ["php", "artisan", "queue:work", "--queue=ai", "--timeout=170", "--max-time=3600", "--sleep=1"]
+    # --timeout must exceed the longest AI job's own timeout
+    # (GenerateEmbeddingJob::$timeout = 180), or the worker kills the job first.
+    command: ["php", "artisan", "queue:work", "--queue=ai", "--timeout=190", "--max-time=3600", "--sleep=1"]
     deploy:
       replicas: ${AI_WORKERS:-3}
     env_file:

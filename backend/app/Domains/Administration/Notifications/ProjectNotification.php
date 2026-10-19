@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Administration\Notifications;
 
 use App\Domains\Administration\Notifications\Channels\DatabaseChannel;
+use App\Domains\Administration\Notifications\Concerns\RetriesMailDelivery;
 use App\Domains\Administration\Services\NotificationPreferences;
 use App\Enums\NotificationChannel;
 use App\Enums\NotificationTopic;
@@ -78,7 +79,9 @@ use Illuminate\Support\Str;
  */
 abstract class ProjectNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    // Retries wait 1, 5 and 15 minutes, not the worker's 5 seconds: an
+    // external relay's rate limit or deferral clears in minutes (2026-10-20).
+    use Queueable, RetriesMailDelivery;
 
     /**
      * Stable for the life of this object, and therefore for the life of the

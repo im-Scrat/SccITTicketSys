@@ -45,8 +45,17 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            // Seconds to wait on the relay. Unset keeps PHP's socket default
+            // (60s) — fine for Mailpit, too long for a queued job that should
+            // fail fast and retry. SMTP2GO: 10.
+            'timeout' => env('MAIL_TIMEOUT') !== null ? (float) env('MAIL_TIMEOUT') : null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            // Refuse to authenticate or send unless STARTTLS (or SMTPS) is in
+            // use. Laravel passes this array to Symfony as DSN options, and the
+            // ESMTP factory honours `require_tls`. Off by default: Mailpit on
+            // the private Docker network offers no TLS. SMTP2GO on port 2525:
+            // true, so credentials can never cross the network in clear.
+            'require_tls' => (bool) env('MAIL_REQUIRE_TLS', false),
         ],
 
         'ses' => [
@@ -114,5 +123,21 @@ return [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Test Redirect (never in production)
+    |--------------------------------------------------------------------------
+    |
+    | One address that receives *every* message, with CC and BCC dropped — for
+    | a disposable sandbox exercising a real relay with synthetic users. It is
+    | IGNORED when APP_ENV=production, with a critical log line, so a value
+    | left behind can never silently divert real users' mail (password-reset
+    | links included) to whoever set it. `php artisan mail:check` and the admin
+    | mail panel report whether it is active, ignored or unset.
+    |
+    */
+
+    'test_redirect_to' => env('MAIL_TEST_REDIRECT_TO'),
 
 ];

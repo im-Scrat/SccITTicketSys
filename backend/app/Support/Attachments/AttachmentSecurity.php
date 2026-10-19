@@ -265,6 +265,17 @@ final class AttachmentSecurity
         return in_array(strtolower($extension), self::profile($profile)[$mime] ?? [], true);
     }
 
+    /**
+     * The private disk new uploads are written to (`filesystems.attachments`):
+     * the local volume on the Docker stack, object storage where the container
+     * filesystem is not durable. Each row records its disk and every read uses
+     * that column, so files written before a change remain reachable.
+     */
+    public static function storageDisk(): string
+    {
+        return (string) config('filesystems.attachments', 'local');
+    }
+
     /** Is this stored MIME type one the profile actually permits? */
     public static function isAllowed(?string $mime, string $profile): bool
     {

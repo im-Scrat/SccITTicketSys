@@ -1,8 +1,10 @@
 <?php
 
+use App\Domains\Administration\Http\Controllers\Admin\MailDiagnosticsController;
 use App\Domains\Administration\Http\Controllers\AnnouncementController;
 use App\Domains\Administration\Http\Controllers\NotificationController;
 use App\Domains\Administration\Http\Controllers\NotificationPreferenceController;
+use App\Domains\Administration\Support\OutgoingMail;
 use App\Domains\Analytics\Http\Controllers\Admin\OverallReportController;
 use App\Domains\Analytics\Http\Controllers\Admin\ReportEmailController;
 use App\Domains\Analytics\Http\Controllers\Admin\ReportExportController;
@@ -943,6 +945,24 @@ Route::middleware('auth:sanctum')->group(function () {
                     ->middleware('can:manage,'.AiSystemSetting::class);
                 Route::post('/test', [AiSettingsController::class, 'test'])
                     ->middleware(['can:manage,'.AiSystemSetting::class, 'throttle:ai-test']);
+            });
+
+        /*
+        |------------------------------------------------------------------
+        | Outgoing-mail diagnostics (2026-10-20) — ADMINISTRATOR ONLY
+        |------------------------------------------------------------------
+        | The in-app `mail:check`, for hosts with no shell. Configuration
+        | without credentials; a connection test that sends nothing; one
+        | fixed test message to the caller's own address (no recipient
+        | parameter exists). Gated by the OutgoingMail policy, throttled,
+        | audited.
+        */
+        Route::middleware(['password.current', 'can:manage,'.OutgoingMail::class])
+            ->prefix('admin/system/mail')
+            ->group(function () {
+                Route::get('/', [MailDiagnosticsController::class, 'show']);
+                Route::post('/check', [MailDiagnosticsController::class, 'check'])->middleware('throttle:mail-check');
+                Route::post('/test', [MailDiagnosticsController::class, 'test'])->middleware('throttle:mail-test');
             });
 
         /*

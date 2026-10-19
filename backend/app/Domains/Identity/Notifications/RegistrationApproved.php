@@ -5,22 +5,13 @@ declare(strict_types=1);
 namespace App\Domains\Identity\Notifications;
 
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * Sent to an applicant when an Administrator approves their registration and the
  * account becomes active (SRS FR-AUTH-015).
  */
-class RegistrationApproved extends Notification
+class RegistrationApproved extends AccountMail
 {
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
-
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
