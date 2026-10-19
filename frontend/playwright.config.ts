@@ -83,7 +83,7 @@ export default defineConfig({
       // boundaries between them, and the QR-verified technician workflow.
       name: 'e2e',
       testMatch:
-        /specs\/(auth|qr-workflow|notifications|announcements|floor-plan|predictions)\.spec\.ts/,
+        /specs\/(auth|qr-workflow|notifications|announcements|floor-plan|floor-plan-workflows|predictions)\.spec\.ts/,
       use: {
         ...chromium,
         baseURL: `http://localhost:${DEV_PORT}`,
