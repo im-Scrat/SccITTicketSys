@@ -104,6 +104,27 @@ async function arrangeConversation(page: Page): Promise<Arranged> {
   return { ticketUuid: ticket.id, ticketNumber: ticket.ticket_number }
 }
 
+/**
+ * Notifications are written by queued jobs. Wait until `role` has one that
+ * mentions `needle` before a test opens the bell or the centre — otherwise a
+ * job still in flight makes the screen look empty (an intermittent CI failure,
+ * 2026-10-20). Signs `role` out again afterwards.
+ */
+async function waitForNotification(page: Page, role: 'administrator' | 'teacher', needle: string) {
+  await goto(page, '/sign-in')
+  await apiLogin(page, role)
+  await expect
+    .poll(
+      async () =>
+        JSON.stringify(
+          (await apiJson<{ data: unknown[] }>(page, '/api/notifications')).data.data,
+        ).includes(needle),
+      { timeout: 20_000 },
+    )
+    .toBe(true)
+  await signOut(page)
+}
+
 /** The bell in the header, whatever its current count. */
 function bell(page: Page) {
   return page.getByRole('button', { name: /^Notifications/ })
@@ -114,6 +135,7 @@ test.describe('notification centre — administrator', () => {
     page,
   }) => {
     const { ticketNumber } = await arrangeConversation(page)
+    await waitForNotification(page, 'administrator', ticketNumber)
 
     await signIn(page, 'administrator')
 
@@ -269,6 +291,7 @@ test.describe('notification centre — technician', () => {
 test.describe('notification centre — teacher', () => {
   test('sees the updates on their own ticket but never the internal note', async ({ page }) => {
     const { ticketUuid, ticketNumber } = await arrangeConversation(page)
+    await waitForNotification(page, 'teacher', ticketNumber)
 
     await signIn(page, 'teacher')
     await goto(page, '/app/notifications')
