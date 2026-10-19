@@ -247,6 +247,28 @@ describe('editing and saving', () => {
     expect(screen.getByText('Unsaved changes (1)')).toBeInTheDocument()
   })
 
+  it('puts a refused size or position back in the field, so it never shows a value the plan lacks', async () => {
+    await startEditing()
+    await userEvent.click(screen.getByRole('button', { name: 'Add fixture' }))
+    await userEvent.click(
+      within(screen.getByRole('group', { name: 'Add a fixture' })).getByRole('button', {
+        name: 'Desk',
+      }),
+    )
+    const panel = screen.getByRole('complementary', { name: 'Details panel' })
+    const x = within(panel).getByLabelText('X')
+    const before = (x as HTMLInputElement).value
+
+    // An 80-wide desk centred 10 units from the 1000-wide room's wall would stick out.
+    await userEvent.clear(x)
+    await userEvent.type(x, '990{Enter}')
+
+    expect(x).toHaveValue(Number(before))
+    expect(screen.getByTestId('floor-plan-fixture')).toHaveAccessibleName(
+      new RegExp(`at x ${before},`),
+    )
+  })
+
   it('closes the fixture menu on Escape and returns focus to its button', async () => {
     await startEditing()
     const button = screen.getByRole('button', { name: 'Add fixture' })

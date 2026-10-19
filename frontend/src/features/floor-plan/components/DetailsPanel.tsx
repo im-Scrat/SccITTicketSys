@@ -143,7 +143,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-/** A number field that commits on blur or Enter — one undo step per commit, not per keystroke. */
+/**
+ * A number field that commits on blur or Enter — one undo step per commit, not
+ * per keystroke. `onCommit` returns `false` when the plan refused the value
+ * (outside the room, overlapping); the field then shows the real value again
+ * rather than a number the plan does not have.
+ */
 function NumberField({
   label,
   value,
@@ -160,7 +165,7 @@ function NumberField({
   max: number
   step?: number
   disabled?: boolean
-  onCommit: (value: number) => void
+  onCommit: (value: number) => boolean
   error?: string
 }) {
   const [text, setText] = useState(String(round2(value)))
@@ -173,8 +178,8 @@ function NumberField({
       return
     }
     const clamped = Math.min(max, Math.max(min, parsed))
-    if (clamped !== value) onCommit(clamped)
-    setText(String(round2(clamped)))
+    const accepted = clamped === value || onCommit(clamped)
+    setText(String(round2(accepted ? clamped : value)))
   }
 
   return (
@@ -223,19 +228,20 @@ function PcDetails({
 
   if (!info) return null
 
-  const setPoint = (axis: 'x' | 'y', value: number) => {
-    if (!geom) return
+  const setPoint = (axis: 'x' | 'y', value: number): boolean => {
+    if (!geom) return false
     const next = { ...geom, [axis]: value }
     if (!boxInsideRoom(workstationBox(next.x, next.y, size), room)) {
       onAnnounce(`Not moved: ${info.name} would not fit inside the room there.`)
-      return
+      return false
     }
     const hit = overlapsAny(pcId, next, doc.workstations, size)
     if (hit) {
       onAnnounce(`Not moved: ${info.name} would overlap another workstation.`)
-      return
+      return false
     }
     onEdit((d) => ({ ...d, workstations: { ...d.workstations, [pcId]: next } }))
+    return true
   }
 
   const pc = record.data?.data
@@ -461,15 +467,16 @@ function FixtureDetails({
   const [label, setLabel] = useState(fixture.label ?? '')
   useEffect(() => setLabel(fixture.label ?? ''), [fixture.label, fixture.id])
 
-  const update = (patch: Partial<Fixture>) => {
+  const update = (patch: Partial<Fixture>): boolean => {
     const next = { ...fixture, ...patch }
     if (!pointsInsideRoom(corners(next.x, next.y, next.width, next.height, next.rotation), room)) {
       onAnnounce(
         `Not changed: the ${FIXTURES[next.kind].label.toLowerCase()} would not fit inside the room.`,
       )
-      return
+      return false
     }
     onEdit((d) => ({ ...d, fixtures: { ...d.fixtures, [fixture.id]: next } }))
+    return true
   }
 
   return (

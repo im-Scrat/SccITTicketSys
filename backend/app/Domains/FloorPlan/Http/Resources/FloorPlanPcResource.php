@@ -48,7 +48,7 @@ class FloorPlanPcResource extends JsonResource
         $position = $this->resource;
         $pcUnit = $position->pcUnit;
 
-        // Reference only — enough for "Under maintenance · Ticket TKT-…" on the
+        // Reference only — enough for "Pending Repair · Ticket TKT-…" on the
         // map. Nothing else about the ticket leaves through this resource; the
         // route is already administrator-only, so this widens no audience.
         $open = $pcUnit->relationLoaded('tickets')
