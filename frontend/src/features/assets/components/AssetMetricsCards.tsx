@@ -77,10 +77,7 @@ export function PanelHeading({
     <div className="flex flex-wrap items-baseline justify-between gap-3">
       <Heading
         id={id}
-        className={cn(
-          'font-bold text-ink-strong',
-          Heading === 'h2' ? 'text-lg' : 'text-base',
-        )}
+        className={cn('font-bold text-ink-strong', Heading === 'h2' ? 'text-lg' : 'text-base')}
       >
         {title}
       </Heading>
@@ -151,9 +148,7 @@ export function DistributionCard({
                 </>
               )
 
-              const select = row.key
-                ? onSelect && (() => onSelect(row))
-                : onSelectUnkeyed
+              const select = row.key ? onSelect && (() => onSelect(row)) : onSelectUnkeyed
 
               return (
                 <tr key={row.key ?? row.label}>
