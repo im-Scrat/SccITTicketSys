@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { formatDate, formatRelative } from '@/lib/datetime'
 import { AssetFormDrawer } from '../components/AssetFormDrawer'
-import { DistributionCard, MetricCard } from '../components/AssetMetricsCards'
+import { DistributionCard, MetricCard, PanelHeading } from '../components/AssetMetricsCards'
 import { AssetStatusBadge } from '../components/AssetStatusBadge'
 import { PcStatusSummary } from '../components/PcStatusSummary'
 import { useAssetDashboard } from '../hooks/queries'
@@ -24,6 +24,11 @@ import type { DistributionRow, RecentAsset } from '../types'
  * the start of a task rather than the end of one. Filter state living in the
  * query string is what makes those links work, and makes the resulting view
  * shareable and back-button-correct.
+ *
+ * Owner request 2026-10-20: **every panel** opens the list behind it too —
+ * each panel's heading carries a "View list" link, the "Not placed in a room"
+ * card and the "Unassigned" building row open the assets with no room, and
+ * the recent lists open the directory in the matching order.
  */
 export default function AssetDashboardPage() {
   useDocumentMeta({ title: 'Assets' })
@@ -119,11 +124,16 @@ export default function AssetDashboardPage() {
                 value={data.summary.unassigned_location}
                 hint="Assets with no location recorded"
                 tone={data.summary.unassigned_location > 0 ? 'warning' : 'neutral'}
+                onClick={() => go('unassigned=1')}
               />
             </div>
           </section>
 
-          <PcStatusSummary rows={data.pc_units.by_status} onSelect={(key) => go(pcQuery(key))} />
+          <PcStatusSummary
+            rows={data.pc_units.by_status}
+            onSelect={(key) => go(pcQuery(key))}
+            onViewAll={() => go('tab=pc-units')}
+          />
 
           <section aria-labelledby="asset-distributions" className="flex flex-col gap-4">
             <h2 id="asset-distributions" className="text-lg font-bold text-ink-strong">
@@ -136,6 +146,7 @@ export default function AssetDashboardPage() {
                 empty="Nothing is registered yet."
                 rows={data.by_status}
                 onSelect={(row: DistributionRow) => go(`status=${row.key}`)}
+                onViewAll={() => go('sort=status')}
               />
               <DistributionCard
                 title="By building"
@@ -143,6 +154,8 @@ export default function AssetDashboardPage() {
                 empty="No assets are placed in a building yet."
                 rows={data.by_building}
                 onSelect={(row: DistributionRow) => row.key && go(`building=${row.key}`)}
+                onSelectUnkeyed={() => go('unassigned=1')}
+                onViewAll={() => go('sort=building')}
               />
               <DistributionCard
                 title="By room"
@@ -150,6 +163,8 @@ export default function AssetDashboardPage() {
                 empty="No assets are placed in a room yet."
                 rows={data.by_room}
                 onSelect={(row: DistributionRow) => row.key && go(`room=${row.key}`)}
+                onSelectUnkeyed={() => go('unassigned=1')}
+                onViewAll={() => go('sort=room')}
               />
               <DistributionCard
                 title="By category"
@@ -157,14 +172,20 @@ export default function AssetDashboardPage() {
                 empty="No categories are in use yet."
                 rows={data.by_category}
                 onSelect={(row: DistributionRow) => row.key && go(`category=${row.key}`)}
+                onViewAll={() => go('sort=category')}
               />
             </div>
           </section>
 
           <section aria-labelledby="asset-warranty" className="flex flex-col gap-4">
-            <h2 id="asset-warranty" className="text-lg font-bold text-ink-strong">
-              Warranty expiring soon
-            </h2>
+            <PanelHeading
+              as="h2"
+              id="asset-warranty"
+              title="Warranty expiring soon"
+              onViewAll={() =>
+                go(`warranty_expiring=${data.warranty_expiring.days}&sort=warranty_expiration`)
+              }
+            />
             {data.warranty_expiring.items.length === 0 ? (
               <p className="text-base text-muted">
                 No warranties lapse in the next {data.warranty_expiring.days} days.
@@ -205,12 +226,14 @@ export default function AssetDashboardPage() {
               empty="Nothing has been added yet."
               assets={data.recently_added}
               onOpen={(id) => navigate(`/app/assets/${id}`)}
+              onViewAll={() => go('sort=created_at&direction=desc')}
             />
             <RecentList
               title="Recently updated"
               empty="No recent changes."
               assets={data.recently_updated}
               onOpen={(id) => navigate(`/app/assets/${id}`)}
+              onViewAll={() => go('sort=updated_at&direction=desc')}
             />
           </div>
         </>
@@ -235,15 +258,17 @@ function RecentList({
   empty,
   assets,
   onOpen,
+  onViewAll,
 }: {
   title: string
   empty: string
   assets: RecentAsset[]
   onOpen: (id: string) => void
+  onViewAll: () => void
 }) {
   return (
     <section className="rounded-lg border-2 border-border bg-surface p-6">
-      <h3 className="text-base font-bold text-ink-strong">{title}</h3>
+      <PanelHeading title={title} onViewAll={onViewAll} />
 
       {assets.length === 0 ? (
         <p className="mt-4 text-sm text-muted">{empty}</p>

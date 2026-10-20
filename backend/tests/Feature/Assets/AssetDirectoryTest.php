@@ -180,6 +180,19 @@ it('filters unassigned custodianship with the explicit sentinel', function () {
     expect($held)->toContain('HELD-1')->and($held)->not->toContain('FREE-1');
 });
 
+it('lists only assets with no room, the set the "Not placed in a room" count opens', function () {
+    Asset::factory()->create(['asset_tag' => 'NOWHERE-1', 'current_room_id' => null]);
+    Asset::factory()->create(['asset_tag' => 'PLACED-1', 'current_room_id' => Room::factory()->create()->id]);
+
+    $rows = collect($this->actingAs($this->admin)
+        ->getJson('/api/admin/assets?unassigned=1')->assertOk()->json('data'))->pluck('asset_tag');
+
+    expect($rows)->toContain('NOWHERE-1')->and($rows)->not->toContain('PLACED-1');
+
+    $dashboard = $this->actingAs($this->admin)->getJson('/api/admin/assets/dashboard')->json('data.summary');
+    expect($dashboard['unassigned_location'])->toBe($rows->count());
+});
+
 it('filters warranties expiring inside a window and excludes lapsed ones', function () {
     Asset::factory()->create(['asset_tag' => 'SOON-1', 'warranty_expiration' => now()->addDays(10)]);
     Asset::factory()->create(['asset_tag' => 'LATER-1', 'warranty_expiration' => now()->addDays(400)]);

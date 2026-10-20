@@ -106,6 +106,9 @@ class AssetDirectoryQuery
         $this->applyTechnician($query, $params['technician'] ?? null);
         $this->applyWarrantyWindow($query, $params['warranty_expiring'] ?? null, 'assets');
         $this->applyImportScope($query, $params['import'] ?? null, 'created_asset_id', 'assets.id');
+        if (filter_var($params['unassigned'] ?? false, FILTER_VALIDATE_BOOL)) {
+            $query->whereNull('assets.current_room_id');
+        }
         $this->applyLocationScope(
             $query,
             'assets.current_room_id',

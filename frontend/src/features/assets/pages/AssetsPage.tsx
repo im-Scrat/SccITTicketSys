@@ -68,6 +68,7 @@ export default function AssetsPage() {
         : undefined,
       trashed: (params.get('trashed') as AssetParams['trashed']) ?? 'without',
       import: params.get('import') ?? undefined,
+      unassigned: params.get('unassigned') === '1' ? 1 : undefined,
       // By name: the asset tag is no longer shown, so it cannot be the order.
       sort: (params.get('sort') as AssetSortColumn) ?? 'name',
       direction: (params.get('direction') as 'asc' | 'desc') ?? 'asc',

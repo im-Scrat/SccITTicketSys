@@ -1,5 +1,6 @@
 import { ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { PanelHeading } from './AssetMetricsCards'
 import { PC_STATUS, PC_STATUS_TONE_CLASSES, type PcStatusCategory } from '@/lib/pcStatus'
 import type { DistributionRow } from '../types'
 
@@ -16,18 +17,19 @@ const ORDER: PcStatusCategory[] = ['available', 'pending_repair', 'needs_fix', '
 export function PcStatusSummary({
   rows,
   onSelect,
+  onViewAll,
 }: {
   rows: DistributionRow[]
   onSelect: (key: PcStatusCategory) => void
+  /** Opens the whole PC list (owner request 2026-10-20). */
+  onViewAll?: () => void
 }) {
   const counts = new Map(rows.map((row) => [row.key, row.count]))
 
   return (
     <section aria-labelledby="pc-status-summary" className="flex flex-col gap-4">
       <div>
-        <h2 id="pc-status-summary" className="text-lg font-bold text-ink-strong">
-          PC status
-        </h2>
+        <PanelHeading as="h2" id="pc-status-summary" title="PC status" onViewAll={onViewAll} />
         <p className="mt-1 text-sm text-muted">
           Repair status as recorded by staff, tickets and repairs. Unassigned PCs have no room and
           are also counted in their repair status.

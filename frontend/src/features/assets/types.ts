@@ -497,6 +497,8 @@ export interface AssetParams {
   trashed?: TrashedFilter
   /** Only the records one import created (Phase 2.10 R7). */
   import?: string
+  /** Only assets with no room — "Not placed in a room" (DD-114). */
+  unassigned?: 1
   sort?: AssetSortColumn
   direction?: 'asc' | 'desc'
   per_page?: number
