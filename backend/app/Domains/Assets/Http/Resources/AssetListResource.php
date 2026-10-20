@@ -73,6 +73,8 @@ class AssetListResource extends JsonResource
                 'name' => $this->assignedTechnician->fullName(),
             ] : null,
 
+            // DD-115 — the custodian confirmed it is in its room; it then shows on the Floorplan.
+            'placement_confirmed_at' => $this->placement_confirmed_at?->toIso8601String(),
             'warranty_expiration' => $this->warranty_expiration?->toIso8601String(),
             'warranty_days_remaining' => $this->warrantyDaysRemaining(),
             'under_warranty' => $this->underWarranty(),

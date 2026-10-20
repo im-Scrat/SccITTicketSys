@@ -41,6 +41,7 @@ import { useFloorPlanChannel } from '../hooks/useFloorPlanChannel'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import type { DragItem } from '../lib/dragItem'
 import { clearDraft, readDraft, writeDraft, type StoredDraft } from '../lib/draftStorage'
+import { equipmentRoster, isEquipmentId } from '../lib/equipment'
 import { FIXTURES, newFixture } from '../lib/fixtures'
 import {
   arrangeInRows,
@@ -314,10 +315,14 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
 
   /* ── helpers ───────────────────────────────────────────────────────── */
 
+  const equipment = useMemo(() => equipmentRoster(plan), [plan])
+
   const pcName = useCallback(
     (id: string) =>
-      [...plan.pcs, ...plan.unplaced].find((pc) => pc.id === id)?.name ?? 'Workstation',
-    [plan.pcs, plan.unplaced],
+      [...plan.pcs, ...plan.unplaced].find((pc) => pc.id === id)?.name ??
+      equipment.get(id)?.name ??
+      'Workstation',
+    [plan.pcs, plan.unplaced, equipment],
   )
 
   const describeKey = useCallback(
@@ -542,14 +547,21 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
     }
   }
 
+  // PCs first, then confirmed equipment (DD-115) — both are placed the same way.
   const unplacedIds = useMemo(
-    () =>
-      [...plan.pcs, ...plan.unplaced]
+    () => [
+      ...[...plan.pcs, ...plan.unplaced]
         .filter((pc) => draft && !(pc.id in draft.workstations))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
         .map((pc) => pc.id),
-    [plan.pcs, plan.unplaced, draft],
+      ...[...equipment.entries()]
+        .filter(([id]) => draft && !(id in draft.workstations))
+        .sort(([, a], [, b]) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        .map(([id]) => id),
+    ],
+    [plan.pcs, plan.unplaced, equipment, draft],
   )
+  const unplacedNoun = unplacedIds.some(isEquipmentId) ? 'item' : 'PC'
 
   const arrange = (gap: number): number => {
     const d = store.getState().draft
@@ -570,7 +582,7 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
         ),
       },
     }))
-    announce(`${count} PC${count === 1 ? '' : 's'} arranged. Undo puts them back.`)
+    announce(`${count} ${unplacedNoun}${count === 1 ? '' : 's'} arranged. Undo puts them back.`)
     return count
   }
 
@@ -1099,6 +1111,7 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
             hasSelection={selection.length > 0}
             hasFixtureSelection={selection.some((k) => k.startsWith('fx:'))}
             unplacedCount={unplacedIds.length}
+            unplacedNoun={unplacedNoun}
             onAddFixture={(kind) => addFixture(kind)}
             onRotate={() => rotateKeys(store.getState().selection, 1)}
             onDelete={() => removeKeys(store.getState().selection)}
@@ -1170,7 +1183,7 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
                 <div className="pointer-events-none absolute inset-x-4 top-4 flex justify-center">
                   <p className="pointer-events-auto max-w-md rounded-md border border-border bg-surface px-4 py-3 text-center text-sm text-ink shadow-(--shadow-overlay-sm)">
                     {unplacedIds.length > 0
-                      ? `Place this room’s ${unplacedIds.length} PC${unplacedIds.length === 1 ? '' : 's'} from the Workstations panel, or `
+                      ? `Place this room’s ${unplacedIds.length} ${unplacedNoun}${unplacedIds.length === 1 ? '' : 's'} from the Workstations panel, or `
                       : 'Add desks, walls and doors from the toolbar. '}
                     {unplacedIds.length > 0 && (
                       <button
@@ -1238,6 +1251,7 @@ function RoomEditor({ roomId, plan }: { roomId: string; plan: RoomPlan }) {
           <AutoArrangeDialog
             open={dialog === 'arrange'}
             count={unplacedIds.length}
+            noun={unplacedNoun}
             onClose={() => setDialog(null)}
             onArrange={arrange}
           />

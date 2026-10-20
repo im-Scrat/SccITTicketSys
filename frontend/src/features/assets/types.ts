@@ -114,6 +114,8 @@ export interface AssetListItem {
   manufacturer: string | null
   model: string | null
   supplier?: string | null
+  /** When the custodian confirmed it is in its room (DD-115); null until then. */
+  placement_confirmed_at?: string | null
   room: RoomRef | null
   building: BuildingRef | null
   technician: TechnicianRef | null

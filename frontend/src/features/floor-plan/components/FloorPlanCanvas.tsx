@@ -20,6 +20,8 @@ import type { LayoutDoc, ObjectKey, WorkstationGeom } from '../lib/layoutDocumen
 import { visibleSize } from '../lib/viewport'
 import { useEditor, useEditorStore } from '../stores/useEditor'
 import type { Fixture, PcStatus, RoomPlan } from '../types'
+import { equipmentRoster, isEquipmentId } from '../lib/equipment'
+import { EquipmentNode } from './EquipmentNode'
 import { FixtureShape } from './FixtureShape'
 import { PcNode } from './PcNode'
 
@@ -153,6 +155,10 @@ export function FloorPlanCanvas({
     }
     return out
   }, [plan.pcs, plan.unplaced])
+
+  // Confirmed equipment (DD-115), keyed by its `eq:` draft id.
+  const equipment = useMemo(() => equipmentRoster(plan), [plan])
+  const nameOf = (id: string): string | undefined => meta.get(id)?.name ?? equipment.get(id)?.name
 
   const selected = useMemo(() => new Set(selection), [selection])
 
@@ -481,7 +487,7 @@ export function FloorPlanCanvas({
         const hit = overlapsAny(key.slice(3), point, statics, size)
         if (hit) {
           onAnnounce(
-            `Not moved: ${meta.get(key.slice(3))?.name ?? 'that workstation'} would overlap ${meta.get(hit)?.name ?? 'another workstation'}.`,
+            `Not moved: ${nameOf(key.slice(3)) ?? 'that workstation'} would overlap ${nameOf(hit) ?? 'another workstation'}.`,
           )
           return
         }
@@ -490,7 +496,7 @@ export function FloorPlanCanvas({
       state.edit((d) => applyPoints(d, moved))
       onAnnounce(
         Object.keys(moved).length === 1
-          ? `${describe(g.primary, doc, meta)} moved to x ${Math.round(moved[g.primary]?.x ?? 0)}, y ${Math.round(moved[g.primary]?.y ?? 0)}.`
+          ? `${describe(g.primary, doc, nameOf)} moved to x ${Math.round(moved[g.primary]?.x ?? 0)}, y ${Math.round(moved[g.primary]?.y ?? 0)}.`
           : `${Object.keys(moved).length} objects moved.`,
       )
       return
@@ -693,9 +699,40 @@ export function FloorPlanCanvas({
       ))}
 
       {workstations.map(({ id, geom }) => {
+        const key: ObjectKey = `pc:${id}`
+        if (isEquipmentId(id)) {
+          const item = equipment.get(id)
+          if (!item) return null
+          return (
+            <EquipmentNode
+              key={id}
+              id={id}
+              name={item.name}
+              category={item.category}
+              status={item.status}
+              x={geom.x}
+              y={geom.y}
+              rotation={geom.rotation}
+              size={size}
+              selected={selected.has(key)}
+              invalid={Boolean(invalid[key])}
+              // The status legend highlights PC repair statuses; equipment has none.
+              dimmed={highlight !== null}
+              interactive={editing}
+              showLabel={showLabels}
+              onPointerDown={beginObject(key)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  store.getState().select([key])
+                  onActivate(key)
+                }
+              }}
+            />
+          )
+        }
         const info = meta.get(id)
         if (!info) return null
-        const key: ObjectKey = `pc:${id}`
         return (
           <PcNode
             key={id}
@@ -829,9 +866,13 @@ function applyPoints(doc: LayoutDoc, points: Partial<Record<ObjectKey, Point>>):
   return { ...doc, workstations, fixtures }
 }
 
-function describe(key: ObjectKey, doc: LayoutDoc, meta: Map<string, PcMeta>): string {
+function describe(
+  key: ObjectKey,
+  doc: LayoutDoc,
+  nameOf: (id: string) => string | undefined,
+): string {
   const id = key.slice(3)
-  if (key.startsWith('pc:')) return meta.get(id)?.name ?? 'Workstation'
+  if (key.startsWith('pc:')) return nameOf(id) ?? 'Workstation'
   const f = doc.fixtures[id]
   return f ? FIXTURES[f.kind].label : 'Fixture'
 }

@@ -327,7 +327,8 @@ it('exposes a narrow payload with no numeric ids and no register data', function
     $response = $this->actingAs(userWithRole('administrator'))->getJson(($this->url)($this->room->uuid))->assertOk();
     $data = $response->json('data');
 
-    expect(array_keys($data))->toBe(['room', 'layout', 'fixtures', 'workstation_size', 'pcs', 'unplaced', 'unplaced_count', 'editor'])
+    // `equipment` / `unplaced_equipment`: confirmed assets (DD-115), same narrow shape.
+    expect(array_keys($data))->toBe(['room', 'layout', 'fixtures', 'workstation_size', 'pcs', 'unplaced', 'unplaced_count', 'equipment', 'unplaced_equipment', 'editor'])
         ->and(array_keys($data['room']))->toBe(['id', 'name', 'code', 'floor', 'building'])
         ->and(array_keys($data['layout']))->toBe(['version', 'revision', 'width', 'height', 'grid_size', 'updated_at', 'updated_by'])
         ->and(array_keys($data['pcs'][0]))->toBe(['id', 'name', 'unit_code', 'status', 'x', 'y', 'rotation', 'z_index', 'updated_at', 'open_ticket'])

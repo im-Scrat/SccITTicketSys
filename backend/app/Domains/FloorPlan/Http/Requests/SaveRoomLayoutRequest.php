@@ -46,6 +46,14 @@ class SaveRoomLayoutRequest extends FormRequest
             'workstations.*.y' => ['required', 'numeric', 'min:0', 'max:100000'],
             'workstations.*.rotation' => ['required', 'integer', Rule::in([0, 90, 180, 270])],
 
+            // Confirmed equipment (DD-115): optional, so a save that does not
+            // mention it leaves the equipment's places untouched.
+            'equipment' => ['sometimes', 'array', 'max:1000'],
+            'equipment.*.asset' => ['required', 'string', 'uuid', 'distinct'],
+            'equipment.*.x' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'equipment.*.y' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'equipment.*.rotation' => ['required', 'integer', Rule::in([0, 90, 180, 270])],
+
             'fixtures' => ['present', 'array', 'max:'.FloorPlanDefaults::MAX_FIXTURES],
             'fixtures.*.id' => ['required', 'string', 'uuid', 'distinct'],
             'fixtures.*.kind' => ['required', 'string', Rule::in(FloorPlanFixtureKind::values())],

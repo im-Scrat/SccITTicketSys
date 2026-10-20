@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Domains\FloorPlan\Services;
 
 use App\Domains\FloorPlan\DTOs\RoomPlan;
+use App\Models\Asset;
+use App\Models\FloorPlanAssetPosition;
 use App\Models\FloorPlanFixture;
 use App\Models\FloorPlanPosition;
+use App\Models\Room;
 use App\Models\RoomLayout;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Gate;
 
@@ -56,6 +61,7 @@ class FloorPlanService
                 $room->pcUnits()->orderBy('pc_name')->orderBy('id')->get(),
                 Gate::forUser($actor)->allows('manage', RoomLayout::class),
                 $this->defaults->snapToGrid(),
+                unplacedEquipment: $this->confirmedEquipment($room)->get(),
             );
         }
 
@@ -80,6 +86,8 @@ class FloorPlanService
             ->orderBy('id')
             ->get();
 
+        $equipment = $this->placedEquipment($layout);
+
         // The units an editor could still place: live in this room, with no
         // trusted position on this layout. Same room and soft-delete scoping as
         // the positions above, so nothing from outside the room can appear.
@@ -102,6 +110,48 @@ class FloorPlanService
             Gate::forUser($actor)->allows('manage', RoomLayout::class),
             $this->defaults->snapToGrid(),
             FloorPlanFixture::query()->where('room_layout_id', $layout->getKey())->orderBy('id')->get(),
+            $equipment,
+            $this->confirmedEquipment($room)
+                ->whereNotIn('id', $equipment->pluck('asset_id'))
+                ->get(),
         );
+    }
+
+    /**
+     * Confirmed equipment placed on this layout (DD-115). Trusted only while
+     * the asset is still in the room *and* still confirmed there — the same
+     * reasoning as the PC positions above: a stale row must never draw, or
+     * leak the name of, something that is no longer in the room.
+     *
+     * @return Collection<int, FloorPlanAssetPosition>
+     */
+    public function placedEquipment(RoomLayout $layout): Collection
+    {
+        return FloorPlanAssetPosition::query()
+            ->where('room_layout_id', $layout->getKey())
+            ->whereHas('asset', fn ($assets) => $assets
+                ->where('current_room_id', $layout->room_id)
+                ->whereNotNull('placement_confirmed_at'))
+            ->with('asset.hardwareModel.component')
+            ->orderBy('z_index')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Assets a custodian has confirmed are in this room (DD-115): what the
+     * Floorplan may show besides the PCs. Archived assets are excluded by the
+     * soft-delete scope.
+     *
+     * @return Builder<Asset>
+     */
+    private function confirmedEquipment(Room $room): Builder
+    {
+        return Asset::query()
+            ->with('hardwareModel.component')
+            ->where('current_room_id', $room->getKey())
+            ->whereNotNull('placement_confirmed_at')
+            ->orderBy('name')
+            ->orderBy('id');
     }
 }

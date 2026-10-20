@@ -35,6 +35,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $purchase_date
  * @property Carbon|null $warranty_expiration
  * @property string|null $notes
+ * @property string|null $category_detail
+ * @property Carbon|null $placement_confirmed_at
+ * @property int|null $placement_confirmed_by
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property Carbon|null $created_at
@@ -56,6 +59,7 @@ class Asset extends Model
             'purchase_price' => 'decimal:2',
             'purchase_date' => 'date',
             'warranty_expiration' => 'date',
+            'placement_confirmed_at' => 'datetime',
         ];
     }
 
@@ -141,6 +145,27 @@ class Asset extends Model
     public function assignedTechnician(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_technician_id');
+    }
+
+    /**
+     * Who confirmed this asset is in its room (DD-115).
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function placementConfirmedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'placement_confirmed_by');
+    }
+
+    /**
+     * Where this asset stands on Floorplan layouts (DD-115). Only trusted while
+     * the asset is still in that layout's room — FloorPlanService filters.
+     *
+     * @return HasMany<FloorPlanAssetPosition, $this>
+     */
+    public function floorPlanPositions(): HasMany
+    {
+        return $this->hasMany(FloorPlanAssetPosition::class);
     }
 
     /** @return BelongsTo<User, $this> */

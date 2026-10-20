@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Assets\Http\Controllers\Admin;
 
 use App\Domains\Assets\Actions\ArchiveAsset;
+use App\Domains\Assets\Actions\ConfirmAssetPlacement;
 use App\Domains\Assets\Actions\CreateAsset;
 use App\Domains\Assets\Actions\RestoreAsset;
 use App\Domains\Assets\Actions\UpdateAsset;
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Asset CRUD (SRS FR-AST-002/011/012).
@@ -86,6 +88,58 @@ class AssetController extends Controller
         return new AssetListResource(
             $this->custodyOf($actor)->where('uuid', $asset)->firstOrFail(),
         );
+    }
+
+    /**
+     * The custodian confirms one asset is in its room (DD-115). Resolved inside
+     * the custody scope like {@see mineShow()}: someone else's asset is a 404.
+     * An asset with no room cannot be confirmed (422); one already confirmed
+     * answers 200 unchanged.
+     */
+    public function confirmPlacement(Request $request, string $asset, ConfirmAssetPlacement $action): AssetListResource
+    {
+        $this->authorize('confirmOwnPlacement', Asset::class);
+
+        /** @var User $actor */
+        $actor = $request->user();
+
+        $record = $this->custodyOf($actor)->where('uuid', $asset)->firstOrFail();
+
+        if ($record->current_room_id === null) {
+            throw ValidationException::withMessages([
+                'asset' => 'This asset has no room yet. Ask an administrator to record where it is first.',
+            ]);
+        }
+
+        $action->handle(collect([$record]), $actor, $request);
+
+        return new AssetListResource($record->refresh()->load(['hardwareModel.component.manufacturer', 'supplier', 'currentRoom.floor.building', 'assignedTechnician']));
+    }
+
+    /**
+     * "Confirm all" (DD-115): every asset in the caller's custody that has a
+     * room and is not yet confirmed. Assets with no room are counted, not
+     * refused, so one unplaced asset never blocks the rest.
+     */
+    public function confirmAllPlacements(Request $request, ConfirmAssetPlacement $action): JsonResponse
+    {
+        $this->authorize('confirmOwnPlacement', Asset::class);
+
+        /** @var User $actor */
+        $actor = $request->user();
+
+        $custody = $this->custodyOf($actor)->get();
+        $confirmed = $action->handle($custody, $actor, $request);
+
+        return response()->json([
+            'message' => $confirmed->isEmpty()
+                ? 'Nothing left to confirm.'
+                : "{$confirmed->count()} asset(s) confirmed in their rooms.",
+            'meta' => [
+                'confirmed' => $confirmed->count(),
+                'without_room' => $custody->whereNull('current_room_id')->count(),
+            ],
+        ]);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\KnowledgeBase\Services;
 
 use App\Domains\KnowledgeBase\Exceptions\AiProviderException;
+use ArrayObject;
 use Closure;
 use Illuminate\Contracts\Redis\LimiterTimeoutException;
 use Illuminate\Support\Facades\Log;
@@ -77,8 +78,9 @@ class GeminiGovernor
 
         // Set once the guarded call has begun, so a Redis error raised from
         // *inside* the call is never mistaken for an unreachable funnel and
-        // the call is never made twice.
-        $started = false;
+        // the call is never made twice. An object, not a by-reference bool, so
+        // the write inside the callback is visible to static analysis too.
+        $attempt = new ArrayObject(['started' => false]);
 
         try {
             return Redis::funnel(self::CONCURRENCY_KEY)
@@ -87,15 +89,15 @@ class GeminiGovernor
                 // slot expires a little after the longest call could last.
                 ->releaseAfter($this->slotLifetimeSeconds())
                 ->block($this->waitSeconds())
-                ->then(function () use ($guarded, &$started): mixed {
-                    $started = true;
+                ->then(function () use ($guarded, $attempt): mixed {
+                    $attempt['started'] = true;
 
                     return $guarded();
                 });
         } catch (LimiterTimeoutException) {
             throw AiProviderException::busy();
         } catch (RedisException $e) {
-            if ($started) {
+            if ($attempt['started'] === true) {
                 throw $e;
             }
 

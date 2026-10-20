@@ -73,6 +73,9 @@ enum ActivityAction: string
     case AssetTechnicianUnassigned = 'asset_technician_unassigned';
     case AssetArchived = 'asset_archived';
     case AssetRestored = 'asset_restored';
+    // A custodian confirmed the asset is physically in its room (DD-115); it
+    // then appears on that room's Floorplan for an administrator to arrange.
+    case AssetPlacementConfirmed = 'asset_placement_confirmed';
     case AssetAttachmentAdded = 'asset_attachment_added';
     case AssetAttachmentRemoved = 'asset_attachment_removed';
     case PcUnitCreated = 'pc_unit_created';
@@ -323,6 +326,7 @@ enum ActivityAction: string
             self::AssetTechnicianUnassigned => 'Technician unassigned',
             self::AssetArchived => 'Archived',
             self::AssetRestored => 'Restored',
+            self::AssetPlacementConfirmed => 'Placement confirmed',
             self::AssetAttachmentAdded => 'Attachment added',
             self::AssetAttachmentRemoved => 'Attachment removed',
             self::PcUnitCreated => 'Created',

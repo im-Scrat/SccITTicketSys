@@ -87,6 +87,17 @@ class AssetPolicy
         return $actor->isAdministrator() || $actor->isTechnician();
     }
 
+    /**
+     * A custodian confirms assets assigned to them are in their rooms (owner
+     * request 2026-10-20, DD-115). The same roles as {@see viewOwnCustody()}:
+     * only a custodian has anything to confirm, and the controller scopes every
+     * confirmation to the caller's own custody.
+     */
+    public function confirmOwnPlacement(User $actor): bool
+    {
+        return $this->viewOwnCustody($actor);
+    }
+
     /** The unified asset timeline (FR-AST-005). */
     public function viewHistory(User $actor, Asset $asset): bool
     {

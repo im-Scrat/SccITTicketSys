@@ -17,6 +17,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { cn } from '@/lib/cn'
 import { PC_STATUS, PC_STATUS_VALUES } from '@/lib/pcStatus'
 import { startDrag } from '../lib/dragItem'
+import { equipmentRoster } from '../lib/equipment'
 import type { LayoutDoc, ObjectKey } from '../lib/layoutDocument'
 import { useMovePcToRoom } from '../hooks/mutations'
 import type { RoomPlan } from '../types'
@@ -58,6 +59,9 @@ interface WorkstationsPanelProps {
  * status in words and whether it is placed, reachable without a pointer.
  * Placing is "Place" (next free spot, then move it) or, with a mouse, dragging
  * a row onto the canvas.
+ *
+ * Equipment a custodian confirmed is in this room (DD-115) is listed after
+ * the PCs and placed the same way.
  */
 export function WorkstationsPanel(props: WorkstationsPanelProps) {
   const [tab, setTab] = useState<'room' | 'other'>('room')
@@ -69,7 +73,11 @@ export function WorkstationsPanel(props: WorkstationsPanelProps) {
           {
             value: 'room',
             label: 'In this room',
-            count: props.plan.pcs.length + props.plan.unplaced.length,
+            count:
+              props.plan.pcs.length +
+              props.plan.unplaced.length +
+              (props.plan.equipment?.length ?? 0) +
+              (props.plan.unplaced_equipment?.length ?? 0),
           },
           ...(props.canMoveIn ? [{ value: 'other', label: 'Other rooms' }] : []),
         ]}
@@ -103,9 +111,28 @@ function InThisRoom({ plan, doc, editing, selection, onPlace, onSelect }: Workst
     })
   }, [plan.pcs, plan.unplaced, doc.workstations, search, placement, status])
 
-  const unplaced = [...plan.pcs, ...plan.unplaced].filter(
-    (pc) => !(pc.id in doc.workstations),
-  ).length
+  const roster = useMemo(() => equipmentRoster(plan), [plan])
+  const equipment = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    return [...roster.entries()]
+      .map(([id, item]) => ({ id, item, placed: id in doc.workstations }))
+      .sort((a, b) => a.item.name.localeCompare(b.item.name, undefined, { numeric: true }))
+      .filter(({ item, placed }) => {
+        // The status filter is the PCs' repair status; equipment has none.
+        if (status) return false
+        if (placement === 'placed' && !placed) return false
+        if (placement === 'unplaced' && placed) return false
+        return (
+          !term ||
+          item.name.toLowerCase().includes(term) ||
+          (item.category ?? '').toLowerCase().includes(term)
+        )
+      })
+  }, [roster, doc.workstations, search, placement, status])
+
+  const unplaced =
+    [...plan.pcs, ...plan.unplaced].filter((pc) => !(pc.id in doc.workstations)).length +
+    [...roster.keys()].filter((id) => !(id in doc.workstations)).length
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
@@ -200,6 +227,66 @@ function InThisRoom({ plan, doc, editing, selection, onPlace, onSelect }: Workst
             )
           })}
         </ul>
+      )}
+
+      {equipment.length > 0 && (
+        <>
+          <h3 className="mt-2 text-sm font-semibold text-ink-strong">Equipment</h3>
+          <ul className={LIST} aria-label="Equipment in this room">
+            {equipment.map(({ id, item, placed }) => {
+              const isSelected = selection.includes(`pc:${id}`)
+              const draggable = editing && !placed
+              return (
+                <li
+                  key={id}
+                  draggable={draggable}
+                  onDragStart={draggable ? (e) => startDrag(e, { type: 'pc', id }) : undefined}
+                  className={cn('group', ROW, isSelected && 'bg-primary-subtle/50')}
+                >
+                  {draggable && (
+                    <GripVertical
+                      className="mt-0.5 size-4 shrink-0 cursor-grab text-faint"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <div className={DETAILS}>
+                    {placed ? (
+                      <button
+                        type="button"
+                        onClick={() => onSelect(id)}
+                        className="text-left text-sm font-semibold text-ink-strong underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                      >
+                        {item.name}
+                      </button>
+                    ) : (
+                      <span className="block text-sm font-semibold text-ink-strong">
+                        {item.name}
+                      </span>
+                    )}
+                    <span className="block text-xs text-muted">
+                      {item.category ?? 'Equipment'} · {item.status.label}
+                    </span>
+                    <span className="mt-1 block text-xs text-muted">
+                      {placed ? 'Placed' : 'Not placed'}
+                    </span>
+                  </div>
+                  {editing && !placed && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="shrink-0 self-start"
+                      aria-label={`Place ${item.name}`}
+                      leftIcon={<Plus className="size-4" aria-hidden="true" />}
+                      onClick={() => onPlace(id)}
+                    >
+                      Place
+                    </Button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </>
       )}
     </div>
   )

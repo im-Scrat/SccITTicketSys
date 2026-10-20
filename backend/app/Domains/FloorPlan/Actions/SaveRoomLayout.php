@@ -13,6 +13,8 @@ use App\Domains\FloorPlan\Services\LayoutGeometry;
 use App\Domains\FloorPlan\Services\RoomLayoutService;
 use App\Domains\Identity\Services\AuditLogger;
 use App\Enums\ActivityAction;
+use App\Models\Asset;
+use App\Models\FloorPlanAssetPosition;
 use App\Models\FloorPlanFixture;
 use App\Models\FloorPlanPosition;
 use App\Models\PcUnit;
@@ -64,6 +66,12 @@ use Illuminate\Validation\ValidationException;
  * precision): snapping is an editing aid the administrator can switch off, so
  * the server validates positions rather than re-snapping them (DD-101 D6).
  *
+ * **Equipment** (DD-115) — assets a custodian confirmed are in this room —
+ * travels in an optional `equipment` list with the same footprint and rules
+ * as a workstation: inside the room, overlapping nothing, and only assets that
+ * are in this room and confirmed there. A save that omits the list (an older
+ * client) leaves every equipment position as it is.
+ *
  * The audit rows are written inside the transaction — one
  * `AssetPositionChanged` / `AssetPositionCleared` per machine whose place
  * changed (it surfaces on that PC's own history), and one `LayoutUpdated`
@@ -82,6 +90,7 @@ final class SaveRoomLayout
      * @param  array{width: int|string, height: int|string, grid_size: int|string}  $settings
      * @param  list<array{pc_unit: string, x: float|int|string, y: float|int|string, rotation: int|string}>  $workstations
      * @param  list<array{id: string, kind: string, x: float|int|string, y: float|int|string, width: float|int|string, height: float|int|string, rotation: float|int|string, label?: string|null}>  $fixtures
+     * @param  list<array{asset: string, x: float|int|string, y: float|int|string, rotation: int|string}>|null  $equipment  null keeps every equipment position
      *
      * @throws AuthorizationException when the actor may not edit the Floorplan
      * @throws ModelNotFoundException when the room or version does not exist
@@ -97,6 +106,7 @@ final class SaveRoomLayout
         array $workstations,
         array $fixtures,
         ?Request $request = null,
+        ?array $equipment = null,
     ): RoomPlan {
         $this->layouts->authorizeManage($actor);
         $room = $this->layouts->room($actor, $roomUuid);
@@ -125,9 +135,16 @@ final class SaveRoomLayout
             'label' => isset($f['label']) && trim((string) $f['label']) !== '' ? trim((string) $f['label']) : null,
         ], $fixtures);
 
-        $this->assertGeometry($size, $placed, $shapes);
+        $items = $equipment === null ? null : array_map(static fn (array $e): array => [
+            'asset' => Str::lower($e['asset']),
+            'x' => round((float) $e['x'], 2),
+            'y' => round((float) $e['y'], 2),
+            'rotation' => (int) $e['rotation'],
+        ], $equipment);
 
-        $saved = DB::transaction(function () use ($actor, $room, $layout, $roomUuid, $expectedRevision, $size, $placed, $shapes, $request): ?RoomLayout {
+        $this->assertGeometry($size, $placed, $shapes, $items ?? []);
+
+        $saved = DB::transaction(function () use ($actor, $room, $layout, $roomUuid, $expectedRevision, $size, $placed, $shapes, $items, $request): ?RoomLayout {
             /** @var RoomLayout $locked */
             $locked = RoomLayout::query()->whereKey($layout->getKey())->lockForUpdate()->firstOrFail();
             $this->layouts->assertEditable($locked);
@@ -141,11 +158,14 @@ final class SaveRoomLayout
             $units = $this->machinesInRoom($room, $placed);
             $positions = $this->applyPositions($actor, $locked, $room, $units, $placed, $request);
             $fixtureChanges = $this->applyFixtures($locked, $shapes);
+            $equipmentChanges = $items === null
+                ? ['placed' => 0, 'moved' => 0, 'removed' => 0]
+                : $this->applyEquipment($actor, $locked, $this->equipmentInRoom($room, $items), $items, $request);
             $settingsChanged = $locked->width !== $size['width']
                 || $locked->height !== $size['height']
                 || $locked->grid_size !== $size['grid_size'];
 
-            if (array_sum($positions) + array_sum($fixtureChanges) === 0 && ! $settingsChanged) {
+            if (array_sum($positions) + array_sum($fixtureChanges) + array_sum($equipmentChanges) === 0 && ! $settingsChanged) {
                 // Nothing differs from what is stored: no new revision, so a
                 // no-op save never makes another administrator's draft stale.
                 return null;
@@ -168,6 +188,7 @@ final class SaveRoomLayout
                     'revision' => $locked->revision,
                     'workstations' => $positions,
                     'fixtures' => $fixtureChanges,
+                    'equipment' => $items === null ? null : $equipmentChanges,
                     'settings' => $settingsChanged ? ['from' => $from, 'to' => $size] : null,
                 ], static fn (mixed $value): bool => $value !== null),
                 request: $request,
@@ -189,30 +210,41 @@ final class SaveRoomLayout
      * @param  array{width: int, height: int, grid_size: int}  $size
      * @param  list<array{pc_unit: string, x: float, y: float, rotation: int}>  $placed
      * @param  list<array{uuid: string, kind: string, pos_x: float, pos_y: float, width: float, height: float, rotation: float, label: string|null}>  $shapes
+     * @param  list<array{asset: string, x: float, y: float, rotation: int}>  $items
      *
      * @throws ValidationException
      */
-    private function assertGeometry(array $size, array $placed, array $shapes): void
+    private function assertGeometry(array $size, array $placed, array $shapes, array $items = []): void
     {
         $errors = [];
+        // Workstations and equipment share one footprint and one "no overlap"
+        // rule, keyed by the payload path the editor marks.
         $boxes = [];
 
         foreach ($placed as $i => $w) {
-            $boxes[$i] = LayoutGeometry::workstationBox($w['x'], $w['y']);
+            $boxes["workstations.{$i}.x"] = LayoutGeometry::workstationBox($w['x'], $w['y']);
+        }
 
-            if (! LayoutGeometry::boxInsideRoom($boxes[$i], $size['width'], $size['height'])) {
-                $errors["workstations.{$i}.x"] = 'This workstation does not fit inside the room at that position.';
+        foreach ($items as $i => $e) {
+            $boxes["equipment.{$i}.x"] = LayoutGeometry::workstationBox($e['x'], $e['y']);
+        }
+
+        foreach ($boxes as $key => $box) {
+            if (! LayoutGeometry::boxInsideRoom($box, $size['width'], $size['height'])) {
+                $errors[$key] = self::noun($key).' does not fit inside the room at that position.';
             }
         }
 
-        foreach ($boxes as $i => $box) {
-            foreach ($boxes as $j => $other) {
-                if ($j <= $i || ! LayoutGeometry::boxesOverlap($box, $other)) {
+        $keys = array_keys($boxes);
+
+        foreach ($keys as $a => $i) {
+            foreach (array_slice($keys, $a + 1) as $j) {
+                if (! LayoutGeometry::boxesOverlap($boxes[$i], $boxes[$j])) {
                     continue;
                 }
 
-                $errors["workstations.{$i}.x"] ??= 'This workstation overlaps another one.';
-                $errors["workstations.{$j}.x"] ??= 'This workstation overlaps another one.';
+                $errors[$i] ??= self::noun($i).' overlaps another one.';
+                $errors[$j] ??= self::noun($j).' overlaps another one.';
             }
         }
 
@@ -370,6 +402,162 @@ final class SaveRoomLayout
             description: sprintf(
                 '%s %s to (%s, %s) on layout v%d',
                 $unit->pc_name,
+                $from === null ? 'placed' : 'moved',
+                $to['x'],
+                $to['y'],
+                $layout->version,
+            ),
+        );
+    }
+
+    /** "This workstation" or "This equipment", from a payload error key. */
+    private static function noun(string $key): string
+    {
+        return str_starts_with($key, 'equipment') ? 'This equipment' : 'This workstation';
+    }
+
+    /**
+     * The confirmed assets this room holds, for the uuids the editor placed
+     * (DD-115). An asset elsewhere, archived, or not confirmed here is refused
+     * — placing equipment never moves it, exactly as for a PC.
+     *
+     * @param  list<array{asset: string, x: float, y: float, rotation: int}>  $items
+     * @return array<string, Asset> keyed by uuid
+     *
+     * @throws ValidationException
+     */
+    private function equipmentInRoom(Room $room, array $items): array
+    {
+        $assets = Asset::query()
+            ->where('current_room_id', $room->getKey())
+            ->whereNotNull('placement_confirmed_at')
+            ->whereIn('uuid', array_column($items, 'asset'))
+            ->get()
+            ->keyBy('uuid')
+            ->all();
+
+        $errors = [];
+
+        foreach ($items as $i => $e) {
+            if (! isset($assets[$e['asset']])) {
+                $errors["equipment.{$i}.asset"] = 'This equipment is no longer confirmed in this room.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return $assets;
+    }
+
+    /**
+     * Insert, move and remove equipment positions so the layout holds exactly
+     * what was sent — the equipment counterpart of {@see applyPositions()}, with
+     * the same per-item audit on the asset's own history.
+     *
+     * @param  array<string, Asset>  $assets
+     * @param  list<array{asset: string, x: float, y: float, rotation: int}>  $items
+     * @return array{placed: int, moved: int, removed: int}
+     */
+    private function applyEquipment(User $actor, RoomLayout $layout, array $assets, array $items, ?Request $request): array
+    {
+        // As for PCs: rows for equipment that has left the room (or was
+        // archived) are history, not this save's to touch.
+        $existing = FloorPlanAssetPosition::query()
+            ->where('room_layout_id', $layout->getKey())
+            ->whereHas('asset', fn ($q) => $q->where('current_room_id', $layout->room_id)->whereNotNull('placement_confirmed_at'))
+            ->with('asset')
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('asset_id');
+
+        $table = (new FloorPlanAssetPosition)->getTable();
+        $counts = ['placed' => 0, 'moved' => 0, 'removed' => 0];
+        $kept = [];
+
+        foreach ($items as $e) {
+            $asset = $assets[$e['asset']];
+            $kept[] = $asset->getKey();
+            /** @var FloorPlanAssetPosition|null $old */
+            $old = $existing->get($asset->getKey());
+            $to = ['x' => $e['x'], 'y' => $e['y'], 'rotation' => $e['rotation']];
+
+            if ($old === null) {
+                DB::table($table)->insert([
+                    'room_layout_id' => $layout->getKey(),
+                    'asset_id' => $asset->getKey(),
+                    'pos_x' => $e['x'],
+                    'pos_y' => $e['y'],
+                    'rotation' => $e['rotation'],
+                    'z_index' => 0,
+                    'created_at' => DB::raw('clock_timestamp()'),
+                    'updated_at' => DB::raw('clock_timestamp()'),
+                ]);
+                $counts['placed']++;
+                $this->auditEquipment($actor, $asset, $layout, null, $to, $request);
+
+                continue;
+            }
+
+            $from = ['x' => (float) $old->pos_x, 'y' => (float) $old->pos_y, 'rotation' => (int) round((float) $old->rotation)];
+
+            if ($from === $to) {
+                continue;
+            }
+
+            DB::table($table)->where('id', $old->getKey())->update([
+                'pos_x' => $e['x'],
+                'pos_y' => $e['y'],
+                'rotation' => $e['rotation'],
+                'updated_at' => DB::raw('clock_timestamp()'),
+            ]);
+            $counts['moved']++;
+            $this->auditEquipment($actor, $asset, $layout, $from, $to, $request);
+        }
+
+        foreach ($existing as $assetId => $old) {
+            if (in_array($assetId, $kept, true)) {
+                continue;
+            }
+
+            DB::table($table)->where('id', $old->getKey())->delete();
+            $counts['removed']++;
+
+            $this->audit->activity(
+                ActivityAction::AssetPositionCleared,
+                actor: $actor,
+                subject: $old->asset,
+                properties: [
+                    'from' => ['x' => (float) $old->pos_x, 'y' => (float) $old->pos_y, 'rotation' => (int) round((float) $old->rotation)],
+                    'layout_version' => $layout->version,
+                    'reason' => 'removed_from_plan',
+                ],
+                request: $request,
+                module: 'floor-plan',
+                description: "{$old->asset->displayName()} removed from the Floorplan (layout v{$layout->version})",
+            );
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @param  array{x: float, y: float, rotation: int}|null  $from
+     * @param  array{x: float, y: float, rotation: int}  $to
+     */
+    private function auditEquipment(User $actor, Asset $asset, RoomLayout $layout, ?array $from, array $to, ?Request $request): void
+    {
+        $this->audit->activity(
+            ActivityAction::AssetPositionChanged,
+            actor: $actor,
+            subject: $asset,
+            properties: ['from' => $from, 'to' => $to, 'layout_version' => $layout->version],
+            request: $request,
+            module: 'floor-plan',
+            description: sprintf(
+                '%s %s to (%s, %s) on layout v%d',
+                $asset->displayName(),
                 $from === null ? 'placed' : 'moved',
                 $to['x'],
                 $to['y'],

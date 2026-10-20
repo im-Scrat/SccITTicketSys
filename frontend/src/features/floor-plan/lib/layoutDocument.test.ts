@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fixture, roomPlan } from '../test/fixtures'
+import { fixture, placedEquipment, roomPlan } from '../test/fixtures'
 import {
   changedKeys,
   countChanges,
@@ -24,6 +24,26 @@ describe('the draft document', () => {
     expect(doc.settings).toEqual({ width: 1000, height: 600, grid_size: 20 })
     expect(doc.workstations['pc-uuid-1']).toEqual({ x: 100, y: 120, rotation: 0 })
     expect(Object.keys(doc.fixtures)).toEqual(['fixture-uuid-1'])
+  })
+
+  it('carries confirmed equipment as workstation-shaped geometry under its eq: id (DD-115)', () => {
+    const doc = docFromPlan(
+      roomPlan({ equipment: [placedEquipment(1, { x: 600, y: 400, rotation: 90 })] }),
+    )!
+
+    expect(doc.workstations['eq:asset-uuid-1']).toEqual({ x: 600, y: 400, rotation: 90 })
+  })
+
+  it('splits equipment back out of the workstations when saving, and always sends the list', () => {
+    const doc = docFromPlan(roomPlan({ equipment: [placedEquipment(1)] }))!
+    const request = toSaveRequest(doc, 4)
+
+    expect(request.workstations.map((w) => w.pc_unit)).not.toContain('eq:asset-uuid-1')
+    expect(request.equipment).toEqual([{ asset: 'asset-uuid-1', x: 600, y: 400, rotation: 0 }])
+
+    const removed = { ...doc, workstations: { ...doc.workstations } }
+    delete removed.workstations['eq:asset-uuid-1']
+    expect(toSaveRequest(removed, 4).equipment).toEqual([])
   })
 
   it('is null for a room with no layout', () => {

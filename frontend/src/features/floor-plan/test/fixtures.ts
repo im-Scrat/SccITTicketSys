@@ -3,8 +3,10 @@ import type {
   FloorPlanRoomSummary,
   PcStatus,
   PcStatusValue,
+  PlacedEquipment,
   PlacedPc,
   RoomPlan,
+  UnplacedEquipment,
   UnplacedPc,
 } from '../types'
 
@@ -129,4 +131,21 @@ export function roomSummary(overrides: Partial<FloorPlanRoomSummary> = {}): Floo
     },
     ...overrides,
   }
+}
+
+/** Confirmed equipment (DD-115), as `RoomPlanResource` sends it. */
+export function unplacedEquipment(index: number): UnplacedEquipment {
+  return {
+    id: `asset-uuid-${index}`,
+    name: `Printer ${index}`,
+    category: 'Printer',
+    status: { value: 'deployed', label: 'In Service', tone: 'success' },
+  }
+}
+
+export function placedEquipment(
+  index: number,
+  overrides: Partial<PlacedEquipment> = {},
+): PlacedEquipment {
+  return { ...unplacedEquipment(index), x: 600, y: 400, rotation: 0, z_index: 0, ...overrides }
 }

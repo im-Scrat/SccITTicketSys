@@ -177,6 +177,8 @@ interface EditorToolbarProps {
   hasSelection: boolean
   hasFixtureSelection: boolean
   unplacedCount: number
+  /** "PC", or "item" once confirmed equipment (DD-115) is waiting too. */
+  unplacedNoun?: string
   onAddFixture: (kind: FixtureKind) => void
   onRotate: () => void
   onDelete: () => void
@@ -248,7 +250,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
             </ToolButton>
             <Divider />
             <ToolButton
-              label={`Arrange ${props.unplacedCount} unplaced PCs`}
+              label={`Arrange ${props.unplacedCount} unplaced ${props.unplacedNoun ?? 'PC'}s`}
               onClick={props.onArrange}
               disabled={props.unplacedCount === 0}
             >

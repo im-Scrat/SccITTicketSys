@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domains\FloorPlan\DTOs;
 
 use App\Domains\FloorPlan\Services\FloorPlanService;
+use App\Models\Asset;
+use App\Models\FloorPlanAssetPosition;
 use App\Models\FloorPlanFixture;
 use App\Models\FloorPlanPosition;
 use App\Models\PcUnit;
@@ -27,6 +29,8 @@ final readonly class RoomPlan
      * @param  bool  $canEdit  the actor may edit this room's Floorplan (`manage` on RoomLayout)
      * @param  bool  $snapToGrid  the `floor_plan.snap_to_grid` default for the editor
      * @param  Collection<int, FloorPlanFixture>  $fixtures  the layout's desks, walls, doors… (DD-102)
+     * @param  Collection<int, FloorPlanAssetPosition>  $equipment  placed confirmed assets, each with `asset` loaded (DD-115)
+     * @param  Collection<int, Asset>  $unplacedEquipment  confirmed assets in the room with no place on this layout yet
      */
     public function __construct(
         public Room $room,
@@ -37,5 +41,7 @@ final readonly class RoomPlan
         public bool $canEdit = false,
         public bool $snapToGrid = true,
         public Collection $fixtures = new Collection,
+        public Collection $equipment = new Collection,
+        public Collection $unplacedEquipment = new Collection,
     ) {}
 }

@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { docFromPlan } from '../lib/layoutDocument'
-import { roomPlan, unplacedPc } from '../test/fixtures'
+import { placedEquipment, roomPlan, unplacedEquipment, unplacedPc } from '../test/fixtures'
 import { WorkstationsPanel } from './WorkstationsPanel'
 
 const get = vi.fn()
@@ -102,5 +102,52 @@ describe('the Workstations panel', () => {
   it('hides other rooms from someone who may not move assets', () => {
     renderPanel({ canMoveIn: false })
     expect(screen.queryByRole('tab', { name: /Other rooms/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('the Workstations panel — confirmed equipment (DD-115)', () => {
+  function renderWithEquipment(editing = true) {
+    const plan = roomPlan({
+      equipment: [placedEquipment(1)],
+      unplaced_equipment: [unplacedEquipment(2)],
+    })
+    const onPlace = vi.fn()
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <WorkstationsPanel
+          plan={plan}
+          doc={docFromPlan(plan)!}
+          editing={editing}
+          canMoveIn={false}
+          selection={[]}
+          onPlace={onPlace}
+          onSelect={vi.fn()}
+          onAnnounce={vi.fn()}
+        />
+      </QueryClientProvider>,
+    )
+    return { onPlace }
+  }
+
+  it('lists confirmed equipment after the PCs, placed or not', () => {
+    renderWithEquipment()
+    const list = screen.getByRole('list', { name: 'Equipment in this room' })
+
+    expect(within(list).getByText('Printer 1').closest('li')).toHaveTextContent('Placed')
+    expect(within(list).getByText('Printer 2').closest('li')).toHaveTextContent('Not placed')
+  })
+
+  it('places unplaced equipment by its eq: id, like a PC', async () => {
+    const { onPlace } = renderWithEquipment()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Place Printer 2' }))
+
+    expect(onPlace).toHaveBeenCalledWith('eq:asset-uuid-2')
+  })
+
+  it('offers no placing of equipment in view mode', () => {
+    renderWithEquipment(false)
+
+    expect(screen.queryByRole('button', { name: 'Place Printer 2' })).not.toBeInTheDocument()
   })
 })

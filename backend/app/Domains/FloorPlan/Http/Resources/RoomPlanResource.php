@@ -6,6 +6,8 @@ namespace App\Domains\FloorPlan\Http\Resources;
 
 use App\Domains\FloorPlan\DTOs\RoomPlan;
 use App\Domains\FloorPlan\Services\FloorPlanDefaults;
+use App\Models\Asset;
+use App\Models\FloorPlanAssetPosition;
 use App\Models\FloorPlanFixture;
 use App\Models\FloorPlanPosition;
 use App\Models\PcUnit;
@@ -87,11 +89,45 @@ class RoomPlanResource extends JsonResource
                 ->values()
                 ->all(),
             'unplaced_count' => $plan->unplacedCount,
+            // Equipment a custodian confirmed is in this room (DD-115): placed
+            // on this layout, and still waiting for a place. The same narrow
+            // identity-and-status shape as a PC — no serial, price or notes.
+            'equipment' => $plan->equipment
+                ->map(fn (FloorPlanAssetPosition $position): array => [
+                    ...self::equipmentIdentity($position->asset),
+                    'x' => (float) $position->pos_x,
+                    'y' => (float) $position->pos_y,
+                    'rotation' => (float) $position->rotation,
+                    'z_index' => $position->z_index,
+                ])
+                ->values()
+                ->all(),
+            'unplaced_equipment' => $plan->unplacedEquipment
+                ->map(fn (Asset $asset): array => self::equipmentIdentity($asset))
+                ->values()
+                ->all(),
             // What the client may offer. A courtesy, not a control: every
             // write is authorized again by the route gate and `SaveRoomLayout`.
             'editor' => [
                 'can_edit' => $plan->canEdit,
                 'snap_to_grid' => $plan->snapToGrid,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{id: string, name: string, category: string|null, status: array{value: string, label: string, tone: string}}
+     */
+    private static function equipmentIdentity(Asset $asset): array
+    {
+        return [
+            'id' => $asset->uuid,
+            'name' => $asset->displayName(),
+            'category' => $asset->category_detail ?? $asset->hardwareModel?->component?->component_type?->label(),
+            'status' => [
+                'value' => $asset->status->value,
+                'label' => $asset->status->label(),
+                'tone' => $asset->status->tone(),
             ],
         ];
     }
