@@ -36,6 +36,6 @@ panels, per-room editor store. See its README.
 
 ## Still future
 
-Non-PC equipment on plans, a layout version-history browser, background
+A layout version-history browser, background
 images (column exists, no upload), network topology, heat maps, indoor
 navigation.

@@ -105,6 +105,18 @@ Branch `main` · Dockerfile `./docker/render/Dockerfile` · context `.` · healt
 
 **Never set** `MAIL_URL`, `MAIL_TEST_REDIRECT_TO` or any `REDIS_*` value. Never reuse a value from local production.
 
+**A service created by hand ("New Web Service") instead of from `render.yaml`** gets none of the Blueprint's fixed values. Copy every `value:` entry in `render.yaml` into the dashboard as well — in particular `APP_ENV=production`, `CACHE_STORE=database`, `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database` and `AI_GEMINI_CONCURRENCY=0`.
+
+### Enabling AI on the pilot
+
+AI is off unless you choose otherwise (see the Gemini free-tier warning above: synthetic data only). To turn it on:
+
+1. **Environment → Secret Files → Add**: file name exactly `gemini_api_key`, contents the Gemini API key. Render mounts it at `/etc/secrets/gemini_api_key`.
+2. **Environment variables**: `GEMINI_API_KEY_FILE=/etc/secrets/gemini_api_key` and `AI_GEMINI_CONCURRENCY=0`. The pilot has no Redis: without the `0`, every AI call tried the Redis concurrency funnel and failed. Since 2026-10-20 (SDD DD-116) the application falls back to the per-minute limit and logs a warning instead, but set the `0` anyway. In production `GEMINI_API_KEY` itself is ignored; only the file is read.
+3. **Deploy** (Manual Deploy → *Deploy latest commit*, or *Restart service*). The configuration is cached when the container starts, so saving the variables alone changes nothing.
+4. Sign in as the administrator → **AI settings**. The page should not say "No key configured" or "no chat model selected". Press **Test the connection**: it makes one chat call and one embedding call and reports what Gemini answered (an invalid key, a model the key cannot use, or a free-tier quota).
+5. The assistant button then appears for every role. It is hidden, not broken, while AI is unavailable, so its absence means steps 1–3 are not complete.
+
 ## Deploying
 
 The only route is **Actions → Deploy — Render pilot → Run workflow**, with a commit on `main`. The workflow:
