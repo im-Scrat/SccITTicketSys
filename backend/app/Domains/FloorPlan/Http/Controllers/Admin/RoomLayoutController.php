@@ -56,7 +56,7 @@ class RoomLayoutController extends Controller
         /** @var User $actor */
         $actor = $request->user();
 
-        /** @var array{expected_revision: int, settings: array{width: int, height: int, grid_size: int}, workstations: list<array{pc_unit: string, x: float, y: float, rotation: int}>, fixtures: list<array{id: string, kind: string, x: float, y: float, width: float, height: float, rotation: float, label?: string|null}>} $data */
+        /** @var array{expected_revision: int, settings: array{width: int, height: int, grid_size: int}, workstations: list<array{pc_unit: string, x: float, y: float, rotation: int}>, fixtures: list<array{id: string, kind: string, x: float, y: float, width: float, height: float, rotation: float, label?: string|null}>, equipment?: list<array{asset: string, x: float, y: float, rotation: int}>} $data */
         $data = $request->validated();
 
         $plan = $save->handle(
@@ -68,6 +68,8 @@ class RoomLayoutController extends Controller
             $data['workstations'],
             $data['fixtures'],
             $request,
+            // Absent from an older client's save: its equipment stays where it is.
+            $data['equipment'] ?? null,
         );
 
         return (new RoomPlanResource($plan))->response();

@@ -46,7 +46,11 @@ class AssetListResource extends JsonResource
             'condition_label' => $this->condition->label(),
 
             'category' => $component?->component_type?->value,
-            'category_label' => $component?->component_type?->label(),
+            // "Other — Smart board" when the form described an "Other" category (DD-114).
+            'category_label' => $this->category_detail !== null
+                ? 'Other — '.$this->category_detail
+                : $component?->component_type?->label(),
+            'category_detail' => $this->category_detail,
             'manufacturer' => $component?->manufacturer?->name,
             'model' => $modelName,
 
@@ -69,6 +73,8 @@ class AssetListResource extends JsonResource
                 'name' => $this->assignedTechnician->fullName(),
             ] : null,
 
+            // DD-115 — the custodian confirmed it is in its room; it then shows on the Floorplan.
+            'placement_confirmed_at' => $this->placement_confirmed_at?->toIso8601String(),
             'warranty_expiration' => $this->warranty_expiration?->toIso8601String(),
             'warranty_days_remaining' => $this->warrantyDaysRemaining(),
             'under_warranty' => $this->underWarranty(),

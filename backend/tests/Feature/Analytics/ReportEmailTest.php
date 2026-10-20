@@ -69,6 +69,31 @@ it('says which addresses are outside the school and what would be sent', functio
         ->and(implode(' ', $preview['contents']['excludes']))->toContain('No ticket titles');
 });
 
+it('never treats a public mailbox provider as inside the school, even when the system sends from one', function (): void {
+    // The Render pilot sends from a single verified Gmail sender: every Gmail
+    // address in the world must still need the outside-address confirmation.
+    config(['mail.from.address' => 'pilot.sender@gmail.com']);
+
+    $preview = $this->actingAs($this->admin)
+        ->postJson('/api/admin/reports/emails/check-recipients', ($this->body)(['recipients' => 'stranger@gmail.com']))
+        ->assertOk()
+        ->json('data');
+
+    expect($preview['external'])->toBe(['stranger@gmail.com'])
+        ->and($preview['internal_domains'] ?? [])->not->toContain('gmail.com');
+});
+
+it('still treats the school’s own sending domain as inside the school', function (): void {
+    config(['mail.from.address' => 'noreply@school.example.edu']);
+
+    $preview = $this->actingAs($this->admin)
+        ->postJson('/api/admin/reports/emails/check-recipients', ($this->body)(['recipients' => 'head@school.example.edu']))
+        ->assertOk()
+        ->json('data');
+
+    expect($preview['external'])->toBe([]);
+});
+
 it('sends one identifier-only copy per recipient, and records each as sent', function (): void {
     $this->actingAs($this->admin)->postJson('/api/admin/reports/emails', ($this->body)())->assertStatus(202);
 

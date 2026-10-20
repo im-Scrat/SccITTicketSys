@@ -9,6 +9,7 @@ use App\Domains\Identity\Services\AuditLogger;
 use App\Enums\ActivityAction;
 use App\Models\Asset;
 use App\Models\AssetTransfer;
+use App\Models\FloorPlanAssetPosition;
 use App\Models\Room;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -67,7 +68,15 @@ class TransferAsset
             $asset->forceFill([
                 'current_room_id' => $target?->getKey(),
                 'updated_by' => $actor->getKey(),
+                // A placement confirmation is about the old room (DD-115): the
+                // new room shows the asset once its custodian confirms it there.
+                'placement_confirmed_at' => null,
+                'placement_confirmed_by' => null,
             ])->save();
+
+            // Its place on the old room's Floorplan is released too, so a later
+            // return to that room starts unplaced rather than at a stale spot.
+            FloorPlanAssetPosition::query()->where('asset_id', $asset->getKey())->delete();
 
             AssetTransfer::query()->create([
                 'asset_id' => $asset->getKey(),

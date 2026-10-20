@@ -28,9 +28,9 @@ const KEY = 'sccit.pendingScan'
  * The same shape the route accepts and the API's `where()` constraint enforces.
  * Anything else was not written by this application.
  */
-const CODE_PATTERN = /^[A-Za-z0-9-]{1,64}$/
+export const CODE_PATTERN = /^[A-Za-z0-9-]{1,64}$/
 
-function isCode(value: unknown): value is string {
+export function isCode(value: unknown): value is string {
   return typeof value === 'string' && CODE_PATTERN.test(value)
 }
 

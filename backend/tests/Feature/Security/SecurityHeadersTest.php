@@ -68,6 +68,24 @@ it('keeps blob: in img-src so attachment previews keep working', function () {
     }
 })->group('security');
 
+it('allows the camera to this origin only, and every other powerful feature to none', function () {
+    // The in-app label scanner (DD-117) needs getUserMedia on the page itself;
+    // `camera=()` blocked it, `camera=*` would hand it to any embedded origin.
+    foreach (['dev', 'prod'] as $env) {
+        $conf = (string) file_get_contents(repoPath("docker/nginx/security-headers.{$env}.conf"));
+
+        expect(preg_match('/add_header Permissions-Policy "([^"]+)"/', $conf, $header))->toBe(1);
+
+        $policy = array_map('trim', explode(',', $header[1]));
+
+        expect($policy)->toContain('camera=(self)')
+            ->and($policy)->toContain('microphone=()')
+            ->and($policy)->toContain('geolocation=()')
+            ->and($policy)->toContain('payment=()')
+            ->and($policy)->toContain('usb=()');
+    }
+})->group('security');
+
 it('never allows unsafe-inline script in the production policy', function () {
     $prod = (string) file_get_contents(repoPath('docker/nginx/security-headers.prod.conf'));
 

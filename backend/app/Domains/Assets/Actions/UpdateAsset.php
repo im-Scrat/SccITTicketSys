@@ -91,12 +91,27 @@ class UpdateAsset
             }
         }
 
-        if (array_key_exists('supplier', $data)) {
-            $supplier = $this->resolveSupplier($data['supplier']);
+        if (array_key_exists('supplier', $data) || array_key_exists('supplier_other', $data)) {
+            $supplier = $this->resolveFormSupplier($data['supplier'] ?? null, $data['supplier_other'] ?? null);
+
+            if ($supplier?->wasRecentlyCreated) {
+                $changes['supplier_created'] = ['from' => null, 'to' => $supplier->name];
+            }
 
             if ($supplier?->getKey() !== $asset->supplier_id) {
                 $changes['supplier'] = ['from' => $asset->supplier?->name, 'to' => $supplier?->name];
                 $attributes['supplier_id'] = $supplier?->getKey();
+            }
+        }
+
+        // Only an edit that says which category it is touches the description,
+        // so a partial update of another field never clears it.
+        if (array_key_exists('category', $data)) {
+            $detail = $this->categoryDetailFrom($data);
+
+            if ($detail !== $asset->category_detail) {
+                $changes['category_detail'] = ['from' => $asset->category_detail, 'to' => $detail];
+                $attributes['category_detail'] = $detail;
             }
         }
 

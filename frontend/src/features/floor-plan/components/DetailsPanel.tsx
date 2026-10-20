@@ -6,6 +6,7 @@ import { usePcUnit } from '@/features/assets/hooks/queries'
 import { MaintenanceStatusBadge } from '@/features/maintenance/components/MaintenanceBadges'
 import { formatDate } from '@/lib/datetime'
 import { PC_STATUS, PC_STATUS_VALUES } from '@/lib/pcStatus'
+import { assetUuidOf, equipmentRoster, isEquipmentId } from '../lib/equipment'
 import { FIXTURES } from '../lib/fixtures'
 import {
   corners,
@@ -77,6 +78,8 @@ export function DetailsPanel(props: DetailsPanelProps) {
   }
 
   const key = selection[0]
+  if (key.startsWith('pc:') && isEquipmentId(key.slice(3)))
+    return <EquipmentDetails {...props} itemId={key.slice(3)} />
   if (key.startsWith('pc:')) return <PcDetails {...props} pcId={key.slice(3)} />
   const fixture = doc.fixtures[key.slice(3)]
   return fixture ? <FixtureDetails {...props} fixture={fixture} /> : null
@@ -572,6 +575,124 @@ function FixtureDetails({
           </Button>
         </div>
       )}
+    </PanelFrame>
+  )
+}
+
+/**
+ * Confirmed equipment (DD-115): what it is, where it stands, and the way to
+ * its asset record. It has no repair status, tickets or specification of its
+ * own here — the asset page holds those.
+ */
+function EquipmentDetails({
+  plan,
+  doc,
+  itemId,
+  editing,
+  invalid,
+  onEdit,
+  onRemove,
+  onClose,
+  onAnnounce,
+  onRotate,
+}: DetailsPanelProps & { itemId: string }) {
+  const item = equipmentRoster(plan).get(itemId)
+  const geom = doc.workstations[itemId]
+  const size = plan.workstation_size
+  const room = { width: doc.settings.width, height: doc.settings.height }
+  const key: ObjectKey = `pc:${itemId}`
+
+  if (!item) return null
+
+  const setPoint = (axis: 'x' | 'y', value: number): boolean => {
+    if (!geom) return false
+    const next = { ...geom, [axis]: value }
+    if (!boxInsideRoom(workstationBox(next.x, next.y, size), room)) {
+      onAnnounce(`Not moved: ${item.name} would not fit inside the room there.`)
+      return false
+    }
+    if (overlapsAny(itemId, next, doc.workstations, size)) {
+      onAnnounce(`Not moved: ${item.name} would overlap something else.`)
+      return false
+    }
+    onEdit((d) => ({ ...d, workstations: { ...d.workstations, [itemId]: next } }))
+    return true
+  }
+
+  return (
+    <PanelFrame
+      title={item.name}
+      subtitle={item.category ?? 'Equipment'}
+      onClose={onClose}
+      badge={
+        <span className="inline-flex items-center rounded-full border border-border px-2.5 py-1 text-sm font-medium text-ink">
+          {item.status.label}
+        </span>
+      }
+    >
+      <p className="text-sm text-muted">
+        Its custodian confirmed it is in this room. Moving it to another room takes it off this plan
+        until it is confirmed there.
+      </p>
+
+      {invalid[key] && <Alert tone="error">{invalid[key]}</Alert>}
+
+      <Section title="On this Floorplan">
+        {geom ? (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField
+                label="X"
+                value={geom.x}
+                min={size / 2}
+                max={room.width - size / 2}
+                disabled={!editing}
+                onCommit={(v) => setPoint('x', v)}
+              />
+              <NumberField
+                label="Y"
+                value={geom.y}
+                min={size / 2}
+                max={room.height - size / 2}
+                disabled={!editing}
+                onCommit={(v) => setPoint('y', v)}
+              />
+            </div>
+            {editing && (
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  leftIcon={<RotateCw className="size-4" aria-hidden="true" />}
+                  onClick={() => onRotate([key], 1)}
+                >
+                  Turn
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  leftIcon={<Trash2 className="size-4" aria-hidden="true" />}
+                  onClick={() => onRemove([key])}
+                >
+                  Remove from plan
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-muted">
+            Not placed yet. In edit mode, place it from the Workstations panel.
+          </p>
+        )}
+      </Section>
+
+      <Link
+        to={`/app/assets/${assetUuidOf(itemId)}`}
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-strong underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      >
+        Open the asset record
+        <ExternalLink className="size-4" aria-hidden="true" />
+      </Link>
     </PanelFrame>
   )
 }

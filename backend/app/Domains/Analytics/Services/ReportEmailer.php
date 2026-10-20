@@ -48,6 +48,15 @@ use Illuminate\Validation\ValidationException;
  */
 final class ReportEmailer
 {
+    /**
+     * Public mailbox providers: a sender on one of these says nothing about
+     * who else is "inside the school".
+     */
+    private const PUBLIC_MAIL_DOMAINS = [
+        'gmail.com', 'googlemail.com', 'yahoo.com', 'outlook.com', 'hotmail.com',
+        'live.com', 'msn.com', 'icloud.com', 'me.com', 'aol.com', 'proton.me', 'protonmail.com',
+    ];
+
     public function __construct(
         private readonly ReportExporter $exporter,
         private readonly AuditLogger $audit,
@@ -55,7 +64,10 @@ final class ReportEmailer
 
     /**
      * The school's own mail domains: the configured list plus the domain the
-     * application sends from.
+     * application sends from — unless that is a public mailbox provider. A
+     * pilot sending from a Gmail address would otherwise treat every Gmail
+     * recipient in the world as internal and skip the outside-address
+     * confirmation.
      *
      * @return list<string>
      */
@@ -65,7 +77,11 @@ final class ReportEmailer
         $from = (string) config('mail.from.address', '');
 
         if (str_contains($from, '@')) {
-            $domains[] = strtolower(substr($from, strrpos($from, '@') + 1));
+            $fromDomain = strtolower(substr($from, strrpos($from, '@') + 1));
+
+            if (! in_array($fromDomain, self::PUBLIC_MAIL_DOMAINS, true)) {
+                $domains[] = $fromDomain;
+            }
         }
 
         return array_values(array_unique(array_filter(array_map('strval', $domains))));

@@ -33,7 +33,8 @@ class StoreAssetRequest extends FormRequest
      */
     public function rules(): array
     {
-        return AssetCreationRules::rules();
+        // The form's narrowed options; the import uses AssetCreationRules::rules().
+        return AssetCreationRules::formRules();
     }
 
     /**
@@ -41,7 +42,7 @@ class StoreAssetRequest extends FormRequest
      */
     public function messages(): array
     {
-        return AssetCreationRules::messages();
+        return [...AssetCreationRules::messages(), ...AssetCreationRules::otherMessages()];
     }
 
     protected function prepareForValidation(): void

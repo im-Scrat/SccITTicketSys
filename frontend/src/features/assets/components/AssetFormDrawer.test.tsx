@@ -10,9 +10,21 @@ vi.mock('../hooks/queries', () => ({
     data: {
       statuses: [{ value: 'new', label: 'New' }],
       conditions: [{ value: 'working', label: 'Working' }],
-      categories: [{ value: 'printer', label: 'Printer' }],
+      form_statuses: [
+        { value: 'in_stock', label: 'Available' },
+        { value: 'in_repair', label: 'Under maintenance' },
+        { value: 'out_of_service', label: 'Out of service' },
+      ],
+      form_conditions: [
+        { value: 'working', label: 'Working' },
+        { value: 'for_repair', label: 'For Repair' },
+      ],
+      categories: [
+        { value: 'printer', label: 'Printer' },
+        { value: 'other', label: 'Other' },
+      ],
       manufacturers: [],
-      suppliers: [],
+      suppliers: [{ value: 'PC Express', label: 'PC Express' }],
       models: [{ value: 7, label: 'LaserJet 4200', manufacturer: 'HP', category: 'printer' }],
       technicians: [],
       pc_statuses: [],
@@ -80,5 +92,70 @@ describe('AssetFormDrawer — adding an asset', () => {
 
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
     expect(create.mock.calls[0][0]).toMatchObject({ hardware_model: 7, hardware_model_other: null })
+  })
+})
+
+describe('AssetFormDrawer — the owner’s option lists (DD-114)', () => {
+  it('offers exactly Available, Under maintenance and Out of service, opening on Available', () => {
+    renderForm()
+
+    const status = screen.getByLabelText(/^opening status/i)
+    expect(
+      Array.from((status as HTMLSelectElement).options).map((option) => option.textContent),
+    ).toEqual(['Available', 'Under maintenance', 'Out of service'])
+    expect(status).toHaveValue('in_stock')
+  })
+
+  it('offers exactly Working and For repair as the condition', () => {
+    renderForm()
+
+    const condition = screen.getByLabelText(/^condition/i) as HTMLSelectElement
+    expect(Array.from(condition.options).map((option) => option.value)).toEqual([
+      'working',
+      'for_repair',
+    ])
+  })
+
+  it('asks for a description when the category is "Other", and sends it', async () => {
+    renderForm()
+
+    expect(screen.queryByLabelText(/describe the category/i)).not.toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText(/^category/i), 'Other')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add asset' }))
+    expect(await screen.findByText('Describe the category in a few words.')).toBeInTheDocument()
+    expect(create).not.toHaveBeenCalled()
+
+    await userEvent.type(screen.getByLabelText(/describe the category/i), 'Smart board')
+    await userEvent.click(screen.getByRole('button', { name: 'Add asset' }))
+
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
+    expect(create.mock.calls[0][0]).toMatchObject({
+      category: 'other',
+      category_detail: 'Smart board',
+    })
+  })
+
+  it('opens a supplier name box under "Other" and sends the typed name instead of a choice', async () => {
+    renderForm()
+
+    expect(screen.queryByLabelText(/supplier name/i)).not.toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText(/^supplier/i), 'Other — type the name')
+
+    await userEvent.type(screen.getByLabelText(/supplier name/i), 'Octagon')
+    await userEvent.click(screen.getByRole('button', { name: 'Add asset' }))
+
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
+    expect(create.mock.calls[0][0]).toMatchObject({ supplier: null, supplier_other: 'Octagon' })
+  })
+
+  it('refuses "Other" supplier with no name typed', async () => {
+    renderForm()
+
+    await userEvent.selectOptions(screen.getByLabelText(/^supplier/i), 'Other — type the name')
+    await userEvent.click(screen.getByRole('button', { name: 'Add asset' }))
+
+    expect(await screen.findByText('Type the supplier’s name.')).toBeInTheDocument()
+    expect(create).not.toHaveBeenCalled()
   })
 })

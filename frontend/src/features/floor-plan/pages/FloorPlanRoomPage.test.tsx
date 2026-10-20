@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PreviewModeContext } from '@/contexts/PreviewModeContext'
 import { stubSvgGeometry } from '@/test/svgGeometry'
-import { pc, roomPlan, status, unplacedPc } from '../test/fixtures'
+import { pc, placedEquipment, roomPlan, status, unplacedPc } from '../test/fixtures'
 import type { RoomPlan } from '../types'
 import FloorPlanRoomPage from './FloorPlanRoomPage'
 
@@ -115,6 +115,15 @@ describe('opening a room', () => {
     expect(get).toHaveBeenCalledWith('/admin/floor-plan/rooms/room-uuid-1')
     expect(screen.getAllByTestId('floor-plan-node')).toHaveLength(3)
     expect(node('PC-03')).toHaveAccessibleName('PC-03, Needs Fix, at x 300, y 120')
+  })
+
+  it('draws confirmed equipment beside the workstations, never as one (DD-115)', async () => {
+    renderPage(roomPlan({ equipment: [placedEquipment(1, { x: 600, y: 400 })] }))
+    await screen.findByRole('heading', { level: 1, name: 'Computer Lab 2' })
+
+    expect(screen.getAllByTestId('floor-plan-node')).toHaveLength(3)
+    const equipment = screen.getByTestId('floor-plan-equipment')
+    expect(equipment).toHaveAccessibleName('Printer 1, Printer, In Service, at x 600, y 400')
   })
 
   it('offers the breadcrumb back to the overview', async () => {

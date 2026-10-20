@@ -6,6 +6,8 @@ import {
   type AssetPayload,
   assignTechnician,
   changeAssetStatus,
+  confirmAllMyAssetPlacements,
+  confirmMyAssetPlacement,
   createAsset,
   createPcUnit,
   deleteAttachment,
@@ -179,5 +181,34 @@ export function useDeleteAttachment() {
   return useMutation({
     mutationFn: (attachmentId: string) => deleteAttachment(attachmentId),
     onSuccess: () => void invalidate(),
+  })
+}
+
+/**
+ * Placement confirmation (DD-115) changes "My assets" and what a room's
+ * Floorplan offers to place, so both namespaces are refreshed.
+ */
+function useInvalidatePlacement() {
+  const queryClient = useQueryClient()
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: assetsKeys.all }),
+      queryClient.invalidateQueries({ queryKey: ['floor-plan'] }),
+    ])
+}
+
+export function useConfirmPlacement() {
+  const invalidate = useInvalidatePlacement()
+  return useMutation({
+    mutationFn: (id: string) => confirmMyAssetPlacement(id),
+    onSuccess: invalidate,
+  })
+}
+
+export function useConfirmAllPlacements() {
+  const invalidate = useInvalidatePlacement()
+  return useMutation({
+    mutationFn: () => confirmAllMyAssetPlacements(),
+    onSuccess: invalidate,
   })
 }

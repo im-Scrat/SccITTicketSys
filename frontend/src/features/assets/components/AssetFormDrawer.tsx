@@ -6,7 +6,15 @@ import { applyServerErrors, getErrorMessage } from '@/features/auth/lib/serverEr
 import { useRoomLookup } from '@/hooks/useLocationLookup'
 import { useCreateAsset, useUpdateAsset } from '../hooks/mutations'
 import { useAssetCatalog } from '../hooks/queries'
-import { type AssetForm, assetSchema, NO_MODEL_VALUE, OTHER_MODEL_VALUE } from '../schemas'
+import {
+  type AssetForm,
+  assetSchema,
+  CATEGORY_DETAIL_MAX,
+  NO_MODEL_VALUE,
+  OTHER_CATEGORY_VALUE,
+  OTHER_MODEL_VALUE,
+  OTHER_SUPPLIER_VALUE,
+} from '../schemas'
 import type { AssetDetail } from '../types'
 
 interface AssetFormDrawerProps {
@@ -31,6 +39,14 @@ interface AssetFormDrawerProps {
  * select; the server files it in the catalog so the next asset can pick it.
  * Every detail can be changed later from the asset page (administrators only).
  *
+ * **"Other" category and supplier** (owner request 2026-10-20, DD-114) follow
+ * the model's pattern: choosing "Other" opens a text box right under the
+ * select. A typed supplier is added to the supplier list for next time; a
+ * category description is kept on this asset. Opening status is limited to
+ * Available / Under maintenance / Out of service and condition to Working /
+ * For repair — an older asset whose condition is no longer offered keeps it
+ * as an extra option, so editing something else never forces a change.
+ *
  * **Status and room are absent when editing.** Both have their own audited write
  * paths (status writes `asset_status_history`, a move writes `asset_transfers`),
  * and the API refuses them here — so offering them in this form would promise
@@ -40,7 +56,6 @@ interface AssetFormDrawerProps {
 export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDrawerProps) {
   const editing = Boolean(asset)
   const [formError, setFormError] = useState<string | null>(null)
-  const [category, setCategory] = useState<string>('')
 
   const catalog = useAssetCatalog(open)
   const rooms = useRoomLookup(undefined, open)
@@ -66,12 +81,20 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
     setFormError(null)
 
     if (asset) {
-      setCategory(asset.category ?? '')
       reset({
         name: asset.name ?? '',
         hardware_model: asset.model?.id ?? NO_MODEL_VALUE,
         hardware_model_other: '',
+        // Assets with no catalog model are filed under the `other` type too;
+        // preselecting "Other" for them would demand a description nobody
+        // gave. Only an asset that was described opens on "Other".
+        category:
+          asset.category === OTHER_CATEGORY_VALUE && !asset.category_detail
+            ? ''
+            : (asset.category ?? ''),
+        category_detail: asset.category_detail ?? '',
         supplier: asset.supplier?.name ?? '',
+        supplier_other: '',
         room: asset.room?.id ?? '',
         technician: asset.technician?.id ?? '',
         serial_number: asset.serial_number ?? '',
@@ -84,10 +107,11 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
         notes: asset.notes ?? '',
       })
     } else {
-      setCategory('')
       reset(blankForm())
     }
   }, [open, asset, reset])
+
+  const category = watch('category') ?? ''
 
   const models = useMemo(() => {
     const all = catalog.data?.models ?? []
@@ -95,6 +119,15 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
   }, [catalog.data, category])
 
   const isOtherModel = watch('hardware_model') === OTHER_MODEL_VALUE
+  const isOtherCategory = category === OTHER_CATEGORY_VALUE
+  const isOtherSupplier = watch('supplier') === OTHER_SUPPLIER_VALUE
+
+  // An older asset's condition that the form no longer offers stays selectable.
+  const conditions = useMemo(() => {
+    const offered = catalog.data?.form_conditions ?? []
+    if (!asset || offered.some((option) => option.value === asset.condition)) return offered
+    return [...offered, { value: asset.condition, label: asset.condition_label }]
+  }, [catalog.data, asset])
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
@@ -107,7 +140,13 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
         values.hardware_model === OTHER_MODEL_VALUE
           ? emptyToNull(values.hardware_model_other)
           : null,
-      supplier: emptyToNull(values.supplier),
+      // Category is sent so the server knows whether to keep the description.
+      category: emptyToNull(values.category),
+      category_detail:
+        values.category === OTHER_CATEGORY_VALUE ? emptyToNull(values.category_detail) : null,
+      supplier: values.supplier === OTHER_SUPPLIER_VALUE ? null : emptyToNull(values.supplier),
+      supplier_other:
+        values.supplier === OTHER_SUPPLIER_VALUE ? emptyToNull(values.supplier_other) : null,
       serial_number: emptyToNull(values.serial_number),
       barcode: emptyToNull(values.barcode),
       condition: values.condition,
@@ -173,7 +212,7 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
         </Field>
 
         <Field label="Category" hint="Narrows the model list below.">
-          <Select value={category} onChange={(event) => setCategory(event.target.value)}>
+          <Select {...register('category')}>
             <option value="">All categories</option>
             {(catalog.data?.categories ?? []).map((option) => (
               <option key={option.value} value={option.value}>
@@ -182,6 +221,17 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
             ))}
           </Select>
         </Field>
+
+        {isOtherCategory && (
+          <Field
+            label="Describe the category"
+            error={errors.category_detail?.message}
+            hint="A few words, e.g. Smart board or Document camera."
+            required
+          >
+            <Input {...register('category_detail')} maxLength={CATEGORY_DETAIL_MAX} autoFocus />
+          </Field>
+        )}
 
         <Field label="Catalog model" error={errors.hardware_model?.message}>
           <Select {...register('hardware_model', { valueAsNumber: true })}>
@@ -216,7 +266,7 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
 
         <Field label="Condition" error={errors.condition?.message}>
           <Select {...register('condition')}>
-            {(catalog.data?.conditions ?? []).map((option) => (
+            {conditions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -228,7 +278,7 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
           <>
             <Field label="Opening status" error={errors.status?.message}>
               <Select {...register('status')}>
-                {(catalog.data?.statuses ?? []).map((option) => (
+                {(catalog.data?.form_statuses ?? []).map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -268,8 +318,20 @@ export function AssetFormDrawer({ open, onClose, asset, onSaved }: AssetFormDraw
                 {option.label}
               </option>
             ))}
+            <option value={OTHER_SUPPLIER_VALUE}>Other — type the name</option>
           </Select>
         </Field>
+
+        {isOtherSupplier && (
+          <Field
+            label="Supplier name"
+            error={errors.supplier_other?.message}
+            hint="It is added to the supplier list for next time."
+            required
+          >
+            <Input {...register('supplier_other')} maxLength={255} autoFocus />
+          </Field>
+        )}
 
         <Field label="Purchase price" error={errors.purchase_price?.message}>
           <Input
@@ -303,12 +365,15 @@ function blankForm(): AssetForm {
     name: '',
     hardware_model: NO_MODEL_VALUE,
     hardware_model_other: '',
+    category: '',
+    category_detail: '',
     supplier: '',
+    supplier_other: '',
     room: '',
     technician: '',
     serial_number: '',
     barcode: '',
-    status: 'new',
+    status: 'in_stock',
     condition: 'working',
     purchase_price: null,
     purchase_date: '',

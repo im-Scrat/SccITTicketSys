@@ -37,6 +37,16 @@ export const pcStatusValues = PC_STATUS_VALUES
 export const NO_MODEL_VALUE = 0
 export const OTHER_MODEL_VALUE = -1
 
+/**
+ * "Other" in the Category and Supplier selects (owner request 2026-10-20,
+ * DD-114). Category's is the real `other` component type; Supplier's is a
+ * sentinel no supplier name can collide with, since names come from the server.
+ */
+export const OTHER_CATEGORY_VALUE = 'other'
+export const OTHER_SUPPLIER_VALUE = '__other__'
+export const CATEGORY_DETAIL_MIN = 3
+export const CATEGORY_DETAIL_MAX = 120
+
 /*
  * Every field is optional (owner request, 2026-10-19). There is no asset tag:
  * the server generates one internally and it is not shown anywhere. With no
@@ -48,7 +58,10 @@ export const assetSchema = z
     name: optionalText(255),
     hardware_model: z.number().int().min(OTHER_MODEL_VALUE).catch(NO_MODEL_VALUE),
     hardware_model_other: optionalText(255),
+    category: optionalText(64),
+    category_detail: optionalText(CATEGORY_DETAIL_MAX),
     supplier: optionalText(255),
+    supplier_other: optionalText(255),
     room: optionalText(64),
     technician: optionalText(64),
     serial_number: optionalText(255),
@@ -73,6 +86,18 @@ export const assetSchema = z
       !value.warranty_expiration ||
       Date.parse(value.warranty_expiration) >= Date.parse(value.purchase_date),
     { message: 'Warranty cannot expire before the purchase date.', path: ['warranty_expiration'] },
+  )
+  // "Other" asks for words; the server refuses it without them (DD-114).
+  .refine(
+    (value) =>
+      value.category !== OTHER_CATEGORY_VALUE ||
+      (value.category_detail ?? '').trim().length >= CATEGORY_DETAIL_MIN,
+    { message: 'Describe the category in a few words.', path: ['category_detail'] },
+  )
+  .refine(
+    (value) =>
+      value.supplier !== OTHER_SUPPLIER_VALUE || (value.supplier_other ?? '').trim().length > 0,
+    { message: 'Type the supplier’s name.', path: ['supplier_other'] },
   )
 export type AssetForm = z.infer<typeof assetSchema>
 

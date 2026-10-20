@@ -1,4 +1,5 @@
 import type { Fixture, RoomPlan, SaveLayoutRequest } from '../types'
+import { assetUuidOf, equipmentDraftId, isEquipmentId } from './equipment'
 import { round2 } from './geometry'
 
 /**
@@ -11,7 +12,8 @@ import { round2 } from './geometry'
  * a draft "dirty" or conflict with it.
  *
  * Objects are keyed by stable ids (PC uuid, fixture uuid), which is what makes
- * the per-object three-way merge below possible.
+ * the per-object three-way merge below possible. Confirmed equipment (DD-115)
+ * shares the `workstations` map under `eq:<asset uuid>` — see `./equipment`.
  */
 
 export interface WorkstationGeom {
@@ -42,24 +44,32 @@ export function docFromPlan(plan: RoomPlan): LayoutDoc | null {
       height: plan.layout.height,
       grid_size: plan.layout.grid_size,
     },
-    workstations: Object.fromEntries(
-      plan.pcs.map((pc) => [pc.id, { x: pc.x, y: pc.y, rotation: Math.round(pc.rotation) }]),
-    ),
+    workstations: Object.fromEntries([
+      ...plan.pcs.map((pc) => [pc.id, { x: pc.x, y: pc.y, rotation: Math.round(pc.rotation) }]),
+      ...(plan.equipment ?? []).map((item) => [
+        equipmentDraftId(item.id),
+        { x: item.x, y: item.y, rotation: Math.round(item.rotation) },
+      ]),
+    ]),
     fixtures: Object.fromEntries(plan.fixtures.map((f) => [f.id, { ...f }])),
   }
 }
 
 /** The document as the save endpoint takes it. */
 export function toSaveRequest(doc: LayoutDoc, revision: number): SaveLayoutRequest {
+  const entries = Object.entries(doc.workstations)
+  const place = (w: WorkstationGeom) => ({ x: round2(w.x), y: round2(w.y), rotation: w.rotation })
+
   return {
     expected_revision: revision,
     settings: { ...doc.settings },
-    workstations: Object.entries(doc.workstations).map(([id, w]) => ({
-      pc_unit: id,
-      x: round2(w.x),
-      y: round2(w.y),
-      rotation: w.rotation,
-    })),
+    workstations: entries
+      .filter(([id]) => !isEquipmentId(id))
+      .map(([id, w]) => ({ pc_unit: id, ...place(w) })),
+    // Always sent, so taking an item off the plan is saved too.
+    equipment: entries
+      .filter(([id]) => isEquipmentId(id))
+      .map(([id, w]) => ({ asset: assetUuidOf(id), ...place(w) })),
     fixtures: Object.values(doc.fixtures).map((f) => ({
       ...f,
       x: round2(f.x),

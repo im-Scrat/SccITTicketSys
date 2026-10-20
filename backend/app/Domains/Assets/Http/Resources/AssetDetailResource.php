@@ -53,7 +53,11 @@ class AssetDetailResource extends JsonResource
             'condition_label' => $this->condition->label(),
 
             'category' => $component?->component_type?->value,
-            'category_label' => $component?->component_type?->label(),
+            // "Other — Smart board" when the form described an "Other" category (DD-114).
+            'category_label' => $this->category_detail !== null
+                ? 'Other — '.$this->category_detail
+                : $component?->component_type?->label(),
+            'category_detail' => $this->category_detail,
             'category_group' => $component?->component_type?->group(),
             'manufacturer' => $component?->manufacturer?->name,
             'component' => $component?->name,

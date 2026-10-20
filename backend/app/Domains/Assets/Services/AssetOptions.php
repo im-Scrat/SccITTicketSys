@@ -65,6 +65,10 @@ class AssetOptions
         return [
             'statuses' => $this->statusOptions(),
             'conditions' => $this->conditionOptions(),
+            // The add-asset form's narrower choices (DD-114); filters and the
+            // status dialog keep the full lists above.
+            'form_statuses' => $this->formStatusOptions(),
+            'form_conditions' => $this->formConditionOptions(),
             'categories' => $this->categoryOptions(),
             'manufacturers' => $this->manufacturers(),
             'suppliers' => $this->suppliers(),
@@ -88,6 +92,28 @@ class AssetOptions
             'tone' => $status->tone(),
             'terminal' => $status->isTerminal(),
         ], AssetStatus::cases());
+    }
+
+    /**
+     * @return list<array{value: string, label: string, tone: string, terminal: bool}>
+     */
+    public function formStatusOptions(): array
+    {
+        return array_values(array_filter(
+            $this->statusOptions(),
+            static fn (array $option): bool => in_array($option['value'], AssetStatus::formValues(), true),
+        ));
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    public function formConditionOptions(): array
+    {
+        return array_values(array_filter(
+            $this->conditionOptions(),
+            static fn (array $option): bool => in_array($option['value'], PcCondition::assetFormValues(), true),
+        ));
     }
 
     /**

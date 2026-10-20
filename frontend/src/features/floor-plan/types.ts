@@ -44,6 +44,33 @@ export interface UnplacedPc {
   status: PcStatus
 }
 
+/**
+ * Equipment a custodian confirmed is in this room (owner request 2026-10-20,
+ * SDD DD-115): printers, projectors, UPS… — assets that are not PCs. The
+ * status is the asset's lifecycle status, label and tone from the server.
+ */
+export interface EquipmentStatus {
+  value: string
+  label: string
+  tone: 'neutral' | 'success' | 'warning' | 'danger'
+}
+
+export interface UnplacedEquipment {
+  id: string
+  name: string
+  /** "Printer", or the words typed for an "Other" category. */
+  category: string | null
+  status: EquipmentStatus
+}
+
+export interface PlacedEquipment extends UnplacedEquipment {
+  x: number
+  y: number
+  /** Quarter turns only, as for a workstation. */
+  rotation: number
+  z_index: number
+}
+
 export const FIXTURE_KINDS = [
   'zone',
   'desk',
@@ -105,6 +132,10 @@ export interface RoomPlan {
   pcs: PlacedPc[]
   unplaced: UnplacedPc[]
   unplaced_count: number
+  /** Confirmed equipment placed on this layout (DD-115). */
+  equipment?: PlacedEquipment[]
+  /** Confirmed equipment in the room with no place yet. */
+  unplaced_equipment?: UnplacedEquipment[]
   editor: PlanEditor
 }
 
@@ -130,6 +161,8 @@ export interface SaveLayoutRequest {
   settings: { width: number; height: number; grid_size: number }
   workstations: { pc_unit: string; x: number; y: number; rotation: number }[]
   fixtures: Fixture[]
+  /** Confirmed equipment's places (DD-115); omitted, the server keeps them. */
+  equipment?: { asset: string; x: number; y: number; rotation: number }[]
 }
 
 /** 409 `layout_stale`: someone saved since the editor loaded — here is the current plan. */

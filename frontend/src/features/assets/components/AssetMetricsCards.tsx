@@ -58,12 +58,50 @@ export function MetricCard({ label, value, hint, tone = 'neutral', onClick }: Me
 }
 
 /**
+ * A panel heading with the panel's own "View list" link (owner request
+ * 2026-10-20: every panel opens the page its figures come from). The link
+ * names its panel for screen readers, since every panel says "View list".
+ */
+export function PanelHeading({
+  title,
+  onViewAll,
+  as: Heading = 'h3',
+  id,
+}: {
+  title: string
+  onViewAll?: () => void
+  as?: 'h2' | 'h3'
+  id?: string
+}) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-3">
+      <Heading
+        id={id}
+        className={cn('font-bold text-ink-strong', Heading === 'h2' ? 'text-lg' : 'text-base')}
+      >
+        {title}
+      </Heading>
+      {onViewAll && (
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="rounded-sm text-sm font-semibold text-primary-strong underline-offset-4 hover:underline"
+        >
+          View list<span className="sr-only">: {title}</span>
+        </button>
+      )}
+    </div>
+  )
+}
+
+/**
  * A labelled proportional distribution whose markup *is* the data table
  * (SDD DD-30): the accessible reading and the visual reading are the same
  * object, in a single hue, with no charting dependency.
  *
  * Rows carrying a `key` are navigable — clicking "Science Hall · 42" opens the
- * directory filtered to that building.
+ * directory filtered to that building. The keyless "Unassigned" row is
+ * navigable too when the caller can filter on "no location" (`onSelectUnkeyed`).
  */
 export function DistributionCard({
   title,
@@ -71,19 +109,23 @@ export function DistributionCard({
   unit,
   empty,
   onSelect,
+  onSelectUnkeyed,
+  onViewAll,
 }: {
   title: string
   rows: DistributionRow[]
   unit: string
   empty: string
   onSelect?: (row: DistributionRow) => void
+  onSelectUnkeyed?: () => void
+  onViewAll?: () => void
 }) {
   const total = rows.reduce((sum, row) => sum + row.count, 0)
   const max = rows.reduce((peak, row) => Math.max(peak, row.count), 0)
 
   return (
     <section className="rounded-lg border-2 border-border bg-surface p-6">
-      <h3 className="text-base font-bold text-ink-strong">{title}</h3>
+      <PanelHeading title={title} onViewAll={onViewAll} />
 
       {rows.length === 0 ? (
         <p className="mt-4 text-sm text-muted">{empty}</p>
@@ -106,16 +148,18 @@ export function DistributionCard({
                 </>
               )
 
+              const select = row.key ? onSelect && (() => onSelect(row)) : onSelectUnkeyed
+
               return (
                 <tr key={row.key ?? row.label}>
                   <th
                     scope="row"
                     className="relative w-full py-2 pr-4 text-left text-sm font-medium text-ink"
                   >
-                    {onSelect && row.key ? (
+                    {select ? (
                       <button
                         type="button"
-                        onClick={() => onSelect(row)}
+                        onClick={select}
                         className="relative w-full rounded-sm py-1 text-left underline-offset-4 hover:underline"
                       >
                         {cell}

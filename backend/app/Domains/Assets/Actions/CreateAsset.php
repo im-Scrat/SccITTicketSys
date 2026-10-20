@@ -54,11 +54,13 @@ class CreateAsset
      */
     public function handle(array $data, User $actor, Request $request, array $auditContext = []): Asset
     {
+        // The form sends Available by default (DD-114); an import row with no
+        // status still opens as New, as it always has.
         $status = AssetStatus::from((string) ($data['status'] ?? AssetStatus::New->value));
         $condition = PcCondition::from((string) ($data['condition'] ?? PcCondition::Working->value));
 
         $model = $this->resolveFormHardwareModel($data['hardware_model'] ?? null, $data['hardware_model_other'] ?? null);
-        $supplier = $this->resolveSupplier($data['supplier'] ?? null);
+        $supplier = $this->resolveFormSupplier($data['supplier'] ?? null, $data['supplier_other'] ?? null);
         $room = $this->resolveRoom($data['room'] ?? null);
         $technician = $this->resolveTechnician($data['technician'] ?? null);
 
@@ -81,6 +83,7 @@ class CreateAsset
                 'purchase_date' => $data['purchase_date'] ?? null,
                 'warranty_expiration' => $data['warranty_expiration'] ?? null,
                 'notes' => $data['notes'] ?? null,
+                'category_detail' => $this->categoryDetailFrom($data),
                 'created_by' => $actor->getKey(),
                 'updated_by' => $actor->getKey(),
             ]);
@@ -113,6 +116,8 @@ class CreateAsset
                 'status' => $status->value,
                 'status_label' => $status->label(),
                 'room' => $asset->currentRoom?->name,
+                ...($asset->category_detail !== null ? ['category_detail' => $asset->category_detail] : []),
+                ...($supplier?->wasRecentlyCreated ? ['supplier_created' => $supplier->name] : []),
                 ...($auditContext !== [] ? ['import' => $auditContext] : []),
             ],
             request: $request,

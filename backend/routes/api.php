@@ -468,6 +468,9 @@ Route::middleware('auth:sanctum')->group(function () {
             ->group(function () {
                 Route::get('/assets', [AssetController::class, 'mine']);
                 Route::get('/assets/{asset}', [AssetController::class, 'mineShow']);
+                // DD-115 — the custodian confirms assets are in their rooms.
+                Route::post('/assets/confirm-placement', [AssetController::class, 'confirmAllPlacements']);
+                Route::post('/assets/{asset}/confirm-placement', [AssetController::class, 'confirmPlacement']);
             });
 
         /*

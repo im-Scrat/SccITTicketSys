@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domains\Assets\Http\Requests;
 
+use App\Domains\Assets\Rules\AssetCreationRules;
 use App\Enums\PcCondition;
 use App\Models\Asset;
 use Illuminate\Foundation\Http\FormRequest;
@@ -38,6 +39,18 @@ class UpdateAssetRequest extends FormRequest
         $asset = $this->route('asset');
         $id = $asset instanceof Asset ? $asset->getKey() : null;
 
+        // The form offers Working / For repair (DD-114); an asset recorded
+        // earlier as faulty or decommissioned may be re-saved unchanged.
+        $conditions = PcCondition::assetFormValues();
+        if ($asset instanceof Asset) {
+            $conditions[] = $asset->condition->value;
+        }
+
+        $other = array_map(
+            static fn (array $rules): array => ['sometimes', ...$rules],
+            AssetCreationRules::otherRules(),
+        );
+
         return [
             'asset_tag' => ['sometimes', 'required', 'string', 'max:255', Rule::unique('assets', 'asset_tag')->ignore($id)],
             'name' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -50,13 +63,14 @@ class UpdateAssetRequest extends FormRequest
             'serial_number' => ['sometimes', 'nullable', 'string', 'max:255', Rule::unique('assets', 'serial_number')->ignore($id)],
             'barcode' => ['sometimes', 'nullable', 'string', 'max:255'],
 
-            'condition' => ['sometimes', 'required', 'string', Rule::in(PcCondition::values())],
+            'condition' => ['sometimes', 'required', 'string', Rule::in(array_values(array_unique($conditions)))],
 
             'purchase_price' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'purchase_date' => ['sometimes', 'nullable', 'date'],
             'warranty_expiration' => ['sometimes', 'nullable', 'date'],
 
             'notes' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            ...$other,
         ];
     }
 
@@ -119,6 +133,7 @@ class UpdateAssetRequest extends FormRequest
             'asset_tag.unique' => 'That asset tag is already in use.',
             'serial_number.unique' => 'That serial number is already recorded against another asset.',
             'hardware_model_other.prohibits' => 'Choose a catalog model or describe another one, not both.',
+            ...AssetCreationRules::otherMessages(),
         ];
     }
 

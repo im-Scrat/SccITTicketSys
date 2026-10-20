@@ -51,6 +51,53 @@ trait ResolvesAssetReferences
             : null;
     }
 
+    /**
+     * The supplier for an asset form's answer (owner request 2026-10-20, SDD
+     * DD-114): a chosen one by name, or one typed into "Other" — matched
+     * case-insensitively against the existing list (archived rows revived,
+     * since the unique index still counts them) and otherwise filed as a new
+     * active supplier, so the next asset can simply choose it. The import never
+     * comes through here: it does not create suppliers.
+     */
+    protected function resolveFormSupplier(mixed $name, mixed $other): ?Supplier
+    {
+        if (! $this->present($other)) {
+            return $this->resolveSupplier($name);
+        }
+
+        $typed = trim((string) $other);
+
+        $existing = Supplier::withTrashed()
+            ->whereRaw('lower(name) = ?', [mb_strtolower($typed)])
+            ->first();
+
+        if ($existing !== null) {
+            if ($existing->trashed()) {
+                $existing->restore();
+            }
+
+            return $existing;
+        }
+
+        return Supplier::create(['name' => $typed, 'is_active' => true]);
+    }
+
+    /**
+     * The "Other" category's description: kept only when the category is
+     * "Other", trimmed so a whitespace-only value never reaches the
+     * `assets_category_detail_check` constraint.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected function categoryDetailFrom(array $data): ?string
+    {
+        if (($data['category'] ?? null) !== ComponentType::Other->value || ! $this->present($data['category_detail'] ?? null)) {
+            return null;
+        }
+
+        return trim((string) $data['category_detail']);
+    }
+
     protected function resolveHardwareModel(mixed $id): ?HardwareModel
     {
         return $this->present($id)

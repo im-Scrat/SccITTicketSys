@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Domains\KnowledgeBase\Services;
 
 use App\Domains\KnowledgeBase\Exceptions\AiProviderException;
+use ArrayObject;
 use Closure;
 use Illuminate\Contracts\Redis\LimiterTimeoutException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Redis;
+use RedisException;
 
 /**
  * Phase 2.9 — the one gate every Gemini chat call passes through, so that many
@@ -34,12 +37,21 @@ use Illuminate\Support\Facades\Redis;
  *
  * Setting both ceilings to 0 disables the governor (the test suite does, and
  * turns it on per test where the behaviour is under test).
+ *
+ * A host with no Redis at all (the Render pilot runs cache and queue in
+ * Postgres) must still answer: when the funnel cannot even connect, the call
+ * runs under the per-minute ceiling alone instead of failing every request
+ * with a 500. The intended configuration there is `AI_GEMINI_CONCURRENCY=0`;
+ * this fallback covers a service whose environment was typed in by hand and
+ * missed it.
  */
 class GeminiGovernor
 {
     private const CONCURRENCY_KEY = 'ai:gemini:concurrency';
 
     private const RATE_KEY = 'ai:gemini:rpm';
+
+    private static bool $warnedFunnelUnavailable = false;
 
     /**
      * @template T
@@ -64,6 +76,12 @@ class GeminiGovernor
             return $guarded();
         }
 
+        // Set once the guarded call has begun, so a Redis error raised from
+        // *inside* the call is never mistaken for an unreachable funnel and
+        // the call is never made twice. An object, not a by-reference bool, so
+        // the write inside the callback is visible to static analysis too.
+        $attempt = new ArrayObject(['started' => false]);
+
         try {
             return Redis::funnel(self::CONCURRENCY_KEY)
                 ->limit($concurrency)
@@ -71,10 +89,36 @@ class GeminiGovernor
                 // slot expires a little after the longest call could last.
                 ->releaseAfter($this->slotLifetimeSeconds())
                 ->block($this->waitSeconds())
-                ->then($guarded);
+                ->then(function () use ($guarded, $attempt): mixed {
+                    $attempt['started'] = true;
+
+                    return $guarded();
+                });
         } catch (LimiterTimeoutException) {
             throw AiProviderException::busy();
+        } catch (RedisException $e) {
+            if ($attempt['started'] === true) {
+                throw $e;
+            }
+
+            $this->warnFunnelUnavailable($e);
+
+            return $guarded();
         }
+    }
+
+    private function warnFunnelUnavailable(RedisException $e): void
+    {
+        // Once per process: every AI call would otherwise repeat the same line.
+        if (self::$warnedFunnelUnavailable) {
+            return;
+        }
+
+        self::$warnedFunnelUnavailable = true;
+
+        Log::warning('Gemini concurrency funnel unavailable (Redis unreachable); running under the per-minute limit only. Set AI_GEMINI_CONCURRENCY=0 on hosts without Redis.', [
+            'error' => $e->getMessage(),
+        ]);
     }
 
     /**

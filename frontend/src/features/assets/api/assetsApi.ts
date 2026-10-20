@@ -362,3 +362,24 @@ export async function fetchMyAsset(id: string): Promise<Detail<AssetListItem>> {
   const { data } = await api.get<Detail<AssetListItem>>(`/my/assets/${id}`)
   return data
 }
+
+/**
+ * The custodian confirms an asset is in its room (owner request 2026-10-20,
+ * SDD DD-115); it then appears on that room's Floorplan. Someone else's asset
+ * answers 404, one with no room 422; confirming twice changes nothing.
+ */
+export async function confirmMyAssetPlacement(id: string): Promise<Detail<AssetListItem>> {
+  const { data } = await api.post<Detail<AssetListItem>>(`/my/assets/${id}/confirm-placement`)
+  return data
+}
+
+export interface ConfirmAllResult {
+  message: string
+  meta: { confirmed: number; without_room: number }
+}
+
+/** "Confirm all": every asset in the caller's custody that has a room. */
+export async function confirmAllMyAssetPlacements(): Promise<ConfirmAllResult> {
+  const { data } = await api.post<ConfirmAllResult>('/my/assets/confirm-placement')
+  return data
+}

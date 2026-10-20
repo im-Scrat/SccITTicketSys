@@ -250,11 +250,14 @@ export function ShortcutsDialog({ open, onClose }: { open: boolean; onClose: () 
 export function AutoArrangeDialog({
   open,
   count,
+  noun = 'PC',
   onClose,
   onArrange,
 }: {
   open: boolean
   count: number
+  /** "PC", or "item" once confirmed equipment (DD-115) is waiting too. */
+  noun?: string
   onClose: () => void
   /** Returns how many fitted. */
   onArrange: (gap: number) => number
@@ -269,7 +272,7 @@ export function AutoArrangeDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Arrange ${count} unplaced PC${count === 1 ? '' : 's'}`}
+      title={`Arrange ${count} unplaced ${noun}${count === 1 ? '' : 's'}`}
       description="They are laid out in rows from the top-left, skipping every spot already taken. You can move any of them afterwards, or undo."
       footer={
         <div className="flex justify-end gap-3">

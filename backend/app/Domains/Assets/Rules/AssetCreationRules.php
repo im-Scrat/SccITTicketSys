@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Assets\Rules;
 
 use App\Enums\AssetStatus;
+use App\Enums\ComponentType;
 use App\Enums\PcCondition;
 use Illuminate\Validation\Rule;
 
@@ -60,6 +61,62 @@ final class AssetCreationRules
             'warranty_expiration' => ['nullable', 'date', 'after_or_equal:purchase_date'],
 
             'notes' => ['nullable', 'string', 'max:5000'],
+        ];
+    }
+
+    /**
+     * The add-asset **form's** rules: the shared rules above, narrowed and
+     * extended for the form only (owner request 2026-10-20, SDD DD-114). The
+     * import keeps {@see rules()} — a register may legitimately describe any
+     * lifecycle state or condition, and never creates suppliers.
+     *
+     *  - status: Available / Under maintenance / Out of service only;
+     *  - condition: Working / For repair only;
+     *  - category "Other" carries a short description (`category_detail`),
+     *    required with it and refused without it;
+     *  - supplier "Other" carries a typed name (`supplier_other`), which the
+     *    write path reuses or files as a new supplier.
+     *
+     * @return array<string, mixed>
+     */
+    public static function formRules(): array
+    {
+        return [
+            ...self::rules(),
+            'status' => ['nullable', 'string', Rule::in(AssetStatus::formValues())],
+            'condition' => ['nullable', 'string', Rule::in(PcCondition::assetFormValues())],
+            ...self::otherRules(),
+        ];
+    }
+
+    /**
+     * "Other" category and supplier fields, shared by create and edit.
+     *
+     * @return array<string, mixed>
+     */
+    public static function otherRules(): array
+    {
+        return [
+            'category' => ['nullable', 'string', Rule::in(ComponentType::values())],
+            'category_detail' => [
+                'nullable', 'string', 'min:3', 'max:120',
+                'required_if:category,'.ComponentType::Other->value,
+                'prohibited_unless:category,'.ComponentType::Other->value,
+            ],
+            'supplier_other' => ['nullable', 'string', 'max:255', 'prohibits:supplier'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function otherMessages(): array
+    {
+        return [
+            'category_detail.required_if' => 'Describe the category in a few words.',
+            'category_detail.prohibited_unless' => 'A category description is only kept for "Other".',
+            'category_detail.min' => 'Use at least 3 characters to describe the category.',
+            'supplier_other.prohibits' => 'Choose a supplier or type another one, not both.',
         ];
     }
 

@@ -110,9 +110,12 @@ export interface AssetListItem {
   condition_label: string
   category: string | null
   category_label: string | null
+  category_detail?: string | null
   manufacturer: string | null
   model: string | null
   supplier?: string | null
+  /** When the custodian confirmed it is in its room (DD-115); null until then. */
+  placement_confirmed_at?: string | null
   room: RoomRef | null
   building: BuildingRef | null
   technician: TechnicianRef | null
@@ -215,6 +218,8 @@ export interface AssetDetail {
   condition_label: string
   category: string | null
   category_label: string | null
+  /** The words an administrator typed for an "Other" category (DD-114). */
+  category_detail: string | null
   category_group: string | null
   manufacturer: string | null
   component: string | null
@@ -376,6 +381,9 @@ export interface TechnicianOption extends OptionItem {
 export interface AssetCatalog {
   statuses: StatusOption[]
   conditions: OptionItem[]
+  /** The add-asset form's narrower choices (DD-114); filters keep the full lists. */
+  form_statuses: StatusOption[]
+  form_conditions: OptionItem[]
   categories: CategoryOption[]
   manufacturers: OptionItem[]
   suppliers: OptionItem[]
@@ -491,6 +499,8 @@ export interface AssetParams {
   trashed?: TrashedFilter
   /** Only the records one import created (Phase 2.10 R7). */
   import?: string
+  /** Only assets with no room — "Not placed in a room" (DD-114). */
+  unassigned?: 1
   sort?: AssetSortColumn
   direction?: 'asc' | 'desc'
   per_page?: number

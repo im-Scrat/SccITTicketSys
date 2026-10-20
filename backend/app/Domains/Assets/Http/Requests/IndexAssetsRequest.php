@@ -48,6 +48,9 @@ class IndexAssetsRequest extends FormRequest
             'building' => ['nullable', 'string', 'uuid'],
             'floor' => ['nullable', 'string', 'uuid'],
             'room' => ['nullable', 'string', 'uuid'],
+            // Only assets with no room — the dashboard's "Not placed in a room"
+            // count and the "Unassigned" building row open this (DD-114).
+            'unassigned' => ['nullable', 'boolean'],
             // Phase 2.10 R7 — only the records one import created (post-import review).
             'import' => ['nullable', 'string', 'uuid'],
             'warranty_expiring' => ['nullable', 'integer', 'min:1', 'max:3650'],
