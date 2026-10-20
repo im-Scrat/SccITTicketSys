@@ -252,6 +252,17 @@ describe('TechnicianDashboard — wording and content', () => {
     expect(screen.getByText(/Each assigned ticket shows the PC/)).toBeInTheDocument()
   })
 
+  it('offers a camera "Scan label" button, and no way to type a code or pick a machine', () => {
+    renderPage()
+
+    const guide = screen.getByRole('region', { name: 'At the machine' })
+    expect(within(guide).getByRole('button', { name: 'Scan label' })).toBeInTheDocument()
+    // D-C's purpose stands (DD-117): the label is the only way in.
+    expect(within(guide).queryByRole('textbox')).not.toBeInTheDocument()
+    expect(within(guide).queryByRole('combobox')).not.toBeInTheDocument()
+    expect(guide.querySelector('input[type="file"]')).toBeNull()
+  })
+
   it('lays the panels out in two equal columns, the QR guide headed like the rest', () => {
     const { container } = renderPage()
 
