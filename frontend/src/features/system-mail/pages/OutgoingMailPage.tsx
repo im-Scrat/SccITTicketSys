@@ -175,7 +175,11 @@ function RelayStatus({ config }: { config: MailConfiguration }) {
         <div>
           <dt className="text-muted">Reports to outside addresses</dt>
           <dd className="mt-0.5 text-ink-strong">
-            {config.reports_deliver_externally ? 'Delivered' : 'Not delivered (test sink)'}
+            {/* A configuration switch, not a delivery result: "Delivered" here
+                read as proof of arrival while outside inboxes were binning the mail. */}
+            {config.reports_deliver_externally
+              ? 'Handed to the relay (see “What sent means”)'
+              : 'Kept in a test sink'}
           </dd>
         </div>
         <div>
@@ -197,6 +201,11 @@ function DeliveryNote() {
         The system records a message as sent when the relay accepts it. Whether it then reached the
         inbox, bounced, or was filed as spam is decided by the recipient’s mail server and is shown
         only in the provider’s activity log.
+      </p>
+      <p className="mt-2">
+        If a test email to yourself arrives but mail to outside addresses does not, the sender is
+        usually not authenticated for its domain: verify a sender domain you control with the relay
+        (SPF and DKIM), and send from an address on it rather than a personal mailbox.
       </p>
     </section>
   )

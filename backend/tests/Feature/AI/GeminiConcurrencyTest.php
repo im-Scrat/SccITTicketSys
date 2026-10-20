@@ -285,6 +285,48 @@ it('caps how many calls are in flight at once across processes', function () {
     expect($governor->run(fn () => 'ok'))->toBe('ok');
 });
 
+it('still answers, under the per-minute limit, when Redis cannot be reached', function () {
+    // The Render pilot has no Redis. A hand-typed environment that misses
+    // AI_GEMINI_CONCURRENCY=0 used to turn every assistant message into a 500.
+    config([
+        'ai.sccit.gemini_rpm' => 1,
+        'ai.sccit.gemini_concurrency' => 3,
+        'database.redis.default.host' => '127.0.0.1',
+        'database.redis.default.port' => 1,
+    ]);
+    app('redis')->purge('default');
+    $governor = app(GeminiGovernor::class);
+
+    try {
+        expect($governor->run(fn () => 'answered'))->toBe('answered');
+
+        // The per-minute ceiling still holds without the funnel.
+        expect(fn () => $governor->run(fn () => 'again'))
+            ->toThrow(AiProviderException::class, 'busy');
+    } finally {
+        app('redis')->purge('default');
+    }
+});
+
+it('never runs the call twice when Redis fails inside it', function () {
+    config(['ai.sccit.gemini_rpm' => 0, 'ai.sccit.gemini_concurrency' => 1]);
+    $calls = 0;
+
+    try {
+        app(GeminiGovernor::class)->run(function () use (&$calls) {
+            $calls++;
+
+            throw new RedisException('lost mid-call');
+        });
+        $thrown = null;
+    } catch (RedisException $e) {
+        $thrown = $e->getMessage();
+    }
+
+    expect($thrown)->toBe('lost mid-call')
+        ->and($calls)->toBe(1);
+});
+
 it('is a no-op when both ceilings are disabled', function () {
     config(['ai.sccit.gemini_rpm' => 0, 'ai.sccit.gemini_concurrency' => 0]);
 
