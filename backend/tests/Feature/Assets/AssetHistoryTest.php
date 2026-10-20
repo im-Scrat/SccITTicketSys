@@ -63,7 +63,7 @@ it('keeps the opening status entry so the story starts at creation', function ()
     $this->actingAs($this->admin)->postJson('/api/admin/assets', [
         'asset_tag' => 'HIST-1',
         'hardware_model' => $model->id,
-        'status' => 'new',
+        'status' => 'in_stock',
     ])->assertCreated();
 
     $asset = Asset::query()->where('asset_tag', 'HIST-1')->firstOrFail();
@@ -73,7 +73,7 @@ it('keeps the opening status entry so the story starts at creation', function ()
 
     $opening = collect($entries)->firstWhere('type', 'status');
 
-    expect($opening['label'])->toBe('Opened as New')
+    expect($opening['label'])->toBe('Opened as Available')
         ->and($opening['properties']['from'])->toBeNull();
 });
 

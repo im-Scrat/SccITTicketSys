@@ -37,8 +37,10 @@ enum AssetStatus: string
     /**
      * The client-facing vocabulary. This overrides the `HasValues` default
      * (which would derive "In Stock" from the backing value) so the operational
-     * language the Client uses — Available, Assigned, In Service, Maintenance —
-     * is the one the product speaks, without renaming a baselined column value.
+     * language the Client uses — Available, Assigned, In Service, Under
+     * maintenance — is the one the product speaks, without renaming a baselined
+     * column value. "Under maintenance" (was "Maintenance") matches the add-asset
+     * form and the dashboard tile wording (owner request 2026-10-20, DD-114).
      */
     public function label(): string
     {
@@ -47,12 +49,26 @@ enum AssetStatus: string
             self::InStock => 'Available',
             self::Reserved => 'Assigned',
             self::Deployed => 'In Service',
-            self::InRepair => 'Maintenance',
-            self::OutOfService => 'Out of Service',
+            self::InRepair => 'Under maintenance',
+            self::OutOfService => 'Out of service',
             self::InTransit => 'In Transit',
             self::Retired => 'Retired',
             self::Disposed => 'Disposed',
         };
+    }
+
+    /**
+     * The opening statuses the add-asset form offers (owner request 2026-10-20,
+     * SDD DD-114): Available, Under maintenance, Out of service. A new asset is
+     * either ready, being worked on, or unusable; the rest of the lifecycle is
+     * reached through transitions, each of which writes history. The import
+     * keeps the full vocabulary — a register may describe any state.
+     *
+     * @return list<string>
+     */
+    public static function formValues(): array
+    {
+        return [self::InStock->value, self::InRepair->value, self::OutOfService->value];
     }
 
     /**

@@ -29,7 +29,7 @@ it('creates an asset and opens its status history at creation', function () {
         'supplier' => $supplier->name,
         'room' => $room->uuid,
         'serial_number' => 'SN-CREATE-1',
-        'status' => 'new',
+        'status' => 'in_stock',
         'condition' => 'working',
         'purchase_price' => 450.00,
         'purchase_date' => '2026-01-15',
@@ -40,8 +40,8 @@ it('creates an asset and opens its status history at creation', function () {
     // `asset_tag` is normalized to upper case before validation.
     $response->assertJsonPath('data.asset_tag', 'LAB-PRINT-01')
         ->assertJsonPath('data.name', 'Lab 3 Front Printer')
-        ->assertJsonPath('data.status', 'new')
-        ->assertJsonPath('data.status_label', 'New')
+        ->assertJsonPath('data.status', 'in_stock')
+        ->assertJsonPath('data.status_label', 'Available')
         ->assertJsonPath('data.room.id', $room->uuid);
 
     $asset = Asset::query()->where('asset_tag', 'LAB-PRINT-01')->firstOrFail();
@@ -49,7 +49,7 @@ it('creates an asset and opens its status history at creation', function () {
     // History starts at creation, not at the first edit (FR-AST-005).
     $opening = AssetStatusHistory::query()->where('asset_id', $asset->id)->firstOrFail();
     expect($opening->from_status)->toBeNull()
-        ->and($opening->to_status->value)->toBe('new');
+        ->and($opening->to_status->value)->toBe('in_stock');
 
     expect(ActivityLog::query()
         ->where('subject_id', $asset->id)

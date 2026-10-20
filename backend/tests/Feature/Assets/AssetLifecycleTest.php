@@ -31,8 +31,8 @@ it('speaks the client vocabulary through status labels', function () {
     expect(AssetStatus::InStock->label())->toBe('Available')
         ->and(AssetStatus::Reserved->label())->toBe('Assigned')
         ->and(AssetStatus::Deployed->label())->toBe('In Service')
-        ->and(AssetStatus::InRepair->label())->toBe('Maintenance')
-        ->and(AssetStatus::OutOfService->label())->toBe('Out of Service');
+        ->and(AssetStatus::InRepair->label())->toBe('Under maintenance')
+        ->and(AssetStatus::OutOfService->label())->toBe('Out of service');
 });
 
 it('records every transition in both history and audit, atomically', function () {

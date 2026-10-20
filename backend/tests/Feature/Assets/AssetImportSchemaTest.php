@@ -78,6 +78,10 @@ it('refuses a created row that names no record', function (): void {
 it('gives the create forms and the import the same rules', function (): void {
     expect((new StorePcUnitRequest)->rules())->toEqual(PcUnitCreationRules::rules())
         ->and((new StorePcUnitRequest)->messages())->toBe(PcUnitCreationRules::messages())
-        ->and((new StoreAssetRequest)->rules())->toEqual(AssetCreationRules::rules())
-        ->and((new StoreAssetRequest)->messages())->toBe(AssetCreationRules::messages());
+        // The asset form narrows status and condition and adds the "Other"
+        // fields (DD-114); every other rule is still the import's, verbatim.
+        ->and((new StoreAssetRequest)->rules())->toEqual(AssetCreationRules::formRules())
+        ->and(collect(AssetCreationRules::formRules())->except(['status', 'condition', 'category', 'category_detail', 'supplier_other'])->all())
+        ->toEqual(collect(AssetCreationRules::rules())->except(['status', 'condition'])->all())
+        ->and((new StoreAssetRequest)->messages())->toMatchArray(AssetCreationRules::messages());
 });
